@@ -136,6 +136,11 @@
     <string name="dashboard_retry">Retry</string>
     <string name="dashboard_copied_count">Copied %1$d entries from yesterday</string>
     <string name="dashboard_copy_failed">No entries to copy from yesterday</string>
+    <string name="dashboard_copy_error">Couldn\'t copy yesterday\'s entries</string>
+    <string name="dashboard_fasting_update_failed">Couldn\'t update the fasting day</string>
+    <string name="dashboard_water_update_failed">Couldn\'t update water</string>
+    <string name="dashboard_activity_update_failed">Couldn\'t update activity</string>
+    <string name="dashboard_notes_update_failed">Couldn\'t update notes</string>
 
     <!-- Pending sync queue -->
     <string name="pending_sync_title">Pending changes</string>
@@ -531,6 +536,8 @@
     <string name="daylog_copy_dialog_text">This will copy all entries from %1$s to %2$s. Existing entries will not be affected.</string>
     <string name="daylog_copied_entries">Copied %1$d entries</string>
     <string name="daylog_no_entries_to_copy">No entries to copy</string>
+    <string name="daylog_load_failed">Couldn\'t load entries</string>
+    <string name="daylog_delete_failed">Couldn\'t delete the entry</string>
     <string name="daylog_quick_add">Quick add</string>
     <string name="daylog_no_entries_for_day">No entries for this day</string>
     <string name="daylog_delete_entry">Delete entry</string>

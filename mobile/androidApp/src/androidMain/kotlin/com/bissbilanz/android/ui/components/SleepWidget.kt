@@ -12,6 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.android.R
+import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.repository.SleepRepository
 import com.bissbilanz.util.formatDecimal1
 import com.bissbilanz.util.formatNutrient
@@ -71,7 +72,7 @@ fun SleepWidget(onViewAll: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    latest.entryDate,
+                    formatIsoDate(latest.entryDate),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

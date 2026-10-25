@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.analytics.ActivityAdjustedGoals
 import com.bissbilanz.analytics.adjustGoalsForActivity
+import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.api.generated.model.DayProperties
 import com.bissbilanz.api.generated.model.Preferences
@@ -15,7 +16,10 @@ import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.util.DayPropertiesField
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -58,11 +62,15 @@ class DashboardViewModel(
                 LocalDate.parse(selectedDateString.value),
             )
 
+    /** True only until the first load finishes; later refreshes keep the content on screen. */
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+
+    private val _snackbarMessageRes = MutableStateFlow<Int?>(null)
+    val snackbarMessageRes: StateFlow<Int?> = _snackbarMessageRes.asStateFlow()
 
     /**
      * True when the last entries refresh failed. The dashboard uses it to tell a
@@ -133,7 +141,17 @@ class DashboardViewModel(
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    private var loadJob: Job? = null
+
+    /**
+     * The day the day-property flows currently hold, or null while the selected day's
+     * values are still loading. Relative edits (+250 ml) wait for it so they never add
+     * onto another day's value.
+     */
+    private var dayPropertiesDate: String? = null
+
     init {
+        rollOverToToday()
         loadData()
     }
 
@@ -144,99 +162,164 @@ class DashboardViewModel(
 
     fun nextDay() {
         val next = LocalDate.parse(selectedDateString.value).plus(1, DateTimeUnit.DAY)
-        if (next > Clock.System.todayIn(TimeZone.currentSystemDefault())) return
+        if (next > today()) return
         setSelectedDate(next)
         loadData()
     }
 
     fun goToToday() {
-        setSelectedDate(Clock.System.todayIn(TimeZone.currentSystemDefault()))
+        setSelectedDate(today())
         loadData()
     }
 
-    private fun setSelectedDate(date: LocalDate) {
-        savedStateHandle[KEY_SELECTED_DATE] = date.toString()
+    /**
+     * Called on resume and at midnight while visible: a dashboard left on "today"
+     * follows the calendar to the new today, so it never shows (and logs to) yesterday
+     * the next morning. A day the user picked deliberately stays selected.
+     */
+    fun rollOverToToday() {
+        val today = today().toString()
+        val previousToday = savedStateHandle.get<String>(KEY_TODAY) ?: today
+        savedStateHandle[KEY_TODAY] = today
+        if (previousToday != today && selectedDateString.value == previousToday) {
+            setSelectedDate(LocalDate.parse(today))
+            loadData()
+        }
     }
 
-    fun loadData(loadFailedMessage: String? = null) {
+    private fun today(): LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
+
+    private fun setSelectedDate(date: LocalDate) {
+        val dateStr = date.toString()
+        if (dateStr == selectedDateString.value) return
+        savedStateHandle[KEY_SELECTED_DATE] = dateStr
+        loadJob?.cancel()
+        dayPropertiesDate = null
+        applyDayProperties(null)
+    }
+
+    fun loadData() {
         val dateStr = selectedDateString.value
         currentDateString.value = dateStr
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                entryRepo.refresh(dateStr)
-                goalsRepo.refresh()
-                loadDayProperties(dateStr)
-                _refreshFailed.value = false
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-                _refreshFailed.value = true
-                loadFailedMessage?.let { _snackbarMessage.value = it }
-            } finally {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch { loadDay(dateStr) }
+    }
+
+    /** Pull-to-refresh: suspends until everything is refreshed, so the indicator tracks the work. */
+    suspend fun refreshAll() {
+        val dateStr = selectedDateString.value
+        currentDateString.value = dateStr
+        loadJob?.cancel()
+        val job =
+            viewModelScope.launch {
+                coroutineScope {
+                    launch {
+                        try {
+                            refreshManager.refreshAll(dateStr)
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            errorReporter.captureException(e)
+                        }
+                    }
+                    loadDay(dateStr)
+                }
+            }
+        loadJob = job
+        job.join()
+    }
+
+    private suspend fun loadDay(date: String) {
+        if (_isLoading.value && entryRepo.entriesByDateOnce(date).isNotEmpty()) {
+            // Cached entries are already on disk; show them instead of a skeleton
+            // while the network catches up (or times out offline).
+            _isLoading.value = false
+        }
+        coroutineScope {
+            // Independent of the entries refresh: the repository falls back to the
+            // cached day when the network is down.
+            launch { loadDayProperties(date) }
+            launch {
+                try {
+                    goalsRepo.refresh()
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    errorReporter.captureException(e)
+                }
+            }
+            val failed =
+                try {
+                    entryRepo.refresh(date)
+                    false
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    errorReporter.captureException(e)
+                    true
+                }
+            if (date == selectedDateString.value) {
+                _refreshFailed.value = failed
                 _isLoading.value = false
             }
         }
     }
 
-    fun refreshAll() {
-        viewModelScope.launch {
+    private suspend fun loadDayProperties(date: String) {
+        val props =
             try {
-                refreshManager.refreshAll(selectedDateString.value)
+                entryRepo.getDayProperties(date)
             } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
+                if (e is CancellationException) throw e
                 errorReporter.captureException(e)
+                null
             }
-            loadDayProperties(selectedDateString.value)
-        }
+        if (date != selectedDateString.value) return
+        applyDayProperties(props)
+        dayPropertiesDate = date
     }
 
-    private suspend fun loadDayProperties(date: String) {
-        try {
-            val props = entryRepo.getDayProperties(date)
-            _isFastingDay.value = props?.isFastingDay ?: false
-            _notes.value = props?.notes ?: ""
-            _waterMl.value = props?.waterMl
-            _activityCalories.value = props?.activityCalories
-            _activityCaloriesSource.value = props?.activityCaloriesSource
-            _activityNote.value = props?.activityNote
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            errorReporter.captureException(e)
-            _isFastingDay.value = false
-            _notes.value = ""
-            _waterMl.value = null
-            _activityCalories.value = null
-            _activityCaloriesSource.value = null
-            _activityNote.value = null
-        }
+    private fun applyDayProperties(props: DayProperties?) {
+        _isFastingDay.value = props?.isFastingDay ?: false
+        _notes.value = props?.notes ?: ""
+        _waterMl.value = props?.waterMl
+        _activityCalories.value = props?.activityCalories
+        _activityCaloriesSource.value = props?.activityCaloriesSource
+        _activityNote.value = props?.activityNote
     }
 
     fun toggleFastingDay() {
         val date = selectedDateString.value
+        if (dayPropertiesDate != date) return
         val newValue = !_isFastingDay.value
         _isFastingDay.value = newValue
         viewModelScope.launch {
             try {
                 entryRepo.setDayProperties(date, isFastingDay = newValue)
             } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
+                if (e is CancellationException) throw e
                 errorReporter.captureException(e)
-                _isFastingDay.value = !newValue
-                _snackbarMessage.value = "Failed to update fasting day"
+                if (date == selectedDateString.value) _isFastingDay.value = !newValue
+                _snackbarMessageRes.value = R.string.dashboard_fasting_update_failed
             }
         }
     }
 
     /** [deltaMl] may be negative; the result is clamped to `0..MAX_WATER_ML`. */
     fun addWater(deltaMl: Int) {
+        // Until the selected day's value has loaded there is nothing to add onto.
+        if (dayPropertiesDate != selectedDateString.value) return
         setWater(((_waterMl.value ?: 0) + deltaMl).coerceIn(0, MAX_WATER_ML))
     }
 
-    fun setWater(valueMl: Int?) {
-        val date = selectedDateString.value
+    /**
+     * [date] is the day the edit was made on. The cards pass the day they were showing,
+     * so a draft saved while switching days lands on its own day; only an edit to the
+     * selected day updates what is on screen.
+     */
+    fun setWater(
+        valueMl: Int?,
+        date: String = selectedDateString.value,
+    ) {
         val clamped = valueMl?.coerceIn(0, MAX_WATER_ML)
-        _waterMl.value = clamped
+        if (date == selectedDateString.value) _waterMl.value = clamped
         viewModelScope.launch {
             try {
                 if (clamped == null) {
@@ -245,9 +328,9 @@ class DashboardViewModel(
                     entryRepo.setDayProperties(date, waterMl = clamped)
                 }
             } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
+                if (e is CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to update water"
+                _snackbarMessageRes.value = R.string.dashboard_water_update_failed
             }
         }
     }
@@ -257,16 +340,18 @@ class DashboardViewModel(
     fun setActivity(
         calories: Int?,
         note: String?,
+        date: String = selectedDateString.value,
     ) {
-        val date = selectedDateString.value
         val clampedCalories = calories?.coerceIn(0, MAX_ACTIVITY_CALORIES)
         val trimmedNote = note?.trim()?.takeIf { it.isNotEmpty() }
-        _activityCalories.value = clampedCalories
-        // Mirrors EntryRepository's default: a manual edit that sets a value takes
-        // "manual" as its source, and clearing the value clears the source too.
-        _activityCaloriesSource.value =
-            if (clampedCalories != null) DayProperties.ActivityCaloriesSource.manual else null
-        _activityNote.value = trimmedNote
+        if (date == selectedDateString.value) {
+            _activityCalories.value = clampedCalories
+            // Mirrors EntryRepository's default: a manual edit that sets a value takes
+            // "manual" as its source, and clearing the value clears the source too.
+            _activityCaloriesSource.value =
+                if (clampedCalories != null) DayProperties.ActivityCaloriesSource.manual else null
+            _activityNote.value = trimmedNote
+        }
         viewModelScope.launch {
             try {
                 val cleared =
@@ -281,18 +366,20 @@ class DashboardViewModel(
                     cleared = cleared,
                 )
             } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
+                if (e is CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to update activity"
+                _snackbarMessageRes.value = R.string.dashboard_activity_update_failed
             }
         }
     }
 
     fun clearActivity() = setActivity(null, null)
 
-    fun setNotes(text: String) {
-        val date = selectedDateString.value
-        _notes.value = text
+    fun setNotes(
+        text: String,
+        date: String = selectedDateString.value,
+    ) {
+        if (date == selectedDateString.value) _notes.value = text
         viewModelScope.launch {
             try {
                 val trimmed = text.trim()
@@ -302,28 +389,29 @@ class DashboardViewModel(
                     entryRepo.setDayProperties(date, notes = trimmed)
                 }
             } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
+                if (e is CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to update notes"
+                _snackbarMessageRes.value = R.string.dashboard_notes_update_failed
             }
         }
     }
 
-    fun copyEntriesFromYesterday(
-        copiedMessage: (Int) -> String,
-        failedMessage: String,
-    ) {
+    fun copyEntriesFromYesterday(copiedMessage: (Int) -> String) {
+        val today = LocalDate.parse(selectedDateString.value)
         viewModelScope.launch {
             try {
-                val today = LocalDate.parse(selectedDateString.value)
                 val yesterday = today.minus(1, DateTimeUnit.DAY).toString()
                 val count = entryRepo.copyEntries(yesterday, today.toString())
-                _snackbarMessage.value = copiedMessage(count)
-                loadData()
+                if (count == 0) {
+                    _snackbarMessageRes.value = R.string.dashboard_copy_failed
+                } else {
+                    _snackbarMessage.value = copiedMessage(count)
+                }
+                if (today.toString() == selectedDateString.value) loadData()
             } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
+                if (e is CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = failedMessage
+                _snackbarMessageRes.value = R.string.dashboard_copy_error
             }
         }
     }
@@ -332,7 +420,12 @@ class DashboardViewModel(
         _snackbarMessage.value = null
     }
 
+    fun clearSnackbarRes() {
+        _snackbarMessageRes.value = null
+    }
+
     companion object {
         private const val KEY_SELECTED_DATE = "selectedDate"
+        private const val KEY_TODAY = "todayAtLastCheck"
     }
 }

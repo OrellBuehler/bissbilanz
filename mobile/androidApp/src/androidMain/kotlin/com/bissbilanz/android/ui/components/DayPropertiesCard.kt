@@ -129,7 +129,7 @@ private fun WaterSection(
             singleLine = true,
             modifier =
                 Modifier.weight(1f).onFocusChanged { focus ->
-                    if (!focus.isFocused) onSetWater(draft.toIntOrNull())
+                    if (!focus.isFocused && draft.toIntOrNull() != waterMl) onSetWater(draft.toIntOrNull())
                 },
         )
     }
@@ -146,8 +146,13 @@ private fun ActivitySection(
     var caloriesDraft by remember(activityCalories) { mutableStateOf(activityCalories?.toString() ?: "") }
     var noteDraft by remember(activityNote) { mutableStateOf(activityNote ?: "") }
 
+    // Focus callbacks also fire when the fields are first laid out; saving an unchanged
+    // value would turn an imported Health Connect value into a "manual" one.
     fun commit() {
-        onSetActivity(caloriesDraft.toIntOrNull(), noteDraft)
+        val calories = caloriesDraft.toIntOrNull()
+        val note = noteDraft.trim().ifEmpty { null }
+        if (calories == activityCalories && note == activityNote?.trim()?.ifEmpty { null }) return
+        onSetActivity(calories, noteDraft)
     }
 
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -219,11 +224,21 @@ private fun NotesSection(
     onNotesChanged: (String) -> Unit,
 ) {
     var draft by remember(notes) { mutableStateOf(notes) }
+    val currentDraft by rememberUpdatedState(draft)
+    val currentNotes by rememberUpdatedState(notes)
+    val currentOnNotesChanged by rememberUpdatedState(onNotesChanged)
 
     LaunchedEffect(draft) {
         if (draft == notes) return@LaunchedEffect
         delay(1200)
         onNotesChanged(draft)
+    }
+
+    // Leaving the dashboard (or the day) inside the debounce window still saves the draft.
+    DisposableEffect(Unit) {
+        onDispose {
+            if (currentDraft != currentNotes) currentOnNotesChanged(currentDraft)
+        }
     }
 
     Row(verticalAlignment = Alignment.CenterVertically) {

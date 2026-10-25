@@ -7,6 +7,7 @@ import com.bissbilanz.api.UnauthorizedException
 import com.bissbilanz.api.generated.model.DayProperties
 import com.bissbilanz.api.generated.model.DayPropertiesSet
 import com.bissbilanz.api.generated.model.EntryCreate
+import com.bissbilanz.api.generated.model.EntryUpdate
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.RecipeCreate
 import com.bissbilanz.api.generated.model.RecipeDetail
@@ -21,6 +22,7 @@ import com.bissbilanz.api.generated.model.WeightEntry
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.model.Entry
+import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.test.NoopErrorReporter
 import com.bissbilanz.test.TestFixtures
 import com.bissbilanz.test.appModeManager
@@ -618,6 +620,42 @@ class SyncManagerTest {
             val server = userDb.userDataDatabaseQueries.selectEntryById("srv-entry-1").executeAsOneOrNull()
             assertNotNull(server)
             assertEquals("srv-entry-1", json.decodeFromString<Entry>(server.jsonData).id)
+        }
+
+    private suspend fun uploadedTempEntry(): Pair<EntryRepository, String> {
+        val repo = EntryRepository(api, userDb, db, syncQueue, json, NoopErrorReporter(), appModeManager())
+        val temp = repo.createEntry(EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "f1"))
+        coEvery { api.createEntry(any(), any(), any()) } returns serverEntry("srv-entry-1", foodId = "f1")
+        manager.syncPendingQueue()
+        return repo to temp.id
+    }
+
+    @Test
+    fun updateWithATempIdAfterUploadTargetsTheServerEntry() =
+        runTest {
+            // An edit sheet opened before the upload still holds the temp id.
+            val (repo, tempId) = uploadedTempEntry()
+
+            val updated = repo.updateEntry(tempId, EntryUpdate(servings = 3.0))
+
+            assertEquals("srv-entry-1", updated.id)
+            assertEquals(3.0, updated.servings)
+            val op = syncQueue.drain().single().operation as SyncOperation.UpdateEntry
+            assertEquals("srv-entry-1", op.id)
+            val row = userDb.userDataDatabaseQueries.selectEntryById("srv-entry-1").executeAsOne()
+            assertEquals(3.0, json.decodeFromString<Entry>(row.jsonData).servings)
+        }
+
+    @Test
+    fun deleteWithATempIdAfterUploadDeletesTheServerEntry() =
+        runTest {
+            val (repo, tempId) = uploadedTempEntry()
+
+            repo.deleteEntry(tempId)
+
+            val op = syncQueue.drain().single().operation as SyncOperation.DeleteEntry
+            assertEquals("srv-entry-1", op.id)
+            assertNull(userDb.userDataDatabaseQueries.selectEntryById("srv-entry-1").executeAsOneOrNull())
         }
 
     @Test

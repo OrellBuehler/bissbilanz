@@ -97,7 +97,10 @@ fun EntryEditSheet(
     // (coalesceQueuedCreate); an emptied calorie field would drop quickCalories from
     // that create, the POST would 400, and the sync queue dead-letters client errors,
     // stranding the entry as a local temp_ row forever.
-    val canSave = !isQuickEntry || (quickCalories.toLocalizedDoubleOrNull() ?: 0.0) > 0.0
+    // The same rule holds for a new quick add, which is always a quick entry.
+    val caloriesValid = !showQuickFields || (quickCalories.toLocalizedDoubleOrNull() ?: 0.0) > 0.0
+    val servingsValid = !isEditing || (servings.toLocalizedDoubleOrNull() ?: 0.0) > 0.0
+    val canSave = caloriesValid && servingsValid
     val unknownName = stringResource(R.string.entry_edit_unknown)
     val deleteFailedMessage = stringResource(R.string.entry_edit_delete_failed)
     val saveFailedMessage = stringResource(R.string.entry_edit_save_failed)
@@ -106,8 +109,11 @@ fun EntryEditSheet(
 
     LaunchedEffect(entryId) {
         if (entryId != null) {
+            // The list may still hold the temp id of an entry whose upload has since
+            // swapped it for the server record.
+            val currentId = entryRepo.resolveId(entryId)
             val entries = entryRepo.entriesByDate(date ?: today).first()
-            val found = entries.find { it.id == entryId }
+            val found = entries.find { it.id == currentId }
             if (found != null) {
                 entry = found
                 servings = found.servings.toDisplayString()
@@ -380,7 +386,7 @@ fun EntryEditSheet(
                 Text(it, color = MaterialTheme.colorScheme.error)
             }
 
-            if (!canSave) {
+            if (!caloriesValid) {
                 Text(
                     stringResource(R.string.entry_edit_calories_required),
                     style = MaterialTheme.typography.bodySmall,
@@ -415,8 +421,7 @@ fun EntryEditSheet(
                                         id,
                                         EntryUpdate(
                                             mealType = mealType,
-                                            servings =
-                                                servings.toLocalizedDoubleOrNull() ?: 1.0,
+                                            servings = servings.toLocalizedDoubleOrNull(),
                                             notes = notes.ifBlank { null },
                                             date = eatenDate,
                                             eatenAt =
@@ -488,8 +493,9 @@ fun EntryEditSheet(
                                 Log.e("EntryEditSheet", "Failed to save entry", e)
                                 errorReporter.captureException(e)
                                 errorMessage = saveFailedMessage
+                            } finally {
+                                isSaving = false
                             }
-                            isSaving = false
                         }
                     },
                     modifier = Modifier.weight(1f),
