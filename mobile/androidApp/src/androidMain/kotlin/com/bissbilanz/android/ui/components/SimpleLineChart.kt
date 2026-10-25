@@ -26,9 +26,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
-import com.bissbilanz.util.formatNutrient
-import kotlin.math.abs
-import kotlin.math.roundToInt
+import com.bissbilanz.android.util.formatLocalizedNumber
 
 @Composable
 fun SimpleLineChart(
@@ -36,6 +34,8 @@ fun SimpleLineChart(
     color: Color,
     modifier: Modifier = Modifier,
     unit: String = "",
+    // Tooltip decimals: whole for kcal and grams, one for hours ("7.4 h").
+    decimals: Int = 0,
 ) {
     if (data.isEmpty()) return
     val maxVal = data.max().coerceAtLeast(1f)
@@ -125,7 +125,7 @@ fun SimpleLineChart(
         ) {
             if (selIdx != null && selIdx in data.indices) {
                 Text(
-                    "${formatChartValue(data[selIdx])}${if (unit.isNotEmpty()) " $unit" else ""}",
+                    "${formatLocalizedNumber(data[selIdx].toDouble(), decimals)}${if (unit.isNotEmpty()) " $unit" else ""}",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.inverseOnSurface,
@@ -134,14 +134,3 @@ fun SimpleLineChart(
         }
     }
 }
-
-// Small values such as hours of sleep keep one decimal ("7.4 h"); large ones such as
-// calories stay whole.
-private fun formatChartValue(value: Float): String =
-    if (abs(value) >=
-        100f
-    ) {
-        value.roundToInt().toString()
-    } else {
-        value.toDouble().formatNutrient()
-    }

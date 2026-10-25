@@ -631,6 +631,7 @@ fun InsightsScreen(
                                         color = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.fillMaxWidth().height(80.dp),
                                         unit = "h",
+                                        decimals = 1,
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
                                 }
