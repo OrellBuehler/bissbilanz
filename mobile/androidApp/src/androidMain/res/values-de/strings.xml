@@ -14,6 +14,7 @@
     <string name="weight_log_title">Gewicht erfassen</string>
     <string name="weight_edit_title">Gewicht bearbeiten</string>
     <string name="weight_input_label">Gewicht (kg)</string>
+    <string name="weight_input_invalid">Gewicht zwischen 0 und 500 kg eingeben</string>
     <string name="weight_notes_label">Notizen (optional)</string>
     <string name="weight_save">Speichern</string>
     <string name="weight_cancel">Abbrechen</string>

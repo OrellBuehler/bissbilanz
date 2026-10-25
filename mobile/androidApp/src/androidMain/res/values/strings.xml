@@ -16,6 +16,7 @@
     <string name="weight_log_title">Log Weight</string>
     <string name="weight_edit_title">Edit Weight</string>
     <string name="weight_input_label">Weight (kg)</string>
+    <string name="weight_input_invalid">Enter a weight between 0 and 500 kg</string>
     <string name="weight_notes_label">Notes (optional)</string>
     <string name="weight_save">Save</string>
     <string name="weight_cancel">Cancel</string>

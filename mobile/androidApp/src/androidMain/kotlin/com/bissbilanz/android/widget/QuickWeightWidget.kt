@@ -39,7 +39,6 @@ import com.bissbilanz.repository.WeightRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
-import java.util.Locale
 import kotlin.time.Clock
 
 class QuickWeightWidget : GlanceAppWidget() {
@@ -96,7 +95,7 @@ private fun QuickWeightContent(
 ) {
     val context = LocalContext.current
     val shown = todayEntry ?: latestEntry
-    val value = shown?.let { formatWeight(it.weightKg) }
+    val value = shown?.let { formatWeight(context, it.weightKg) }
     val caption =
         context.getString(
             if (todayEntry != null) R.string.weight_widget_today else R.string.weight_widget_tap_to_log,
@@ -105,7 +104,10 @@ private fun QuickWeightContent(
     if (LocalSize.current.width < QUICK_WEIGHT_WIDE_SIZE.width) {
         QuickWeightCompact(value)
     } else {
-        QuickWeightWide(value?.let { "$it $WEIGHT_UNIT" } ?: context.getString(R.string.weight_widget_title), caption)
+        QuickWeightWide(
+            value?.let { context.getString(R.string.weight_kg_value, it) } ?: context.getString(R.string.weight_widget_title),
+            caption,
+        )
     }
 }
 
@@ -188,6 +190,8 @@ private fun QuickWeightWide(
     }
 }
 
-private const val WEIGHT_UNIT = "kg"
-
-private fun formatWeight(kg: Double): String = String.format(Locale.US, "%.1f", kg)
+/** One decimal in the widget's own language: "72,5" in German, not "72.5". */
+private fun formatWeight(
+    context: Context,
+    kg: Double,
+): String = String.format(context.resources.configuration.locales[0], "%.1f", kg)
