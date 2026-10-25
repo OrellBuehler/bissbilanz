@@ -788,7 +788,7 @@ private fun FastingInstantDialog(
                     )
                     AssistChip(
                         onClick = { showDatePicker = true },
-                        label = { Text(date.toString()) },
+                        label = { Text(formatShortDate(date), maxLines = 1) },
                     )
                 }
                 TimePicker(state = timeState)

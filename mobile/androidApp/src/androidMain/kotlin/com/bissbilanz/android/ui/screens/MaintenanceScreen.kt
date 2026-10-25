@@ -17,6 +17,7 @@ import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.model.MaintenanceResponse
 import com.bissbilanz.repository.AnalyticsRepository
 import com.bissbilanz.util.formatAsInt
@@ -247,7 +248,7 @@ fun MaintenanceScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(8.dp))
                         MaintenanceRow(
                             stringResource(R.string.maintenance_period),
-                            stringResource(R.string.maintenance_period_range, m.startDate, m.endDate),
+                            stringResource(R.string.maintenance_period_range, formatIsoDate(m.startDate), formatIsoDate(m.endDate)),
                         )
                         MaintenanceRow(stringResource(R.string.maintenance_total_days), "${m.totalDays}")
                         MaintenanceRow(stringResource(R.string.maintenance_weight_entries), "${m.weightEntries}")
