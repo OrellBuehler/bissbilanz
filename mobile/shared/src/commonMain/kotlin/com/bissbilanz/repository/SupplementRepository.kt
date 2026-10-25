@@ -25,6 +25,7 @@ import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
 import com.bissbilanz.util.jsonKeys
 import com.bissbilanz.util.newTempId
+import com.bissbilanz.util.runHook
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -103,7 +104,7 @@ class SupplementRepository(
 
     suspend fun deleteSupplement(id: String) {
         withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteSupplement(id) }
-        onSupplementsChanged?.invoke()
+        errorReporter.runHook { onSupplementsChanged?.invoke() }
         if (id.isTempId()) {
             syncQueue.removeByAffected("supplements", id)
         } else {
@@ -302,7 +303,7 @@ class SupplementRepository(
             sortOrder = supplement.sortOrder.toLong(),
             jsonData = json.encodeToString(supplement),
         )
-        onSupplementsChanged?.invoke()
+        errorReporter.runHook { onSupplementsChanged?.invoke() }
     }
 
     private fun cacheSupplements(

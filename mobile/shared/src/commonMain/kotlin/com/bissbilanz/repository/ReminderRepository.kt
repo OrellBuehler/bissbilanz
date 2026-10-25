@@ -16,6 +16,7 @@ import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
 import com.bissbilanz.util.newTempId
+import com.bissbilanz.util.runHook
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -95,7 +96,7 @@ class ReminderRepository(
 
     suspend fun deleteReminder(id: String) {
         withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteReminder(id) }
-        onRemindersChanged?.invoke()
+        errorReporter.runHook { onRemindersChanged?.invoke() }
         if (id.isTempId()) {
             syncQueue.removeByAffected("reminders", id)
         } else {
@@ -127,7 +128,7 @@ class ReminderRepository(
             enabled = if (reminder.enabled) 1L else 0L,
             jsonData = json.encodeToString(reminder),
         )
-        onRemindersChanged?.invoke()
+        errorReporter.runHook { onRemindersChanged?.invoke() }
     }
 
     private suspend fun cacheReminders(reminders: List<Reminder>) {

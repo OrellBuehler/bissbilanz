@@ -19,6 +19,7 @@ import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
 import com.bissbilanz.util.newTempId
+import com.bissbilanz.util.runHook
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -59,14 +60,14 @@ class WeightRepository(
         if (appModeManager.isLocal) return
         val entries = api.getWeightEntries(limit)
         cacheWeightEntries(entries)
-        onWeightRefreshed?.invoke()
+        errorReporter.runHook { onWeightRefreshed?.invoke() }
     }
 
     suspend fun createEntry(entry: WeightCreate): WeightEntry {
         val temp = weightCreateToEntry(entry)
         withContext(Dispatchers.IO) { cacheWeightEntry(temp) }
         syncQueue.enqueue(SyncOperation.CreateWeight(json.encodeToString(entry), localId = temp.id))
-        onWeightChanged?.invoke()
+        errorReporter.runHook { onWeightChanged?.invoke() }
         return temp
     }
 
@@ -100,7 +101,7 @@ class WeightRepository(
         } else {
             syncQueue.enqueue(SyncOperation.UpdateWeight(id, json.encodeToString(entry)))
         }
-        onWeightChanged?.invoke()
+        errorReporter.runHook { onWeightChanged?.invoke() }
         return result
     }
 
@@ -160,7 +161,7 @@ class WeightRepository(
         } else {
             syncQueue.enqueue(SyncOperation.DeleteWeight(id))
         }
-        onWeightChanged?.invoke()
+        errorReporter.runHook { onWeightChanged?.invoke() }
     }
 
     private fun cacheWeightEntry(entry: WeightEntry) {

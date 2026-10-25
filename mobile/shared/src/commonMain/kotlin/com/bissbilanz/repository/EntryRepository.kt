@@ -20,6 +20,7 @@ import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
 import com.bissbilanz.util.jsonKeys
 import com.bissbilanz.util.newTempId
+import com.bissbilanz.util.runHook
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -98,7 +99,7 @@ class EntryRepository(
         if (appModeManager.isLocal) return
         val entries = api.getEntries(date)
         cacheEntries(date, entries)
-        onEntriesRefreshed?.invoke(date)
+        errorReporter.runHook { onEntriesRefreshed?.invoke(date) }
     }
 
     suspend fun createEntry(
@@ -106,11 +107,18 @@ class EntryRepository(
         food: Food? = null,
         recipe: Recipe? = null,
     ): Entry {
-        val tempEntry = entryCreateToEntry(entry, food, recipe)
+        // A food or recipe picked from a screen opened before its own create uploaded
+        // still carries the temp id.
+        val resolved =
+            entry.copy(
+                foodId = entry.foodId?.let { resolveId(it) },
+                recipeId = entry.recipeId?.let { resolveId(it) },
+            )
+        val tempEntry = entryCreateToEntry(resolved, food, recipe)
         withContext(Dispatchers.IO) { cacheEntry(tempEntry) }
-        syncQueue.enqueue(SyncOperation.CreateEntry(json.encodeToString(entry), localId = tempEntry.id))
-        onEntryChanged?.invoke()
-        onEntryCreated?.invoke()
+        syncQueue.enqueue(SyncOperation.CreateEntry(json.encodeToString(resolved), localId = tempEntry.id))
+        errorReporter.runHook { onEntryChanged?.invoke() }
+        errorReporter.runHook { onEntryCreated?.invoke() }
         return tempEntry
     }
 
@@ -150,11 +158,16 @@ class EntryRepository(
                 )
             }
         if (currentId.isTempId()) {
-            coalesceQueuedCreate(currentId, entry, cleared)
+            // The create finished uploading between the lookup and the rewrite: the edit
+            // now belongs to the server record.
+            if (!coalesceQueuedCreate(currentId, entry, cleared)) {
+                val uploadedId = resolveId(currentId)
+                if (uploadedId != currentId) return updateEntry(uploadedId, entry, cleared)
+            }
         } else {
             syncQueue.enqueue(SyncOperation.UpdateEntry(currentId, json.encodeToString(entry), cleared.jsonKeys()))
         }
-        onEntryChanged?.invoke()
+        errorReporter.runHook { onEntryChanged?.invoke() }
         return result
     }
 
@@ -162,11 +175,15 @@ class EntryRepository(
         val currentId = resolveId(id)
         withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteEntry(currentId) }
         if (currentId.isTempId()) {
-            syncQueue.removeByAffected("entries", currentId)
+            // Same race as in [updateEntry]: no queued create left means it just uploaded.
+            if (syncQueue.removeByAffected("entries", currentId) == 0) {
+                val uploadedId = resolveId(currentId)
+                if (uploadedId != currentId) return deleteEntry(uploadedId)
+            }
         } else {
             syncQueue.enqueue(SyncOperation.DeleteEntry(currentId))
         }
-        onEntryChanged?.invoke()
+        errorReporter.runHook { onEntryChanged?.invoke() }
     }
 
     /**
@@ -178,14 +195,13 @@ class EntryRepository(
 
     /**
      * Rewrites the still-queued Create operation for a temp-id entry so the eventual
-     * upload carries the edited values. If the create has already been drained (no
-     * queued op found), the update is skipped, matching the previous behavior.
+     * upload carries the edited values. Returns false when no queued create was found.
      */
     private suspend fun coalesceQueuedCreate(
         tempId: String,
         update: EntryUpdate,
         cleared: Set<EntryField>,
-    ) {
+    ): Boolean =
         syncQueue.rewriteQueuedCreate("entries", tempId) { op ->
             val create = op as? SyncOperation.CreateEntry ?: return@rewriteQueuedCreate null
             val body = json.decodeOrNull<EntryCreate>(create.body) ?: return@rewriteQueuedCreate null
@@ -194,7 +210,6 @@ class EntryRepository(
             val merged = applyUpdate(body, update, cleared)
             create.copy(body = json.encodeToString(merged))
         }
-    }
 
     /**
      * Cache-first day properties. In Local mode the cache is authoritative; in Synced

@@ -29,6 +29,40 @@ class SyncQueueTest {
     }
 
     @Test
+    fun removeWithFollowUpQueuesTheFollowUpAndDropsTheRow() =
+        runTest {
+            queue.enqueue(SyncOperation.CreateEntry("{}", localId = "temp_e1"))
+            val drained = queue.drain().single()
+
+            val queued =
+                queue.removeWithFollowUp(drained.id) { row ->
+                    assertEquals(drained.id, row?.id)
+                    SyncOperation.DeleteEntry("srv-1")
+                }
+
+            assertEquals(SyncOperation.DeleteEntry("srv-1"), queued)
+            val remaining = queue.all().single()
+            assertEquals(SyncOperation.DeleteEntry("srv-1"), remaining.operation)
+        }
+
+    @Test
+    fun removeWithFollowUpSeesARowRemovedWhileInFlight() =
+        runTest {
+            queue.enqueue(SyncOperation.CreateEntry("{}", localId = "temp_e1"))
+            val drained = queue.drain().single()
+            queue.removeByAffected("entries", "temp_e1")
+
+            var seen: QueuedRequest? = drained
+            queue.removeWithFollowUp(drained.id) { row ->
+                seen = row
+                null
+            }
+
+            assertNull(seen)
+            assertEquals(0, queue.pendingCount())
+        }
+
+    @Test
     fun enqueueAndDrainReturnsQueuedOperations() =
         runTest {
             queue.enqueue(SyncOperation.CreateFood("""{"name":"Rice"}""", localId = "temp_1"))

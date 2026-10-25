@@ -11,6 +11,7 @@ import com.bissbilanz.repository.cacheEntryRow
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
+import com.bissbilanz.util.runHook
 import com.bissbilanz.util.serverTotalsToPerServing
 import io.ktor.serialization.ContentConvertException
 import kotlinx.coroutines.CoroutineScope
@@ -99,7 +100,7 @@ class SyncManager(
             connectivityProvider.isOnline.collect { online ->
                 if (online) {
                     val count = syncPendingQueue()
-                    if (count > 0) this@SyncManager.onSynced?.invoke()
+                    if (count > 0) errorReporter.runHook { this@SyncManager.onSynced?.invoke() }
                 }
             }
         }
@@ -107,7 +108,7 @@ class SyncManager(
             syncQueue.enqueueSignal.collect {
                 if (connectivityProvider.isOnline.value) {
                     val count = syncPendingQueue()
-                    if (count > 0) this@SyncManager.onSynced?.invoke()
+                    if (count > 0) errorReporter.runHook { this@SyncManager.onSynced?.invoke() }
                 }
             }
         }
@@ -168,7 +169,7 @@ class SyncManager(
         // can't deadlock the drain.
         if (sawConflict) {
             try {
-                onConflictResolved?.invoke()
+                errorReporter.runHook { onConflictResolved?.invoke() }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
@@ -203,11 +204,13 @@ class SyncManager(
             drained = syncQueue.drain()
             _state.value = _state.value.copy(pendingCount = syncQueue.pendingCount())
 
-            // Temp ids whose creates drained in THIS batch. The drained snapshot still
-            // carries the original payloads, so later operations in the batch are
-            // remapped in memory; operations still sitting in the queue (including ones
-            // beyond the drain limit) are rewritten in place after each create succeeds.
-            val remaps = mutableMapOf<String, String>()
+            // Temp ids whose creates already uploaded: earlier ones (an operation queued
+            // with a stale temp id after its create drained, e.g. a food logged from a
+            // screen opened before the upload) and those of THIS batch. The drained
+            // snapshot still carries the original payloads, so operations in the batch
+            // are remapped in memory; operations still sitting in the queue (including
+            // ones beyond the drain limit) are rewritten in place after each create.
+            val remaps = syncQueue.tempIdRemaps().toMutableMap()
 
             for (req in drained) {
                 try {
@@ -281,7 +284,7 @@ class SyncManager(
                         rewriteQueuedReferences(remap.tempId, remap.serverId)
                     }
                     if (remap != null && op is SyncOperation.CreateEntry) {
-                        replayInFlightEntryChange(op, syncQueue.take(req.id), remap, remaps)
+                        replayInFlightEntryChange(req.id, op, remap, remaps)
                     } else {
                         syncQueue.remove(req.id)
                     }
@@ -450,7 +453,7 @@ class SyncManager(
                 retryJob = null
                 if (!connectivityProvider.isOnline.value) return@launch
                 val count = syncPendingQueue()
-                if (count > 0) onSynced?.invoke()
+                if (count > 0) errorReporter.runHook { onSynced?.invoke() }
             }
     }
 
@@ -707,85 +710,100 @@ class SyncManager(
 
     /**
      * An entry edited or deleted while its create was uploading: the edit was merged into
-     * the queued create ([remaining] differs from what was sent) or the delete removed
-     * that row ([remaining] is null), but the server only got the original payload. Both
-     * are replayed against the new server id. Later changes already resolve the temp id
-     * to the server id (see [SyncQueue.resolveId]) and need nothing here.
+     * the queued create (the row now differs from what was sent) or the delete removed
+     * that row, but the server only got the original payload. Both are replayed against
+     * the new server id, queued in the same transaction that removes the row. Later
+     * changes already resolve the temp id to the server id (see [SyncQueue.resolveId]).
      */
     private suspend fun replayInFlightEntryChange(
+        queueId: Long,
         uploaded: SyncOperation.CreateEntry,
-        remaining: QueuedRequest?,
         remap: TempIdRemap,
         remaps: Map<String, String>,
     ) {
-        val queries = db.userDataDatabaseQueries
-        if (remaining == null) {
-            queries.deleteEntry(remap.serverId)
-            syncQueue.enqueue(SyncOperation.DeleteEntry(remap.serverId))
-            return
-        }
-        val current = remapTempIds(remaining.operation, remaps, json) as? SyncOperation.CreateEntry ?: return
-        val sent = json.decodeOrNull<EntryCreate>(uploaded.body) ?: return
-        val edited = json.decodeOrNull<EntryCreate>(current.body) ?: return
-        if (edited == sent) return
-        val update =
-            EntryUpdate(
-                foodId = edited.foodId,
-                recipeId = edited.recipeId,
-                mealType = edited.mealType,
-                servings = edited.servings,
-                notes = edited.notes,
-                date = edited.date,
-                quickName = edited.quickName,
-                quickCalories = edited.quickCalories,
-                quickProtein = edited.quickProtein,
-                quickCarbs = edited.quickCarbs,
-                quickFat = edited.quickFat,
-                quickFiber = edited.quickFiber,
-                quickNutrients = edited.quickNutrients,
-                eatenAt = edited.eatenAt,
-            )
-        // A value the edit removed is absent from the merged create; the PATCH has to
-        // clear it explicitly or the server keeps what the upload sent.
-        val clearedKeys =
-            listOf(
-                "notes" to (sent.notes to edited.notes),
-                "quickName" to (sent.quickName to edited.quickName),
-                "quickCalories" to (sent.quickCalories to edited.quickCalories),
-                "quickProtein" to (sent.quickProtein to edited.quickProtein),
-                "quickCarbs" to (sent.quickCarbs to edited.quickCarbs),
-                "quickFat" to (sent.quickFat to edited.quickFat),
-                "quickFiber" to (sent.quickFiber to edited.quickFiber),
-                "quickNutrients" to (sent.quickNutrients to edited.quickNutrients),
-            ).filter { (_, values) -> values.first != null && values.second == null }
-                .map { it.first }
-        queries
-            .selectEntryById(remap.serverId)
-            .executeAsOneOrNull()
-            ?.let { json.decodeOrNull<LocalEntry>(it.jsonData) }
-            ?.let { server ->
-                queries.cacheEntryRow(
-                    server.copy(
-                        foodId = edited.foodId,
-                        recipeId = edited.recipeId,
-                        mealType = edited.mealType,
-                        servings = edited.servings,
-                        notes = edited.notes,
-                        date = edited.date,
-                        quickName = edited.quickName,
-                        quickCalories = edited.quickCalories,
-                        quickProtein = edited.quickProtein,
-                        quickCarbs = edited.quickCarbs,
-                        quickFat = edited.quickFat,
-                        quickFiber = edited.quickFiber,
-                        quickNutrients = edited.quickNutrients,
-                        eatenAt = edited.eatenAt ?: server.eatenAt,
-                    ),
-                    json,
-                )
+        var edited: EntryCreate? = null
+        val followUp =
+            syncQueue.removeWithFollowUp(queueId) { remaining ->
+                if (remaining == null) return@removeWithFollowUp SyncOperation.DeleteEntry(remap.serverId)
+                val current =
+                    remapTempIds(remaining.operation, remaps, json) as? SyncOperation.CreateEntry
+                        ?: return@removeWithFollowUp null
+                val sent = json.decodeOrNull<EntryCreate>(uploaded.body) ?: return@removeWithFollowUp null
+                val merged = json.decodeOrNull<EntryCreate>(current.body) ?: return@removeWithFollowUp null
+                if (merged == sent) return@removeWithFollowUp null
+                edited = merged
+                SyncOperation.UpdateEntry(remap.serverId, json.encodeToString(merged.toUpdate()), clearedEntryKeys(sent, merged))
             }
-        syncQueue.enqueue(SyncOperation.UpdateEntry(remap.serverId, json.encodeToString(update), clearedKeys))
+        val queries = db.userDataDatabaseQueries
+        when (followUp) {
+            is SyncOperation.DeleteEntry -> queries.deleteEntry(remap.serverId)
+            is SyncOperation.UpdateEntry -> {
+                val change = edited ?: return
+                queries
+                    .selectEntryById(remap.serverId)
+                    .executeAsOneOrNull()
+                    ?.let { json.decodeOrNull<LocalEntry>(it.jsonData) }
+                    ?.let { server -> queries.cacheEntryRow(server.withValuesOf(change), json) }
+            }
+            else -> Unit
+        }
     }
+
+    private fun EntryCreate.toUpdate(): EntryUpdate =
+        EntryUpdate(
+            foodId = foodId,
+            recipeId = recipeId,
+            mealType = mealType,
+            servings = servings,
+            notes = notes,
+            date = date,
+            quickName = quickName,
+            quickCalories = quickCalories,
+            quickProtein = quickProtein,
+            quickCarbs = quickCarbs,
+            quickFat = quickFat,
+            quickFiber = quickFiber,
+            quickNutrients = quickNutrients,
+            eatenAt = eatenAt,
+        )
+
+    /**
+     * A value the edit removed is absent from the merged create; the PATCH has to clear
+     * it explicitly or the server keeps what the upload sent.
+     */
+    private fun clearedEntryKeys(
+        sent: EntryCreate,
+        edited: EntryCreate,
+    ): List<String> =
+        listOf(
+            "notes" to (sent.notes to edited.notes),
+            "quickName" to (sent.quickName to edited.quickName),
+            "quickCalories" to (sent.quickCalories to edited.quickCalories),
+            "quickProtein" to (sent.quickProtein to edited.quickProtein),
+            "quickCarbs" to (sent.quickCarbs to edited.quickCarbs),
+            "quickFat" to (sent.quickFat to edited.quickFat),
+            "quickFiber" to (sent.quickFiber to edited.quickFiber),
+            "quickNutrients" to (sent.quickNutrients to edited.quickNutrients),
+        ).filter { (_, values) -> values.first != null && values.second == null }
+            .map { it.first }
+
+    private fun LocalEntry.withValuesOf(change: EntryCreate): LocalEntry =
+        copy(
+            foodId = change.foodId,
+            recipeId = change.recipeId,
+            mealType = change.mealType,
+            servings = change.servings,
+            notes = change.notes,
+            date = change.date,
+            quickName = change.quickName,
+            quickCalories = change.quickCalories,
+            quickProtein = change.quickProtein,
+            quickCarbs = change.quickCarbs,
+            quickFat = change.quickFat,
+            quickFiber = change.quickFiber,
+            quickNutrients = change.quickNutrients,
+            eatenAt = change.eatenAt ?: eatenAt,
+        )
 
     /** Rewrites every still-queued operation that references [tempId] to use [serverId]. */
     private suspend fun rewriteQueuedReferences(
@@ -793,12 +811,7 @@ class SyncManager(
         serverId: String,
     ) {
         val remap = mapOf(tempId to serverId)
-        for (req in syncQueue.all()) {
-            val rewritten = remapTempIds(req.operation, remap, json)
-            if (rewritten != req.operation) {
-                syncQueue.replaceOperationAndAffected(req.id, rewritten)
-            }
-        }
+        syncQueue.rewriteAll { remapTempIds(it, remap, json) }
     }
 
     private fun isDeleteOperation(op: SyncOperation): Boolean =
@@ -1079,7 +1092,7 @@ class SyncManager(
         _state.value = _state.value.copy(failedCount = syncQueue.failedCount())
         // Pull server state back so an optimistic local row for the discarded change goes away.
         try {
-            onConflictResolved?.invoke()
+            errorReporter.runHook { onConflictResolved?.invoke() }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)

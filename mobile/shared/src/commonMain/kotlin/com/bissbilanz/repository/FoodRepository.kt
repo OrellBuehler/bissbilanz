@@ -31,6 +31,7 @@ import com.bissbilanz.util.newTempId
 import com.bissbilanz.util.normalizeLabel
 import com.bissbilanz.util.normalizeLabels
 import com.bissbilanz.util.openFoodFactsProductToFoodCreate
+import com.bissbilanz.util.runHook
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.async
@@ -380,6 +381,9 @@ class FoodRepository(
         }
     }
 
+    /** The server id a temp-id food got once its create uploaded (see `EntryRepository.resolveId`). */
+    suspend fun resolveId(id: String): String = if (id.isTempId()) syncQueue.resolveId(id) else id
+
     fun getFoodCached(id: String): Food? {
         val cached = db.userDataDatabaseQueries.selectFoodById(id).executeAsOneOrNull()
         return cached?.let { json.decodeOrNull<Food>(it.jsonData) }
@@ -406,7 +410,7 @@ class FoodRepository(
         val tempFood = foodCreateToFood(food)
         withContext(ioDispatcher) { cacheFood(tempFood) }
         syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(food), localId = tempFood.id))
-        onFoodChanged?.invoke()
+        errorReporter.runHook { onFoodChanged?.invoke() }
         return tempFood
     }
 
@@ -414,6 +418,8 @@ class FoodRepository(
         id: String,
         food: FoodCreate,
     ): Food {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         val bulkPending = !id.isTempId() && isLocalOnly(id)
         val tempFood = foodCreateToFood(food, id).let { if (bulkPending) it.copy(labels = getFoodCached(id)?.labels) else it }
         withContext(ioDispatcher) { cacheFood(tempFood) }
@@ -422,7 +428,7 @@ class FoodRepository(
         } else if (!bulkPending) {
             syncQueue.enqueue(SyncOperation.UpdateFood(id, json.encodeToString(food)))
         }
-        onFoodChanged?.invoke()
+        errorReporter.runHook { onFoodChanged?.invoke() }
         return tempFood
     }
 
@@ -437,6 +443,8 @@ class FoodRepository(
         id: String,
         isFavorite: Boolean,
     ): Food? {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         // A food shown from a server search need not be cached locally; the flag
         // still has to reach the server, so only the local mirror is conditional.
         val updated = getFoodCached(id)?.copy(isFavorite = isFavorite)?.also { withContext(ioDispatcher) { cacheFood(it) } }
@@ -450,7 +458,7 @@ class FoodRepository(
             syncQueue.enqueue(SyncOperation.ToggleFavorite(id, isFavorite))
         }
         _recentFoods.value = _recentFoods.value.map { if (it.id == id) it.copy(isFavorite = isFavorite) else it }
-        onFoodChanged?.invoke()
+        errorReporter.runHook { onFoodChanged?.invoke() }
         return updated
     }
 
@@ -464,6 +472,8 @@ class FoodRepository(
         id: String,
         imageUrl: String?,
     ): Food? {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         val previous = getFoodCached(id)
         val updated = previous?.copy(imageUrl = imageUrl)?.also { withContext(ioDispatcher) { cacheFood(it) } }
         if (id.isTempId()) {
@@ -475,8 +485,8 @@ class FoodRepository(
         } else if (!isLocalOnly(id)) {
             syncQueue.enqueue(SyncOperation.SetFoodImage(id, imageUrl))
         }
-        previous?.imageUrl?.takeIf { it != imageUrl }?.let { onImageOrphaned?.invoke(it) }
-        onFoodChanged?.invoke()
+        previous?.imageUrl?.takeIf { it != imageUrl }?.let { errorReporter.runHook { onImageOrphaned?.invoke(it) } }
+        errorReporter.runHook { onFoodChanged?.invoke() }
         return updated
     }
 
@@ -491,14 +501,18 @@ class FoodRepository(
         id: String,
         labels: List<String>,
     ): Food? {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         val normalized = normalizeLabels(labels).sorted()
         val updated = getFoodCached(id)?.copy(labels = normalized)?.also { withContext(ioDispatcher) { cacheFood(it) } }
         if (!isLocalOnly(id) || id.isTempId()) syncQueue.enqueue(SyncOperation.SetFoodLabels(id, labels))
-        onFoodChanged?.invoke()
+        errorReporter.runHook { onFoodChanged?.invoke() }
         return updated
     }
 
     suspend fun deleteFood(id: String) {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         val imageUrl = getFoodCached(id)?.imageUrl
         withContext(ioDispatcher) {
             db.userDataDatabaseQueries.deleteFoodLabels(id)
@@ -511,8 +525,8 @@ class FoodRepository(
         } else {
             syncQueue.enqueue(SyncOperation.DeleteFood(id))
         }
-        onFoodChanged?.invoke()
-        imageUrl?.let { onImageOrphaned?.invoke(it) }
+        errorReporter.runHook { onFoodChanged?.invoke() }
+        imageUrl?.let { errorReporter.runHook { onImageOrphaned?.invoke(it) } }
     }
 
     /**
@@ -524,6 +538,8 @@ class FoodRepository(
      * read from the local cache instead, with the same rules as the server.
      */
     suspend fun deleteFoodChecked(id: String): DeleteOutcome {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         if (appModeManager.isLocal || isLocalOnly(id)) {
             val blocked = localFoodUsage(id).toBlocked(id)
             if (blocked != null) return blocked
@@ -538,8 +554,8 @@ class FoodRepository(
                 db.userDataDatabaseQueries.deleteFood(id)
             }
             syncQueue.removeByAffected("foods", id)
-            onFoodChanged?.invoke()
-            imageUrl?.let { onImageOrphaned?.invoke(it) }
+            errorReporter.runHook { onFoodChanged?.invoke() }
+            imageUrl?.let { errorReporter.runHook { onImageOrphaned?.invoke(it) } }
             DeleteOutcome.Deleted
         } catch (e: ApiException) {
             if (e.statusCode == 409) {
@@ -563,6 +579,8 @@ class FoodRepository(
      * applies — the prompt must not offer it, and the server refuses it too.
      */
     suspend fun forceDeleteFood(id: String) {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         if (appModeManager.isLocal || isLocalOnly(id)) {
             check(localFoodUsage(id).toBlocked(id)?.forceUnavailable != true) { "Food $id cannot be force-deleted" }
             if (appModeManager.isLocal) removeFoodFromLocalRecipes(id)
@@ -582,8 +600,8 @@ class FoodRepository(
             errorReporter.captureException(e)
             syncQueue.enqueue(SyncOperation.DeleteFood(id, force = true))
         }
-        onFoodChanged?.invoke()
-        imageUrl?.let { onImageOrphaned?.invoke(it) }
+        errorReporter.runHook { onFoodChanged?.invoke() }
+        imageUrl?.let { errorReporter.runHook { onImageOrphaned?.invoke(it) } }
     }
 
     /**
@@ -753,7 +771,7 @@ class FoodRepository(
             }
         }
         sourceIds.forEach { syncQueue.removeByAffected("foods", it) }
-        onFoodChanged?.invoke()
+        errorReporter.runHook { onFoodChanged?.invoke() }
         return merged
     }
 
@@ -865,7 +883,7 @@ class FoodRepository(
         val enriched = mergeOpenFoodFactsOntoFood(baseline = current, product = product)
         val updated = api.updateFood(id, enriched)
         withContext(ioDispatcher) { cacheFood(updated) }
-        onFoodChanged?.invoke()
+        errorReporter.runHook { onFoodChanged?.invoke() }
         return updated
     }
 

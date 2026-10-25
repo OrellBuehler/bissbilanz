@@ -34,6 +34,15 @@ CREATE TABLE IF NOT EXISTS SyncMeta (
     lastSyncedAt TEXT NOT NULL
 );
 
+-- A temp id whose create uploaded, and the server id that replaced it. Kept across
+-- restarts so a screen restored with the temp id, or a queued change still naming it,
+-- reaches the server record (see SyncQueue.resolveId).
+CREATE TABLE IF NOT EXISTS TempIdRemap (
+    tempId TEXT NOT NULL PRIMARY KEY,
+    serverId TEXT NOT NULL,
+    createdAt INTEGER NOT NULL
+);
+
 -- Meal Types
 selectAllMealTypes:
 SELECT * FROM CachedMealType ORDER BY sortOrder;
@@ -72,6 +81,21 @@ DELETE FROM SyncQueue WHERE id = ?;
 
 selectSyncQueueItem:
 SELECT * FROM SyncQueue WHERE id = ?;
+
+upsertTempIdRemap:
+INSERT OR REPLACE INTO TempIdRemap(tempId, serverId, createdAt) VALUES (?, ?, ?);
+
+selectTempIdRemap:
+SELECT serverId FROM TempIdRemap WHERE tempId = ?;
+
+selectAllTempIdRemaps:
+SELECT tempId, serverId FROM TempIdRemap;
+
+deleteTempIdRemapsBefore:
+DELETE FROM TempIdRemap WHERE createdAt < ?;
+
+clearTempIdRemaps:
+DELETE FROM TempIdRemap;
 
 selectSyncQueueByAffected:
 SELECT * FROM SyncQueue WHERE affectedTable = ? AND affectedId = ?;

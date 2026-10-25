@@ -28,6 +28,7 @@ import com.bissbilanz.util.jsonKeys
 import com.bissbilanz.util.newTempId
 import com.bissbilanz.util.normalizeLabel
 import com.bissbilanz.util.normalizeLabels
+import com.bissbilanz.util.runHook
 import com.bissbilanz.util.serverTotalsToPerServing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -218,6 +219,8 @@ class RecipeRepository(
         recipe: RecipeUpdate,
         cleared: Set<RecipeField> = emptySet(),
     ): RecipeDetail {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         val existing = getRecipeCached(id)
         val result =
             if (existing != null) {
@@ -281,6 +284,8 @@ class RecipeRepository(
         id: String,
         imageUrl: String?,
     ): RecipeDetail? {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         val previous = getRecipeCached(id)
         val updated = previous?.copy(imageUrl = imageUrl)?.also { withContext(Dispatchers.IO) { cacheRecipe(it) } }
         if (id.isTempId()) {
@@ -292,7 +297,7 @@ class RecipeRepository(
         } else {
             syncQueue.enqueue(SyncOperation.SetRecipeImage(id, imageUrl))
         }
-        previous?.imageUrl?.takeIf { it != imageUrl }?.let { onImageOrphaned?.invoke(it) }
+        previous?.imageUrl?.takeIf { it != imageUrl }?.let { errorReporter.runHook { onImageOrphaned?.invoke(it) } }
         return updated
     }
 
@@ -307,6 +312,8 @@ class RecipeRepository(
         id: String,
         labels: List<String>,
     ): RecipeDetail? {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         val normalized = normalizeLabels(labels).sorted()
         val updated =
             getRecipeCached(id)?.copy(labels = normalized)?.also { withContext(Dispatchers.IO) { cacheRecipe(it) } }
@@ -330,6 +337,8 @@ class RecipeRepository(
     }
 
     suspend fun deleteRecipe(id: String) {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         val imageUrl = getRecipeCached(id)?.imageUrl
         withContext(Dispatchers.IO) { deleteCachedRecipe(id) }
         if (id.isTempId()) {
@@ -337,7 +346,7 @@ class RecipeRepository(
         } else {
             syncQueue.enqueue(SyncOperation.DeleteRecipe(id))
         }
-        imageUrl?.let { onImageOrphaned?.invoke(it) }
+        imageUrl?.let { errorReporter.runHook { onImageOrphaned?.invoke(it) } }
     }
 
     /**
@@ -348,6 +357,8 @@ class RecipeRepository(
      * ask, so diary entries referencing it are counted locally instead.
      */
     suspend fun deleteRecipeChecked(id: String): DeleteOutcome {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         if (appModeManager.isLocal || id.isTempId()) {
             val entryCount =
                 withContext(Dispatchers.IO) {
@@ -365,7 +376,7 @@ class RecipeRepository(
             val imageUrl = getRecipeCached(id)?.imageUrl
             withContext(Dispatchers.IO) { deleteCachedRecipe(id) }
             syncQueue.removeByAffected("recipes", id)
-            imageUrl?.let { onImageOrphaned?.invoke(it) }
+            imageUrl?.let { errorReporter.runHook { onImageOrphaned?.invoke(it) } }
             DeleteOutcome.Deleted
         } catch (e: ApiException) {
             if (e.statusCode == 409) {

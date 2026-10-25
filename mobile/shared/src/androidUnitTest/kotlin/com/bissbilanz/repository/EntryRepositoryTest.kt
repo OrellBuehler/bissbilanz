@@ -45,6 +45,30 @@ class EntryRepositoryTest {
     }
 
     @Test
+    fun aFailingListenerNeverFailsTheWriteOrTheRefresh() =
+        runTest {
+            val reported = mutableListOf<Throwable>()
+            val reporter =
+                object : com.bissbilanz.ErrorReporter {
+                    override fun captureException(e: Throwable) {
+                        reported += e
+                    }
+                }
+            val repo = EntryRepository(api, db, cacheDb, syncQueue, json, reporter, appModeManager())
+            repo.onEntryChanged = { error("widget redraw failed") }
+            repo.onEntryCreated = { error("tip store failed") }
+            repo.onEntriesRefreshed = { error("health export failed") }
+            coEvery { api.getEntries("2024-01-15") } returns listOf(TestFixtures.entry(id = "1"))
+            coEvery { syncQueue.all() } returns emptyList()
+
+            val created = repo.createEntry(EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "f1"))
+            repo.refresh("2024-01-15")
+
+            assertTrue(created.id.startsWith("temp_"))
+            assertEquals(3, reported.size)
+        }
+
+    @Test
     fun refreshCachesDataOnSuccess() =
         runTest {
             val entries = listOf(TestFixtures.entry(id = "1"), TestFixtures.entry(id = "2"))

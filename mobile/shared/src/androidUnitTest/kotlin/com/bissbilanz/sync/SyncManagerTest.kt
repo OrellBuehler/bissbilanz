@@ -36,6 +36,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.spyk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.SerializationException
@@ -673,6 +674,74 @@ class SyncManagerTest {
             coVerify { api.deleteEntry("srv-entry-1", any(), any()) }
             assertNull(userDb.userDataDatabaseQueries.selectEntryById("srv-entry-1").executeAsOneOrNull())
             assertEquals(0, syncQueue.pendingCount())
+        }
+
+    @Test
+    fun anEntryQueuedWithAnAlreadyUploadedTempFoodIdIsSentWithTheServerId() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(foodCreate()), localId = "temp_f1"))
+            coEvery { api.createFood(any(), any(), any()) } returns TestFixtures.food(id = "srv-food-1")
+            manager.syncPendingQueue()
+
+            // Queued after the food's create drained, by a screen still holding its temp id.
+            syncQueue.enqueue(
+                SyncOperation.CreateEntry(
+                    json.encodeToString(EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "temp_f1")),
+                    localId = "temp_e1",
+                ),
+            )
+            val sent = slot<EntryCreate>()
+            coEvery { api.createEntry(capture(sent), any(), any()) } returns serverEntry("srv-entry-1", foodId = "srv-food-1")
+
+            manager.syncPendingQueue()
+
+            assertEquals("srv-food-1", sent.captured.foodId)
+            assertEquals(0, syncQueue.pendingCount())
+            assertEquals(0, syncQueue.failedCount())
+        }
+
+    @Test
+    fun theTempIdMapSurvivesARestart() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.CreateFood(json.encodeToString(foodCreate()), localId = "temp_f1"))
+            coEvery { api.createFood(any(), any(), any()) } returns TestFixtures.food(id = "srv-food-1")
+            manager.syncPendingQueue()
+
+            val afterRestart = SyncQueue(db, json, appModeManager())
+
+            assertEquals("srv-food-1", afterRestart.resolveId("temp_f1"))
+            afterRestart.clear()
+            assertEquals("temp_f1", afterRestart.resolveId("temp_f1"))
+        }
+
+    @Test
+    fun loggingAFoodByItsUploadedTempIdQueuesTheServerId() =
+        runTest {
+            syncQueue.recordTempIdRemap("temp_f1", "srv-food-1")
+            val repo = EntryRepository(api, userDb, db, syncQueue, json, NoopErrorReporter(), appModeManager())
+
+            repo.createEntry(EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "temp_f1"))
+
+            val create = syncQueue.drain().single().operation as SyncOperation.CreateEntry
+            assertEquals("srv-food-1", json.decodeFromString<EntryCreate>(create.body).foodId)
+        }
+
+    @Test
+    fun anEditRacingTheEndOfTheUploadReachesTheServerEntry() =
+        runTest {
+            val repo = EntryRepository(api, userDb, db, syncQueue, json, NoopErrorReporter(), appModeManager())
+            val temp = repo.createEntry(EntryCreate(mealType = "lunch", servings = 1.0, date = "2024-01-15", foodId = "f1"))
+            coEvery { api.createEntry(any(), any(), any()) } returns serverEntry("srv-entry-1", foodId = "f1")
+            manager.syncPendingQueue()
+            // The edit resolved the id while the create was still queued, then found the
+            // queued create gone: it must follow the entry to its server id.
+            val racing = spyk(syncQueue)
+            coEvery { racing.resolveId(temp.id) } returnsMany listOf(temp.id, "srv-entry-1")
+            EntryRepository(api, userDb, db, racing, json, NoopErrorReporter(), appModeManager())
+                .updateEntry(temp.id, EntryUpdate(servings = 4.0))
+
+            val op = syncQueue.drain().single().operation as SyncOperation.UpdateEntry
+            assertEquals("srv-entry-1", op.id)
         }
 
     private suspend fun uploadedTempEntry(): Pair<EntryRepository, String> {

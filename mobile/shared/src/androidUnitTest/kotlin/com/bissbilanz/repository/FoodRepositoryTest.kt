@@ -48,6 +48,7 @@ class FoodRepositoryTest {
         db = inMemoryUserDataDatabase()
         cacheDb = inMemoryCacheDatabase()
         syncQueue = mockk(relaxed = true)
+        coEvery { syncQueue.resolveId(any()) } answers { firstArg() }
         repository =
             FoodRepository(
                 api,
