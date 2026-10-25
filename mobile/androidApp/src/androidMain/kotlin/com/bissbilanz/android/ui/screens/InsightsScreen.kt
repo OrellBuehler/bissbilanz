@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -109,6 +110,16 @@ fun InsightsScreen(navController: NavController) {
     val nutritionLoading by viewModel.nutritionLoading.collectAsStateWithLifecycle()
     val weightLoading by viewModel.weightLoading.collectAsStateWithLifecycle()
     val sleepLoading by viewModel.sleepLoading.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val resources = LocalResources.current
+
+    LaunchedEffect(snackbarMessage) {
+        snackbarMessage?.let { res ->
+            snackbarHostState.showSnackbar(resources.getString(res))
+            viewModel.clearSnackbar()
+        }
+    }
 
     val isLocalMode = viewModel.isLocalMode
     val macroSourcesState by viewModel.macroSources.collectAsStateWithLifecycle()
@@ -151,15 +162,14 @@ fun InsightsScreen(navController: NavController) {
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = { AppTopBar(stringResource(R.string.settings_nav_insights), scrollBehavior) },
     ) { padding ->
         PullToRefreshWrapper(
             onRefresh = {
                 refreshManager.refreshAll()
-                viewModel.loadData()
-                viewModel.loadCalendarStats()
-                viewModel.loadSleepData()
+                viewModel.refresh()
             },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
