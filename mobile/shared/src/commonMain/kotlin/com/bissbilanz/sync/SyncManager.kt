@@ -280,7 +280,11 @@ class SyncManager(
                         syncQueue.recordTempIdRemap(remap.tempId, remap.serverId)
                         rewriteQueuedReferences(remap.tempId, remap.serverId)
                     }
-                    syncQueue.remove(req.id)
+                    if (remap != null && op is SyncOperation.CreateEntry) {
+                        replayInFlightEntryChange(op, syncQueue.take(req.id), remap, remaps)
+                    } else {
+                        syncQueue.remove(req.id)
+                    }
                     synced++
                 } catch (e: UnauthorizedException) {
                     syncQueue.releaseForRetry(req.id)
@@ -699,6 +703,88 @@ class SyncManager(
             }
         }
         return null
+    }
+
+    /**
+     * An entry edited or deleted while its create was uploading: the edit was merged into
+     * the queued create ([remaining] differs from what was sent) or the delete removed
+     * that row ([remaining] is null), but the server only got the original payload. Both
+     * are replayed against the new server id. Later changes already resolve the temp id
+     * to the server id (see [SyncQueue.resolveId]) and need nothing here.
+     */
+    private suspend fun replayInFlightEntryChange(
+        uploaded: SyncOperation.CreateEntry,
+        remaining: QueuedRequest?,
+        remap: TempIdRemap,
+        remaps: Map<String, String>,
+    ) {
+        val queries = db.userDataDatabaseQueries
+        if (remaining == null) {
+            queries.deleteEntry(remap.serverId)
+            syncQueue.enqueue(SyncOperation.DeleteEntry(remap.serverId))
+            return
+        }
+        val current = remapTempIds(remaining.operation, remaps, json) as? SyncOperation.CreateEntry ?: return
+        val sent = json.decodeOrNull<EntryCreate>(uploaded.body) ?: return
+        val edited = json.decodeOrNull<EntryCreate>(current.body) ?: return
+        if (edited == sent) return
+        val update =
+            EntryUpdate(
+                foodId = edited.foodId,
+                recipeId = edited.recipeId,
+                mealType = edited.mealType,
+                servings = edited.servings,
+                notes = edited.notes,
+                date = edited.date,
+                quickName = edited.quickName,
+                quickCalories = edited.quickCalories,
+                quickProtein = edited.quickProtein,
+                quickCarbs = edited.quickCarbs,
+                quickFat = edited.quickFat,
+                quickFiber = edited.quickFiber,
+                quickNutrients = edited.quickNutrients,
+                eatenAt = edited.eatenAt,
+            )
+        // A value the edit removed is absent from the merged create; the PATCH has to
+        // clear it explicitly or the server keeps what the upload sent.
+        val clearedKeys =
+            listOf(
+                "notes" to (sent.notes to edited.notes),
+                "quickName" to (sent.quickName to edited.quickName),
+                "quickCalories" to (sent.quickCalories to edited.quickCalories),
+                "quickProtein" to (sent.quickProtein to edited.quickProtein),
+                "quickCarbs" to (sent.quickCarbs to edited.quickCarbs),
+                "quickFat" to (sent.quickFat to edited.quickFat),
+                "quickFiber" to (sent.quickFiber to edited.quickFiber),
+                "quickNutrients" to (sent.quickNutrients to edited.quickNutrients),
+            ).filter { (_, values) -> values.first != null && values.second == null }
+                .map { it.first }
+        queries
+            .selectEntryById(remap.serverId)
+            .executeAsOneOrNull()
+            ?.let { json.decodeOrNull<LocalEntry>(it.jsonData) }
+            ?.let { server ->
+                queries.cacheEntryRow(
+                    server.copy(
+                        foodId = edited.foodId,
+                        recipeId = edited.recipeId,
+                        mealType = edited.mealType,
+                        servings = edited.servings,
+                        notes = edited.notes,
+                        date = edited.date,
+                        quickName = edited.quickName,
+                        quickCalories = edited.quickCalories,
+                        quickProtein = edited.quickProtein,
+                        quickCarbs = edited.quickCarbs,
+                        quickFat = edited.quickFat,
+                        quickFiber = edited.quickFiber,
+                        quickNutrients = edited.quickNutrients,
+                        eatenAt = edited.eatenAt ?: server.eatenAt,
+                    ),
+                    json,
+                )
+            }
+        syncQueue.enqueue(SyncOperation.UpdateEntry(remap.serverId, json.encodeToString(update), clearedKeys))
     }
 
     /** Rewrites every still-queued operation that references [tempId] to use [serverId]. */

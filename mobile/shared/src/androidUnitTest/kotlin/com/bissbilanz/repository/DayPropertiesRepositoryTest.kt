@@ -147,6 +147,28 @@ class DayPropertiesRepositoryTest {
         }
 
     @Test
+    fun aChangeWaitingToUploadIsNotRevertedByTheServerCopy() =
+        runTest {
+            val syncQueue = SyncQueue(cacheDb, json, appModeManager(AppMode.SYNCED))
+            val repo = repository(AppMode.SYNCED, syncQueue)
+            coEvery { api.getDayProperties("2024-01-15") } returns
+                DayProperties(
+                    date = "2024-01-15",
+                    isFastingDay = false,
+                    notes = null,
+                    waterMl = 250,
+                    activityCalories = null,
+                    activityNote = null,
+                    activityCaloriesSource = null,
+                )
+
+            repo.setDayProperties("2024-01-15", waterMl = 1000)
+
+            assertEquals(1000, repo.getDayProperties("2024-01-15")?.waterMl)
+            assertEquals(1000, repo.cachedDayPropertiesOnce("2024-01-15")?.waterMl)
+        }
+
+    @Test
     fun syncedGetCachesApiResultAndFallsBackToCacheOnError() =
         runTest {
             val syncQueue = SyncQueue(cacheDb, json, appModeManager(AppMode.SYNCED))

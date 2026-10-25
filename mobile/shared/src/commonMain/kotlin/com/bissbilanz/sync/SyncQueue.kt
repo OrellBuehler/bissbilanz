@@ -104,6 +104,23 @@ class SyncQueue(
             db.bissbilanzDatabaseQueries.deleteSyncQueueItem(id)
         }
 
+    /**
+     * Removes [id] like [remove] and returns the row as it stood at that moment, or null
+     * when it was already gone. An edit or delete made while the item was in flight
+     * rewrites or removes its row, so this tells the caller what changed meanwhile.
+     */
+    suspend fun take(id: Long): QueuedRequest? =
+        mutex.withLock {
+            inProgress.remove(id)
+            val row =
+                db.bissbilanzDatabaseQueries
+                    .selectSyncQueueItem(id)
+                    .executeAsOneOrNull()
+                    ?.toQueuedRequest()
+            db.bissbilanzDatabaseQueries.deleteSyncQueueItem(id)
+            row
+        }
+
     /** Snapshot of every queued operation, including drained/in-flight ones. */
     suspend fun all(): List<QueuedRequest> =
         mutex.withLock {
