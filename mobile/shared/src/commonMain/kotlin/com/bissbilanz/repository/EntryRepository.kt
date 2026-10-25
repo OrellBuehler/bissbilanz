@@ -58,9 +58,9 @@ class EntryRepository(
     var onEntryCreated: (suspend () -> Unit)? = null
 
     /**
-     * Fired after [setDayProperties] or [deleteDayProperties] changed a day locally.
-     * The activity calories stored there move the day's goal when activity goal
-     * adjustment is on, so Android redraws the widgets that show it.
+     * Fired after [setDayProperties] or [deleteDayProperties] changed a day's activity
+     * calories locally. They move the day's goal when activity goal adjustment is on,
+     * so Android redraws the widgets that show it. Water or notes edits don't fire it.
      */
     var onDayPropertiesChanged: (suspend (date: String) -> Unit)? = null
 
@@ -276,16 +276,27 @@ class EntryRepository(
                 )
             syncQueue.enqueue(SyncOperation.SetDayProperties(date, json.encodeToString(body), cleared.jsonKeys()))
         }
-        onDayPropertiesChanged?.invoke(date)
+        if (updated.activityCalories != current?.activityCalories) notifyDayPropertiesChanged(date)
         return updated
     }
 
     suspend fun deleteDayProperties(date: String) {
+        val hadActivity = cachedDayProperties(date)?.activityCalories != null
         withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteDayProperties(date) }
         if (!appModeManager.isLocal) {
             syncQueue.enqueue(SyncOperation.DeleteDayProperties(date))
         }
-        onDayPropertiesChanged?.invoke(date)
+        if (hadActivity) notifyDayPropertiesChanged(date)
+    }
+
+    /** The save already happened; a failing listener must not turn it into an error. */
+    private suspend fun notifyDayPropertiesChanged(date: String) {
+        try {
+            onDayPropertiesChanged?.invoke(date)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+        }
     }
 
     private fun emptyDayProperties(date: String): DayProperties =

@@ -82,7 +82,7 @@ class DayPropertiesRepositoryTest {
         }
 
     @Test
-    fun setAndDeleteAnnounceTheChangedDay() =
+    fun onlyActivityCalorieChangesAreAnnounced() =
         runTest {
             val localMode = appModeManager(AppMode.LOCAL)
             val repo = repository(AppMode.LOCAL, SyncQueue(cacheDb, json, localMode))
@@ -90,9 +90,25 @@ class DayPropertiesRepositoryTest {
             repo.onDayPropertiesChanged = { changed += it }
 
             repo.setDayProperties("2024-01-15", activityCalories = 300)
+            repo.setDayProperties("2024-01-15", waterMl = 500)
+            repo.setDayProperties("2024-01-16", notes = "rest day")
             repo.deleteDayProperties("2024-01-16")
+            repo.deleteDayProperties("2024-01-15")
 
-            assertEquals(listOf("2024-01-15", "2024-01-16"), changed)
+            assertEquals(listOf("2024-01-15", "2024-01-15"), changed)
+        }
+
+    @Test
+    fun aFailingListenerDoesNotFailTheSave() =
+        runTest {
+            val localMode = appModeManager(AppMode.LOCAL)
+            val repo = repository(AppMode.LOCAL, SyncQueue(cacheDb, json, localMode))
+            repo.onDayPropertiesChanged = { throw IllegalStateException("widget down") }
+
+            val saved = repo.setDayProperties("2024-01-15", activityCalories = 300)
+
+            assertEquals(300, saved.activityCalories)
+            assertEquals(saved, repo.getDayProperties("2024-01-15"))
         }
 
     @Test
