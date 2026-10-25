@@ -37,6 +37,9 @@ class FoodDuplicatesViewModel(
     private val _isMerging = MutableStateFlow(false)
     val isMerging: StateFlow<Boolean> = _isMerging.asStateFlow()
 
+    private val _loadFailed = MutableStateFlow(false)
+    val loadFailed: StateFlow<Boolean> = _loadFailed.asStateFlow()
+
     private val _snackbarMessageRes = MutableStateFlow<Int?>(null)
     val snackbarMessageRes: StateFlow<Int?> = _snackbarMessageRes.asStateFlow()
 
@@ -53,10 +56,17 @@ class FoodDuplicatesViewModel(
             _isLoading.value = true
             try {
                 _groups.value = foodRepo.fetchDuplicateGroups()
+                _loadFailed.value = false
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.food_duplicates_load_failed
+                // Only a first load fails into the error state; a failed refresh keeps
+                // the groups already shown and says so in a snackbar.
+                if (_groups.value.isEmpty()) {
+                    _loadFailed.value = true
+                } else {
+                    _snackbarMessageRes.value = R.string.food_duplicates_load_failed
+                }
             }
             _isLoading.value = false
         }
@@ -73,9 +83,9 @@ class FoodDuplicatesViewModel(
         keeperId: String,
     ) {
         val sourceIds = group.foods.map { it.id }.filterNot { it == keeperId }
-        if (sourceIds.isEmpty()) return
+        if (sourceIds.isEmpty() || _isMerging.value) return
+        _isMerging.value = true
         viewModelScope.launch {
-            _isMerging.value = true
             try {
                 foodRepo.mergeFoods(keeperId = keeperId, sourceIds = sourceIds)
                 refreshManager.refreshAll()
