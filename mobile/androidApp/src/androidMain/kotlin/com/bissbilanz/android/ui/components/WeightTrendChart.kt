@@ -6,7 +6,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +39,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.ProjectionPurple
 import com.bissbilanz.android.ui.theme.TrendGreen
 import com.bissbilanz.android.ui.theme.WeightBlue
+import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.model.WeightTrendEntry
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -163,6 +164,7 @@ fun WeightTrendChart(
                         val chartWidth = size.width - leftPadding - rightPadding
                         val chartHeight = size.height - topPadding - bottomPadding
                         val maxDayIndex = chartState.maxDayIndex.coerceAtLeast(1f)
+                        val singleDay = chartState.maxDayIndex <= 0f
                         val yMin = chartState.yMin
                         val yRange = (chartState.yMax - yMin).coerceAtLeast(1f)
 
@@ -171,7 +173,12 @@ fun WeightTrendChart(
                             val nearest =
                                 chartState.actualPoints.minByOrNull { abs(it.dayIndex - dayIndex) }
                                     ?: return null
-                            val ptX = leftPadding + (nearest.dayIndex / maxDayIndex) * chartWidth
+                            val ptX =
+                                if (singleDay) {
+                                    leftPadding + chartWidth / 2
+                                } else {
+                                    leftPadding + (nearest.dayIndex / maxDayIndex) * chartWidth
+                                }
                             val ptY = topPadding + (1f - (nearest.weight - yMin) / yRange) * chartHeight
                             val idx = chartState.actualPoints.indexOf(nearest)
                             val entry = trendData.getOrNull(idx)
@@ -180,13 +187,14 @@ fun WeightTrendChart(
                             return SelectedWeightPoint(dateLabel, nearest.weight, avgPt?.weight, Offset(ptX, ptY))
                         }
 
-                        detectDragGestures(
+                        // Horizontal only, so a vertical swipe over the chart still scrolls the page.
+                        detectHorizontalDragGestures(
                             onDragStart = { offset ->
                                 val pt = findNearest(offset.x)
                                 touchOffset = pt?.canvasOffset ?: offset
                                 selectedPoint = pt
                             },
-                            onDrag = { change, _ ->
+                            onHorizontalDrag = { change, _ ->
                                 change.consume()
                                 val pt = findNearest(change.position.x)
                                 touchOffset = pt?.canvasOffset ?: change.position
@@ -217,7 +225,13 @@ fun WeightTrendChart(
             val yRange = (yMax - yMin).coerceAtLeast(1f)
             val maxDayIndex = state.maxDayIndex.coerceAtLeast(1f)
 
-            fun xPos(dayIndex: Float): Float = leftPadding + (dayIndex / maxDayIndex) * chartWidth
+            // A single day has no span to spread over; it sits in the middle.
+            fun xPos(dayIndex: Float): Float =
+                if (state.maxDayIndex <= 0f) {
+                    leftPadding + chartWidth / 2
+                } else {
+                    leftPadding + (dayIndex / maxDayIndex) * chartWidth
+                }
 
             fun yPos(value: Float): Float = topPadding + (1f - (value - yMin) / yRange) * chartHeight
 
@@ -265,9 +279,10 @@ fun WeightTrendChart(
                         if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
                     }
                     drawPath(path, color = WeightBlue, style = Stroke(width = 3f, cap = StrokeCap.Round))
-                    state.actualPoints.forEach { pt ->
-                        drawCircle(color = WeightBlue, radius = 3f, center = Offset(xPos(pt.dayIndex), yPos(pt.weight)))
-                    }
+                }
+                val pointRadius = if (state.actualPoints.size == 1) 5f else 3f
+                state.actualPoints.forEach { pt ->
+                    drawCircle(color = WeightBlue, radius = pointRadius, center = Offset(xPos(pt.dayIndex), yPos(pt.weight)))
                 }
 
                 val avgPoints = state.movingAvgPoints
@@ -335,7 +350,7 @@ fun WeightTrendChart(
             if (sel != null) {
                 Column {
                     Text(
-                        sel.date,
+                        formatIsoDate(sel.date),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.7f),
                     )

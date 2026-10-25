@@ -48,18 +48,18 @@ private data class SupplementIngredientRow(
     val originalText: String? = null,
 )
 
-// Parses "42 mg" out of an existing ingredientsText so it round-trips. Returns
-// a non-null unit when the text is ENTIRELY "<number> <unit>" — otherwise we
+// Parses "42 mg" / "1,5 mg" out of an existing ingredientsText so it round-trips.
+// The number comes back as the text the user typed ("1000", not "1000.0"). Returns
+// a non-null dosage when the text is ENTIRELY "<number> <unit>" — otherwise we
 // preserve the original verbatim to avoid lossy rebuilds.
-private fun parseDosage(text: String?): Triple<Double?, String, String?> {
+private fun parseDosage(text: String?): Triple<String?, String, String?> {
     if (text.isNullOrBlank()) return Triple(null, "mg", null)
     val match =
-        Regex("""^\s*([\d.]+)\s*(\S+)\s*$""").matchEntire(text)
+        Regex("""^\s*([\d.,]+)\s*(\S+)\s*$""").matchEntire(text)
             ?: return Triple(null, "mg", text)
-    val n =
-        match.groupValues[1].toDoubleOrNull()
-            ?: return Triple(null, "mg", text)
-    return Triple(n, match.groupValues[2], null)
+    val number = match.groupValues[1]
+    if (number.toLocalizedDoubleOrNull() == null) return Triple(null, "mg", text)
+    return Triple(number, match.groupValues[2], null)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -119,7 +119,7 @@ fun SupplementEditSheet(
                             val (dose, unit, original) = parseDosage(ing.food.ingredientsText)
                             SupplementIngredientRow(
                                 name = ing.food.name,
-                                dosage = dose?.toString().orEmpty(),
+                                dosage = dose.orEmpty(),
                                 dosageUnit = unit,
                                 originalText = original,
                             )
@@ -336,7 +336,6 @@ fun SupplementEditSheet(
                                             }
                                     },
                                     enabled = ingredients.size > 1,
-                                    modifier = Modifier.size(32.dp),
                                 ) {
                                     Icon(
                                         Icons.Default.Close,

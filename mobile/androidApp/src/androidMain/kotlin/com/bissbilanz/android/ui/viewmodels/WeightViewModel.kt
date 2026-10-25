@@ -4,11 +4,13 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.model.Goals
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.model.WeightTrendEntry
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.WeightRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -52,7 +54,7 @@ class WeightViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to update target"
+                _snackbarMessageRes.value = R.string.weight_target_update_failed
             }
         }
     }
@@ -65,8 +67,10 @@ class WeightViewModel(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _snackbarMessage = MutableStateFlow<String?>(null)
-    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+    private val _snackbarMessageRes = MutableStateFlow<Int?>(null)
+    val snackbarMessageRes: StateFlow<Int?> = _snackbarMessageRes.asStateFlow()
+
+    private var loadJob: Job? = null
 
     init {
         loadTrend()
@@ -111,24 +115,33 @@ class WeightViewModel(
         _trendData.value = weightRepo.getTrend(rangeStartDate().toString(), today.toString())
     }
 
+    // A range switch cancels the previous load so an older, slower response cannot
+    // overwrite the newer range. The full-screen spinner only covers the very first load;
+    // afterwards the current chart stays up while the next range loads.
     private fun loadTrend() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                weightRepo.refresh()
-                applyTrend()
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-                _snackbarMessage.value = "Failed to load weight data"
-            } finally {
+        loadJob?.cancel()
+        loadJob =
+            viewModelScope.launch {
+                if (_trendData.value.isEmpty()) _isLoading.value = true
+                try {
+                    weightRepo.refresh()
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    errorReporter.captureException(e)
+                    _snackbarMessageRes.value = R.string.weight_load_failed
+                }
+                try {
+                    applyTrend()
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    errorReporter.captureException(e)
+                }
                 _isLoading.value = false
             }
-        }
     }
 
     fun clearSnackbar() {
-        _snackbarMessage.value = null
+        _snackbarMessageRes.value = null
     }
 
     companion object {

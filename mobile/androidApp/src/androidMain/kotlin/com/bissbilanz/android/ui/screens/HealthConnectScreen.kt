@@ -18,6 +18,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
 import com.bissbilanz.android.health.EXTENDED_HEALTH_NUTRIENTS
@@ -61,8 +63,8 @@ fun HealthConnectScreen(navController: NavController) {
             }
         }
 
-    val available = remember { health.isAvailable() }
-    val needsUpdate = remember { health.needsProviderUpdate() }
+    var available by remember { mutableStateOf(health.isAvailable()) }
+    var needsUpdate by remember { mutableStateOf(health.needsProviderUpdate()) }
     val isConnected = granted.isNotEmpty()
     val exportableKeys = remember { EXTENDED_HEALTH_NUTRIENTS.map { it.key }.toSet() }
     val extendedNutrientCategories =
@@ -82,7 +84,13 @@ fun HealthConnectScreen(navController: NavController) {
             scope.launch { granted = health.grantedPermissions() }
         }
 
-    LaunchedEffect(Unit) { granted = health.grantedPermissions() }
+    // Health Connect can be installed, updated or have its permissions changed in its own
+    // app while this screen sits in the background, so re-read everything on return.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        available = health.isAvailable()
+        needsUpdate = health.needsProviderUpdate()
+        scope.launch { granted = health.grantedPermissions() }
+    }
 
     if (showDisconnectConfirm) {
         AlertDialog(

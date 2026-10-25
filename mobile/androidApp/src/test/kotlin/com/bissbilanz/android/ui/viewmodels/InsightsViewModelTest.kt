@@ -310,6 +310,34 @@ class InsightsViewModelTest {
         }
 
     @Test
+    fun failedTabLoadIsRetriedOnNextSelect() =
+        runTest {
+            coEvery { analyticsRepo.getInsights(any(), any(), any()) } throws RuntimeException("fail")
+            val viewModel = createViewModel()
+
+            viewModel.selectTab(1)
+            assertEquals(R.string.insights_load_failed, viewModel.snackbarMessage.value)
+
+            coEvery { analyticsRepo.getInsights(any(), any(), any()) } returns emptyRangeBundle()
+            viewModel.selectTab(0)
+            viewModel.selectTab(1)
+
+            coVerify(exactly = 2) { analyticsRepo.getInsights(any(), any(), any()) }
+            assertNotNull(viewModel.foodDiversityResult.value)
+        }
+
+    @Test
+    fun refreshRecomputesTheCurrentTab() =
+        runTest {
+            val viewModel = createViewModel()
+
+            viewModel.selectTab(2)
+            viewModel.refresh()
+
+            coVerify(exactly = 2) { analyticsRepo.getInsights(any(), any(), any()) }
+        }
+
+    @Test
     fun nutritionLoadErrorDoesNotCrash() =
         runTest {
             coEvery { analyticsRepo.getInsights(any(), any(), any()) } throws RuntimeException("fail")

@@ -22,6 +22,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
@@ -30,6 +32,7 @@ import com.bissbilanz.android.reminders.SupplementReminderPreferences
 import com.bissbilanz.android.ui.components.ExactAlarmPrompt
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.ReminderEditSheet
+import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.components.rememberExactAlarmsAllowed
 import com.bissbilanz.android.ui.components.weekdayLabels
 import com.bissbilanz.android.ui.openNotificationSettings
@@ -56,7 +59,12 @@ fun RemindersScreen(navController: NavController) {
     val reminderPrefs: SupplementReminderPreferences = koinInject()
     var snoozeMinutes by remember { mutableIntStateOf(reminderPrefs.snoozeMinutes) }
     var snoozeMenuExpanded by remember { mutableStateOf(false) }
-    val notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+    var notificationsEnabled by remember {
+        mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled())
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+    }
     val exactAlarmsAllowed = rememberExactAlarmsAllowed()
 
     var showForm by remember { mutableStateOf(false) }
@@ -328,7 +336,7 @@ private fun reminderSummary(
 ): String {
     val parts = mutableListOf<String>()
     if (reminder.kind == Reminder.Kind.meal) {
-        reminder.mealType?.let { parts.add(it) }
+        reminder.mealType?.let { parts.add(mealTypeDisplayName(it)) }
     }
     parts.add(reminder.time)
     parts.add(

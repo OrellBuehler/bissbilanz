@@ -889,6 +889,7 @@
     <string name="reminders_delete_title">Delete reminder</string>
     <string name="reminders_delete_text">This reminder will be permanently deleted.</string>
     <string name="reminders_load_failed">Couldn\'t load the reminder.</string>
+    <string name="reminders_list_load_failed">Couldn\'t load reminders.</string>
     <string name="reminders_save_failed">Couldn\'t save the reminder. Please try again.</string>
     <string name="reminders_delete_failed">Couldn\'t delete the reminder. Please try again.</string>
     <string name="reminders_days_required">Pick at least one day.</string>
@@ -942,6 +943,7 @@
     <string name="weight_log_failed">Failed to log weight</string>
     <string name="weight_update_success">Weight updated</string>
     <string name="weight_update_failed">Failed to update weight</string>
+    <string name="weight_load_failed">Failed to load weight data</string>
     <string name="weight_screen_title">Weight Log</string>
     <string name="weight_add_content_desc">Add weight</string>
     <string name="weight_empty">No weight entries yet.\nTap + to log your weight.</string>
@@ -966,6 +968,8 @@
     <string name="weight_target_kg_label">Target weight (kg)</string>
     <string name="weight_target_date_label">Target date (optional)</string>
     <string name="weight_target_clear">Clear target</string>
+    <string name="weight_target_update_failed">Failed to update target</string>
+    <string name="weight_target_invalid">Enter a valid weight</string>
 
     <!-- Extra nutrient full names (settings nutrient toggle list) -->
     <string name="nutrient_monounsaturated_fat_full">Monounsaturated Fat</string>
