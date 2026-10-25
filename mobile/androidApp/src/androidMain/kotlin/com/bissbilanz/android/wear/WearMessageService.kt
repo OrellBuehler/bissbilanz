@@ -1,6 +1,7 @@
 package com.bissbilanz.android.wear
 
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.widget.widgetsSignedIn
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.WeightCreate
@@ -104,6 +105,10 @@ class WearMessageService : WearableListenerService() {
         // Set between claiming an id and the write landing. Still set in the catch
         // means the claim outlived the write it was made for.
         var claimed: String? = null
+
+        // Signed out there is no account to write to: a log stored now would be uploaded
+        // to whichever account signs in next. Failed keeps it queued on the watch.
+        if (path != WearPaths.REQUEST_STATE && !widgetsSignedIn()) return WearRequestOutcome.Failed
 
         return try {
             when (path) {
