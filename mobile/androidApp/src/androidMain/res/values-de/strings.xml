@@ -654,6 +654,7 @@
     <string name="food_form_remove_nutrient">Nährstoff entfernen</string>
     <string name="food_form_hide_advanced">Erweiterte Nährwerte ausblenden</string>
     <string name="food_form_load_failed">Lebensmittel konnte nicht geladen werden</string>
+    <string name="food_form_deleted">Dieses Lebensmittel existiert nicht mehr.</string>
     <string name="food_form_name_required_error">Name ist erforderlich</string>
     <string name="food_form_required_fields_error">Kalorien, Protein, Kohlenhydrate, Fett und Portionsgröße sind erforderlich</string>
     <string name="food_form_save_failed">Lebensmittel konnte nicht gespeichert werden</string>
