@@ -198,9 +198,12 @@
         </receiver>
 
         <!-- Own empty task affinity: started from the home screen, the dialog must not
-             bring the app's task (and whatever screen it was on) forward with it. -->
+             bring the app's task (and whatever screen it was on) forward with it.
+             Handles rotation itself so a save in flight is not dropped with the
+             recreated activity's state and then submitted a second time. -->
         <activity
             android:name=".widget.QuickWeightActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:excludeFromRecents="true"
             android:exported="false"
             android:taskAffinity=""

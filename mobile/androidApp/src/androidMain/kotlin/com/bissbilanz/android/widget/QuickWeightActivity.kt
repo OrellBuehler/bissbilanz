@@ -37,8 +37,11 @@ import com.bissbilanz.model.WeightUpdate
 import com.bissbilanz.repository.WeightRepository
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import kotlin.time.Clock
@@ -95,24 +98,28 @@ class QuickWeightActivity : ComponentActivity() {
                             saveError = null
                             scope.launch {
                                 try {
-                                    if (entry != null) {
-                                        weightRepo.updateEntry(
-                                            entry.id,
-                                            WeightUpdate(
-                                                weightKg = weight,
-                                                // A null note means "unchanged", so an emptied
-                                                // note is sent as "" to actually clear it.
-                                                notes = notes.ifBlank { if (entry.notes.isNullOrBlank()) null else "" },
-                                            ),
-                                        )
-                                    } else {
-                                        weightRepo.createEntry(
-                                            WeightCreate(
-                                                weightKg = weight,
-                                                entryDate = today,
-                                                notes = notes.ifBlank { null },
-                                            ),
-                                        )
+                                    // NonCancellable: closing the dialog mid-save must not
+                                    // split the cache write from the sync enqueue.
+                                    withContext(NonCancellable + Dispatchers.IO) {
+                                        if (entry != null) {
+                                            weightRepo.updateEntry(
+                                                entry.id,
+                                                WeightUpdate(
+                                                    weightKg = weight,
+                                                    // A null note means "unchanged", so an emptied
+                                                    // note is sent as "" to actually clear it.
+                                                    notes = notes.ifBlank { if (entry.notes.isNullOrBlank()) null else "" },
+                                                ),
+                                            )
+                                        } else {
+                                            weightRepo.createEntry(
+                                                WeightCreate(
+                                                    weightKg = weight,
+                                                    entryDate = today,
+                                                    notes = notes.ifBlank { null },
+                                                ),
+                                            )
+                                        }
                                     }
                                     finish()
                                 } catch (e: Exception) {
