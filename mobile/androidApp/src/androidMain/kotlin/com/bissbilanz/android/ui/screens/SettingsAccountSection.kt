@@ -18,7 +18,6 @@ import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.tips.openHelp
-import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.auth.AuthState
 
 @Composable
@@ -182,13 +181,10 @@ internal fun SettingsFooter(onShowTipsAgain: () -> Unit) {
 /** Lets the user pick the provider their account uses; the same buttons the login screen shows. */
 @Composable
 internal fun SignInProviderDialog(
-    authManager: AuthManager,
+    enabledProviders: List<String>,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val enabledProviders by produceState(defaultEnabledProviders, authManager) {
-        authManager.fetchLoginProviders()?.let { value = it }
-    }
     AlertDialog(
         onDismissRequest = { onDismiss() },
         title = { Text(stringResource(R.string.settings_sign_in_choose_provider)) },

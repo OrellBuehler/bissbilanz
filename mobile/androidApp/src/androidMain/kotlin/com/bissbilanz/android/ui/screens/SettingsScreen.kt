@@ -27,6 +27,7 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.auth.AuthManager
+import com.bissbilanz.auth.AuthState
 import com.bissbilanz.foodpackage.BulkUploadCounts
 import com.bissbilanz.foodpackage.BulkUploadStore
 import com.bissbilanz.mode.AppMode
@@ -63,6 +64,11 @@ fun SettingsScreen(navController: NavController) {
     var showDeleteAccountDialog by rememberSaveable { mutableStateOf(false) }
     var showDowngradeDialog by rememberSaveable { mutableStateOf(false) }
     var showSignInDialog by rememberSaveable { mutableStateOf(false) }
+    // Only fetched while a sign-in button is on screen.
+    val needsSignIn = isLocalMode || (authState !is AuthState.Authenticated && authState !is AuthState.Refreshing)
+    val enabledProviders by produceState(defaultEnabledProviders, needsSignIn) {
+        if (needsSignIn) authManager.fetchLoginProviders()?.let { value = it }
+    }
     val downgradeState by viewModel.downgradeState.collectAsStateWithLifecycle()
     val downgradeRunning = downgradeState.isInProgress
     var editedNutrients by remember { mutableStateOf<Set<String>?>(null) }
@@ -151,7 +157,7 @@ fun SettingsScreen(navController: NavController) {
 
     if (showSignInDialog) {
         SignInProviderDialog(
-            authManager = authManager,
+            enabledProviders = enabledProviders,
             onSelect = { provider ->
                 showSignInDialog = false
                 launchLoginFlow(context, authManager, provider)
@@ -295,7 +301,14 @@ fun SettingsScreen(navController: NavController) {
                     pendingSyncCount = pendingSyncCount,
                     exportingData = exportingData,
                     signOutEnabled = !downgradeRunning,
-                    onSignIn = { showSignInDialog = true },
+                    onSignIn = {
+                        val visible = visibleLoginProviders(enabledProviders)
+                        if (visible.size == 1) {
+                            launchLoginFlow(context, authManager, visible.single().first)
+                        } else {
+                            showSignInDialog = true
+                        }
+                    },
                     onExportData = { viewModel.exportData(context.cacheDir) },
                     onSignOut = {
                         // Signing out wipes the device, and imported foods that were never uploaded exist nowhere else.

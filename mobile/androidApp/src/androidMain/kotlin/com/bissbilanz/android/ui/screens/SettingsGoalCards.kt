@@ -65,7 +65,13 @@ internal fun DailyGoalsCard(
                 mutableStateOf(goals?.fiberGoal?.toInt() ?: 30)
             }
 
-            val parsedCals = editCalories.trim().toIntOrNull()?.takeIf { it > 0 }
+            // "1.800" / "1'800": thousands separators people type out of habit.
+            val parsedCals =
+                editCalories
+                    .trim()
+                    .filterNot { it == '.' || it == '\'' }
+                    .toIntOrNull()
+                    ?.takeIf { it > 0 }
             val caloriesInvalid = parsedCals == null && editCalories.isNotBlank()
             val cals = parsedCals ?: 0
             val fatPct = (100 - editProteinPct - editCarbsPct).coerceAtLeast(0)
