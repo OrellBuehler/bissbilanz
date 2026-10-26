@@ -39,6 +39,7 @@ import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
 import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
+import com.bissbilanz.android.ui.viewmodels.DashboardWidgetsViewModel
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
 import com.bissbilanz.android.ui.viewmodels.FoodDuplicatesViewModel
@@ -213,6 +214,7 @@ class BissbilanzApplication :
 
                 viewModelOf(::AiTasksViewModel)
                 viewModelOf(::DashboardViewModel)
+                viewModelOf(::DashboardWidgetsViewModel)
                 viewModelOf(::DayLogViewModel)
                 viewModelOf(::InsightsViewModel)
                 viewModelOf(::FoodSearchViewModel)

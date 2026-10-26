@@ -11,11 +11,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.viewmodels.DashboardWidgetsViewModel
 import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.repository.SleepRepository
 import com.bissbilanz.util.formatDecimal1
 import com.bissbilanz.util.formatNutrient
+import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
 /**
@@ -24,14 +27,24 @@ import org.koin.compose.koinInject
  * bed/wake times and wake-ups stay available.
  */
 @Composable
-fun SleepWidget(onViewAll: () -> Unit) {
+fun SleepWidget(
+    date: String,
+    onViewAll: () -> Unit,
+    viewModel: DashboardWidgetsViewModel = koinViewModel(),
+) {
     val sleepRepo: SleepRepository = koinInject()
-    val entries by sleepRepo.entries().collectAsStateWithLifecycle(emptyList())
+    val errorReporter: ErrorReporter = koinInject()
+    val loadedEntries by viewModel.sleepEntries.collectAsStateWithLifecycle()
 
-    val latest = entries.maxByOrNull { it.entryDate }
+    val latest = remember(loadedEntries, date) { loadedEntries?.closestToDate(date) { it.entryDate } }
 
     LaunchedEffect(Unit) {
-        sleepRepo.refresh()
+        try {
+            sleepRepo.refresh()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+        }
     }
 
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -76,7 +89,7 @@ fun SleepWidget(onViewAll: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            } else {
+            } else if (loadedEntries != null) {
                 Text(
                     stringResource(R.string.sleep_no_entries),
                     style = MaterialTheme.typography.bodySmall,

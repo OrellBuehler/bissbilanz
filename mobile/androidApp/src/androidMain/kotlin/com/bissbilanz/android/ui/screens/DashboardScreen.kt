@@ -112,7 +112,7 @@ fun DashboardScreen(navController: NavController) {
 
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val appModeManager: AppModeManager = koinInject()
-    val appMode by appModeManager.mode.collectAsStateWithLifecycle(null)
+    val appMode by appModeManager.mode.collectAsStateWithLifecycle()
     val isLocalMode = appMode == AppMode.LOCAL
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -672,6 +672,7 @@ fun DashboardScreen(navController: NavController) {
                                                 Spacer(modifier = Modifier.height(16.dp))
                                                 RecipeSuggestionsWidget(
                                                     date = selectedDate.toString(),
+                                                    entries = entries,
                                                     activityCalories = activityCalories,
                                                     onViewAll = { navController.navigate("recipe-suggestions") },
                                                     onLogged = { name ->
@@ -703,7 +704,7 @@ fun DashboardScreen(navController: NavController) {
 
                                         DashboardSection.SLEEP -> {
                                             Spacer(modifier = Modifier.height(16.dp))
-                                            SleepWidget(onViewAll = { navController.navigate("sleep") })
+                                            SleepWidget(date = selectedDate.toString(), onViewAll = { navController.navigate("sleep") })
                                         }
 
                                         DashboardSection.MEAL_BREAKDOWN -> {
