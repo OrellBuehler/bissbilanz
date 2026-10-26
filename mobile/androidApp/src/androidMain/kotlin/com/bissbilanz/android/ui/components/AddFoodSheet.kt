@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.components
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -41,6 +43,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -93,12 +96,12 @@ fun AddFoodSheet(
     val viewModel: AddFoodViewModel = koinViewModel()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // Once per opening, not again when the sheet is recreated after rotation.
-    var didReset by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        if (!didReset) {
-            viewModel.reset()
-            didReset = true
+    // Cleared when the sheet leaves, so the next opening starts empty on its first frame;
+    // a rotation recreates the sheet and keeps the search.
+    val activity = LocalActivity.current
+    DisposableEffect(viewModel) {
+        onDispose {
+            if (activity?.isChangingConfigurations != true) viewModel.reset()
         }
     }
 
@@ -448,6 +451,11 @@ private fun SearchTab(
     onSelect: (Food) -> Unit,
     onSelectRecipe: (Recipe) -> Unit,
 ) {
+    val listState = rememberLazyListState()
+    // A fresh result set starts at its top.
+    LaunchedEffect(isSearching) {
+        if (!isSearching) listState.scrollToItem(0)
+    }
     Column {
         OutlinedTextField(
             value = query,
@@ -458,14 +466,18 @@ private fun SearchTab(
         )
         Spacer(modifier = Modifier.height(8.dp))
         if (query.length >= 2) {
-            if (isSearching) {
+            val hasResults = searchResults.isNotEmpty() || recipeResults.isNotEmpty() || offResults.isNotEmpty()
+            if (isSearching && !hasResults) {
                 Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 }
-            } else if (searchResults.isEmpty() && recipeResults.isEmpty() && offResults.isEmpty() && !isSearchingOff) {
+            } else if (!isSearching && !hasResults && !isSearchingOff) {
                 EmptyState(stringResource(R.string.food_search_no_results, query))
             } else {
-                LazyColumn(modifier = Modifier.fillMaxHeight()) {
+                Box(modifier = Modifier.fillMaxWidth().height(4.dp)) {
+                    if (isSearching) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+                LazyColumn(state = listState, modifier = Modifier.fillMaxHeight()) {
                     items(searchResults, key = { it.id }) { food ->
                         FoodListItem(
                             food = food,
@@ -642,14 +654,30 @@ private fun QuickTab(
             minLines = 2,
             maxLines = 4,
         )
+        if (name.isNotBlank() && !canSaveQuickEntry(name, calories)) {
+            Text(
+                stringResource(R.string.entry_edit_calories_required),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         if (isSaving) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
         Button(
             onClick = onSave,
             modifier = Modifier.fillMaxWidth(),
-            enabled = name.isNotBlank() && !isSaving,
+            enabled = canSaveQuickEntry(name, calories) && !isSaving,
         ) { Text(stringResource(R.string.weight_save)) }
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
+
+/**
+ * The server rejects an entry with neither food nor recipe unless quickCalories is positive,
+ * and the sync queue then strands it as a local temp_ row, so Save waits for a calorie value.
+ */
+internal fun canSaveQuickEntry(
+    name: String,
+    calories: String,
+): Boolean = name.isNotBlank() && (calories.toLocalizedDoubleOrNull() ?: 0.0) > 0.0

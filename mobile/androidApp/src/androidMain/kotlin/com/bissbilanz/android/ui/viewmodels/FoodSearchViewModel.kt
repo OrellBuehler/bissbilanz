@@ -92,6 +92,30 @@ class FoodSearchViewModel(
         paginationJob = viewModelScope.launch { fetchNextPage() }
     }
 
+    /**
+     * Fetches page 1 and swaps it in on success, so the list the user is looking at
+     * (and its scroll position) stays put while the fetch runs.
+     */
+    private fun refreshAllFoods() {
+        paginationJob?.cancel()
+        _isLoadingMore.value = true
+        paginationJob =
+            viewModelScope.launch {
+                try {
+                    val page = foodRepo.fetchFoodsPage(pageSize, 0, cacheOnly = false)
+                    allFoodsFromCache = page.fromCache
+                    _allFoods.value = page.foods.distinctBy { it.id }
+                    allFoodsOffset = page.foods.size
+                    _canLoadMore.value = allFoodsOffset < page.total
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    errorReporter.captureException(e)
+                    _snackbarMessage.value = UiMessage(R.string.food_search_load_failed)
+                }
+                _isLoadingMore.value = false
+            }
+    }
+
     fun loadMoreFoods() {
         if (_isLoadingMore.value || !_canLoadMore.value) return
         _isLoadingMore.value = true
@@ -135,7 +159,7 @@ class FoodSearchViewModel(
 
     fun selectTab(index: Int) {
         _selectedTab.value = index
-        if (index == TAB_ALL) loadAllFoods()
+        if (index == TAB_ALL && _allFoods.value.isEmpty() && !_isLoadingMore.value) loadAllFoods()
     }
 
     fun logFood(
@@ -211,7 +235,7 @@ class FoodSearchViewModel(
                 _snackbarMessage.value = UiMessage(R.string.food_search_refresh_failed)
             }
         }
-        if (_selectedTab.value == TAB_ALL) loadAllFoods()
+        refreshAllFoods()
     }
 
     companion object {

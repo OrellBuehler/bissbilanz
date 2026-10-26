@@ -80,7 +80,8 @@ fun RecipeSourceSheet(
     val errorReporter: ErrorReporter = koinInject()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
-    val recipes by recipeRepo.allRecipes().collectAsStateWithLifecycle(emptyList())
+    val recipesFlow = remember(recipeRepo) { recipeRepo.allRecipes() }
+    val recipes by recipesFlow.collectAsStateWithLifecycle(emptyList())
     var query by remember { mutableStateOf("") }
     var selected by remember { mutableStateOf<Recipe?>(null) }
     var amountText by remember { mutableStateOf("") }

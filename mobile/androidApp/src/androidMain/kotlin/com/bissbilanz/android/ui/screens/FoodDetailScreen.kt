@@ -80,18 +80,19 @@ fun FoodDetailScreen(
     val refreshManager: RefreshManager = koinInject()
     val prefsRepo: PreferencesRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
-    val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(null)
+    val preferencesFlow = remember(prefsRepo) { prefsRepo.preferences() }
+    val prefs by preferencesFlow.collectAsStateWithLifecycle(null)
     val visibleNutrients = prefs?.visibleNutrients?.toSet()
     var food by remember { mutableStateOf<Food?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var loadAttempt by remember { mutableIntStateOf(0) }
-    var showLogDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showLogDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
     var deleteConflict by remember { mutableStateOf<DeleteOutcome.Blocked?>(null) }
-    var showUsage by remember { mutableStateOf(false) }
+    var showUsage by rememberSaveable { mutableStateOf(false) }
     var showEditSheet by rememberSaveable { mutableStateOf(false) }
     var isEnriching by remember { mutableStateOf(false) }
-    var showMergeTargetPicker by remember { mutableStateOf(false) }
+    var showMergeTargetPicker by rememberSaveable { mutableStateOf(false) }
     var mergeTarget by remember { mutableStateOf<Food?>(null) }
     var isMerging by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()

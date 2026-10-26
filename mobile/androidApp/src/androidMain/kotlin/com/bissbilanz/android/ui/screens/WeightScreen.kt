@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -46,6 +47,7 @@ import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.android.util.formatIsoDate
+import com.bissbilanz.android.util.toEditableString
 import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.model.WeightUpdate
@@ -86,10 +88,12 @@ fun WeightScreen(navController: NavController) {
     val goals by viewModel.goals.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
 
-    var showAddDialog by remember { mutableStateOf(false) }
-    var showTargetDialog by remember { mutableStateOf(false) }
-    var entryToDelete by remember { mutableStateOf<WeightEntry?>(null) }
-    var entryToEdit by remember { mutableStateOf<WeightEntry?>(null) }
+    var showAddDialog by rememberSaveable { mutableStateOf(false) }
+    var showTargetDialog by rememberSaveable { mutableStateOf(false) }
+    var entryToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+    var entryToEditId by rememberSaveable { mutableStateOf<String?>(null) }
+    val entryToDelete = entries.find { it.id == entryToDeleteId }
+    val entryToEdit = entries.find { it.id == entryToEditId }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
@@ -143,7 +147,7 @@ fun WeightScreen(navController: NavController) {
     entryToEdit?.let { entry ->
         EditWeightDialog(
             entry = entry,
-            onDismiss = { entryToEdit = null },
+            onDismiss = { entryToEditId = null },
             onSave = { weight, notes ->
                 scope.launch {
                     try {
@@ -160,14 +164,14 @@ fun WeightScreen(navController: NavController) {
                         snackbarHostState.showSnackbar(updateFailedMessage)
                     }
                 }
-                entryToEdit = null
+                entryToEditId = null
             },
         )
     }
 
     entryToDelete?.let { entry ->
         AlertDialog(
-            onDismissRequest = { entryToDelete = null },
+            onDismissRequest = { entryToDeleteId = null },
             title = { Text(stringResource(R.string.weight_delete_title)) },
             text = { Text(stringResource(R.string.weight_delete_text, formatIsoDate(entry.entryDate))) },
             confirmButton = {
@@ -183,13 +187,13 @@ fun WeightScreen(navController: NavController) {
                                 snackbarHostState.showSnackbar(deleteFailedMessage)
                             }
                         }
-                        entryToDelete = null
+                        entryToDeleteId = null
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { entryToDelete = null }) { Text(stringResource(R.string.dialog_cancel)) }
+                TextButton(onClick = { entryToDeleteId = null }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         )
     }
@@ -233,7 +237,7 @@ fun WeightScreen(navController: NavController) {
                         contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp),
                     ) {
                         if (showHealthConnectTip) {
-                            item {
+                            item(key = "health-connect-tip") {
                                 HintCard(
                                     title = stringResource(R.string.tip_health_connect_weight_title),
                                     text = stringResource(R.string.tip_health_connect_weight_text),
@@ -247,7 +251,7 @@ fun WeightScreen(navController: NavController) {
                         }
 
                         // Weight target
-                        item {
+                        item(key = "target") {
                             WeightTargetCard(
                                 targetWeightKg = goals?.targetWeightKg,
                                 targetDate = goals?.targetDate,
@@ -258,13 +262,13 @@ fun WeightScreen(navController: NavController) {
 
                         // Stats chips
                         if (trendData.isNotEmpty()) {
-                            item {
+                            item(key = "stats") {
                                 WeightStatsRow(trendData = trendData, projectionDays = projectionDays)
                             }
                         }
 
                         // Range selector
-                        item {
+                        item(key = "range") {
                             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                                 ranges.forEachIndexed { index, label ->
                                     SegmentedButton(
@@ -280,7 +284,7 @@ fun WeightScreen(navController: NavController) {
 
                         // Projection selector
                         if (trendData.size >= 3) {
-                            item {
+                            item(key = "projection") {
                                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                                     projectionOptions.forEachIndexed { index, days ->
                                         SegmentedButton(
@@ -297,7 +301,7 @@ fun WeightScreen(navController: NavController) {
 
                         // Trend chart
                         if (trendData.isNotEmpty()) {
-                            item {
+                            item(key = "chart") {
                                 Card(modifier = Modifier.fillMaxWidth()) {
                                     WeightTrendChart(
                                         trendData = trendData,
@@ -333,10 +337,10 @@ fun WeightScreen(navController: NavController) {
                                     },
                                     trailingContent = {
                                         Row {
-                                            IconButton(onClick = { entryToEdit = entry }) {
+                                            IconButton(onClick = { entryToEditId = entry.id }) {
                                                 Icon(Icons.Default.Edit, stringResource(R.string.weight_edit_content_desc))
                                             }
-                                            IconButton(onClick = { entryToDelete = entry }) {
+                                            IconButton(onClick = { entryToDeleteId = entry.id }) {
                                                 Icon(
                                                     Icons.Default.Delete,
                                                     stringResource(R.string.weight_delete_content_desc),
@@ -420,11 +424,11 @@ private fun WeightTargetDialog(
     onDismiss: () -> Unit,
     onSave: (Double?, String?) -> Unit,
 ) {
-    var kgDraft by remember { mutableStateOf(initialTargetKg?.formatDecimal1() ?: "") }
+    var kgDraft by rememberSaveable { mutableStateOf(initialTargetKg?.toEditableString() ?: "") }
     val parsedKg = kgDraft.toLocalizedDoubleOrNull()?.takeIf { it > 0 }
     val kgInvalid = kgDraft.isNotBlank() && parsedKg == null
-    var dateDraft by remember { mutableStateOf(initialTargetDate) }
-    var showDatePicker by remember { mutableStateOf(false) }
+    var dateDraft by rememberSaveable { mutableStateOf(initialTargetDate) }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
 
     if (showDatePicker) {
         val initialMillis =
@@ -599,8 +603,8 @@ fun AddWeightDialog(
     onDismiss: () -> Unit,
     onSave: (Double, String) -> Unit,
 ) {
-    var weightText by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
+    var weightText by rememberSaveable { mutableStateOf("") }
+    var notes by rememberSaveable { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -625,11 +629,10 @@ fun AddWeightDialog(
             }
         },
         confirmButton = {
+            val weight = weightText.toLocalizedDoubleOrNull()?.takeIf { it > 0 }
             TextButton(
-                onClick = {
-                    val weight = weightText.toLocalizedDoubleOrNull()
-                    if (weight != null && weight > 0) onSave(weight, notes)
-                },
+                onClick = { if (weight != null) onSave(weight, notes) },
+                enabled = weight != null,
             ) { Text(stringResource(R.string.weight_save)) }
         },
         dismissButton = {
@@ -644,8 +647,8 @@ fun EditWeightDialog(
     onDismiss: () -> Unit,
     onSave: (Double, String) -> Unit,
 ) {
-    var weightText by remember { mutableStateOf(entry.weightKg.formatDecimal1()) }
-    var notes by remember { mutableStateOf(entry.notes ?: "") }
+    var weightText by rememberSaveable { mutableStateOf(entry.weightKg.toEditableString()) }
+    var notes by rememberSaveable { mutableStateOf(entry.notes ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -670,11 +673,10 @@ fun EditWeightDialog(
             }
         },
         confirmButton = {
+            val weight = weightText.toLocalizedDoubleOrNull()?.takeIf { it > 0 }
             TextButton(
-                onClick = {
-                    val weight = weightText.toLocalizedDoubleOrNull()
-                    if (weight != null && weight > 0) onSave(weight, notes)
-                },
+                onClick = { if (weight != null) onSave(weight, notes) },
+                enabled = weight != null,
             ) { Text(stringResource(R.string.weight_save)) }
         },
         dismissButton = {
