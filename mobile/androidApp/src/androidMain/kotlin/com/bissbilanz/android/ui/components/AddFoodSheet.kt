@@ -654,14 +654,30 @@ private fun QuickTab(
             minLines = 2,
             maxLines = 4,
         )
+        if (name.isNotBlank() && !canSaveQuickEntry(name, calories)) {
+            Text(
+                stringResource(R.string.entry_edit_calories_required),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         if (isSaving) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
         Button(
             onClick = onSave,
             modifier = Modifier.fillMaxWidth(),
-            enabled = name.isNotBlank() && !isSaving,
+            enabled = canSaveQuickEntry(name, calories) && !isSaving,
         ) { Text(stringResource(R.string.weight_save)) }
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
+
+/**
+ * The server rejects an entry with neither food nor recipe unless quickCalories is positive,
+ * and the sync queue then strands it as a local temp_ row, so Save waits for a calorie value.
+ */
+internal fun canSaveQuickEntry(
+    name: String,
+    calories: String,
+): Boolean = name.isNotBlank() && (calories.toLocalizedDoubleOrNull() ?: 0.0) > 0.0
