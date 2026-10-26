@@ -105,7 +105,8 @@ fun AiMealSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isEditing = task != null
 
-    val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(initialValue = null)
+    val preferencesFlow = remember(prefsRepo) { prefsRepo.preferences() }
+    val prefs by preferencesFlow.collectAsStateWithLifecycle(initialValue = null)
     val processorIsDevice = prefs?.effectiveAiTaskProcessor() == "device"
     val claudeCapability by prefsRepo.claudeCapability.collectAsStateWithLifecycle()
     val claudeEnabled = claudeProcessingEnabled(prefs, claudeCapability)
