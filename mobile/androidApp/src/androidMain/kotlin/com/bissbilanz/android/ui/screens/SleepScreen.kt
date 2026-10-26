@@ -52,6 +52,7 @@ import com.bissbilanz.android.util.sameMinute
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.api.generated.model.SleepEntry
 import com.bissbilanz.api.generated.model.SleepUpdate
+import com.bissbilanz.util.SleepField
 import com.bissbilanz.util.formatDecimal1
 import com.bissbilanz.util.formatNutrient
 import kotlinx.datetime.LocalDate
@@ -124,6 +125,12 @@ fun SleepScreen(navController: NavController) {
                         wakeUps = create.wakeUps,
                         notes = create.notes,
                     ),
+                    buildSet {
+                        if (entry.bedtime != null && create.bedtime == null) add(SleepField.BEDTIME)
+                        if (entry.wakeTime != null && create.wakeTime == null) add(SleepField.WAKE_TIME)
+                        if (entry.wakeUps != null && create.wakeUps == null) add(SleepField.WAKE_UPS)
+                        if (entry.notes != null && create.notes == null) add(SleepField.NOTES)
+                    },
                 )
                 entryToEdit = null
             },

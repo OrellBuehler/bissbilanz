@@ -50,6 +50,7 @@ import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.model.WeightEntry
 import com.bissbilanz.model.WeightUpdate
 import com.bissbilanz.repository.WeightRepository
+import com.bissbilanz.util.WeightField
 import com.bissbilanz.util.formatDecimal1
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.launch
@@ -149,6 +150,7 @@ fun WeightScreen(navController: NavController) {
                         weightRepo.updateEntry(
                             entry.id,
                             WeightUpdate(weightKg = weight, notes = notes.ifBlank { null }),
+                            if (entry.notes != null && notes.isBlank()) setOf(WeightField.NOTES) else emptySet(),
                         )
                         viewModel.refreshTrend()
                         snackbarHostState.showSnackbar(updatedMessage)

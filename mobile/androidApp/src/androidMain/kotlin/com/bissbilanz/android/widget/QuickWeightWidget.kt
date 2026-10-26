@@ -10,7 +10,6 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
-import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
@@ -90,7 +89,7 @@ private fun QuickWeightContent(
     todayEntry: WeightEntry?,
     latestEntry: WeightEntry?,
 ) {
-    val context = LocalContext.current
+    val context = localizedContext()
     val shown = todayEntry ?: latestEntry
     // In the widget's own language: "72,5" in German, not "72.5".
     val value = shown?.let { formatLocalizedNumber(it.weightKg, 1, context.resources.configuration.locales[0], minDecimals = 1) }

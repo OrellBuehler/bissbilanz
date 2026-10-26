@@ -48,6 +48,26 @@ enum class PreferencesField(
     BIOLOGICAL_SEX("biologicalSex"),
 }
 
+/** Clearable fields of `WeightUpdate`; only `notes` is nullable in `weightUpdateSchema`. */
+enum class WeightField(
+    override val jsonKey: String,
+) : ClearableField {
+    NOTES("notes"),
+}
+
+/**
+ * Clearable fields of `SleepUpdate`: the nullable columns of `sleepUpdateSchema`.
+ * `durationMinutes`, `quality` and `entryDate` are optional but not nullable.
+ */
+enum class SleepField(
+    override val jsonKey: String,
+) : ClearableField {
+    BEDTIME("bedtime"),
+    WAKE_TIME("wakeTime"),
+    WAKE_UPS("wakeUps"),
+    NOTES("notes"),
+}
+
 /** Clearable fields of the `SupplementCreate` body a supplement PATCH sends. */
 enum class SupplementField(
     override val jsonKey: String,
