@@ -1135,6 +1135,20 @@ class LocalDataMigrator(
             locale = locale?.let { value -> PreferencesUpdate.Locale.entries.firstOrNull { it.value == value } },
             timeZone = timeZone,
             caloricLagDaysOverride = caloricLagDaysOverride,
+            waterGoalMl = waterGoalMl,
+            // Only sent when set: the account's own value wins over an unset local one.
+            biologicalSex =
+                biologicalSex?.let { sex -> PreferencesUpdate.BiologicalSex.entries.firstOrNull { it.value == sex.value } },
+            activityGoalAdjustment = activityGoalAdjustment,
+            activityCreditPercent = activityCreditPercent,
+            pinnedInsights =
+                pinnedInsights
+                    ?.mapNotNull { value -> PreferencesUpdate.PinnedInsights.entries.firstOrNull { it.value == value } }
+                    ?.takeIf { it.isNotEmpty() },
+            aiTaskProcessor =
+                PreferencesUpdate.AiTaskProcessor.entries
+                    .firstOrNull { it.value == (aiTaskProcessorKind ?: aiTaskProcessor.value) },
+            aiTaskAutoLog = aiTaskAutoLog,
         )
 
     companion object {

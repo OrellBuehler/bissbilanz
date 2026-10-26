@@ -16,8 +16,10 @@ import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.rewriteQueuedCreate
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.WeightField
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
+import com.bissbilanz.util.jsonKeys
 import com.bissbilanz.util.newTempId
 import com.bissbilanz.util.runHook
 import kotlinx.coroutines.Dispatchers
@@ -74,9 +76,15 @@ class WeightRepository(
     /** The server id a temp id got once its create uploaded (see `EntryRepository.resolveId`). */
     suspend fun resolveId(id: String): String = if (id.isTempId()) syncQueue.resolveId(id) else id
 
+    /**
+     * [cleared] names the fields the user emptied. [WeightUpdate] encodes both
+     * "unchanged" and "cleared" as null, so without it a blanked note keeps its old
+     * value here and on the server. See `com.bissbilanz.util.PartialUpdate`.
+     */
     suspend fun updateEntry(
         id: String,
         entry: WeightUpdate,
+        cleared: Set<WeightField> = emptySet(),
     ): WeightEntry {
         @Suppress("NAME_SHADOWING")
         val id = resolveId(id)
@@ -88,7 +96,7 @@ class WeightRepository(
                     existing.copy(
                         weightKg = entry.weightKg ?: existing.weightKg,
                         entryDate = entry.entryDate ?: existing.entryDate,
-                        notes = entry.notes ?: existing.notes,
+                        notes = if (WeightField.NOTES in cleared) null else entry.notes ?: existing.notes,
                     )
                 withContext(Dispatchers.IO) { cacheWeightEntry(updated) }
                 updated
@@ -98,21 +106,21 @@ class WeightRepository(
                     userId = "",
                     weightKg = entry.weightKg ?: 0.0,
                     entryDate = entry.entryDate ?: "",
-                    notes = entry.notes,
+                    notes = if (WeightField.NOTES in cleared) null else entry.notes,
                 )
             }
         if (id.isTempId()) {
             // The create finished uploading meanwhile: the edit belongs to the server record,
             // and the temp row written above must not linger next to it.
-            if (!coalesceQueuedCreate(id, entry)) {
+            if (!coalesceQueuedCreate(id, entry, cleared)) {
                 val uploadedId = resolveId(id)
                 if (uploadedId != id) {
                     withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteWeightEntry(id) }
-                    return updateEntry(uploadedId, entry)
+                    return updateEntry(uploadedId, entry, cleared)
                 }
             }
         } else {
-            syncQueue.enqueue(SyncOperation.UpdateWeight(id, json.encodeToString(entry)))
+            syncQueue.enqueue(SyncOperation.UpdateWeight(id, json.encodeToString(entry), cleared.jsonKeys()))
         }
         errorReporter.runHook { onWeightChanged?.invoke() }
         return result
@@ -126,6 +134,7 @@ class WeightRepository(
     private suspend fun coalesceQueuedCreate(
         tempId: String,
         update: WeightUpdate,
+        cleared: Set<WeightField>,
     ): Boolean =
         syncQueue.rewriteQueuedCreate("weight", tempId) { op ->
             val create = op as? SyncOperation.CreateWeight ?: return@rewriteQueuedCreate null
@@ -134,7 +143,7 @@ class WeightRepository(
                 body.copy(
                     weightKg = update.weightKg ?: body.weightKg,
                     entryDate = update.entryDate ?: body.entryDate,
-                    notes = update.notes ?: body.notes,
+                    notes = if (WeightField.NOTES in cleared) null else update.notes ?: body.notes,
                 )
             create.copy(body = json.encodeToString(merged))
         }
