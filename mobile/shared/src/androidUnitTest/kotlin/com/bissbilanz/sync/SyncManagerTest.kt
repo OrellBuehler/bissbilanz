@@ -1438,4 +1438,39 @@ class SyncManagerTest {
             coVerify { api.updateWeightEntry("srv-weight-1", any(), any(), any(), listOf("notes")) }
             assertEquals(0, syncQueue.pendingCount())
         }
+
+    @Test
+    fun aDuplicateBarcodeConflictParksWithTheOtherFoodsName() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.UpdateFood("srv-food-1", json.encodeToString(foodCreate("Cola"))))
+            coEvery { api.updateFood("srv-food-1", any(), any(), any()) } throws
+                ApiException(
+                    "conflict",
+                    409,
+                    responseBody = """{"error": "A food with barcode 5449000169327 already exists: \"Coca-Cola Zero\""}""",
+                )
+
+            manager.syncPendingQueue()
+
+            assertEquals(
+                ParkReason.BARCODE_IN_USE_BY_PREFIX + "Coca-Cola Zero",
+                manager.parkedChanges().single().failureReason,
+            )
+            assertTrue(
+                manager.state.value.errors
+                    .single()
+                    .contains("already used by \"Coca-Cola Zero\""),
+            )
+        }
+
+    @Test
+    fun aConflictWithoutAReadableBodyParksWithTheGenericReason() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.UpdateFood("srv-food-1", json.encodeToString(foodCreate("Cola"))))
+            coEvery { api.updateFood("srv-food-1", any(), any(), any()) } throws ApiException("conflict", 409)
+
+            manager.syncPendingQueue()
+
+            assertEquals(ParkReason.CONFLICT, manager.parkedChanges().single().failureReason)
+        }
 }

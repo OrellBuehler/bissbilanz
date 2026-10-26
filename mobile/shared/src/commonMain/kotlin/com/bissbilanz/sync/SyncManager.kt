@@ -343,7 +343,7 @@ class SyncManager(
 
                         // 409 without header → real duplicate/validation conflict; park
                         e.statusCode == 409 -> {
-                            parkFailed(req, "HTTP ${e.statusCode}")
+                            parkFailed(req, ParkReason.forConflict(e.responseBody, json))
                         }
 
                         // 401 is the session, not this change: treat it like the auth-expired
@@ -1277,7 +1277,9 @@ class SyncManager(
         reason: String,
     ) {
         syncQueue.park(req.id, reason)
-        addError("Could not sync ${req.operation.description} ($reason). It was kept so you can retry or discard it.")
+        addError(
+            "Could not sync ${req.operation.description} (${ParkReason.describe(reason)}). It was kept so you can retry or discard it.",
+        )
     }
 
     /**
