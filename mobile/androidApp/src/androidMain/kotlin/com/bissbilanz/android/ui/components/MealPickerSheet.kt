@@ -1,6 +1,7 @@
 package com.bissbilanz.android.ui.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -15,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.screens.MacroRow
@@ -257,17 +259,14 @@ fun MealPickerSheet(
                 )
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
+            SheetActionRow {
                 OutlinedButton(
                     onClick = {
                         scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                 ) {
-                    Text(stringResource(R.string.dialog_cancel), maxLines = 1)
+                    Text(stringResource(R.string.dialog_cancel), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Button(
                     onClick = {
@@ -288,10 +287,14 @@ fun MealPickerSheet(
                             }
                         }
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                     enabled = !confirmed && servings > 0,
                 ) {
-                    Text(stringResource(if (showMealPicker) R.string.meal_picker_log else R.string.meal_picker_confirm), maxLines = 1)
+                    Text(
+                        stringResource(if (showMealPicker) R.string.meal_picker_log else R.string.meal_picker_confirm),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }

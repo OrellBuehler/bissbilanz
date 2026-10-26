@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import com.bissbilanz.ErrorReporter
@@ -423,17 +425,14 @@ fun SupplementEditSheet(
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
+                SheetActionRow {
                     OutlinedButton(
                         onClick = {
                             scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                     ) {
-                        Text(stringResource(R.string.dialog_cancel))
+                        Text(stringResource(R.string.dialog_cancel), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Button(
                         onClick = {
@@ -516,10 +515,10 @@ fun SupplementEditSheet(
                                 isSaving = false
                             }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         enabled = !isSaving && isValid,
                     ) {
-                        Text(stringResource(R.string.weight_save))
+                        Text(stringResource(R.string.action_save), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
 

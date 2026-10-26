@@ -9,6 +9,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -540,12 +541,12 @@ fun AiMealSheet(
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            SheetActionRow {
                 OutlinedButton(
                     onClick = onDismiss,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                     enabled = !isSending,
-                ) { Text(stringResource(R.string.dialog_cancel)) }
+                ) { Text(stringResource(R.string.dialog_cancel), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 Button(
                     onClick = {
                         isSending = true
@@ -600,23 +601,29 @@ fun AiMealSheet(
                             }
                         }
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                     enabled = canSend && !isSending,
                 ) {
                     if (isSending) {
                         CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(if (isEditing) R.string.ai_task_saving else R.string.ai_task_sending))
+                        Text(
+                            stringResource(if (isEditing) R.string.ai_task_saving else R.string.ai_task_sending),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     } else {
                         Text(
                             stringResource(
                                 when {
-                                    isEditing -> R.string.weight_save
+                                    isEditing -> R.string.action_save
                                     claudeEnabled -> R.string.ai_task_send_to_claude
                                     processorIsDevice -> R.string.ai_task_send_device
                                     else -> R.string.ai_task_send
                                 },
                             ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }

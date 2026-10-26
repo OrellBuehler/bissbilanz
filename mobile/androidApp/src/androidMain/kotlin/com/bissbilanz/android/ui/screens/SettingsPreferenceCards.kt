@@ -295,7 +295,7 @@ internal fun VisibleNutrientsCard(
                         onSave()
                     },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.weight_save)) }
+                ) { Text(stringResource(R.string.action_save)) }
             }
         }
     }

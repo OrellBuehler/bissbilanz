@@ -55,6 +55,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.android.R
@@ -282,19 +283,16 @@ fun AddFoodSheet(
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(8.dp))
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
+                SheetActionRow {
                     OutlinedButton(
                         onClick = {
                             selectedFood = null
                             selectRecipe(null)
                             servingsText = "1"
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         enabled = !isSaving,
-                    ) { Text(stringResource(R.string.dialog_cancel)) }
+                    ) { Text(stringResource(R.string.dialog_cancel), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                     val servings = servingsText.toLocalizedDoubleOrNull()?.takeIf { it > 0 }
                     Button(
                         onClick = {
@@ -306,9 +304,9 @@ fun AddFoodSheet(
                                 viewModel.logRecipe(selectedRecipe, selectedMeal, servings, logDate, eatenAt) { onLogged() }
                             }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         enabled = !isSaving && servings != null,
-                    ) { Text(stringResource(R.string.food_detail_log)) }
+                    ) { Text(stringResource(R.string.food_detail_log), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             } else {
@@ -649,7 +647,7 @@ private fun QuickTab(
             onClick = onSave,
             modifier = Modifier.fillMaxWidth(),
             enabled = name.isNotBlank() && !isSaving,
-        ) { Text(stringResource(R.string.weight_save)) }
+        ) { Text(stringResource(R.string.action_save)) }
         Spacer(modifier = Modifier.height(16.dp))
     }
 }

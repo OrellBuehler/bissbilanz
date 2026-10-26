@@ -41,6 +41,7 @@ import com.bissbilanz.android.tips.openHelp
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.components.SheetActionRow
 import com.bissbilanz.android.ui.components.SimpleLineChart
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SleepViewModel
@@ -651,29 +652,25 @@ private fun SleepEditSheet(
                 maxLines = 3,
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.dialog_cancel))
-                }
-                Button(
-                    onClick = {
-                        val times = if (timesEnabled) currentTimes() else null
-                        onSave(
-                            SleepCreate(
-                                durationMinutes = totalMinutes,
-                                quality = quality.roundToInt().toDouble(),
-                                entryDate = date,
-                                bedtime = times?.bedtime?.toString(),
-                                wakeTime = times?.wakeTime?.toString(),
-                                wakeUps = wakeUpsText.toIntOrNull(),
-                                notes = notes.trim().ifBlank { null },
-                            ),
-                        )
-                    },
-                    enabled = !durationError,
-                    modifier = Modifier.weight(1f),
-                ) { Text(stringResource(R.string.weight_save)) }
-            }
+            SheetActionRow(
+                onCancel = onDismiss,
+                confirmLabel = stringResource(R.string.action_save),
+                confirmEnabled = !durationError,
+                onConfirm = {
+                    val times = if (timesEnabled) currentTimes() else null
+                    onSave(
+                        SleepCreate(
+                            durationMinutes = totalMinutes,
+                            quality = quality.roundToInt().toDouble(),
+                            entryDate = date,
+                            bedtime = times?.bedtime?.toString(),
+                            wakeTime = times?.wakeTime?.toString(),
+                            wakeUps = wakeUpsText.toIntOrNull(),
+                            notes = notes.trim().ifBlank { null },
+                        ),
+                    )
+                },
+            )
         }
     }
 }

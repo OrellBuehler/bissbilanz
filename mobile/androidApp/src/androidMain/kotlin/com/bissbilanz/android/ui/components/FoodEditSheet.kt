@@ -4,6 +4,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
@@ -629,22 +631,19 @@ fun FoodEditSheet(
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
+                SheetActionRow {
                     OutlinedButton(
                         onClick = {
                             scope.launch { sheetState.hide() }.invokeOnCompletion { close() }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         enabled = !isBusy,
                     ) {
-                        Text(stringResource(R.string.dialog_cancel))
+                        Text(stringResource(R.string.dialog_cancel), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Button(
                         onClick = { save() },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         enabled =
                             !isBusy &&
                                 name.isNotBlank() &&
@@ -654,7 +653,7 @@ fun FoodEditSheet(
                                 fat.toLocalizedDoubleOrNull() != null &&
                                 servingSize.toLocalizedDoubleOrNull() != null,
                     ) {
-                        Text(stringResource(R.string.weight_save))
+                        Text(stringResource(R.string.action_save), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
 

@@ -19,6 +19,7 @@
     <string name="weight_input_invalid">Enter a weight between 0 and 500 kg</string>
     <string name="weight_notes_label">Notes (optional)</string>
     <string name="weight_save">Save</string>
+    <string name="action_save">Save</string>
     <string name="weight_cancel">Cancel</string>
     <string name="fasting_day">Fasting Day</string>
     <string name="fasting_day_description">Include this 0-calorie day in stats</string>

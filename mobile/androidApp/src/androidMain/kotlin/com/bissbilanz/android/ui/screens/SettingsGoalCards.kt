@@ -188,7 +188,7 @@ internal fun DailyGoalsCard(
                     },
                     enabled = isValid && parsedCals != null,
                 ) {
-                    Text(stringResource(R.string.weight_save))
+                    Text(stringResource(R.string.action_save))
                 }
             }
         }
