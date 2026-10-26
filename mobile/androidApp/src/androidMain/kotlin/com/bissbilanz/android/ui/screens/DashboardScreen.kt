@@ -112,7 +112,7 @@ fun DashboardScreen(navController: NavController) {
 
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val appModeManager: AppModeManager = koinInject()
-    val appMode by appModeManager.mode.collectAsStateWithLifecycle(null)
+    val appMode by appModeManager.mode.collectAsStateWithLifecycle()
     val isLocalMode = appMode == AppMode.LOCAL
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -127,7 +127,12 @@ fun DashboardScreen(navController: NavController) {
     // on screen, so "today" follows the calendar instead of turning into yesterday.
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(lifecycleOwner) {
+        var firstResume = true
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            // Entries logged elsewhere (web, MCP, another device) only show up after a
+            // refresh; the first resume is the initial load the view model already did.
+            if (!firstResume) viewModel.loadData()
+            firstResume = false
             while (true) {
                 viewModel.rollOverToToday()
                 delay(millisUntilNextDay())
@@ -672,6 +677,7 @@ fun DashboardScreen(navController: NavController) {
                                                 Spacer(modifier = Modifier.height(16.dp))
                                                 RecipeSuggestionsWidget(
                                                     date = selectedDate.toString(),
+                                                    entries = entries,
                                                     activityCalories = activityCalories,
                                                     onViewAll = { navController.navigate("recipe-suggestions") },
                                                     onLogged = { name ->
@@ -703,7 +709,7 @@ fun DashboardScreen(navController: NavController) {
 
                                         DashboardSection.SLEEP -> {
                                             Spacer(modifier = Modifier.height(16.dp))
-                                            SleepWidget(onViewAll = { navController.navigate("sleep") })
+                                            SleepWidget(date = selectedDate.toString(), onViewAll = { navController.navigate("sleep") })
                                         }
 
                                         DashboardSection.MEAL_BREAKDOWN -> {

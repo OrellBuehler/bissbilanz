@@ -53,17 +53,14 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.theme.rememberHaptic
+import com.bissbilanz.android.ui.viewmodels.DashboardWidgetsViewModel
 import com.bissbilanz.android.ui.viewmodels.SuggestedRecipe
-import com.bissbilanz.api.generated.model.TopFoodItem
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
-import com.bissbilanz.repository.GoalsRepository
-import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.repository.RecipeRepository
-import com.bissbilanz.repository.StatsRepository
 import com.bissbilanz.util.cookedWeightServingSize
 import com.bissbilanz.util.formatAsInt
 import com.bissbilanz.util.normalizeMealType
@@ -72,9 +69,8 @@ import com.bissbilanz.util.resolvedCalories
 import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.totalMacros
 import kotlinx.coroutines.launch
-import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
+import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
 /**
@@ -144,30 +140,22 @@ fun CalorieTrendWidget(
     date: String,
     entries: List<Entry>,
     modifier: Modifier = Modifier,
+    viewModel: DashboardWidgetsViewModel = koinViewModel(),
 ) {
-    val statsRepo: StatsRepository = koinInject()
-    val errorReporter: ErrorReporter = koinInject()
-    var series by remember { mutableStateOf<List<Pair<String, Double>>>(emptyList()) }
+    val series by viewModel.calorieSeries.collectAsStateWithLifecycle()
     val entriesKey = entries.calorieSignature()
 
     LaunchedEffect(date, entriesKey) {
-        val end = runCatching { LocalDate.parse(date) }.getOrNull() ?: return@LaunchedEffect
-        val start = end.minus(6, DateTimeUnit.DAY)
-        series =
-            try {
-                statsRepo.getDailyStats(start.toString(), end.toString()).data.map { it.date to it.calories }
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-                emptyList()
-            }
+        viewModel.loadCalorieSeries(date)
     }
 
     val calories =
         remember(series, entries, date) {
-            val localTotal = entries.sumOf { it.resolvedCalories() }
-            val merged = series.map { (day, value) -> if (day == date) localTotal else value }
-            if (series.none { it.first == date } && entries.isNotEmpty()) merged + localTotal else merged
+            series?.let { loaded ->
+                val localTotal = entries.sumOf { it.resolvedCalories() }
+                val merged = loaded.map { (day, value) -> if (day == date) localTotal else value }
+                if (loaded.none { it.first == date } && entries.isNotEmpty()) merged + localTotal else merged
+            }
         }
 
     WidgetCard(
@@ -175,7 +163,9 @@ fun CalorieTrendWidget(
         icon = Icons.AutoMirrored.Filled.ShowChart,
         modifier = modifier,
     ) {
-        if (calories.size < 2) {
+        if (calories == null) {
+            Spacer(modifier = Modifier.height(96.dp))
+        } else if (calories.size < 2) {
             Text(
                 stringResource(R.string.dashboard_widget_not_enough_data),
                 style = MaterialTheme.typography.bodySmall,
@@ -212,13 +202,13 @@ fun FavoritesQuickLogWidget(
     onViewAll: () -> Unit,
     onLogged: (String) -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: DashboardWidgetsViewModel = koinViewModel(),
 ) {
     val foodRepo: FoodRepository = koinInject()
     val entryRepo: EntryRepository = koinInject()
-    val prefsRepo: PreferencesRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
-    val favorites by foodRepo.favorites().collectAsStateWithLifecycle(emptyList())
-    val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(null)
+    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
+    val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val haptic = rememberHaptic()
     val scope = rememberCoroutineScope()
     var pendingFood by remember { mutableStateOf<Food?>(null) }
@@ -278,7 +268,10 @@ fun FavoritesQuickLogWidget(
             TextButton(onClick = onViewAll) { Text(stringResource(R.string.chart_view_all)) }
         },
     ) {
-        if (favorites.isEmpty()) {
+        val loadedFavorites = favorites
+        if (loadedFavorites == null) {
+            Spacer(modifier = Modifier.height(32.dp))
+        } else if (loadedFavorites.isEmpty()) {
             Text(
                 stringResource(R.string.dashboard_favorites_empty),
                 style = MaterialTheme.typography.bodySmall,
@@ -289,7 +282,7 @@ fun FavoritesQuickLogWidget(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                favorites.take(8).forEach { food ->
+                loadedFavorites.take(8).forEach { food ->
                     AssistChip(
                         onClick = {
                             haptic(HapticFeedbackType.LongPress)
@@ -397,22 +390,14 @@ fun TopFoodsWidget(
     entries: List<Entry>,
     isLocalMode: Boolean,
     modifier: Modifier = Modifier,
+    viewModel: DashboardWidgetsViewModel = koinViewModel(),
 ) {
-    val statsRepo: StatsRepository = koinInject()
-    val errorReporter: ErrorReporter = koinInject()
-    var foods by remember { mutableStateOf<List<TopFoodItem>>(emptyList()) }
+    val foods by viewModel.topFoods.collectAsStateWithLifecycle()
     val entriesKey = entries.calorieSignature()
 
     LaunchedEffect(isLocalMode, entriesKey) {
         if (isLocalMode) return@LaunchedEffect
-        foods =
-            try {
-                statsRepo.getTopFoods(days = 7, limit = 5).data
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-                emptyList()
-            }
+        viewModel.loadTopFoods()
     }
 
     WidgetCard(
@@ -428,7 +413,9 @@ fun TopFoodsWidget(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
-            foods.isEmpty() ->
+            foods == null -> Spacer(modifier = Modifier.height(32.dp))
+
+            foods?.isEmpty() != false ->
                 Text(
                     stringResource(R.string.dashboard_widget_not_enough_data),
                     style = MaterialTheme.typography.bodySmall,
@@ -437,7 +424,7 @@ fun TopFoodsWidget(
 
             else ->
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    foods.forEach { item ->
+                    foods?.forEach { item ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -471,20 +458,20 @@ fun TopFoodsWidget(
 @Composable
 fun RecipeSuggestionsWidget(
     date: String,
+    entries: List<Entry>,
     activityCalories: Int?,
     onViewAll: () -> Unit,
     onLogged: (String) -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: DashboardWidgetsViewModel = koinViewModel(),
 ) {
     val recipeRepo: RecipeRepository = koinInject()
     val entryRepo: EntryRepository = koinInject()
-    val goalsRepo: GoalsRepository = koinInject()
-    val prefsRepo: PreferencesRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
-    val recipes by recipeRepo.allRecipes().collectAsStateWithLifecycle(emptyList())
-    val entries by entryRepo.entriesByDate(date).collectAsStateWithLifecycle(emptyList())
-    val goals by goalsRepo.goals().collectAsStateWithLifecycle(null)
-    val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(null)
+    val loadedRecipes by viewModel.recipes.collectAsStateWithLifecycle()
+    val recipes = loadedRecipes.orEmpty()
+    val goals by viewModel.goals.collectAsStateWithLifecycle()
+    val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var pendingSuggestion by remember { mutableStateOf<SuggestedRecipe?>(null) }
 
@@ -582,6 +569,8 @@ fun RecipeSuggestionsWidget(
         },
     ) {
         when {
+            loadedRecipes == null -> Spacer(modifier = Modifier.height(32.dp))
+
             goals == null || recipes.isEmpty() ->
                 Text(
                     stringResource(R.string.dashboard_recipe_suggestions_empty),

@@ -15,11 +15,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.viewmodels.DashboardWidgetsViewModel
 import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.repository.WeightRepository
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
 @Composable
@@ -27,15 +29,17 @@ fun WeightWidget(
     date: String,
     onViewAll: () -> Unit,
     onError: (String) -> Unit = {},
+    viewModel: DashboardWidgetsViewModel = koinViewModel(),
 ) {
     val weightRepo: WeightRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
-    val allEntries by weightRepo.entries().collectAsStateWithLifecycle(emptyList())
+    val loadedEntries by viewModel.weightEntries.collectAsStateWithLifecycle()
+    val allEntries = loadedEntries.orEmpty()
     val scope = rememberCoroutineScope()
     var weightInput by remember { mutableStateOf("") }
     val logFailedMessage = stringResource(R.string.weight_log_failed)
 
-    val latestEntry = allEntries.maxByOrNull { it.entryDate }
+    val latestEntry = remember(allEntries, date) { allEntries.closestToDate(date) { it.entryDate } }
     val todayEntry = allEntries.find { it.entryDate == date }
 
     LaunchedEffect(Unit) {
@@ -88,7 +92,7 @@ fun WeightWidget(
                 )
             }
 
-            if (todayEntry == null) {
+            if (loadedEntries != null && todayEntry == null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),

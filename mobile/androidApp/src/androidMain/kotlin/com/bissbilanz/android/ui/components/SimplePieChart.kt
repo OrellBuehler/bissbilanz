@@ -1,8 +1,5 @@
 package com.bissbilanz.android.ui.components
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseOutCubic
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -10,7 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,11 +53,7 @@ fun SimplePieChart(
     if (total <= 0f) return
     val surfaceColor = MaterialTheme.colorScheme.surfaceContainerLow
 
-    val sweepFraction = remember { Animatable(0f) }
-    LaunchedEffect(entries) {
-        sweepFraction.snapTo(0f)
-        sweepFraction.animateTo(1f, animationSpec = tween(600, easing = EaseOutCubic))
-    }
+    val sweepFraction = rememberRevealFraction(600)
 
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
