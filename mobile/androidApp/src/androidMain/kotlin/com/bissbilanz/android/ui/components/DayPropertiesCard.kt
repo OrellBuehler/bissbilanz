@@ -1,6 +1,7 @@
 package com.bissbilanz.android.ui.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
@@ -13,8 +14,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.R
@@ -88,6 +91,16 @@ private fun WaterSection(
 ) {
     val current = waterMl ?: 0
     var draft by remember(waterMl) { mutableStateOf(waterMl?.toString() ?: "") }
+    val focusManager = LocalFocusManager.current
+    val commitDraft by rememberUpdatedState {
+        if (draft.toIntOrNull() != waterMl) onSetWater(draft.toIntOrNull())
+    }
+
+    // A typed value still pending when the card leaves (day switch, navigation) is saved
+    // for the day the card was showing.
+    DisposableEffect(Unit) {
+        onDispose { commitDraft() }
+    }
 
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Default.WaterDrop, contentDescription = null, tint = WaterCyan.macroTextTone())
@@ -125,11 +138,12 @@ private fun WaterSection(
             value = draft,
             onValueChange = { draft = it },
             label = { Text(stringResource(R.string.day_water_input_label)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
             singleLine = true,
             modifier =
                 Modifier.weight(1f).onFocusChanged { focus ->
-                    if (!focus.isFocused && draft.toIntOrNull() != waterMl) onSetWater(draft.toIntOrNull())
+                    if (!focus.isFocused) commitDraft()
                 },
         )
     }
@@ -148,11 +162,17 @@ private fun ActivitySection(
 
     // Focus callbacks also fire when the fields are first laid out; saving an unchanged
     // value would turn an imported Health Connect value into a "manual" one.
-    fun commit() {
+    val focusManager = LocalFocusManager.current
+    val commit by rememberUpdatedState {
         val calories = caloriesDraft.toIntOrNull()
         val note = noteDraft.trim().ifEmpty { null }
-        if (calories == activityCalories && note == activityNote?.trim()?.ifEmpty { null }) return
-        onSetActivity(calories, noteDraft)
+        if (calories != activityCalories || note != activityNote?.trim()?.ifEmpty { null }) {
+            onSetActivity(calories, noteDraft)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { commit() }
     }
 
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -188,7 +208,8 @@ private fun ActivitySection(
         value = caloriesDraft,
         onValueChange = { caloriesDraft = it },
         label = { Text(stringResource(R.string.day_activity_calories_label)) },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
         singleLine = true,
         modifier =
             Modifier.fillMaxWidth().onFocusChanged { focus ->
@@ -200,6 +221,8 @@ private fun ActivitySection(
         value = noteDraft,
         onValueChange = { noteDraft = it },
         label = { Text(stringResource(R.string.day_activity_note_label)) },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
         singleLine = true,
         modifier =
             Modifier.fillMaxWidth().onFocusChanged { focus ->
@@ -223,13 +246,20 @@ private fun NotesSection(
     notes: String,
     onNotesChanged: (String) -> Unit,
 ) {
-    var draft by remember(notes) { mutableStateOf(notes) }
+    var draft by remember { mutableStateOf(notes) }
+    var focused by remember { mutableStateOf(false) }
     val currentDraft by rememberUpdatedState(draft)
     val currentNotes by rememberUpdatedState(notes)
     val currentOnNotesChanged by rememberUpdatedState(onNotesChanged)
 
+    // The server echoes the trimmed note; replacing the draft with it would reset the
+    // cursor and eat a trailing space the user is still typing.
+    LaunchedEffect(notes) {
+        if (!focused && notes.trim() != draft.trim()) draft = notes
+    }
+
     LaunchedEffect(draft) {
-        if (draft == notes) return@LaunchedEffect
+        if (draft.trim() == notes.trim()) return@LaunchedEffect
         delay(1200)
         onNotesChanged(draft)
     }
@@ -237,7 +267,7 @@ private fun NotesSection(
     // Leaving the dashboard (or the day) inside the debounce window still saves the draft.
     DisposableEffect(Unit) {
         onDispose {
-            if (currentDraft != currentNotes) currentOnNotesChanged(currentDraft)
+            if (currentDraft.trim() != currentNotes.trim()) currentOnNotesChanged(currentDraft)
         }
     }
 
@@ -261,7 +291,8 @@ private fun NotesSection(
         placeholder = { Text(stringResource(R.string.day_notes_placeholder)) },
         modifier =
             Modifier.fillMaxWidth().onFocusChanged { focus ->
-                if (!focus.isFocused && draft != notes) onNotesChanged(draft)
+                focused = focus.isFocused
+                if (!focus.isFocused && draft.trim() != notes.trim()) onNotesChanged(draft)
             },
         minLines = 2,
     )
