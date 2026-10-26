@@ -49,7 +49,7 @@ class SleepRepository(
         if (appModeManager.isLocal) return
         try {
             val entries = api.getSleepEntries(from, to)
-            withContext(Dispatchers.IO) { cacheSleepEntries(entries) }
+            cacheSleepEntries(entries, from, to)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
@@ -206,17 +206,45 @@ class SleepRepository(
         )
     }
 
-    private fun cacheSleepEntries(entries: List<SleepEntry>) {
-        db.userDataDatabaseQueries.transaction {
-            db.userDataDatabaseQueries.deleteAllSleepEntries()
-            entries.forEach { entry -> cacheSleepEntry(entry) }
+    private suspend fun cacheSleepEntries(
+        entries: List<SleepEntry>,
+        from: String?,
+        to: String?,
+    ) {
+        // Rows with an un-uploaded write must survive: optimistic temp-id creates whose
+        // upload is still queued, and rows carrying a queued update. A temp row that is
+        // no longer pending was already swapped for its server record, so it goes.
+        // Only the requested window is replaced; a ranged refresh must not truncate the
+        // history outside it (the health import dedupes against that history and
+        // would otherwise re-create those nights and hit 409 duplicates).
+        val pendingIds = pendingSleepIds()
+        val queries = db.userDataDatabaseQueries
+        withContext(Dispatchers.IO) {
+            queries.transaction {
+                queries
+                    .selectAllSleepEntries()
+                    .executeAsList()
+                    .filter { it.id !in pendingIds }
+                    .filter { (from == null || it.entryDate >= from) && (to == null || it.entryDate <= to) }
+                    .forEach { queries.deleteSleepEntry(it.id) }
+                entries.forEach { entry -> if (entry.id !in pendingIds) cacheSleepEntry(entry) }
+            }
+            // SyncMeta lives in the cache database; written after the user-data commit.
+            cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+                entityType = "sleep",
+                lastSyncedAt = Clock.System.now().toString(),
+            )
         }
-        // SyncMeta lives in the cache database; written after the user-data commit.
-        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
-            entityType = "sleep",
-            lastSyncedAt = Clock.System.now().toString(),
-        )
     }
+
+    /** Sleep-entry ids with an un-uploaded (queued or in-flight) sync operation. */
+    private suspend fun pendingSleepIds(): Set<String> =
+        syncQueue
+            .all()
+            .asSequence()
+            .filter { it.operation.affectedTable == "sleep" }
+            .mapNotNull { it.operation.affectedId }
+            .toSet()
 
     private fun sleepCreateToEntry(entry: SleepCreate): SleepEntry =
         SleepEntry(
