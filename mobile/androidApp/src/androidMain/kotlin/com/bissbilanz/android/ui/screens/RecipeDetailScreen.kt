@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -399,11 +400,12 @@ fun RecipeDetailScreen(
                             Spacer(modifier = Modifier.height(16.dp))
                             Button(
                                 onClick = { navController.navigate("recipe/$currentId/cook") },
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                             ) {
-                                Icon(Icons.Default.Restaurant, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(stringResource(R.string.recipe_detail_start_cooking), style = MaterialTheme.typography.titleMedium)
+                                Icon(Icons.Default.Restaurant, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                                Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                                Text(stringResource(R.string.recipe_detail_start_cooking), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
 

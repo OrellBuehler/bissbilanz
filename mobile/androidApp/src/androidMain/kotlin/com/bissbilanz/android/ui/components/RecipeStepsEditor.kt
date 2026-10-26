@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -63,9 +64,10 @@ fun RecipeStepsEditor(
             FilledTonalButton(
                 onClick = { onStepsChange(steps + RecipeStepDraft(key = newTempId())) },
                 enabled = steps.size < MAX_RECIPE_STEPS,
+                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
             ) {
-                Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(4.dp))
+                Icon(Icons.Default.Add, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                 Text(stringResource(R.string.action_add))
             }
         }

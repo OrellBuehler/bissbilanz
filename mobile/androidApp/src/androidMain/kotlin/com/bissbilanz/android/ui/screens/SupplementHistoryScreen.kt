@@ -7,15 +7,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -404,14 +404,9 @@ private fun HistorySupplementRow(
             Spacer(modifier = Modifier.width(8.dp))
             if (hasIngredients) {
                 Icon(
-                    imageVector =
-                        if (isExpanded) {
-                            Icons.Default.KeyboardArrowDown
-                        } else {
-                            Icons.AutoMirrored.Filled.KeyboardArrowRight
-                        },
+                    imageVector = Icons.Default.ExpandMore,
                     contentDescription = stringResource(R.string.supplement_history_toggle_ingredients),
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(16.dp).rotate(if (isExpanded) 0f else -90f),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.width(4.dp))

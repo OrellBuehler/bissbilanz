@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -365,9 +366,9 @@ private fun ActiveFastSection(
                     }
                 }
                 Box {
-                    TextButton(onClick = { onShowTargetMenu(true) }) {
-                        Icon(Icons.Default.Tune, null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
+                    TextButton(onClick = { onShowTargetMenu(true) }, contentPadding = ButtonDefaults.TextButtonWithIconContentPadding) {
+                        Icon(Icons.Default.Tune, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                         Text(
                             stringResource(R.string.fasting_change_target),
                             style = MaterialTheme.typography.labelSmall,

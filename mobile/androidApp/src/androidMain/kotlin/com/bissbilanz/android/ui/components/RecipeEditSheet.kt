@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -329,9 +330,10 @@ fun RecipeEditSheet(
                     FilledTonalButton(
                         onClick = { showFoodPicker = true },
                         enabled = ingredients.size < MAX_RECIPE_INGREDIENTS,
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                     ) {
-                        Icon(Icons.Default.Add, stringResource(R.string.action_add), modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(Icons.Default.Add, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                         Text(stringResource(R.string.action_add))
                     }
                 }

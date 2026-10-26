@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -302,11 +303,14 @@ fun SupplementEditSheet(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
-                    FilledTonalButton(onClick = {
-                        ingredients = ingredients + SupplementIngredientRow()
-                    }) {
-                        Icon(Icons.Default.Add, stringResource(R.string.action_add), modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
+                    FilledTonalButton(
+                        onClick = {
+                            ingredients = ingredients + SupplementIngredientRow()
+                        },
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                    ) {
+                        Icon(Icons.Default.Add, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                         Text(stringResource(R.string.action_add))
                     }
                 }
@@ -585,9 +589,13 @@ private fun ReminderTimesSection(
             stringResource(R.string.supplement_reminders),
             style = MaterialTheme.typography.labelLarge,
         )
-        TextButton(onClick = addTime, enabled = times.size < MAX_REMINDER_TIMES) {
-            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(4.dp))
+        TextButton(
+            onClick = addTime,
+            enabled = times.size < MAX_REMINDER_TIMES,
+            contentPadding = ButtonDefaults.TextButtonWithIconContentPadding,
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
             Text(stringResource(R.string.supplement_add_reminder))
         }
     }

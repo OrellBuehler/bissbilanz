@@ -14,8 +14,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -869,9 +869,9 @@ private fun IngredientsSection(text: String) {
             )
             if (isLong) {
                 Icon(
-                    if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    Icons.Default.ExpandMore,
                     contentDescription = stringResource(if (expanded) R.string.food_detail_collapse else R.string.food_detail_expand),
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(20.dp).rotate(if (expanded) 180f else 0f),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

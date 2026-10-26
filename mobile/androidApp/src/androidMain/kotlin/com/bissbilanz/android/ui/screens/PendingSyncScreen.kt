@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -186,17 +187,28 @@ fun PendingSyncScreen(navController: NavController) {
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.End,
                                 ) {
-                                    TextButton(onClick = { scope.launch { syncManager.discardParked(request.id) } }) {
-                                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
+                                    TextButton(onClick = {
+                                        scope.launch { syncManager.discardParked(request.id) }
+                                    }, contentPadding = ButtonDefaults.TextButtonWithIconContentPadding) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(ButtonDefaults.IconSize),
+                                        )
+                                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                                         Text(stringResource(R.string.pending_sync_discard))
                                     }
                                     TextButton(
                                         onClick = { scope.launch { syncManager.retryParked(request.id) } },
                                         enabled = !syncState.isSyncing,
+                                        contentPadding = ButtonDefaults.TextButtonWithIconContentPadding,
                                     ) {
-                                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Icon(
+                                            Icons.Default.Refresh,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(ButtonDefaults.IconSize),
+                                        )
+                                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                                         Text(stringResource(R.string.pending_sync_retry))
                                     }
                                 }

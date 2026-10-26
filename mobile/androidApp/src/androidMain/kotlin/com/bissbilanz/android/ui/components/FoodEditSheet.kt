@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -345,12 +346,11 @@ fun FoodEditSheet(
                     OutlinedButton(
                         onClick = { showLabelScanner = true },
                         modifier = Modifier.fillMaxWidth(),
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                     ) {
-                        Icon(Icons.Default.DocumentScanner, contentDescription = null)
-                        Text(
-                            stringResource(R.string.scan_label),
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
+                        Icon(Icons.Default.DocumentScanner, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                        Text(stringResource(R.string.scan_label))
                     }
                     Text(
                         stringResource(R.string.scan_label_footer),
@@ -582,9 +582,12 @@ fun FoodEditSheet(
                         }
 
                         Box {
-                            TextButton(onClick = { showNutrientPicker = true }) {
-                                Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
+                            TextButton(
+                                onClick = { showNutrientPicker = true },
+                                contentPadding = ButtonDefaults.TextButtonWithIconContentPadding,
+                            ) {
+                                Icon(Icons.Default.Add, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                                Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                                 Text(stringResource(R.string.food_form_add_nutrient))
                             }
                             DropdownMenu(

@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.CallMerge
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -173,9 +174,9 @@ private fun DuplicateGroupCard(
             }
             Spacer(modifier = Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                Button(onClick = onResolve, enabled = enabled) {
-                    Icon(Icons.AutoMirrored.Filled.CallMerge, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
+                Button(onClick = onResolve, enabled = enabled, contentPadding = ButtonDefaults.ButtonWithIconContentPadding) {
+                    Icon(Icons.AutoMirrored.Filled.CallMerge, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                     Text(stringResource(R.string.food_duplicates_resolve))
                 }
             }

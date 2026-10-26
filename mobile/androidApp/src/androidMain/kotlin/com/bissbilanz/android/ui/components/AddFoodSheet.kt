@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -320,13 +321,13 @@ fun AddFoodSheet(
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 8.dp).weight(1f),
                     )
-                    TextButton(onClick = { showDatePicker = true }) {
+                    TextButton(onClick = { showDatePicker = true }, contentPadding = ButtonDefaults.TextButtonWithIconContentPadding) {
                         Icon(
                             Icons.Default.CalendarToday,
                             stringResource(R.string.insights_sleep_pick_date),
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(ButtonDefaults.IconSize),
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                         Text(runCatching { LocalDate.parse(logDate) }.getOrNull()?.let { dayLabel(it) } ?: logDate, maxLines = 1)
                     }
                 }

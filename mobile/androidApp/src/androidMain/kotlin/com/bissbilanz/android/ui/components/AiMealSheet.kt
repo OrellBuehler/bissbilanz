@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -370,9 +371,10 @@ fun AiMealSheet(
                 OutlinedButton(
                     onClick = { showDatePicker = true },
                     modifier = Modifier.fillMaxWidth(),
+                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                 ) {
-                    Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                     Text(
                         runCatching { LocalDate.parse(selectedDate) }.getOrNull()?.let { dayLabel(it) } ?: selectedDate,
                     )
@@ -395,9 +397,10 @@ fun AiMealSheet(
                 OutlinedButton(
                     onClick = { showTimePicker = true },
                     modifier = Modifier.weight(1f),
+                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                 ) {
-                    Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                     Text(formatTimeOfDay(eatenHour, eatenMinute))
                 }
                 if (eatenHour != null) {
@@ -495,9 +498,10 @@ fun AiMealSheet(
                             takePicture.launch(uri)
                         },
                         modifier = Modifier.weight(1f),
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                     ) {
-                        Icon(Icons.Outlined.PhotoCamera, null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(Icons.Outlined.PhotoCamera, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                         Text(stringResource(R.string.ai_task_photo_camera), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     OutlinedButton(
@@ -507,9 +511,10 @@ fun AiMealSheet(
                             )
                         },
                         modifier = Modifier.weight(1f),
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                     ) {
-                        Icon(Icons.Outlined.PhotoLibrary, null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(Icons.Outlined.PhotoLibrary, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                         Text(stringResource(R.string.ai_task_photo_gallery), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }

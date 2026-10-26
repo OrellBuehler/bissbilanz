@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -216,25 +217,28 @@ fun RecipeCookScreen(
                         OutlinedButton(
                             onClick = { goTo(page - 1) },
                             enabled = page > 0,
-                            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null)
-                            Text(stringResource(R.string.recipe_cook_back))
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                            Text(stringResource(R.string.recipe_cook_back), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         if (page < pageCount - 1) {
                             Button(
                                 onClick = { goTo(page + 1) },
-                                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                                modifier = Modifier.weight(1f),
                             ) {
-                                Text(stringResource(R.string.recipe_cook_next))
-                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
+                                Text(stringResource(R.string.recipe_cook_next), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, modifier = Modifier.size(ButtonDefaults.IconSize))
                             }
                         } else {
                             Button(
                                 onClick = { close() },
-                                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                                modifier = Modifier.weight(1f),
                             ) {
-                                Text(stringResource(R.string.recipe_cook_done))
+                                Text(stringResource(R.string.recipe_cook_done), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
@@ -455,9 +459,9 @@ private fun FinishedPage(onLog: () -> Unit) {
             textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.size(24.dp))
-        Button(onClick = onLog, modifier = Modifier.heightIn(min = 56.dp)) {
-            Icon(Icons.Default.Add, null)
-            Spacer(modifier = Modifier.width(8.dp))
+        Button(onClick = onLog, contentPadding = ButtonDefaults.ButtonWithIconContentPadding) {
+            Icon(Icons.Default.Add, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
             Text(stringResource(R.string.recipe_cook_log))
         }
     }
