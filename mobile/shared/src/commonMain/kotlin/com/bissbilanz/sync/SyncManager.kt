@@ -583,6 +583,7 @@ class SyncManager(
                     json.decodeFromString<WeightUpdate>(op.body),
                     idempotencyKey,
                     clientEditedAt,
+                    op.clearedKeys,
                 )
             }
 
@@ -680,6 +681,7 @@ class SyncManager(
                     json.decodeFromString<SleepUpdate>(op.body),
                     idempotencyKey,
                     clientEditedAt,
+                    op.clearedKeys,
                 )
             }
 
@@ -843,7 +845,8 @@ class SyncManager(
                 val edited = json.decodeOrNull<WeightCreate>(currentBody) ?: return emptyList()
                 if (edited == sent) return emptyList()
                 val update = WeightUpdate(weightKg = edited.weightKg, entryDate = edited.entryDate, notes = edited.notes)
-                listOf(SyncOperation.UpdateWeight(serverId, json.encodeToString(update)))
+                val cleared = if (sent.notes != null && edited.notes == null) listOf("notes") else emptyList()
+                listOf(SyncOperation.UpdateWeight(serverId, json.encodeToString(update), cleared))
             }
 
             is SyncOperation.CreateSleep -> {
@@ -860,7 +863,15 @@ class SyncManager(
                         wakeUps = edited.wakeUps,
                         notes = edited.notes,
                     )
-                listOf(SyncOperation.UpdateSleep(serverId, json.encodeToString(update)))
+                val cleared =
+                    listOf(
+                        "bedtime" to (sent.bedtime to edited.bedtime),
+                        "wakeTime" to (sent.wakeTime to edited.wakeTime),
+                        "wakeUps" to (sent.wakeUps to edited.wakeUps),
+                        "notes" to (sent.notes to edited.notes),
+                    ).filter { (_, values) -> values.first != null && values.second == null }
+                        .map { it.first }
+                listOf(SyncOperation.UpdateSleep(serverId, json.encodeToString(update), cleared))
             }
 
             is SyncOperation.CreateSupplement -> {

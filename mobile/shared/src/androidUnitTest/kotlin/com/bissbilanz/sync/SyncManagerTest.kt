@@ -19,6 +19,7 @@ import com.bissbilanz.api.generated.model.Supplement
 import com.bissbilanz.api.generated.model.SupplementCreate
 import com.bissbilanz.api.generated.model.WeightCreate
 import com.bissbilanz.api.generated.model.WeightEntry
+import com.bissbilanz.api.generated.model.WeightUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.model.Entry
@@ -1423,4 +1424,18 @@ class SyncManagerTest {
                     every { headers } returns headersOf("X-Sync-Conflict", "server-newer")
                 },
         )
+
+    @Test
+    fun executesUpdateWeightWithClearedKeys() =
+        runTest {
+            syncQueue.enqueue(
+                SyncOperation.UpdateWeight("srv-weight-1", json.encodeToString(WeightUpdate(weightKg = 80.0)), listOf("notes")),
+            )
+            coEvery { api.updateWeightEntry("srv-weight-1", any(), any(), any(), listOf("notes")) } returns weightEntry("srv-weight-1")
+
+            manager.syncPendingQueue()
+
+            coVerify { api.updateWeightEntry("srv-weight-1", any(), any(), any(), listOf("notes")) }
+            assertEquals(0, syncQueue.pendingCount())
+        }
 }

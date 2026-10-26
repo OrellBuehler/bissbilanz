@@ -210,6 +210,7 @@ sealed class SyncOperation {
     data class UpdateWeight(
         val id: String,
         val body: String,
+        val clearedKeys: List<String> = emptyList(),
     ) : SyncOperation() {
         override val affectedTable = "weight"
         override val affectedId get() = id
@@ -359,6 +360,7 @@ sealed class SyncOperation {
     data class UpdateSleep(
         val id: String,
         val body: String,
+        val clearedKeys: List<String> = emptyList(),
     ) : SyncOperation() {
         override val affectedTable = "sleep"
         override val affectedId get() = id
