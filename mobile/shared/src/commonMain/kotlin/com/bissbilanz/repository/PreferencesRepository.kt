@@ -78,6 +78,8 @@ class PreferencesRepository(
         val response = api.getPreferencesResponse()
         if (generation != accountGeneration) return
         _claudeCapability.value = response.claude
+        // A preferences edit still waiting to upload is newer than what the server holds.
+        if (syncQueue.hasPending("preferences")) return
         withContext(Dispatchers.IO) { cachePreferences(response.preferences) }
     }
 
