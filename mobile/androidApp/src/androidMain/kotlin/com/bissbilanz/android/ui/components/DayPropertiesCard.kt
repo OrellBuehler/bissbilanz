@@ -3,9 +3,9 @@ package com.bissbilanz.android.ui.components
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.*
@@ -156,7 +156,7 @@ private fun ActivitySection(
     }
 
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Default.DirectionsRun, contentDescription = null, tint = ActivityViolet.macroTextTone())
+        Icon(Icons.AutoMirrored.Filled.DirectionsRun, contentDescription = null, tint = ActivityViolet.macroTextTone())
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             stringResource(R.string.day_activity_title),
