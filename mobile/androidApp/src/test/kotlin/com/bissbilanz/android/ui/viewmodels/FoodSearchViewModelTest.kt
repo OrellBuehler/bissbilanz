@@ -148,6 +148,85 @@ class FoodSearchViewModelTest {
         }
 
     @Test
+    fun refiningTheQueryKeepsThePreviousResultsUntilNewOnesArrive() =
+        runTest {
+            coEvery { foodRepo.searchFoods("ap") } returns listOf(testFood("a"))
+            coEvery { foodRepo.searchFoods("app") } returns listOf(testFood("b"))
+            coEvery { foodRepo.searchOpenFoodFacts("ap") } returns listOf(offProduct())
+
+            val vm = viewModel()
+            vm.updateQuery("ap")
+            advanceUntilIdle()
+            assertEquals(listOf("a"), vm.searchResults.value.map { it.id })
+            assertEquals(1, vm.offResults.value.size)
+
+            vm.updateQuery("app")
+
+            assertEquals(true, vm.isSearching.value)
+            assertEquals(listOf("a"), vm.searchResults.value.map { it.id })
+            assertEquals(1, vm.offResults.value.size)
+
+            advanceUntilIdle()
+
+            assertEquals(listOf("b"), vm.searchResults.value.map { it.id })
+        }
+
+    @Test
+    fun selectingTheAllTabDoesNotReloadALoadedList() =
+        runTest {
+            coEvery { foodRepo.fetchFoodsPage(any(), 0, any()) } returns
+                FoodsPage(foods = listOf(testFood("a")), total = 1)
+
+            val vm = viewModel()
+            advanceUntilIdle()
+            vm.selectTab(FoodSearchViewModel.TAB_RECENT)
+            vm.selectTab(FoodSearchViewModel.TAB_ALL)
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { foodRepo.fetchFoodsPage(any(), 0, any()) }
+            assertEquals(listOf("a"), vm.allFoods.value.map { it.id })
+        }
+
+    @Test
+    fun refreshKeepsTheListUntilThePageArrivesAndThenSwapsIt() =
+        runTest {
+            coEvery { foodRepo.fetchFoodsPage(any(), 0, any()) } returns
+                FoodsPage(foods = listOf(testFood("a")), total = 1)
+            val vm = viewModel()
+            advanceUntilIdle()
+
+            val gate = CompletableDeferred<Unit>()
+            coEvery { foodRepo.fetchFoodsPage(any(), 0, any()) } coAnswers {
+                gate.await()
+                FoodsPage(foods = listOf(testFood("b"), testFood("a")), total = 2)
+            }
+            vm.refresh()
+
+            assertEquals(listOf("a"), vm.allFoods.value.map { it.id })
+            gate.complete(Unit)
+            advanceUntilIdle()
+
+            assertEquals(listOf("b", "a"), vm.allFoods.value.map { it.id })
+            assertEquals(false, vm.isLoadingMore.value)
+        }
+
+    @Test
+    fun aFailedRefreshKeepsTheListAndReportsTheFailure() =
+        runTest {
+            coEvery { foodRepo.fetchFoodsPage(any(), 0, any()) } returns
+                FoodsPage(foods = listOf(testFood("a")), total = 1)
+            val vm = viewModel()
+            advanceUntilIdle()
+
+            coEvery { foodRepo.fetchFoodsPage(any(), 0, any()) } throws RuntimeException("boom")
+            vm.refresh()
+            advanceUntilIdle()
+
+            assertEquals(listOf("a"), vm.allFoods.value.map { it.id })
+            assertEquals(UiMessage(R.string.food_search_load_failed), vm.snackbarMessage.value)
+        }
+
+    @Test
     fun aFoodRepeatedOnTheNextPageIsListedOnce() =
         runTest {
             coEvery { foodRepo.fetchFoodsPage(any(), 0, any()) } returns

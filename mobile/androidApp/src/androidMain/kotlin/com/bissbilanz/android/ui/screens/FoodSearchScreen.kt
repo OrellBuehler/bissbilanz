@@ -1,6 +1,5 @@
 package com.bissbilanz.android.ui.screens
 
-import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -89,6 +88,13 @@ fun FoodSearchScreen(navController: NavController) {
     var showCreateRecipeSheet by rememberSaveable { mutableStateOf(false) }
     var showCreateMenu by remember { mutableStateOf(false) }
     var foodToEditId by rememberSaveable { mutableStateOf<String?>(null) }
+    val searchListState = rememberLazyListState()
+    val allFoodsListState = rememberLazyListState()
+
+    // A fresh result set starts at its top; in-place edits (favorite toggles) do not.
+    LaunchedEffect(isSearching) {
+        if (!isSearching) searchListState.scrollToItem(0)
+    }
 
     LaunchedEffect(Unit) {
         PendingNavigation.foodQuery.filterNotNull().collect {
@@ -245,39 +251,40 @@ fun FoodSearchScreen(navController: NavController) {
 
                 if (query.length >= 2) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Crossfade(targetState = isSearching, label = "search") { searching ->
-                        if (searching) {
-                            FoodSearchSkeleton()
-                        } else if (searchResults.isEmpty() && offResults.isEmpty() && !isSearchingOff) {
-                            PullableEmptyState(stringResource(R.string.food_search_no_results, query))
-                        } else {
-                            LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
-                                items(searchResults, key = { it.id }) { food ->
-                                    FoodListItem(
-                                        food = food,
-                                        onClick = { navController.navigate("food/${food.id}") },
-                                        onQuickLog = {
-                                            haptic(HapticFeedbackType.LongPress)
-                                            foodToLog = food
-                                        },
-                                        onEdit = { foodToEditId = food.id },
-                                        onToggleFavorite = { viewModel.toggleFavorite(food) },
-                                        modifier = Modifier.animateItem(),
-                                    )
-                                }
-                                // An Open Food Facts hit is copied into the user's database on
-                                // tap and then opened like any own food, mirroring the scanner.
-                                openFoodFactsSection(
-                                    products = offResults,
-                                    isLoading = isSearchingOff,
-                                    enabled = !isResolvingOff,
-                                    onSelect = { product ->
-                                        viewModel.selectOffProduct(product) { food ->
-                                            navController.navigate("food/${food.id}")
-                                        }
+                    if (isSearching && searchResults.isEmpty() && offResults.isEmpty()) {
+                        FoodSearchSkeleton()
+                    } else if (!isSearching && searchResults.isEmpty() && offResults.isEmpty() && !isSearchingOff) {
+                        PullableEmptyState(stringResource(R.string.food_search_no_results, query))
+                    } else {
+                        Box(modifier = Modifier.fillMaxWidth().height(4.dp)) {
+                            if (isSearching) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        }
+                        LazyColumn(state = searchListState, contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
+                            items(searchResults, key = { it.id }) { food ->
+                                FoodListItem(
+                                    food = food,
+                                    onClick = { navController.navigate("food/${food.id}") },
+                                    onQuickLog = {
+                                        haptic(HapticFeedbackType.LongPress)
+                                        foodToLog = food
                                     },
+                                    onEdit = { foodToEditId = food.id },
+                                    onToggleFavorite = { viewModel.toggleFavorite(food) },
+                                    modifier = Modifier.animateItem(),
                                 )
                             }
+                            // An Open Food Facts hit is copied into the user's database on
+                            // tap and then opened like any own food, mirroring the scanner.
+                            openFoodFactsSection(
+                                products = offResults,
+                                isLoading = isSearchingOff,
+                                enabled = !isResolvingOff,
+                                onSelect = { product ->
+                                    viewModel.selectOffProduct(product) { food ->
+                                        navController.navigate("food/${food.id}")
+                                    }
+                                },
+                            )
                         }
                     }
                 } else {
@@ -301,8 +308,6 @@ fun FoodSearchScreen(navController: NavController) {
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    val allFoodsListState = rememberLazyListState()
 
                     LaunchedEffect(allFoodsListState) {
                         snapshotFlow { allFoodsListState.layoutInfo }
