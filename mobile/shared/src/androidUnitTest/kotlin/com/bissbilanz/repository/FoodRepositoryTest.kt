@@ -639,6 +639,57 @@ class FoodRepositoryTest {
         }
 
     @Test
+    fun editingASyncedFoodKeepsItsPhotoLabelsAndScoresLocally() =
+        runTest {
+            val original =
+                TestFixtures.food(id = "srv-1", name = "Skyr").copy(
+                    imageUrl = "https://img/skyr.jpg",
+                    labels = listOf("yoghurt"),
+                    nutriScore = "a",
+                    novaGroup = 3,
+                    additives = listOf("e330"),
+                    ingredientsText = "milk",
+                    createdAt = "2024-01-01T00:00:00Z",
+                )
+            seedFoodInCache(original)
+            val create =
+                FoodCreate(
+                    name = "Skyr Natur",
+                    servingSize = 150.0,
+                    servingUnit = ServingUnit.g,
+                    calories = 90.0,
+                    protein = 16.0,
+                    carbs = 4.0,
+                    fat = 0.2,
+                    fiber = 0.0,
+                )
+
+            val result = repository.updateFood("srv-1", create)
+
+            assertEquals(
+                original.copy(
+                    name = "Skyr Natur",
+                    servingSize = 150.0,
+                    calories = 90.0,
+                    protein = 16.0,
+                    carbs = 4.0,
+                    fat = 0.2,
+                    fiber = 0.0,
+                ),
+                result,
+            )
+            val stored =
+                json.decodeFromString<Food>(
+                    db.userDataDatabaseQueries
+                        .selectFoodById("srv-1")
+                        .executeAsOne()
+                        .jsonData,
+                )
+            assertEquals(result, stored)
+            assertEquals(listOf("yoghurt"), repository.getFoodCached("srv-1")?.labels)
+        }
+
+    @Test
     fun deletingAFoodThatIsWaitingForItsBulkUploadDropsItsJobWithoutAServerCall() =
         runTest {
             seedFoodInCache(TestFixtures.food(id = "bulk-pending", name = "Waiting"))
