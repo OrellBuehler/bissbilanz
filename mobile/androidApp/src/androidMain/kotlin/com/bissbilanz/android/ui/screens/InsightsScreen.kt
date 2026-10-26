@@ -282,6 +282,7 @@ fun InsightsScreen(
                                         stringResource(R.string.insights_avg_value_unit, avgCal.formatAsInt(), calUnit),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.weight(1f),
                                     )
                                     Text(
                                         stringResource(R.string.insights_days_count, dailyStats.size),
@@ -586,6 +587,7 @@ fun InsightsScreen(
                                     stringResource(R.string.sleep_recent),
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.weight(1f),
                                 )
                                 IconButton(onClick = { navController.navigate("sleep") }) {
                                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.sleep_log_content_desc))
@@ -966,7 +968,13 @@ private fun MacroTrendRow(
 ) {
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.SemiBold)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = color,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
             val avg = if (data.isNotEmpty()) data.average() else 0.0
             Text(
                 stringResource(R.string.insights_avg_value_unit, avg.formatAsInt(), unit),

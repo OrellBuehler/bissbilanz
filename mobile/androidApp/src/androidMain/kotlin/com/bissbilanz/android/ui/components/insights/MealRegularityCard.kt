@@ -75,6 +75,7 @@ fun MealRegularityCard(result: MealRegularityResult) {
                     meal.mealType.replaceFirstChar { it.uppercase() },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
                 )
                 Text(
                     regularityLabel,

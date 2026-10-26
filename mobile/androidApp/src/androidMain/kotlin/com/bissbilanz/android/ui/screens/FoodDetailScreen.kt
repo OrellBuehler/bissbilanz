@@ -4,6 +4,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -859,7 +860,7 @@ private fun IngredientsSection(text: String) {
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .then(if (isLong) Modifier.clickable { expanded = !expanded } else Modifier),
+                    .then(if (isLong) Modifier.clickable { expanded = !expanded }.heightIn(min = 48.dp) else Modifier),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {

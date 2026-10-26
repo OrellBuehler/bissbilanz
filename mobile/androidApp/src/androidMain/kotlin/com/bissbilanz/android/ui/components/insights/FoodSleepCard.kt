@@ -36,6 +36,7 @@ fun FoodSleepCard(result: FoodSleepResult?) {
                 stringResource(R.string.insights_overall_avg_quality),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
             )
             Text(
                 stringResource(R.string.insights_quality_out_of_10, "%.1f".format(result.overallAvgQuality)),

@@ -3,6 +3,7 @@ package com.bissbilanz.android.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -389,7 +390,7 @@ private fun HistorySupplementRow(
                     .fillMaxWidth()
                     .then(
                         if (hasIngredients) {
-                            Modifier.clickable { onToggleExpand(itemKey) }
+                            Modifier.clickable { onToggleExpand(itemKey) }.heightIn(min = 48.dp)
                         } else {
                             Modifier
                         },

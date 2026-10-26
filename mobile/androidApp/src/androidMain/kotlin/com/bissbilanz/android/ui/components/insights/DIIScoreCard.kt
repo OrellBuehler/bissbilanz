@@ -94,6 +94,7 @@ fun DIIScoreCard(result: DIIResult) {
                         nutrientDisplayName(contributor.nutrient),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
                     )
                     Text(
                         "${if (contributor.impact > 0) "+" else ""}${"%.2f".format(contributor.impact)}",

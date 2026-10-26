@@ -2,6 +2,7 @@ package com.bissbilanz.android.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -430,12 +431,18 @@ fun RecipeDetailScreen(
                                                     .fillMaxWidth()
                                                     .then(
                                                         if (foodNames.containsKey(ing.foodId)) {
-                                                            Modifier.clickable { navController.navigate("food/${ing.foodId}") }
+                                                            Modifier
+                                                                .clickable {
+                                                                    navController.navigate(
+                                                                        "food/${ing.foodId}",
+                                                                    )
+                                                                }.heightIn(min = 48.dp)
                                                         } else {
                                                             Modifier
                                                         },
                                                     ).padding(vertical = 4.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically,
                                         ) {
                                             Text(
                                                 foodNames[ing.foodId]

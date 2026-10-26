@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -107,7 +108,7 @@ private fun WidgetCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         icon,
                         contentDescription = null,
@@ -363,7 +364,7 @@ fun MealBreakdownWidget(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
-                            Text(mealTypeDisplayName(meal), style = MaterialTheme.typography.bodyMedium)
+                            Text(mealTypeDisplayName(meal), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                             Text(
                                 stringResource(R.string.format_kcal, calories.formatAsInt()),
                                 style = MaterialTheme.typography.bodyMedium,
@@ -603,7 +604,8 @@ fun RecipeSuggestionsWidget(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .clickable { pendingSuggestion = suggested },
+                                    .clickable { pendingSuggestion = suggested }
+                                    .heightIn(min = 48.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

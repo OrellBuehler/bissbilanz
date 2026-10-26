@@ -2,6 +2,7 @@ package com.bissbilanz.android.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -278,6 +279,7 @@ private fun SupplementReminderRow(
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.small)
                 .clickable(onClick = onClick)
+                .heightIn(min = 48.dp)
                 .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,

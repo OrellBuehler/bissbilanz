@@ -60,6 +60,7 @@ fun SodiumWeightCard(result: SodiumWeightResult) {
                 stringResource(R.string.insights_sodium_avg),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
             )
             Text(
                 stringResource(R.string.insights_mg_per_day, result.avgSodium.roundToInt()),
@@ -72,6 +73,7 @@ fun SodiumWeightCard(result: SodiumWeightResult) {
                 stringResource(R.string.insights_sodium_high_days),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
             )
             Text(
                 "${result.highSodiumDays}",
