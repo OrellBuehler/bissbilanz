@@ -2,6 +2,7 @@ package com.bissbilanz.android.ui.components
 
 import android.util.Log
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -9,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -16,9 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.util.toEditableString
 import com.bissbilanz.foodpackage.MAX_RECIPE_INGREDIENTS
 import com.bissbilanz.model.*
@@ -112,7 +116,6 @@ fun RecipeEditSheet(
     // after a list-only refresh): the editor is hidden and a save leaves them untouched
     // rather than sending an empty list that would clear them on the server.
     var stepsAvailable by rememberSaveable { mutableStateOf(true) }
-    var openUnitDropdownKey by remember { mutableStateOf<String?>(null) }
     var showFoodPicker by rememberSaveable { mutableStateOf(false) }
     var showRecipeSource by rememberSaveable { mutableStateOf(false) }
 
@@ -229,8 +232,8 @@ fun RecipeEditSheet(
             Column(
                 modifier =
                     Modifier
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 32.dp)
+                        .padding(horizontal = Dimens.SheetHorizontalPadding)
+                        .padding(bottom = Dimens.SheetBottomPadding)
                         .imePadding()
                         .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -327,9 +330,10 @@ fun RecipeEditSheet(
                     FilledTonalButton(
                         onClick = { showFoodPicker = true },
                         enabled = ingredients.size < MAX_RECIPE_INGREDIENTS,
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                     ) {
-                        Icon(Icons.Default.Add, stringResource(R.string.action_add), modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(Icons.Default.Add, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                         Text(stringResource(R.string.action_add))
                     }
                 }
@@ -399,44 +403,18 @@ fun RecipeEditSheet(
                                         ingredient.foodUnit?.let { foodUnit ->
                                             ServingUnit.entries.filter { isSameUnitDimension(it.value, foodUnit) }
                                         } ?: ServingUnit.entries.toList()
-                                    ExposedDropdownMenuBox(
-                                        expanded = openUnitDropdownKey == ingredient.key,
-                                        onExpandedChange = {
-                                            openUnitDropdownKey = if (it) ingredient.key else null
+                                    ChoiceDropdown(
+                                        selectedLabel = ingredient.unit.name.lowercase(),
+                                        options = compatibleUnits.map { it.name.lowercase() to it },
+                                        onSelect = { unit ->
+                                            ingredients =
+                                                ingredients.map {
+                                                    if (it.key == ingredient.key) it.copy(unit = unit) else it
+                                                }
                                         },
+                                        label = stringResource(R.string.recipe_edit_unit),
                                         modifier = Modifier.weight(1f),
-                                    ) {
-                                        OutlinedTextField(
-                                            value = ingredient.unit.name.lowercase(),
-                                            onValueChange = {},
-                                            readOnly = true,
-                                            label = { Text(stringResource(R.string.recipe_edit_unit)) },
-                                            trailingIcon = {
-                                                ExposedDropdownMenuDefaults.TrailingIcon(
-                                                    expanded = openUnitDropdownKey == ingredient.key,
-                                                )
-                                            },
-                                            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                                            singleLine = true,
-                                        )
-                                        ExposedDropdownMenu(
-                                            expanded = openUnitDropdownKey == ingredient.key,
-                                            onDismissRequest = { openUnitDropdownKey = null },
-                                        ) {
-                                            compatibleUnits.forEach { unit ->
-                                                DropdownMenuItem(
-                                                    text = { Text(unit.name.lowercase()) },
-                                                    onClick = {
-                                                        ingredients =
-                                                            ingredients.map {
-                                                                if (it.key == ingredient.key) it.copy(unit = unit) else it
-                                                            }
-                                                        openUnitDropdownKey = null
-                                                    },
-                                                )
-                                            }
-                                        }
-                                    }
+                                    )
                                 }
                             }
                         }
@@ -477,18 +455,15 @@ fun RecipeEditSheet(
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
+                SheetActionRow {
                     OutlinedButton(
                         onClick = {
                             scope.launch { sheetState.hide() }.invokeOnCompletion { close() }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         enabled = !isBusy,
                     ) {
-                        Text(stringResource(R.string.dialog_cancel))
+                        Text(stringResource(R.string.dialog_cancel), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Button(
                         onClick = {
@@ -587,7 +562,7 @@ fun RecipeEditSheet(
                                 isSaving = false
                             }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         enabled =
                             !isBusy &&
                                 name.isNotBlank() &&
@@ -596,7 +571,7 @@ fun RecipeEditSheet(
                                 ingredientQuantities.all { it != null && it > 0.0 } &&
                                 (servingsValue ?: 0.0) > 0.0,
                     ) {
-                        Text(stringResource(R.string.weight_save))
+                        Text(stringResource(R.string.action_save), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
 

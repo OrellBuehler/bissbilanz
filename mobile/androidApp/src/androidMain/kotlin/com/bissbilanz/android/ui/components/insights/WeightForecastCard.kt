@@ -69,6 +69,7 @@ private fun ForecastRow(
             label,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
         )
         Text(
             if (value != null) stringResource(R.string.weight_kg_value, "%.1f".format(value)) else "—",

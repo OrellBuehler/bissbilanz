@@ -3,30 +3,34 @@ package com.bissbilanz.android.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
-import com.bissbilanz.android.ui.theme.FiberGreen
-import com.bissbilanz.android.ui.theme.ProteinRed
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.android.util.formatShortDate
 import com.bissbilanz.model.Supplement
@@ -208,15 +212,15 @@ fun SupplementHistoryScreen(navController: NavController) {
         ) { DatePicker(state = state) }
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.supplement_history_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
-                    }
-                },
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
+                title = stringResource(R.string.supplement_history_title),
+                onBack = { navController.popBackStack() },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -229,9 +233,9 @@ fun SupplementHistoryScreen(navController: NavController) {
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 8.dp),
+                contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding, vertical = Dimens.ListGap),
             ) {
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
@@ -250,10 +254,10 @@ fun SupplementHistoryScreen(navController: NavController) {
                                         Icon(
                                             Icons.Default.CalendarMonth,
                                             contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
+                                            modifier = Modifier.size(ButtonDefaults.IconSize),
                                         )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(dayLabel(fromDate), style = MaterialTheme.typography.bodyMedium)
+                                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                                        Text(dayLabel(fromDate), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
@@ -266,10 +270,10 @@ fun SupplementHistoryScreen(navController: NavController) {
                                         Icon(
                                             Icons.Default.CalendarMonth,
                                             contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
+                                            modifier = Modifier.size(ButtonDefaults.IconSize),
                                         )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(dayLabel(toDate), style = MaterialTheme.typography.bodyMedium)
+                                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                                        Text(dayLabel(toDate), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                             }
@@ -388,7 +392,7 @@ private fun HistorySupplementRow(
                     .fillMaxWidth()
                     .then(
                         if (hasIngredients) {
-                            Modifier.clickable { onToggleExpand(itemKey) }
+                            Modifier.clickable { onToggleExpand(itemKey) }.heightIn(min = 48.dp)
                         } else {
                             Modifier
                         },
@@ -398,20 +402,15 @@ private fun HistorySupplementRow(
             Icon(
                 imageVector = if (taken) Icons.Default.Check else Icons.Default.Close,
                 contentDescription = stringResource(if (taken) R.string.supplement_history_taken else R.string.supplement_history_missed),
-                tint = if (taken) FiberGreen else ProteinRed,
+                tint = if (taken) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
                 modifier = Modifier.size(18.dp),
             )
             Spacer(modifier = Modifier.width(8.dp))
             if (hasIngredients) {
                 Icon(
-                    imageVector =
-                        if (isExpanded) {
-                            Icons.Default.KeyboardArrowDown
-                        } else {
-                            Icons.AutoMirrored.Filled.KeyboardArrowRight
-                        },
+                    imageVector = Icons.Default.ExpandMore,
                     contentDescription = stringResource(R.string.supplement_history_toggle_ingredients),
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(16.dp).rotate(if (isExpanded) 0f else -90f),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.width(4.dp))

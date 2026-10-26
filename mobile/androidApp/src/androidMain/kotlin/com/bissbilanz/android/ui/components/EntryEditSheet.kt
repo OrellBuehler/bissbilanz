@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
@@ -267,8 +268,8 @@ private fun EntryEditForm(
     Column(
         modifier =
             Modifier
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp)
+                .padding(horizontal = Dimens.SheetHorizontalPadding)
+                .padding(bottom = Dimens.SheetBottomPadding)
                 .imePadding()
                 .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -347,9 +348,9 @@ private fun EntryEditForm(
                 Icon(
                     Icons.Default.CalendarToday,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(ButtonDefaults.IconSize),
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                 Text(selectedDayLabel)
             }
         }
@@ -364,9 +365,9 @@ private fun EntryEditForm(
                 Icon(
                     Icons.Default.Schedule,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(ButtonDefaults.IconSize),
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                 Text(formatTimeOfDay(eatenHour, eatenMinute))
             }
         }
@@ -426,17 +427,14 @@ private fun EntryEditForm(
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
+        SheetActionRow {
             OutlinedButton(
                 onClick = {
                     scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                 },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).fillMaxHeight(),
             ) {
-                Text(stringResource(R.string.dialog_cancel))
+                Text(stringResource(R.string.dialog_cancel), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Button(
                 onClick = {
@@ -526,10 +524,10 @@ private fun EntryEditForm(
                         }
                     }
                 },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).fillMaxHeight(),
                 enabled = !isSaving && canSave,
             ) {
-                Text(stringResource(R.string.weight_save))
+                Text(stringResource(R.string.action_save), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
 

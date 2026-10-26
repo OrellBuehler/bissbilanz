@@ -24,6 +24,7 @@ import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.ProteinRed
+import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.util.formatAsInt
 
 @Composable
@@ -92,7 +93,7 @@ private fun MacroStatRow(
             value,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
-            color = color,
+            color = color.macroTextTone(),
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(

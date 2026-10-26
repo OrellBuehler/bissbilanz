@@ -11,12 +11,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,17 +25,20 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
 import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.fasting.FastingSession
+import com.bissbilanz.android.ui.components.AppTopBar
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.FastingIndigo
 import com.bissbilanz.android.ui.theme.TrendGreen
 import com.bissbilanz.android.ui.theme.macroTextTone
@@ -189,15 +193,15 @@ fun FastingScreen(navController: NavController) {
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.fasting_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
-                    }
-                },
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
+                title = stringResource(R.string.fasting_title),
+                onBack = { navController.popBackStack() },
             )
         },
     ) { padding ->
@@ -208,7 +212,7 @@ fun FastingScreen(navController: NavController) {
                     .padding(padding)
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(Dimens.CardGap),
         ) {
             val current = session
             if (current != null) {
@@ -307,7 +311,7 @@ private fun ActiveFastSection(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     formatElapsed(elapsed),
-                    fontSize = 38.sp,
+                    style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
@@ -338,7 +342,7 @@ private fun ActiveFastSection(
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                modifier = Modifier.fillMaxWidth().padding(Dimens.CardPadding),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(
@@ -365,13 +369,10 @@ private fun ActiveFastSection(
                     }
                 }
                 Box {
-                    TextButton(onClick = { onShowTargetMenu(true) }) {
-                        Icon(Icons.Default.Tune, null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            stringResource(R.string.fasting_change_target),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
+                    TextButton(onClick = { onShowTargetMenu(true) }, contentPadding = ButtonDefaults.TextButtonWithIconContentPadding) {
+                        Icon(Icons.Default.Tune, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                        Text(stringResource(R.string.fasting_change_target), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     DropdownMenu(expanded = showTargetMenu, onDismissRequest = { onShowTargetMenu(false) }) {
                         TARGET_OPTIONS.forEach { hours ->
@@ -401,7 +402,7 @@ private fun ActiveFastSection(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = FastingIndigo),
         ) {
-            Text(stringResource(R.string.fasting_end), style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.fasting_end))
         }
 
         // Discard drops the fast entirely: no history row, no fasting-day mark. Kept
@@ -411,7 +412,7 @@ private fun ActiveFastSection(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
         ) {
-            Text(stringResource(R.string.fasting_discard), style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.fasting_discard))
         }
     }
 }
@@ -495,7 +496,7 @@ private fun StartSection(
                 )
                 if (startOverride != null) {
                     TextButton(onClick = onResetStart) {
-                        Text(stringResource(R.string.fasting_start_now), style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.fasting_start_now), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
                 AssistChip(
@@ -514,7 +515,7 @@ private fun StartSection(
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = FastingIndigo),
             ) {
-                Text(stringResource(R.string.fasting_start), style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.fasting_start))
             }
         }
     }
@@ -526,7 +527,7 @@ private fun HistorySection(
     onEdit: (FastingSession) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(Dimens.CardPadding)) {
             Text(
                 stringResource(R.string.fasting_history),
                 style = MaterialTheme.typography.titleSmall,

@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Clear
@@ -17,12 +16,15 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -36,12 +38,14 @@ import com.bissbilanz.android.navigation.PendingLogConfirmation
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.AddFoodSheet
 import com.bissbilanz.android.ui.components.AiMealSheet
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.DayLogSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.MacroChipRow
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.android.util.dayLabel
@@ -201,15 +205,15 @@ fun DayLogScreen(
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(dayLabel(LocalDate.parse(date))) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
-                    }
-                },
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
+                title = dayLabel(LocalDate.parse(date)),
+                onBack = { navController.popBackStack() },
                 actions = {
                     // Queuing a meal for the assistant needs the server, so it is
                     // hidden in local mode — same rule as the dashboard and iOS.
@@ -306,9 +310,15 @@ fun DayLogScreen(
             ) {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).testTag("dayLogList"),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp),
+                    modifier = Modifier.fillMaxSize().testTag("dayLogList"),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.ListGap),
+                    contentPadding =
+                        PaddingValues(
+                            start = Dimens.ScreenPadding,
+                            top = Dimens.ListGap,
+                            end = Dimens.ScreenPadding,
+                            bottom = Dimens.FabClearance,
+                        ),
                 ) {
                     if (visibleEntries.isNotEmpty() || searchQuery.isNotEmpty()) {
                         item(key = "search", contentType = "search") {
@@ -370,6 +380,7 @@ fun DayLogScreen(
                                         mealTypeDisplayName(meal),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.weight(1f),
                                     )
                                     Text(
                                         stringResource(R.string.format_kcal, mealCalories.formatAsInt()),
@@ -443,20 +454,19 @@ fun SwipeToDismissEntry(
     // Trailing swipe deletes, leading swipe edits — the same two directions the
     // iOS day log offers. Neither settles into a dismissed state; both fire an
     // action and snap back.
-    val dismissState =
-        rememberSwipeToDismissBoxState(
-            confirmValueChange = { value ->
-                when (value) {
-                    SwipeToDismissBoxValue.EndToStart -> onDelete()
-                    SwipeToDismissBoxValue.StartToEnd -> onEdit()
-                    else -> Unit
-                }
-                false
-            },
-        )
+    val dismissState = rememberSwipeToDismissBoxState()
+    val dismissScope = rememberCoroutineScope()
 
     SwipeToDismissBox(
         state = dismissState,
+        onDismiss = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.EndToStart -> onDelete()
+                SwipeToDismissBoxValue.StartToEnd -> onEdit()
+                else -> Unit
+            }
+            dismissScope.launch { dismissState.reset() }
+        },
         backgroundContent = {
             val deleting = dismissState.targetValue == SwipeToDismissBoxValue.EndToStart
             val editing = dismissState.targetValue == SwipeToDismissBoxValue.StartToEnd
@@ -483,7 +493,11 @@ fun SwipeToDismissEntry(
                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                     )
                 } else {
-                    Icon(Icons.Default.Delete, stringResource(R.string.daylog_delete_entry), tint = MaterialTheme.colorScheme.error)
+                    Icon(
+                        Icons.Default.Delete,
+                        stringResource(R.string.daylog_delete_entry),
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                    )
                 }
             }
         },

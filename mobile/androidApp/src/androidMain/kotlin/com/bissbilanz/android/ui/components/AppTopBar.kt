@@ -31,10 +31,30 @@ fun AppTopBar(
     onBack: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    TopAppBar(
+    AppTopBar(
         title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        scrollBehavior = scrollBehavior,
+        onBack = onBack,
+        actions = actions,
+    )
+}
+
+/** [AppTopBar] for screens whose title is more than a plain string. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppTopBar(
+    title: @Composable () -> Unit,
+    scrollBehavior: TopAppBarScrollBehavior? = null,
+    onBack: (() -> Unit)? = null,
+    navigationIcon: (@Composable () -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
+    TopAppBar(
+        title = title,
         navigationIcon = {
-            if (onBack != null) {
+            if (navigationIcon != null) {
+                navigationIcon()
+            } else if (onBack != null) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                 }

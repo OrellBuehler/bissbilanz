@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import com.bissbilanz.ErrorReporter
@@ -25,6 +27,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.health.HealthSyncPreferences
 import com.bissbilanz.android.reminders.ReminderNotifier
 import com.bissbilanz.android.ui.openNotificationSettings
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.api.generated.model.Reminder
 import com.bissbilanz.api.generated.model.ReminderCreate
 import com.bissbilanz.api.generated.model.ReminderUpdate
@@ -69,7 +72,6 @@ fun ReminderEditSheet(
     var time by rememberSaveable { mutableStateOf("08:00") }
     var weekdays by rememberSaveable { mutableStateOf(ALL_WEEKDAYS) }
     var enabled by rememberSaveable { mutableStateOf(true) }
-    var mealTypeMenuExpanded by rememberSaveable { mutableStateOf(false) }
 
     var notificationsEnabled by remember {
         mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled())
@@ -155,8 +157,8 @@ fun ReminderEditSheet(
             Column(
                 modifier =
                     Modifier
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 32.dp)
+                        .padding(horizontal = Dimens.SheetHorizontalPadding)
+                        .padding(bottom = Dimens.SheetBottomPadding)
                         .imePadding()
                         .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -211,37 +213,11 @@ fun ReminderEditSheet(
 
                 if (kind == Reminder.Kind.meal) {
                     Text(stringResource(R.string.reminders_meal_type), style = MaterialTheme.typography.labelLarge)
-                    ExposedDropdownMenuBox(
-                        expanded = mealTypeMenuExpanded,
-                        onExpandedChange = { mealTypeMenuExpanded = it },
-                    ) {
-                        OutlinedTextField(
-                            value = mealTypeDisplayName(mealType),
-                            onValueChange = {},
-                            readOnly = true,
-                            trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = mealTypeMenuExpanded)
-                            },
-                            modifier =
-                                Modifier
-                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                                    .fillMaxWidth(),
-                        )
-                        ExposedDropdownMenu(
-                            expanded = mealTypeMenuExpanded,
-                            onDismissRequest = { mealTypeMenuExpanded = false },
-                        ) {
-                            mealTypeOptions.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(mealTypeDisplayName(option)) },
-                                    onClick = {
-                                        mealType = option
-                                        mealTypeMenuExpanded = false
-                                    },
-                                )
-                            }
-                        }
-                    }
+                    ChoiceDropdown(
+                        selectedLabel = mealTypeDisplayName(mealType),
+                        options = mealTypeOptions.map { mealTypeDisplayName(it) to it },
+                        onSelect = { mealType = it },
+                    )
                 }
 
                 Text(stringResource(R.string.reminders_time), style = MaterialTheme.typography.labelLarge)
@@ -313,17 +289,14 @@ fun ReminderEditSheet(
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
+                SheetActionRow {
                     OutlinedButton(
                         onClick = {
                             scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                     ) {
-                        Text(stringResource(R.string.dialog_cancel))
+                        Text(stringResource(R.string.dialog_cancel), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Button(
                         onClick = {
@@ -375,10 +348,10 @@ fun ReminderEditSheet(
                                 isSaving = false
                             }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         enabled = !isSaving && isValid,
                     ) {
-                        Text(stringResource(R.string.reminders_save))
+                        Text(stringResource(R.string.reminders_save), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
 

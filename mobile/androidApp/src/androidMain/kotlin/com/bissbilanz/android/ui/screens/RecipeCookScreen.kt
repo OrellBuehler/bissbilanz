@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -37,7 +38,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -50,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -64,10 +66,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.util.formatLocalizedNumber
@@ -177,9 +179,13 @@ fun RecipeCookScreen(
             else -> stringResource(R.string.recipe_cook_finished_title)
         }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
                 title = {
                     Column {
                         recipe?.name?.let {
@@ -195,6 +201,8 @@ fun RecipeCookScreen(
                             title,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                         )
                     }
@@ -216,25 +224,28 @@ fun RecipeCookScreen(
                         OutlinedButton(
                             onClick = { goTo(page - 1) },
                             enabled = page > 0,
-                            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null)
-                            Text(stringResource(R.string.recipe_cook_back))
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                            Text(stringResource(R.string.recipe_cook_back), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         if (page < pageCount - 1) {
                             Button(
                                 onClick = { goTo(page + 1) },
-                                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                                modifier = Modifier.weight(1f),
                             ) {
-                                Text(stringResource(R.string.recipe_cook_next))
-                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
+                                Text(stringResource(R.string.recipe_cook_next), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, modifier = Modifier.size(ButtonDefaults.IconSize))
                             }
                         } else {
                             Button(
                                 onClick = { close() },
-                                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                                modifier = Modifier.weight(1f),
                             ) {
-                                Text(stringResource(R.string.recipe_cook_done))
+                                Text(stringResource(R.string.recipe_cook_done), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
@@ -422,7 +433,7 @@ private fun StepPage(
         }
         Text(
             step.text,
-            style = MaterialTheme.typography.headlineSmall.copy(fontSize = 26.sp, lineHeight = 38.sp),
+            style = MaterialTheme.typography.headlineMedium,
         )
     }
 }
@@ -455,9 +466,9 @@ private fun FinishedPage(onLog: () -> Unit) {
             textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.size(24.dp))
-        Button(onClick = onLog, modifier = Modifier.heightIn(min = 56.dp)) {
-            Icon(Icons.Default.Add, null)
-            Spacer(modifier = Modifier.width(8.dp))
+        Button(onClick = onLog, contentPadding = ButtonDefaults.ButtonWithIconContentPadding) {
+            Icon(Icons.Default.Add, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
             Text(stringResource(R.string.recipe_cook_log))
         }
     }

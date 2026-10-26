@@ -36,6 +36,8 @@ fun SimpleLineChart(
     if (data.isEmpty()) return
     val maxVal = data.max().coerceAtLeast(1f)
     val minVal = data.min()
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val dotFill = MaterialTheme.colorScheme.surface
 
     val revealFraction = rememberRevealFraction(500)
 
@@ -95,9 +97,9 @@ fun SimpleLineChart(
                     val isSelected = selectedIndex == i
                     drawCircle(color = color, radius = if (isSelected) 6f else 3f, center = Offset(x, y))
                     if (isSelected) {
-                        drawCircle(color = Color.White, radius = 3f, center = Offset(x, y))
+                        drawCircle(color = dotFill, radius = 3f, center = Offset(x, y))
                         drawLine(
-                            color = Color.Gray.copy(alpha = 0.4f),
+                            color = gridColor,
                             start = Offset(x, 0f),
                             end = Offset(x, size.height),
                             strokeWidth = 1f,

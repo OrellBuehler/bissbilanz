@@ -2,11 +2,11 @@ package com.bissbilanz.android.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -14,11 +14,14 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,6 +32,7 @@ import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.ErrorState
 import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.FoodPackageExportSheet
@@ -263,9 +267,13 @@ fun RecipeDetailScreen(
         FoodPackageExportSheet(viewModel = packageViewModel, onDismiss = { showShareSheet = false })
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
                 title = {
                     Text(
                         recipe?.name ?: stringResource(R.string.recipe_detail_default_title),
@@ -273,11 +281,7 @@ fun RecipeDetailScreen(
                         overflow = TextOverflow.Ellipsis,
                     )
                 },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
-                    }
-                },
+                onBack = { navController.popBackStack() },
                 actions = {
                     if (recipe != null) {
                         IconButton(onClick = { showEditSheet = true }) {
@@ -400,11 +404,12 @@ fun RecipeDetailScreen(
                             Spacer(modifier = Modifier.height(16.dp))
                             Button(
                                 onClick = { navController.navigate("recipe/$currentId/cook") },
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                             ) {
-                                Icon(Icons.Default.Restaurant, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(stringResource(R.string.recipe_detail_start_cooking), style = MaterialTheme.typography.titleMedium)
+                                Icon(Icons.Default.Restaurant, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                                Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                                Text(stringResource(R.string.recipe_detail_start_cooking), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
 
@@ -429,12 +434,18 @@ fun RecipeDetailScreen(
                                                     .fillMaxWidth()
                                                     .then(
                                                         if (foodNames.containsKey(ing.foodId)) {
-                                                            Modifier.clickable { navController.navigate("food/${ing.foodId}") }
+                                                            Modifier
+                                                                .clickable {
+                                                                    navController.navigate(
+                                                                        "food/${ing.foodId}",
+                                                                    )
+                                                                }.heightIn(min = 48.dp)
                                                         } else {
                                                             Modifier
                                                         },
                                                     ).padding(vertical = 4.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically,
                                         ) {
                                             Text(
                                                 foodNames[ing.foodId]

@@ -4,6 +4,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -21,11 +23,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.screens.nutrientCategories
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.util.NAMED_NUTRIENT_KEYS
 import com.bissbilanz.android.util.extraNutrientValues
 import com.bissbilanz.android.util.toEditableString
@@ -112,7 +116,6 @@ fun FoodEditSheet(
     // declares can be recorded, matching the iOS add-nutrient catalog.
     var extraNutrients by rememberSaveable { mutableStateOf<Map<String, String>>(emptyMap()) }
     var showNutrientPicker by remember { mutableStateOf(false) }
-    var showUnitDropdown by remember { mutableStateOf(false) }
     var showLabelScanner by remember { mutableStateOf(false) }
 
     val loadFailedMessage = stringResource(R.string.food_form_load_failed)
@@ -329,8 +332,8 @@ fun FoodEditSheet(
             Column(
                 modifier =
                     Modifier
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 32.dp)
+                        .padding(horizontal = Dimens.SheetHorizontalPadding)
+                        .padding(bottom = Dimens.SheetBottomPadding)
                         .imePadding()
                         .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -352,12 +355,11 @@ fun FoodEditSheet(
                     OutlinedButton(
                         onClick = { showLabelScanner = true },
                         modifier = Modifier.fillMaxWidth(),
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                     ) {
-                        Icon(Icons.Default.DocumentScanner, contentDescription = null)
-                        Text(
-                            stringResource(R.string.scan_label),
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
+                        Icon(Icons.Default.DocumentScanner, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                        Text(stringResource(R.string.scan_label))
                     }
                     Text(
                         stringResource(R.string.scan_label_footer),
@@ -400,37 +402,13 @@ fun FoodEditSheet(
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                     )
-                    ExposedDropdownMenuBox(
-                        expanded = showUnitDropdown,
-                        onExpandedChange = { showUnitDropdown = it },
+                    ChoiceDropdown(
+                        selectedLabel = servingUnit.name.lowercase(),
+                        options = ServingUnit.entries.map { it.name.lowercase() to it },
+                        onSelect = { servingUnit = it },
+                        label = stringResource(R.string.food_form_unit),
                         modifier = Modifier.weight(1f),
-                    ) {
-                        OutlinedTextField(
-                            value = servingUnit.name.lowercase(),
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(stringResource(R.string.food_form_unit)) },
-                            trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = showUnitDropdown)
-                            },
-                            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                            singleLine = true,
-                        )
-                        ExposedDropdownMenu(
-                            expanded = showUnitDropdown,
-                            onDismissRequest = { showUnitDropdown = false },
-                        ) {
-                            ServingUnit.entries.forEach { unit ->
-                                DropdownMenuItem(
-                                    text = { Text(unit.name.lowercase()) },
-                                    onClick = {
-                                        servingUnit = unit
-                                        showUnitDropdown = false
-                                    },
-                                )
-                            }
-                        }
-                    }
+                    )
                 }
                 OutlinedTextField(
                     value = barcode,
@@ -589,9 +567,12 @@ fun FoodEditSheet(
                         }
 
                         Box {
-                            TextButton(onClick = { showNutrientPicker = true }) {
-                                Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
+                            TextButton(
+                                onClick = { showNutrientPicker = true },
+                                contentPadding = ButtonDefaults.TextButtonWithIconContentPadding,
+                            ) {
+                                Icon(Icons.Default.Add, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                                Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                                 Text(stringResource(R.string.food_form_add_nutrient))
                             }
                             DropdownMenu(
@@ -638,22 +619,19 @@ fun FoodEditSheet(
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
+                SheetActionRow {
                     OutlinedButton(
                         onClick = {
                             scope.launch { sheetState.hide() }.invokeOnCompletion { close() }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         enabled = !isBusy,
                     ) {
-                        Text(stringResource(R.string.dialog_cancel))
+                        Text(stringResource(R.string.dialog_cancel), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Button(
                         onClick = { save() },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         enabled =
                             !isBusy &&
                                 name.isNotBlank() &&
@@ -663,7 +641,7 @@ fun FoodEditSheet(
                                 fat.toLocalizedDoubleOrNull() != null &&
                                 servingSize.toLocalizedDoubleOrNull() != null,
                     ) {
-                        Text(stringResource(R.string.weight_save))
+                        Text(stringResource(R.string.action_save), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
 

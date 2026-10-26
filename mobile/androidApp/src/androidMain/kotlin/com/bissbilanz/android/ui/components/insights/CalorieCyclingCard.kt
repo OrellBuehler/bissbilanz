@@ -109,6 +109,7 @@ fun CalorieCyclingCard(result: CalorieCyclingResult) {
                 stringResource(R.string.insights_high_days, result.highDays),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
             )
             Text(
                 stringResource(R.string.insights_low_days, result.lowDays),

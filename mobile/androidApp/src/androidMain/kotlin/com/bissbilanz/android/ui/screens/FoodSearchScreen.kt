@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
@@ -21,6 +20,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -49,6 +49,7 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.android.ui.components.openFoodFactsSection
 import com.bissbilanz.android.ui.components.rememberJsonStateSaver
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
@@ -259,7 +260,7 @@ fun FoodSearchScreen(navController: NavController) {
                         Box(modifier = Modifier.fillMaxWidth().height(4.dp)) {
                             if (isSearching) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                         }
-                        LazyColumn(state = searchListState, contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
+                        LazyColumn(state = searchListState, contentPadding = PaddingValues(top = 4.dp, bottom = Dimens.FabClearance)) {
                             items(searchResults, key = { it.id }) { food ->
                                 FoodListItem(
                                     food = food,
@@ -302,7 +303,7 @@ fun FoodSearchScreen(navController: NavController) {
                                 onClick = { viewModel.selectTab(index) },
                                 shape = SegmentedButtonDefaults.itemShape(index, tabLabels.size),
                             ) {
-                                Text(label)
+                                Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
@@ -341,7 +342,7 @@ fun FoodSearchScreen(navController: NavController) {
                             if (recentFoods.isEmpty()) {
                                 PullableEmptyState(stringResource(R.string.food_search_no_recent))
                             } else {
-                                LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
+                                LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = Dimens.FabClearance)) {
                                     foodItems(recentFoods)
                                 }
                             }
@@ -350,7 +351,7 @@ fun FoodSearchScreen(navController: NavController) {
                             if (favoriteFoods.isEmpty()) {
                                 PullableEmptyState(stringResource(R.string.favorites_no_foods))
                             } else {
-                                LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
+                                LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = Dimens.FabClearance)) {
                                     foodItems(favoriteFoods)
                                 }
                             }
@@ -359,7 +360,10 @@ fun FoodSearchScreen(navController: NavController) {
                             if (allFoods.isEmpty() && !isLoadingMore) {
                                 PullableEmptyState(stringResource(R.string.food_search_no_foods))
                             } else {
-                                LazyColumn(state = allFoodsListState, contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
+                                LazyColumn(
+                                    state = allFoodsListState,
+                                    contentPadding = PaddingValues(top = 8.dp, bottom = Dimens.FabClearance),
+                                ) {
                                     foodItems(allFoods)
                                     if (isLoadingMore) {
                                         item {
@@ -414,8 +418,8 @@ fun FoodListItem(
                             contentDescription = food.name,
                             modifier =
                                 Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(8.dp)),
+                                    .size(Dimens.ThumbList)
+                                    .clip(MaterialTheme.shapes.small),
                         )
                     }
                 },

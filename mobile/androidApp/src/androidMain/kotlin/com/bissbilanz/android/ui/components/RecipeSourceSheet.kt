@@ -5,8 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -273,15 +273,15 @@ fun RecipeSourceSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    SheetActionRow {
                         OutlinedButton(
                             onClick = {
                                 selected = null
                                 errorMessage = null
                             },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         ) {
-                            Text(stringResource(R.string.action_back), maxLines = 1)
+                            Text(stringResource(R.string.action_back), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         Button(
                             onClick = {
@@ -307,12 +307,12 @@ fun RecipeSourceSheet(
                                 }
                             },
                             enabled = factor != null && !isAdding,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         ) {
                             if (isAdding) {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                             } else {
-                                Text(stringResource(R.string.action_add), maxLines = 1)
+                                Text(stringResource(R.string.action_add), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }

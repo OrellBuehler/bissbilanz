@@ -21,27 +21,19 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import com.bissbilanz.android.R
-import com.bissbilanz.android.ui.theme.CaloriesBlue
-import com.bissbilanz.android.ui.theme.CarbsOrange
-import com.bissbilanz.android.ui.theme.FatYellow
-import com.bissbilanz.android.ui.theme.FiberGreen
-import com.bissbilanz.android.ui.theme.ProjectionPurple
-import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.model.MealBreakdownEntry
 import kotlin.math.roundToInt
 
-// The first five reuse the app's macro color tokens; the last two are extra
-// categorical accents for meal types beyond the five macros (custom meal types).
 val MealColors =
     listOf(
-        CaloriesBlue,
-        ProteinRed,
-        CarbsOrange,
-        FatYellow,
-        FiberGreen,
-        ProjectionPurple,
-        Color(0xFFEC4899),
         Color(0xFF14B8A6),
+        Color(0xFFEC4899),
+        Color(0xFF8B5CF6),
+        Color(0xFF64748B),
+        Color(0xFFA8744F),
+        Color(0xFF6366F1),
+        Color(0xFF06B6D4),
+        Color(0xFF84CC16),
     )
 
 @Composable

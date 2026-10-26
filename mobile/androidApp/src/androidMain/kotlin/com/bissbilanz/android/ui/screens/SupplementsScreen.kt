@@ -8,18 +8,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -31,16 +32,16 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.NAV_KEY_EDIT_SUPPLEMENT_ID
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.SupplementEditSheet
 import com.bissbilanz.android.ui.components.scheduleDisplayName
 import com.bissbilanz.android.ui.components.timeOfDayDisplayName
-import com.bissbilanz.android.ui.theme.FiberGreen
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.Motion
-import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.repository.SupplementRepository
@@ -131,15 +132,15 @@ fun SupplementsScreen(navController: NavController) {
         if (refreshFailed) snackbarHostState.showSnackbar(loadFailedMessage)
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.chart_supplements)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
-                    }
-                },
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
+                title = stringResource(R.string.chart_supplements),
+                onBack = { navController.popBackStack() },
                 actions = {
                     IconButton(onClick = { navController.navigate("supplement-history") }) {
                         Icon(Icons.Default.DateRange, stringResource(R.string.calendar_title))
@@ -195,9 +196,15 @@ fun SupplementsScreen(navController: NavController) {
                     val activeSupplements = supplements.filter { it.isActive }
 
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
+                        contentPadding =
+                            PaddingValues(
+                                start = Dimens.ScreenPadding,
+                                top = Dimens.ListGap,
+                                end = Dimens.ScreenPadding,
+                                bottom = Dimens.FabClearance,
+                            ),
                     ) {
                         item {
                             Text(
@@ -220,7 +227,7 @@ fun SupplementsScreen(navController: NavController) {
                                 LinearProgressIndicator(
                                     progress = { animatedProgress },
                                     modifier = Modifier.fillMaxWidth(),
-                                    color = FiberGreen,
+                                    color = MaterialTheme.colorScheme.tertiary,
                                 )
                             }
                             Spacer(modifier = Modifier.height(8.dp))
@@ -312,7 +319,7 @@ fun SupplementChecklistItem(
 ) {
     val defaultCardColor = CardDefaults.cardColors().containerColor
     val cardColor by animateColorAsState(
-        targetValue = if (isTaken) FiberGreen.copy(alpha = 0.15f) else defaultCardColor,
+        targetValue = if (isTaken) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f) else defaultCardColor,
         animationSpec = spring(dampingRatio = Motion.SNAP_DAMPING, stiffness = Motion.SNAP_STIFFNESS),
         label = "supp-card",
     )
@@ -376,7 +383,7 @@ fun SupplementChecklistItem(
                             Icon(
                                 Icons.Default.Check,
                                 stringResource(R.string.supplements_taken),
-                                tint = FiberGreen.macroTextTone(),
+                                tint = MaterialTheme.colorScheme.tertiary,
                             )
                         }
                     }

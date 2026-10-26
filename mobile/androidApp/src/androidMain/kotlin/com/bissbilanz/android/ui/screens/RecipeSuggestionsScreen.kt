@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +35,7 @@ import com.bissbilanz.android.ui.components.MealPickerMacros
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.viewmodels.RecipeSuggestionsViewModel
 import com.bissbilanz.android.ui.viewmodels.SuggestedRecipe
 import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
@@ -182,7 +184,7 @@ private fun SuggestionCard(
                 FoodImage(
                     imageUrl = url,
                     contentDescription = recipe.name,
-                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(10.dp)),
+                    modifier = Modifier.size(Dimens.ThumbCard).clip(MaterialTheme.shapes.small),
                 )
                 Spacer(modifier = Modifier.width(12.dp))
             }
@@ -230,7 +232,7 @@ private fun SuggestionCard(
                 Spacer(modifier = Modifier.height(6.dp))
                 LinearProgressIndicator(
                     progress = { (suggested.suggestion.fit / 100f).coerceIn(0f, 1f) },
-                    color = CaloriesBlue,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

@@ -17,6 +17,7 @@
     <string name="weight_input_invalid">Gewicht zwischen 0 und 500 kg eingeben</string>
     <string name="weight_notes_label">Notizen (optional)</string>
     <string name="weight_save">Speichern</string>
+    <string name="action_save">Speichern</string>
     <string name="weight_cancel">Abbrechen</string>
     <string name="fasting_day">Fastentag</string>
     <string name="fasting_day_description">Diesen Tag mit 0 Kalorien in die Statistik einbeziehen</string>
@@ -285,7 +286,7 @@
     <string name="ai_tasks_claude_state_proposed">Vorschlag bereit zur Prüfung</string>
     <string name="ai_tasks_claude_state_blocked">Claude ist nicht verfügbar, wartet</string>
     <string name="ai_tasks_proposal_title">Vorgeschlagene Einträge</string>
-    <string name="ai_tasks_proposal_log">Auswahl eintragen</string>
+    <string name="ai_tasks_proposal_log">Eintragen</string>
     <string name="ai_tasks_proposal_discard">Verwerfen</string>
     <string name="ai_tasks_proposal_new_food">Neues Lebensmittel</string>
     <string name="ai_tasks_proposal_none_selected">Wähle mindestens einen Eintrag aus.</string>

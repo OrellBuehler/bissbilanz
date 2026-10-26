@@ -1,13 +1,15 @@
 package com.bissbilanz.android.ui.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -16,11 +18,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.screens.MacroRow
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
@@ -140,8 +144,8 @@ fun MealPickerSheet(
         Column(
             modifier =
                 Modifier
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp)
+                    .padding(horizontal = Dimens.SheetHorizontalPadding)
+                    .padding(bottom = Dimens.SheetBottomPadding)
                     .imePadding()
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -156,8 +160,8 @@ fun MealPickerSheet(
                         contentDescription = null,
                         modifier =
                             Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(10.dp)),
+                                .size(Dimens.ThumbCard)
+                                .clip(MaterialTheme.shapes.small),
                     )
                 }
                 Text(
@@ -188,7 +192,7 @@ fun MealPickerSheet(
                         },
                         shape = SegmentedButtonDefaults.itemShape(0, 2),
                     ) {
-                        Text(stringResource(R.string.meal_picker_mode_servings))
+                        Text(stringResource(R.string.meal_picker_mode_servings), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     SegmentedButton(
                         selected = byWeight,
@@ -200,7 +204,7 @@ fun MealPickerSheet(
                         },
                         shape = SegmentedButtonDefaults.itemShape(1, 2),
                     ) {
-                        Text(stringResource(R.string.meal_picker_mode_grams))
+                        Text(stringResource(R.string.meal_picker_mode_grams), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -252,9 +256,9 @@ fun MealPickerSheet(
                     Icon(
                         Icons.Default.CalendarToday,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(ButtonDefaults.IconSize),
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                     Text(dayLabel(LocalDate.parse(selectedDate)))
                 }
 
@@ -278,17 +282,14 @@ fun MealPickerSheet(
                 )
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
+            SheetActionRow {
                 OutlinedButton(
                     onClick = {
                         scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                 ) {
-                    Text(stringResource(R.string.dialog_cancel), maxLines = 1)
+                    Text(stringResource(R.string.dialog_cancel), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Button(
                     onClick = {
@@ -309,10 +310,14 @@ fun MealPickerSheet(
                             }
                         }
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                     enabled = !confirmed && servings > 0,
                 ) {
-                    Text(stringResource(if (showMealPicker) R.string.meal_picker_log else R.string.meal_picker_confirm), maxLines = 1)
+                    Text(
+                        stringResource(if (showMealPicker) R.string.meal_picker_log else R.string.meal_picker_confirm),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }

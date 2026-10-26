@@ -18,7 +18,7 @@ import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -241,7 +241,7 @@ fun FoodImageField(
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
+                    OutlinedIconButton(
                         onClick = {
                             val uri = createImageUri(context, "food-photo")
                             cameraUri = uri
@@ -251,7 +251,7 @@ fun FoodImageField(
                     ) {
                         Icon(Icons.Outlined.PhotoCamera, contentDescription = stringResource(R.string.food_image_take_photo))
                     }
-                    OutlinedButton(
+                    OutlinedIconButton(
                         onClick = {
                             pickMedia.launch(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),

@@ -45,6 +45,7 @@ fun PreSleepWindowCard(summary: MealTimingSummary?) {
                 stringResource(R.string.insights_first_meal),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
             )
             Text(
                 summary.avgFirstMealTime,
@@ -57,6 +58,7 @@ fun PreSleepWindowCard(summary: MealTimingSummary?) {
                 stringResource(R.string.insights_eating_window),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
             )
             Text(
                 stringResource(R.string.insights_hour_window_decimal, "%.1f".format(summary.avgWindowMinutes / 60.0)),
@@ -77,6 +79,7 @@ fun PreSleepWindowCard(summary: MealTimingSummary?) {
                 stringResource(R.string.insights_late_night_eating),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
             )
             Text(
                 stringResource(R.string.insights_pct_of_days, lateNightPct.roundToInt()),

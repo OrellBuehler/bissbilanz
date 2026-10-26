@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -58,6 +59,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.android.R
@@ -67,6 +69,7 @@ import com.bissbilanz.android.ui.screens.MacroRow
 import com.bissbilanz.android.ui.screens.RecipeListItem
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
@@ -206,8 +209,8 @@ fun AddFoodSheet(
             modifier =
                 Modifier
                     .height(screenHeight * 0.7f)
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 16.dp)
+                    .padding(horizontal = Dimens.SheetHorizontalPadding)
+                    .padding(bottom = Dimens.SheetBottomPadding)
                     .imePadding(),
         ) {
             if (selectedFood != null || selectedRecipe != null) {
@@ -285,19 +288,16 @@ fun AddFoodSheet(
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(8.dp))
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
+                SheetActionRow {
                     OutlinedButton(
                         onClick = {
                             selectedFood = null
                             selectRecipe(null)
                             servingsText = "1"
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         enabled = !isSaving,
-                    ) { Text(stringResource(R.string.dialog_cancel)) }
+                    ) { Text(stringResource(R.string.dialog_cancel), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                     val servings = servingsText.toLocalizedDoubleOrNull()?.takeIf { it > 0 }
                     Button(
                         onClick = {
@@ -309,9 +309,9 @@ fun AddFoodSheet(
                                 viewModel.logRecipe(selectedRecipe, selectedMeal, servings, logDate, eatenAt) { onLogged() }
                             }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         enabled = !isSaving && servings != null,
-                    ) { Text(stringResource(R.string.food_detail_log)) }
+                    ) { Text(stringResource(R.string.food_detail_log), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             } else {
@@ -325,13 +325,13 @@ fun AddFoodSheet(
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 8.dp).weight(1f),
                     )
-                    TextButton(onClick = { showDatePicker = true }) {
+                    TextButton(onClick = { showDatePicker = true }, contentPadding = ButtonDefaults.TextButtonWithIconContentPadding) {
                         Icon(
                             Icons.Default.CalendarToday,
                             stringResource(R.string.insights_sleep_pick_date),
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(ButtonDefaults.IconSize),
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                         Text(runCatching { LocalDate.parse(logDate) }.getOrNull()?.let { dayLabel(it) } ?: logDate, maxLines = 1)
                     }
                 }
@@ -668,7 +668,7 @@ private fun QuickTab(
             onClick = onSave,
             modifier = Modifier.fillMaxWidth(),
             enabled = canSaveQuickEntry(name, calories) && !isSaving,
-        ) { Text(stringResource(R.string.weight_save)) }
+        ) { Text(stringResource(R.string.action_save)) }
         Spacer(modifier = Modifier.height(16.dp))
     }
 }

@@ -12,21 +12,25 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -41,6 +45,7 @@ import com.bissbilanz.android.aitasks.AiTaskUploadWorker
 import com.bissbilanz.android.aitasks.QueuedAiTaskUpload
 import com.bissbilanz.android.ui.components.AiMealSheet
 import com.bissbilanz.android.ui.components.AiTaskImageViewer
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.ClaudeProposalCard
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FoodImage
@@ -48,6 +53,7 @@ import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.formatTimeOfDay
 import com.bissbilanz.android.ui.components.mealTypeDisplayName
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
 import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.api.generated.model.AiTask
@@ -122,10 +128,13 @@ fun AiTasksScreen(navController: NavController) {
             title = { Text(stringResource(R.string.ai_tasks_delete)) },
             text = { Text(stringResource(R.string.ai_tasks_delete_confirm)) },
             confirmButton = {
-                TextButton(onClick = {
-                    viewModel.delete(task.id)
-                    taskToDelete = null
-                }) { Text(stringResource(R.string.action_delete)) }
+                TextButton(
+                    onClick = {
+                        viewModel.delete(task.id)
+                        taskToDelete = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
                 TextButton(onClick = { taskToDelete = null }) {
@@ -135,15 +144,15 @@ fun AiTasksScreen(navController: NavController) {
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.ai_tasks_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
-                    }
-                },
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
+                title = stringResource(R.string.ai_tasks_title),
+                onBack = { navController.popBackStack() },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -158,7 +167,7 @@ fun AiTasksScreen(navController: NavController) {
                         onClick = { viewModel.selectFilter(filter) },
                         shape = SegmentedButtonDefaults.itemShape(index, filters.size),
                     ) {
-                        Text(label)
+                        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -174,9 +183,15 @@ fun AiTasksScreen(navController: NavController) {
                         EmptyState(stringResource(selectedFilter.emptyMessage), Icons.Default.AutoAwesome)
                     } else {
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                            modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
+                            contentPadding =
+                                PaddingValues(
+                                    start = Dimens.ScreenPadding,
+                                    top = Dimens.ListGap,
+                                    end = Dimens.ScreenPadding,
+                                    bottom = Dimens.ScreenPadding,
+                                ),
                         ) {
                             items(queuedUploads, key = { "upload-${it.id}" }) { upload ->
                                 QueuedUploadCard(
@@ -238,7 +253,7 @@ private fun QueuedUploadCard(
                     AsyncImage(
                         model = File(path),
                         contentDescription = null,
-                        modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
+                        modifier = Modifier.size(Dimens.ThumbCard).clip(MaterialTheme.shapes.small),
                         contentScale = ContentScale.Crop,
                     )
                     Spacer(modifier = Modifier.width(12.dp))
@@ -411,7 +426,7 @@ private fun AiTaskListItem(
                 Spacer(modifier = Modifier.height(8.dp))
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = MaterialTheme.shapes.small,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {

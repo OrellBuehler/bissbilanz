@@ -4,24 +4,26 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -34,15 +36,17 @@ import com.bissbilanz.android.tips.HintCard
 import com.bissbilanz.android.tips.TipIds
 import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.tips.openHelp
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.WeightTrendChart
 import com.bissbilanz.android.ui.components.linearRegression
-import com.bissbilanz.android.ui.theme.CarbsOrange
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.ProjectionPurple
 import com.bissbilanz.android.ui.theme.TrendGreen
 import com.bissbilanz.android.ui.theme.WeightBlue
+import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
@@ -198,15 +202,15 @@ fun WeightScreen(navController: NavController) {
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.weight_screen_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
-                    }
-                },
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
+                title = stringResource(R.string.weight_screen_title),
+                onBack = { navController.popBackStack() },
             )
         },
         floatingActionButton = {
@@ -232,9 +236,15 @@ fun WeightScreen(navController: NavController) {
                     EmptyState(stringResource(R.string.weight_empty))
                 } else {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp),
+                        contentPadding =
+                            PaddingValues(
+                                start = Dimens.ScreenPadding,
+                                top = Dimens.ListGap,
+                                end = Dimens.ScreenPadding,
+                                bottom = Dimens.FabClearance,
+                            ),
                     ) {
                         if (showHealthConnectTip) {
                             item(key = "health-connect-tip") {
@@ -276,7 +286,7 @@ fun WeightScreen(navController: NavController) {
                                         onClick = { viewModel.selectRange(index) },
                                         shape = SegmentedButtonDefaults.itemShape(index, ranges.size),
                                     ) {
-                                        Text(label)
+                                        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                             }
@@ -292,7 +302,7 @@ fun WeightScreen(navController: NavController) {
                                             onClick = { viewModel.setProjectionDays(days) },
                                             shape = SegmentedButtonDefaults.itemShape(index, projectionOptions.size),
                                         ) {
-                                            Text(projectionLabels[index])
+                                            Text(projectionLabels[index], maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
                                     }
                                 }
@@ -306,7 +316,7 @@ fun WeightScreen(navController: NavController) {
                                     WeightTrendChart(
                                         trendData = trendData,
                                         projectionDays = projectionDays,
-                                        modifier = Modifier.fillMaxWidth().height(240.dp).padding(12.dp),
+                                        modifier = Modifier.fillMaxWidth().height(240.dp).padding(Dimens.CardPadding),
                                     )
                                 }
                             }
@@ -374,7 +384,7 @@ private fun WeightTargetCard(
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(Dimens.CardPadding),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -512,7 +522,7 @@ private fun WeightStatsRow(
     val delta = latest.weightKg - first.weightKg
     val deltaColor =
         when {
-            delta > 0 -> CarbsOrange
+            delta > 0 -> MaterialTheme.colorScheme.error
             delta < 0 -> TrendGreen
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         }
@@ -523,9 +533,9 @@ private fun WeightStatsRow(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = CircleShape,
             color = WeightBlue.copy(alpha = 0.1f),
-            contentColor = WeightBlue,
+            contentColor = WeightBlue.macroTextTone(),
         ) {
             Text(
                 stringResource(R.string.weight_kg_value, latest.weightKg.formatDecimal1()),
@@ -537,9 +547,9 @@ private fun WeightStatsRow(
 
         latest.movingAvg?.let { avg ->
             Surface(
-                shape = RoundedCornerShape(20.dp),
+                shape = CircleShape,
                 color = TrendGreen.copy(alpha = 0.1f),
-                contentColor = TrendGreen,
+                contentColor = TrendGreen.macroTextTone(),
             ) {
                 Text(
                     stringResource(R.string.weight_stats_trend, avg.formatDecimal1()),
@@ -551,9 +561,9 @@ private fun WeightStatsRow(
         }
 
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = CircleShape,
             color = deltaColor.copy(alpha = 0.1f),
-            contentColor = deltaColor,
+            contentColor = deltaColor.macroTextTone(),
         ) {
             Text(
                 stringResource(R.string.weight_stats_delta, "$deltaSign${delta.formatDecimal1()}"),
@@ -582,9 +592,9 @@ private fun WeightStatsRow(
 
             if (projectedWeight != null) {
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = CircleShape,
                     color = ProjectionPurple.copy(alpha = 0.1f),
-                    contentColor = ProjectionPurple,
+                    contentColor = ProjectionPurple.macroTextTone(),
                 ) {
                     Text(
                         stringResource(R.string.weight_stats_projected, projectedWeight.formatDecimal1()),

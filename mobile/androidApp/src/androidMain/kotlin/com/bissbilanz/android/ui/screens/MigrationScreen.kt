@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
@@ -63,10 +64,13 @@ fun MigrationScreen() {
                 Text(stringResource(R.string.migration_discard_text))
             },
             confirmButton = {
-                TextButton(onClick = {
-                    showDiscardDialog = false
-                    viewModel.startFresh()
-                }) { Text(stringResource(R.string.action_discard)) }
+                TextButton(
+                    onClick = {
+                        showDiscardDialog = false
+                        viewModel.startFresh()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text(stringResource(R.string.action_discard)) }
             },
             dismissButton = {
                 TextButton(onClick = { showDiscardDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }

@@ -2,20 +2,22 @@ package com.bissbilanz.android.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.*
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +30,8 @@ import androidx.navigation.NavController
 import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.NAV_KEY_EDIT_SUPPLEMENT_ID
 import com.bissbilanz.android.reminders.SupplementReminderPreferences
+import com.bissbilanz.android.ui.components.AppTopBar
+import com.bissbilanz.android.ui.components.ChoiceDropdown
 import com.bissbilanz.android.ui.components.ExactAlarmPrompt
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.ReminderEditSheet
@@ -35,6 +39,7 @@ import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.components.rememberExactAlarmsAllowed
 import com.bissbilanz.android.ui.components.weekdayLabels
 import com.bissbilanz.android.ui.openNotificationSettings
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.viewmodels.RemindersViewModel
 import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.api.generated.model.Reminder
@@ -57,7 +62,6 @@ fun RemindersScreen(navController: NavController) {
 
     val reminderPrefs: SupplementReminderPreferences = koinInject()
     var snoozeMinutes by remember { mutableIntStateOf(reminderPrefs.snoozeMinutes) }
-    var snoozeMenuExpanded by remember { mutableStateOf(false) }
     var notificationsEnabled by remember {
         mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled())
     }
@@ -83,15 +87,15 @@ fun RemindersScreen(navController: NavController) {
             stringResource(R.string.settings_snooze_minutes, minutes)
         }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.reminders_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
-                    }
-                },
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
+                title = stringResource(R.string.reminders_title),
+                onBack = { navController.popBackStack() },
             )
         },
         floatingActionButton = {
@@ -131,7 +135,7 @@ fun RemindersScreen(navController: NavController) {
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(Dimens.CardGap),
             ) {
                 // Snooze duration + notification-permission nudge, moved here from Settings
                 // since they now apply to every reminder kind, not just supplements.
@@ -143,39 +147,15 @@ fun RemindersScreen(navController: NavController) {
                             fontWeight = FontWeight.SemiBold,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        ExposedDropdownMenuBox(
-                            expanded = snoozeMenuExpanded,
-                            onExpandedChange = { snoozeMenuExpanded = it },
-                        ) {
-                            OutlinedTextField(
-                                value = snoozeLabel(snoozeMinutes),
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text(stringResource(R.string.settings_snooze_duration)) },
-                                trailingIcon = {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = snoozeMenuExpanded)
-                                },
-                                modifier =
-                                    Modifier
-                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                                        .fillMaxWidth(),
-                            )
-                            ExposedDropdownMenu(
-                                expanded = snoozeMenuExpanded,
-                                onDismissRequest = { snoozeMenuExpanded = false },
-                            ) {
-                                SupplementReminderPreferences.SNOOZE_PRESETS.forEach { minutes ->
-                                    DropdownMenuItem(
-                                        text = { Text(snoozeLabel(minutes)) },
-                                        onClick = {
-                                            snoozeMinutes = minutes
-                                            reminderPrefs.snoozeMinutes = minutes
-                                            snoozeMenuExpanded = false
-                                        },
-                                    )
-                                }
-                            }
-                        }
+                        ChoiceDropdown(
+                            selectedLabel = snoozeLabel(snoozeMinutes),
+                            options = SupplementReminderPreferences.SNOOZE_PRESETS.map { snoozeLabel(it) to it },
+                            onSelect = { minutes ->
+                                snoozeMinutes = minutes
+                                reminderPrefs.snoozeMinutes = minutes
+                            },
+                            label = stringResource(R.string.settings_snooze_duration),
+                        )
 
                         if (!notificationsEnabled) {
                             Spacer(modifier = Modifier.height(8.dp))
@@ -301,6 +281,7 @@ private fun SupplementReminderRow(
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.small)
                 .clickable(onClick = onClick)
+                .heightIn(min = 48.dp)
                 .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,

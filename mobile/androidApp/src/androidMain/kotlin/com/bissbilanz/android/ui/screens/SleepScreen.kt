@@ -8,7 +8,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.CalendarToday
@@ -16,6 +15,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -40,10 +41,13 @@ import com.bissbilanz.android.tips.HintCard
 import com.bissbilanz.android.tips.TipIds
 import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.tips.openHelp
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.components.SheetActionRow
 import com.bissbilanz.android.ui.components.SimpleLineChart
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SleepViewModel
 import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
@@ -161,15 +165,15 @@ fun SleepScreen(navController: NavController) {
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.sleep_section_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
-                    }
-                },
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
+                title = stringResource(R.string.sleep_section_title),
+                onBack = { navController.popBackStack() },
             )
         },
         floatingActionButton = {
@@ -199,9 +203,15 @@ fun SleepScreen(navController: NavController) {
                 } else {
                     val chartEntries = remember(entries, selectedRange) { viewModel.chartEntries(entries) }
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp),
+                        contentPadding =
+                            PaddingValues(
+                                start = Dimens.ScreenPadding,
+                                top = Dimens.ListGap,
+                                end = Dimens.ScreenPadding,
+                                bottom = Dimens.FabClearance,
+                            ),
                     ) {
                         if (showHealthConnectTip) {
                             item(key = "health-connect-tip") {
@@ -227,7 +237,7 @@ fun SleepScreen(navController: NavController) {
                                         onClick = { viewModel.selectRange(index) },
                                         shape = SegmentedButtonDefaults.itemShape(index, ranges.size),
                                     ) {
-                                        Text(label)
+                                        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                             }
@@ -236,7 +246,7 @@ fun SleepScreen(navController: NavController) {
                         if (chartEntries.size >= 3) {
                             item(key = "chart") {
                                 Card(modifier = Modifier.fillMaxWidth()) {
-                                    Column(modifier = Modifier.padding(12.dp)) {
+                                    Column(modifier = Modifier.padding(Dimens.CardPadding)) {
                                         Text(
                                             stringResource(R.string.sleep_duration_trend),
                                             style = MaterialTheme.typography.labelMedium,
@@ -349,7 +359,7 @@ private fun SleepSummaryRow(entries: List<SleepEntry>) {
     val recent = entries.take(7)
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Card(modifier = Modifier.weight(1f)) {
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(modifier = Modifier.padding(Dimens.CardPadding)) {
                 Text(
                     stringResource(R.string.sleep_last_night),
                     style = MaterialTheme.typography.labelSmall,
@@ -371,7 +381,7 @@ private fun SleepSummaryRow(entries: List<SleepEntry>) {
             }
         }
         Card(modifier = Modifier.weight(1f)) {
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(modifier = Modifier.padding(Dimens.CardPadding)) {
                 Text(
                     stringResource(R.string.sleep_seven_day_average),
                     style = MaterialTheme.typography.labelSmall,
@@ -529,8 +539,8 @@ private fun SleepEditSheet(
                 Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 32.dp),
+                    .padding(horizontal = Dimens.SheetHorizontalPadding)
+                    .padding(bottom = Dimens.SheetBottomPadding),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
@@ -664,29 +674,25 @@ private fun SleepEditSheet(
                 maxLines = 3,
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.dialog_cancel))
-                }
-                Button(
-                    onClick = {
-                        val times = if (timesEnabled) currentTimes() else null
-                        onSave(
-                            SleepCreate(
-                                durationMinutes = totalMinutes,
-                                quality = quality.roundToInt().toDouble(),
-                                entryDate = date,
-                                bedtime = times?.bedtime?.toString(),
-                                wakeTime = times?.wakeTime?.toString(),
-                                wakeUps = wakeUpsText.toIntOrNull(),
-                                notes = notes.trim().ifBlank { null },
-                            ),
-                        )
-                    },
-                    enabled = !durationError,
-                    modifier = Modifier.weight(1f),
-                ) { Text(stringResource(R.string.weight_save)) }
-            }
+            SheetActionRow(
+                onCancel = onDismiss,
+                confirmLabel = stringResource(R.string.action_save),
+                confirmEnabled = !durationError,
+                onConfirm = {
+                    val times = if (timesEnabled) currentTimes() else null
+                    onSave(
+                        SleepCreate(
+                            durationMinutes = totalMinutes,
+                            quality = quality.roundToInt().toDouble(),
+                            entryDate = date,
+                            bedtime = times?.bedtime?.toString(),
+                            wakeTime = times?.wakeTime?.toString(),
+                            wakeUps = wakeUpsText.toIntOrNull(),
+                            notes = notes.trim().ifBlank { null },
+                        ),
+                    )
+                },
+            )
         }
     }
 }

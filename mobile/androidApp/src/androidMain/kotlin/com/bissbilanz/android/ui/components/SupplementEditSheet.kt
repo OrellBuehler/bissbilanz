@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -22,12 +24,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.reminders.SupplementReminderNotifier
 import com.bissbilanz.android.ui.openNotificationSettings
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.model.*
@@ -90,7 +94,6 @@ fun SupplementEditSheet(
     // the anchor locally, and `SupplementSchedule` then treated the supplement as due
     // every day until the next server refresh put the real date back.
     var scheduleStartDate by rememberSaveable { mutableStateOf<String?>(null) }
-    var showFrequencyMenu by rememberSaveable { mutableStateOf(false) }
     var timeOfDay by rememberSaveable { mutableStateOf("morning") }
     var reminderTimes by rememberSaveable { mutableStateOf(listOf<String>()) }
     var isActive by rememberSaveable { mutableStateOf(true) }
@@ -167,8 +170,8 @@ fun SupplementEditSheet(
             Column(
                 modifier =
                     Modifier
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 32.dp)
+                        .padding(horizontal = Dimens.SheetHorizontalPadding)
+                        .padding(bottom = Dimens.SheetBottomPadding)
                         .imePadding()
                         .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -217,37 +220,12 @@ fun SupplementEditSheet(
                         stringResource(R.string.supplement_edit_weekly) to ScheduleType.weekly,
                         stringResource(R.string.supplement_edit_specific_days) to ScheduleType.specific_days,
                     )
-                ExposedDropdownMenuBox(
-                    expanded = showFrequencyMenu,
-                    onExpandedChange = { showFrequencyMenu = it },
-                ) {
-                    OutlinedTextField(
-                        value = frequencyOptions.first { it.second == scheduleType }.first,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(stringResource(R.string.supplement_edit_frequency)) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showFrequencyMenu) },
-                        modifier =
-                            Modifier
-                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                                .fillMaxWidth(),
-                        singleLine = true,
-                    )
-                    ExposedDropdownMenu(
-                        expanded = showFrequencyMenu,
-                        onDismissRequest = { showFrequencyMenu = false },
-                    ) {
-                        frequencyOptions.forEach { (label, type) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    scheduleType = type
-                                    showFrequencyMenu = false
-                                },
-                            )
-                        }
-                    }
-                }
+                ChoiceDropdown(
+                    selectedLabel = frequencyOptions.first { it.second == scheduleType }.first,
+                    options = frequencyOptions,
+                    onSelect = { scheduleType = it },
+                    label = stringResource(R.string.supplement_edit_frequency),
+                )
 
                 if (needsScheduleDays) {
                     Text(stringResource(R.string.supplement_edit_days), style = MaterialTheme.typography.labelLarge)
@@ -303,11 +281,14 @@ fun SupplementEditSheet(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
-                    FilledTonalButton(onClick = {
-                        ingredients = ingredients + SupplementIngredientRow()
-                    }) {
-                        Icon(Icons.Default.Add, stringResource(R.string.action_add), modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
+                    FilledTonalButton(
+                        onClick = {
+                            ingredients = ingredients + SupplementIngredientRow()
+                        },
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                    ) {
+                        Icon(Icons.Default.Add, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                         Text(stringResource(R.string.action_add))
                     }
                 }
@@ -376,43 +357,18 @@ fun SupplementEditSheet(
                                     modifier = Modifier.weight(1f),
                                     singleLine = true,
                                 )
-                                var showUnitMenu by remember { mutableStateOf(false) }
-                                ExposedDropdownMenuBox(
-                                    expanded = showUnitMenu,
-                                    onExpandedChange = { showUnitMenu = it },
+                                ChoiceDropdown(
+                                    selectedLabel = dosageUnitDisplayName(ingredient.dosageUnit),
+                                    options = unitOptions.map { dosageUnitDisplayName(it) to it },
+                                    onSelect = { unit ->
+                                        ingredients =
+                                            ingredients.toMutableList().apply {
+                                                set(index, ingredient.copy(dosageUnit = unit))
+                                            }
+                                    },
+                                    label = stringResource(R.string.food_form_unit),
                                     modifier = Modifier.weight(0.6f),
-                                ) {
-                                    OutlinedTextField(
-                                        value = dosageUnitDisplayName(ingredient.dosageUnit),
-                                        onValueChange = {},
-                                        readOnly = true,
-                                        label = { Text(stringResource(R.string.food_form_unit)) },
-                                        trailingIcon = {
-                                            ExposedDropdownMenuDefaults.TrailingIcon(
-                                                expanded = showUnitMenu,
-                                            )
-                                        },
-                                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                                        singleLine = true,
-                                    )
-                                    ExposedDropdownMenu(
-                                        expanded = showUnitMenu,
-                                        onDismissRequest = { showUnitMenu = false },
-                                    ) {
-                                        unitOptions.forEach { unit ->
-                                            DropdownMenuItem(
-                                                text = { Text(dosageUnitDisplayName(unit)) },
-                                                onClick = {
-                                                    ingredients =
-                                                        ingredients.toMutableList().apply {
-                                                            set(index, ingredient.copy(dosageUnit = unit))
-                                                        }
-                                                    showUnitMenu = false
-                                                },
-                                            )
-                                        }
-                                    }
-                                }
+                                )
                             }
                         }
                     }
@@ -426,17 +382,14 @@ fun SupplementEditSheet(
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
+                SheetActionRow {
                     OutlinedButton(
                         onClick = {
                             scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                     ) {
-                        Text(stringResource(R.string.dialog_cancel))
+                        Text(stringResource(R.string.dialog_cancel), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Button(
                         onClick = {
@@ -519,10 +472,10 @@ fun SupplementEditSheet(
                                 isSaving = false
                             }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         enabled = !isSaving && isValid,
                     ) {
-                        Text(stringResource(R.string.weight_save))
+                        Text(stringResource(R.string.action_save), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
 
@@ -589,9 +542,13 @@ private fun ReminderTimesSection(
             stringResource(R.string.supplement_reminders),
             style = MaterialTheme.typography.labelLarge,
         )
-        TextButton(onClick = addTime, enabled = times.size < MAX_REMINDER_TIMES) {
-            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(4.dp))
+        TextButton(
+            onClick = addTime,
+            enabled = times.size < MAX_REMINDER_TIMES,
+            contentPadding = ButtonDefaults.TextButtonWithIconContentPadding,
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
             Text(stringResource(R.string.supplement_add_reminder))
         }
     }
