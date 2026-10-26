@@ -201,8 +201,9 @@ class DashboardViewModel(
         savedStateHandle[KEY_SELECTED_DATE] = dateStr
         loadJob?.cancel()
         refreshJob?.cancel()
+        // The previous day's values stay on screen until the new day's cache read
+        // replaces them; clearing here made water, activity and notes flash empty.
         dayPropertiesDate = null
-        applyDayProperties(null)
     }
 
     fun loadData() {
