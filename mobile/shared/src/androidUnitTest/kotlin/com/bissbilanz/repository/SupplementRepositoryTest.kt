@@ -260,4 +260,22 @@ class SupplementRepositoryTest {
 
             assertEquals(listOf("Local", "Server"), cachedNames())
         }
+
+    @Test
+    fun supplementsWithTheSameSortOrderListByName() =
+        runTest {
+            val queries = db.userDataDatabaseQueries
+            listOf("s1" to "Zinc", "s2" to "Iron", "s3" to "Magnesium").forEach { (id, name) ->
+                queries.insertSupplement(
+                    id = id,
+                    name = name,
+                    isActive = 1L,
+                    sortOrder = 0L,
+                    jsonData = json.encodeToString(serverSupplement(id, name)),
+                )
+            }
+
+            assertEquals(listOf("Iron", "Magnesium", "Zinc"), queries.selectActiveSupplements().executeAsList().map { it.name })
+            assertEquals(listOf("Iron", "Magnesium", "Zinc"), queries.selectAllSupplements().executeAsList().map { it.name })
+        }
 }
