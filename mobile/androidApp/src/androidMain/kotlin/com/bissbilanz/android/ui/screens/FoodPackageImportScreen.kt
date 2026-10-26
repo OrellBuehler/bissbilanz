@@ -64,6 +64,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -673,8 +674,16 @@ private fun FoodConflictCard(
                         FoodPackageConflictNote.replace_changes_history ->
                             stringResource(
                                 R.string.food_package_note_history,
-                                conflict.existing.entryCount,
-                                conflict.existing.recipeCount,
+                                pluralStringResource(
+                                    R.plurals.usage_entries_count,
+                                    conflict.existing.entryCount,
+                                    conflict.existing.entryCount,
+                                ),
+                                pluralStringResource(
+                                    R.plurals.usage_recipes_count,
+                                    conflict.existing.recipeCount,
+                                    conflict.existing.recipeCount,
+                                ),
                             )
                         FoodPackageConflictNote.replace_unit_blocked -> stringResource(R.string.food_package_note_unit_blocked)
                         FoodPackageConflictNote.barcode_dropped_on_keep_both ->

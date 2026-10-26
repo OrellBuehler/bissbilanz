@@ -3,6 +3,7 @@ package com.bissbilanz.android.widget
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceModifier
@@ -21,6 +22,7 @@ import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import com.bissbilanz.android.MainActivity
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.mode.AppModeManager
@@ -83,10 +85,17 @@ internal suspend fun widgetsSignedIn(): Boolean {
     return koin.get<AppModeManager>().isLocal || koin.get<AuthManager>().getAccessToken() != null
 }
 
+/** The Glance context with the in-app language applied, which the application context lacks below API 33. */
+@Composable
+internal fun localizedContext(): Context {
+    val context = LocalContext.current
+    return remember(context) { AppLanguage.localized(context) }
+}
+
 /** What every data widget shows after a logout: no numbers, one tap into the app. */
 @Composable
 internal fun SignedOutWidgetContent() {
-    val context = LocalContext.current
+    val context = localizedContext()
     Box(
         modifier =
             GlanceModifier

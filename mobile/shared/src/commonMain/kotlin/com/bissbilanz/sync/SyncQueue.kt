@@ -229,6 +229,19 @@ class SyncQueue(
                 }
         }
 
+    /**
+     * Whether a change for [table] is still waiting to upload (queued or in flight). Parked
+     * changes do not count: they no longer drain, so a refresh must not stay blocked on them.
+     * Singleton rows (goals, preferences) have no affected id, so they guard on presence.
+     */
+    suspend fun hasPending(table: String): Boolean =
+        mutex.withLock {
+            db.bissbilanzDatabaseQueries
+                .selectAllSyncQueue()
+                .executeAsList()
+                .any { it.affectedTable == table && it.failedAt == null }
+        }
+
     suspend fun findByAffected(
         table: String,
         id: String,

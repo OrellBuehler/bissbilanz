@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
@@ -98,7 +99,7 @@ fun RecipeDetailScreen(
         remember(savedStateHandle) {
             savedStateHandle?.getStateFlow(NAV_KEY_LOG_RECIPE_AFTER_COOKING, false) ?: MutableStateFlow(false)
         }
-    val logAfterCooking by logFlow.collectAsState()
+    val logAfterCooking by logFlow.collectAsStateWithLifecycle()
     LaunchedEffect(logAfterCooking, recipe) {
         if (logAfterCooking && recipe != null) {
             showLogDialog = true

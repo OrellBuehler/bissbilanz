@@ -11,6 +11,7 @@ import com.bissbilanz.api.generated.model.FoodRecent
 import com.bissbilanz.api.generated.model.FoodsListResponse
 import com.bissbilanz.api.generated.model.Goals
 import com.bissbilanz.api.generated.model.Preferences
+import com.bissbilanz.api.generated.model.PreferencesUpdate
 import com.bissbilanz.api.generated.model.RecipeCreate
 import com.bissbilanz.api.generated.model.RecipeDetail
 import com.bissbilanz.api.generated.model.RecipeIngredient
@@ -39,6 +40,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -461,6 +463,49 @@ class LocalDataMigratorTest {
             assertEquals(null, queries.selectGoals().executeAsOneOrNull())
             assertEquals(null, queries.selectPreferences().executeAsOneOrNull())
             assertEquals(0L, cacheQueries.countSyncQueue().executeAsOne())
+        }
+
+    @Test
+    fun migrateCarriesEveryPreferenceFieldToTheAccount() =
+        runTest {
+            val local =
+                preferences().copy(
+                    waterGoalMl = 3000,
+                    biologicalSex = Preferences.BiologicalSex.female,
+                    activityGoalAdjustment = true,
+                    activityCreditPercent = 60,
+                    pinnedInsights = listOf("nova-score"),
+                    aiTaskProcessor = Preferences.AiTaskProcessor.device,
+                    aiTaskProcessorKind = "device",
+                    aiTaskAutoLog = true,
+                )
+            queries.insertPreferences(json.encodeToString(local))
+            stubHappyApi()
+            val sent = slot<PreferencesUpdate>()
+            coEvery { api.updatePreferences(capture(sent)) } returns local
+
+            migrator.migrate()
+
+            assertEquals(3000, sent.captured.waterGoalMl)
+            assertEquals(PreferencesUpdate.BiologicalSex.female, sent.captured.biologicalSex)
+            assertEquals(true, sent.captured.activityGoalAdjustment)
+            assertEquals(60, sent.captured.activityCreditPercent)
+            assertEquals(listOf(PreferencesUpdate.PinnedInsights.novaMinusScore), sent.captured.pinnedInsights)
+            assertEquals(PreferencesUpdate.AiTaskProcessor.device, sent.captured.aiTaskProcessor)
+            assertEquals(true, sent.captured.aiTaskAutoLog)
+        }
+
+    @Test
+    fun migrateLeavesAnUnsetBiologicalSexOutOfTheUpdate() =
+        runTest {
+            insertPreferences()
+            stubHappyApi()
+            val sent = slot<PreferencesUpdate>()
+            coEvery { api.updatePreferences(capture(sent)) } returns preferences()
+
+            migrator.migrate()
+
+            assertNull(sent.captured.biologicalSex)
         }
 
     // -------------------------------------------------------------------------------
