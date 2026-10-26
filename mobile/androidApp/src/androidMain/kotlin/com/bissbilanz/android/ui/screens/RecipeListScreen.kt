@@ -51,7 +51,10 @@ fun RecipeListScreen(navController: NavController) {
     val entryRepo: EntryRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
     val errorReporter: ErrorReporter = koinInject()
-    val recipes by recipeRepo.allRecipes().collectAsStateWithLifecycle(emptyList())
+    val recipesFlow = remember(recipeRepo) { recipeRepo.allRecipes() }
+    // Null until the local list has been read, so "not loaded yet" is not mistaken for "none".
+    val loadedRecipes by recipesFlow.collectAsStateWithLifecycle<List<Recipe>?>(null)
+    val recipes = loadedRecipes.orEmpty()
     var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -78,15 +81,17 @@ fun RecipeListScreen(navController: NavController) {
         }
 
     LaunchedEffect(Unit) {
-        isLoading = true
-        try {
-            recipeRepo.refresh()
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            errorReporter.captureException(e)
-            snackbarHostState.showSnackbar(loadFailedMessage)
-        }
+        val refreshFailed =
+            try {
+                recipeRepo.refresh()
+                false
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                true
+            }
         isLoading = false
+        if (refreshFailed) snackbarHostState.showSnackbar(loadFailedMessage)
     }
 
     recipeToLog?.let { recipe ->
@@ -171,7 +176,7 @@ fun RecipeListScreen(navController: NavController) {
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             // The cached list stays on screen while it refreshes; the spinner is for a first load only.
-            Crossfade(targetState = isLoading && recipes.isEmpty(), label = "recipes") { loading ->
+            Crossfade(targetState = loadedRecipes == null || (isLoading && recipes.isEmpty()), label = "recipes") { loading ->
                 if (loading) {
                     LoadingScreen()
                 } else if (recipes.isEmpty()) {

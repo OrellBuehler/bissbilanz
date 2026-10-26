@@ -15,6 +15,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -69,7 +71,10 @@ fun SupplementsScreen(navController: NavController) {
     val supplementRepo: SupplementRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
     val errorReporter: ErrorReporter = koinInject()
-    val supplements by supplementRepo.supplements().collectAsStateWithLifecycle(emptyList())
+    val supplementsFlow = remember(supplementRepo) { supplementRepo.supplements() }
+    // Null until the local list has been read, so "not loaded yet" is not mistaken for "none".
+    val loadedSupplements by supplementsFlow.collectAsStateWithLifecycle<List<Supplement>?>(null)
+    val supplements = loadedSupplements.orEmpty()
     var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -77,8 +82,8 @@ fun SupplementsScreen(navController: NavController) {
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
     var takenIds by remember { mutableStateOf(setOf<String>()) }
     var pendingIds by remember { mutableStateOf(setOf<String>()) }
-    var showCreateSheet by remember { mutableStateOf(false) }
-    var editingSupplementId by remember { mutableStateOf<String?>(null) }
+    var showCreateSheet by rememberSaveable { mutableStateOf(false) }
+    var editingSupplementId by rememberSaveable { mutableStateOf<String?>(null) }
     val loadFailedMessage = stringResource(R.string.supplements_load_failed)
     val updateFailedMessage = stringResource(R.string.supplements_update_failed)
 
@@ -92,7 +97,14 @@ fun SupplementsScreen(navController: NavController) {
     }
 
     LaunchedEffect(Unit) {
-        isLoading = true
+        // The local checklist first, so a revisit shows the ticks at once instead of
+        // all supplements as untaken until the server answers.
+        try {
+            takenIds = withContext(Dispatchers.IO) { supplementRepo.cachedChecklist(today) }.map { it.supplementId }.toSet()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
+        }
         val refreshFailed =
             try {
                 supplementRepo.refresh()
@@ -174,7 +186,8 @@ fun SupplementsScreen(navController: NavController) {
             },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
-            Crossfade(targetState = isLoading, label = "supplements") { loading ->
+            val showSpinner = loadedSupplements == null || (supplements.isEmpty() && isLoading)
+            Crossfade(targetState = showSpinner, label = "supplements") { loading ->
                 if (loading) {
                     LoadingScreen()
                 } else if (supplements.isEmpty()) {
@@ -364,15 +377,15 @@ fun SupplementChecklistItem(
                             )
                         }
                     }
-                    if (isTaken) {
-                        Icon(
-                            Icons.Default.Check,
-                            stringResource(R.string.supplements_taken),
-                            tint = MaterialTheme.colorScheme.tertiary,
-                            modifier =
-                                androidx.compose.ui.Modifier
-                                    .align(androidx.compose.ui.Alignment.CenterVertically),
-                        )
+                    // The slot stays when untaken, so ticking a row does not change its width.
+                    Box(modifier = Modifier.size(24.dp).align(Alignment.CenterVertically)) {
+                        if (isTaken) {
+                            Icon(
+                                Icons.Default.Check,
+                                stringResource(R.string.supplements_taken),
+                                tint = MaterialTheme.colorScheme.tertiary,
+                            )
+                        }
                     }
                 }
             },

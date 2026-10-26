@@ -421,7 +421,7 @@ class FoodRepository(
         @Suppress("NAME_SHADOWING")
         val id = resolveId(id)
         val bulkPending = !id.isTempId() && isLocalOnly(id)
-        val tempFood = foodCreateToFood(food, id).let { if (bulkPending) it.copy(labels = getFoodCached(id)?.labels) else it }
+        val tempFood = mergeEditOntoCached(foodCreateToFood(food, id), getFoodCached(id))
         withContext(ioDispatcher) { cacheFood(tempFood) }
         if (id.isTempId()) {
             coalesceQueuedCreate(id, food)
@@ -968,6 +968,34 @@ class FoodRepository(
             lastSyncedAt = Clock.System.now().toString(),
         )
     }
+
+    /**
+     * The edit form owns the name, serving, nutrients, barcode and favorite flag. The photo,
+     * labels, Nutri-Score, NOVA group, additives, ingredients text and server timestamps
+     * are not on its [FoodCreate] (or are only there when set), so [edited] carries blanks
+     * for them; they are kept from the [cached] copy instead of being wiped locally while
+     * the server, which only patches the keys it receives, still holds them.
+     */
+    private fun mergeEditOntoCached(
+        edited: Food,
+        cached: Food?,
+    ): Food =
+        if (cached == null) {
+            edited
+        } else {
+            edited.copy(
+                userId = cached.userId,
+                imageUrl = edited.imageUrl ?: cached.imageUrl,
+                nutriScore = edited.nutriScore ?: cached.nutriScore,
+                novaGroup = edited.novaGroup ?: cached.novaGroup,
+                additives = edited.additives ?: cached.additives,
+                ingredientsText = edited.ingredientsText ?: cached.ingredientsText,
+                labels = cached.labels,
+                createdAt = cached.createdAt,
+                updatedAt = cached.updatedAt,
+                serverModifiedAt = cached.serverModifiedAt,
+            )
+        }
 
     private fun foodCreateToFood(
         food: FoodCreate,

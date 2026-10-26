@@ -105,15 +105,16 @@ fun MealCard(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        imageUrl?.let { url ->
-                            FoodImage(
-                                imageUrl = url,
-                                contentDescription = null,
-                                modifier =
-                                    Modifier
-                                        .size(Dimens.ThumbCompact)
-                                        .clip(MaterialTheme.shapes.small),
-                            )
+                        if (imageUrl != null || entry.reservesImageSlot()) {
+                            Box(modifier = Modifier.size(Dimens.ThumbCompact).clip(MaterialTheme.shapes.small)) {
+                                imageUrl?.let { url ->
+                                    FoodImage(
+                                        imageUrl = url,
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                }
+                            }
                             Spacer(modifier = Modifier.width(8.dp))
                         }
                         Text(

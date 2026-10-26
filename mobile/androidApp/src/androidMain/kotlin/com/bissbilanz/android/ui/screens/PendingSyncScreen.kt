@@ -29,6 +29,7 @@ import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.theme.Dimens
+import com.bissbilanz.sync.ParkReason
 import com.bissbilanz.sync.QueuedRequest
 import com.bissbilanz.sync.SyncManager
 import com.bissbilanz.sync.SyncOperation
@@ -162,7 +163,7 @@ fun PendingSyncScreen(navController: NavController) {
                                         )
                                         request.failureReason?.let { reason ->
                                             Text(
-                                                stringResource(R.string.pending_sync_parked_reason, reason),
+                                                stringResource(R.string.pending_sync_parked_reason, parkedReasonText(reason)),
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onErrorContainer,
                                             )
@@ -249,6 +250,16 @@ private fun iconFor(op: SyncOperation): ImageVector =
         -> Icons.Default.Edit
 
         else -> Icons.Default.Sync
+    }
+
+@Composable
+private fun parkedReasonText(reason: String): String =
+    when {
+        reason == ParkReason.BARCODE_IN_USE -> stringResource(R.string.pending_sync_barcode_in_use)
+        reason.startsWith(ParkReason.BARCODE_IN_USE_BY_PREFIX) ->
+            stringResource(R.string.pending_sync_barcode_in_use_by, reason.removePrefix(ParkReason.BARCODE_IN_USE_BY_PREFIX))
+        reason == ParkReason.CONFLICT -> stringResource(R.string.pending_sync_conflict_generic)
+        else -> reason
     }
 
 private fun labelFor(op: SyncOperation): Int =

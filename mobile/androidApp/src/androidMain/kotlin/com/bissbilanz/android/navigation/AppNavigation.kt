@@ -136,7 +136,25 @@ fun AppNavigation() {
                     currentRoute?.startsWith("daylog/") == true ||
                     currentRoute?.startsWith("recipe/") == true
 
-            if (!hideBottomBar) {
+            // Animated with the nav host's own spring, so the host's height does not
+            // jump by the bar's height at the start of a transition.
+            AnimatedVisibility(
+                visible = !hideBottomBar,
+                enter =
+                    slideInVertically(
+                        spring(dampingRatio = Motion.DEFAULT_DAMPING, stiffness = Motion.DEFAULT_STIFFNESS),
+                    ) { it } +
+                        expandVertically(
+                            spring(dampingRatio = Motion.DEFAULT_DAMPING, stiffness = Motion.DEFAULT_STIFFNESS),
+                        ),
+                exit =
+                    slideOutVertically(
+                        spring(dampingRatio = Motion.DEFAULT_DAMPING, stiffness = Motion.DEFAULT_STIFFNESS),
+                    ) { it } +
+                        shrinkVertically(
+                            spring(dampingRatio = Motion.DEFAULT_DAMPING, stiffness = Motion.DEFAULT_STIFFNESS),
+                        ),
+            ) {
                 val tipStore: TipStore = koinInject()
                 val foodLoggedCount by tipStore.foodLoggedCount.collectAsStateWithLifecycle()
                 NavigationBar {

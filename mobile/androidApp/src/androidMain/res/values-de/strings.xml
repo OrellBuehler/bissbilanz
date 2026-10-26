@@ -89,12 +89,33 @@
     <string name="action_delete">Löschen</string>
     <string name="action_delete_anyway">Trotzdem löschen</string>
     <string name="delete_conflict_title">Noch in Verwendung</string>
-    <string name="delete_conflict_entries">Wird in %1$d Einträgen verwendet. Trotzdem löschen?</string>
-    <string name="delete_conflict_recipes">Wird in %1$d Rezepten verwendet. Beim Löschen wird es auch aus diesen Rezepten entfernt.</string>
-    <string name="delete_conflict_entries_and_recipes">Wird in %1$d Einträgen und %2$d Rezepten verwendet. Beim Löschen wird es aus allen entfernt.</string>
-    <string name="delete_conflict_summary">Wird noch in %1$d Einträgen, %2$d Rezepten und %3$d Supplementen verwendet.</string>
+    <plurals name="delete_conflict_entries">
+        <item quantity="one">Wird in %1$d Eintrag verwendet. Trotzdem löschen?</item>
+        <item quantity="other">Wird in %1$d Einträgen verwendet. Trotzdem löschen?</item>
+    </plurals>
+    <plurals name="delete_conflict_recipes">
+        <item quantity="one">Wird in %1$d Rezept verwendet. Beim Löschen wird es auch aus diesem Rezept entfernt.</item>
+        <item quantity="other">Wird in %1$d Rezepten verwendet. Beim Löschen wird es auch aus diesen Rezepten entfernt.</item>
+    </plurals>
+    <string name="delete_conflict_entries_and_recipes">Wird in %1$s und %2$s verwendet. Beim Löschen wird es aus allen entfernt.</string>
+    <string name="delete_conflict_summary">Wird noch in %1$s, %2$s und %3$s verwendet.</string>
+    <plurals name="usage_entries_count">
+        <item quantity="one">%1$d Eintrag</item>
+        <item quantity="other">%1$d Einträgen</item>
+    </plurals>
+    <plurals name="usage_recipes_count">
+        <item quantity="one">%1$d Rezept</item>
+        <item quantity="other">%1$d Rezepten</item>
+    </plurals>
+    <plurals name="usage_supplements_count">
+        <item quantity="one">%1$d Supplement</item>
+        <item quantity="other">%1$d Supplementen</item>
+    </plurals>
     <string name="delete_conflict_last_ingredient">Es ist die einzige Zutat von %1$s. Ein Rezept braucht mindestens eine Zutat, deshalb kann es nicht gelöscht werden. Füge diesen Rezepten eine weitere Zutat hinzu oder lösche sie zuerst.</string>
-    <string name="delete_conflict_supplements">Es ist Zutat von %1$d Supplementen. Entferne es zuerst aus diesen Supplementen.</string>
+    <plurals name="delete_conflict_supplements">
+        <item quantity="one">Es ist Zutat von %1$d Supplement. Entferne es zuerst aus diesem Supplement.</item>
+        <item quantity="other">Es ist Zutat von %1$d Supplementen. Entferne es zuerst aus diesen Supplementen.</item>
+    </plurals>
     <string name="recipe_delete_blocked_title">Rezept kann nicht gelöscht werden</string>
     <string name="recipe_delete_blocked_text">Dieses Rezept ist in %1$d Einträgen eingetragen. Entferne oder ändere zuerst diese Einträge und lösche dann das Rezept.</string>
     <string name="where_used_title_logged">Wo es eingetragen ist</string>
@@ -152,6 +173,9 @@
     <string name="pending_sync_parked_title">Braucht deine Aufmerksamkeit</string>
     <string name="pending_sync_parked_detail">Der Server hat diese Änderungen abgelehnt. Sie bleiben hier gespeichert, bis du sie erneut versuchst oder verwirfst.</string>
     <string name="pending_sync_parked_reason">Abgelehnt: %1$s</string>
+    <string name="pending_sync_barcode_in_use">Dieser Barcode wird bereits von einem anderen Lebensmittel verwendet. Führe die beiden Lebensmittel zusammen oder entferne den Barcode.</string>
+    <string name="pending_sync_barcode_in_use_by">Dieser Barcode wird bereits von \"%1$s\" verwendet. Führe die beiden Lebensmittel zusammen oder entferne den Barcode.</string>
+    <string name="pending_sync_conflict_generic">Der Server hat einen Konflikt mit bestehenden Daten festgestellt</string>
     <string name="pending_sync_retry">Erneut versuchen</string>
     <string name="pending_sync_discard">Verwerfen</string>
     <string name="sync_create_entry">Eintrag hinzufügen</string>
@@ -471,12 +495,16 @@
     <string name="migration_discard_text">Alle Lebensmittel, Rezepte, Einträge und weitere auf diesem Gerät gespeicherten Daten werden dauerhaft gelöscht. Die Daten in deinem Konto bleiben erhalten.</string>
     <string name="migration_account_has_data">Dein Konto enthält bereits Daten</string>
     <string name="migration_upload_or_discard">Du kannst die auf diesem Gerät gespeicherten Daten in dein Konto hochladen oder sie verwerfen und nur mit den Kontodaten fortfahren.</string>
-    <string name="migration_upload_button">Lokale Daten hochladen (%1$d Einträge)</string>
+    <plurals name="migration_upload_button">
+        <item quantity="one">Lokale Daten hochladen (%1$d Eintrag)</item>
+        <item quantity="other">Lokale Daten hochladen (%1$d Einträge)</item>
+    </plurals>
     <string name="migration_start_fresh">Neu starten (lokale Daten verwerfen)</string>
     <string name="migration_uploading_title">Deine Daten werden hochgeladen</string>
     <string name="migration_progress_label">%1$s (%2$d/%3$d)…</string>
     <string name="migration_upload_failed_title">Hochladen fehlgeschlagen</string>
     <string name="migration_upload_failed_body">Deine lokalen Daten sind sicher — bereits hochgeladene Einträge gehen nicht verloren, der Upload wird dort fortgesetzt, wo er gestoppt wurde.</string>
+    <string name="migration_server_unreachable">Der Server ist nicht erreichbar</string>
     <string name="migration_step_preparing">Wird vorbereitet</string>
     <string name="migration_step_uploading_foods">Lebensmittel werden hochgeladen</string>
     <string name="migration_step_uploading_recipes">Rezepte werden hochgeladen</string>
@@ -660,6 +688,7 @@
     <string name="food_form_deleted">Dieses Lebensmittel existiert nicht mehr.</string>
     <string name="food_form_name_required_error">Name ist erforderlich</string>
     <string name="food_form_required_fields_error">Kalorien, Protein, Kohlenhydrate, Fett und Portionsgröße sind erforderlich</string>
+    <string name="food_form_invalid_values_error">Die Portionsgröße muss größer als 0 sein und Nährwerte dürfen nicht negativ sein</string>
     <string name="food_form_save_failed">Lebensmittel konnte nicht gespeichert werden</string>
     <string name="food_form_nutrient_saturated_fat">Gesättigte Fettsäuren (g)</string>
     <string name="food_form_nutrient_sugar">Zucker (g)</string>
@@ -1468,7 +1497,7 @@
     <string name="food_package_incoming">Aus dem Paket</string>
     <string name="food_package_existing">Deines</string>
     <string name="food_package_also_matches">Passt auch zu: %1$s</string>
-    <string name="food_package_note_history">In %1$d Tagebucheinträgen und %2$d Rezepten verwendet — Ersetzen ändert deren Werte.</string>
+    <string name="food_package_note_history">Verwendet in %1$s und %2$s — Ersetzen ändert deren Werte.</string>
     <string name="food_package_note_recipe_history">%1$d-mal erfasst — Ersetzen ändert diese Werte.</string>
     <string name="food_package_note_unit_blocked">Ersetzen nicht möglich: Deine Rezepte messen dieses Lebensmittel in einer anderen Einheit.</string>
     <string name="food_package_note_barcode_dropped">Beim Behalten beider wird die Kopie ohne Barcode importiert.</string>

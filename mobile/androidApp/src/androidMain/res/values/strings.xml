@@ -91,12 +91,33 @@
     <string name="action_delete">Delete</string>
     <string name="action_delete_anyway">Delete anyway</string>
     <string name="delete_conflict_title">Still in use</string>
-    <string name="delete_conflict_entries">This is used in %1$d food log entries. Delete it anyway?</string>
-    <string name="delete_conflict_recipes">This is used in %1$d recipes. Deleting it will remove it from those recipes too.</string>
-    <string name="delete_conflict_entries_and_recipes">This is used in %1$d food log entries and %2$d recipes. Deleting it will remove it from all of them.</string>
-    <string name="delete_conflict_summary">This is still used in %1$d food log entries, %2$d recipes and %3$d supplements.</string>
+    <plurals name="delete_conflict_entries">
+        <item quantity="one">This is used in %1$d food log entry. Delete it anyway?</item>
+        <item quantity="other">This is used in %1$d food log entries. Delete it anyway?</item>
+    </plurals>
+    <plurals name="delete_conflict_recipes">
+        <item quantity="one">This is used in %1$d recipe. Deleting it will remove it from that recipe too.</item>
+        <item quantity="other">This is used in %1$d recipes. Deleting it will remove it from those recipes too.</item>
+    </plurals>
+    <string name="delete_conflict_entries_and_recipes">This is used in %1$s and %2$s. Deleting it will remove it from all of them.</string>
+    <string name="delete_conflict_summary">This is still used in %1$s, %2$s and %3$s.</string>
+    <plurals name="usage_entries_count">
+        <item quantity="one">%1$d food log entry</item>
+        <item quantity="other">%1$d food log entries</item>
+    </plurals>
+    <plurals name="usage_recipes_count">
+        <item quantity="one">%1$d recipe</item>
+        <item quantity="other">%1$d recipes</item>
+    </plurals>
+    <plurals name="usage_supplements_count">
+        <item quantity="one">%1$d supplement</item>
+        <item quantity="other">%1$d supplements</item>
+    </plurals>
     <string name="delete_conflict_last_ingredient">It is the only ingredient of %1$s. A recipe needs at least one ingredient, so it can\'t be deleted. Add another ingredient to those recipes or delete them first.</string>
-    <string name="delete_conflict_supplements">It is an ingredient of %1$d supplements. Remove it from those supplements first.</string>
+    <plurals name="delete_conflict_supplements">
+        <item quantity="one">It is an ingredient of %1$d supplement. Remove it from that supplement first.</item>
+        <item quantity="other">It is an ingredient of %1$d supplements. Remove it from those supplements first.</item>
+    </plurals>
     <string name="recipe_delete_blocked_title">Can\'t delete this recipe</string>
     <string name="recipe_delete_blocked_text">This recipe is logged in %1$d food log entries. Remove or change those entries first, then delete the recipe.</string>
     <string name="where_used_title_logged">Where it\'s logged</string>
@@ -154,6 +175,9 @@
     <string name="pending_sync_parked_title">Needs your attention</string>
     <string name="pending_sync_parked_detail">The server rejected these changes. They are kept here until you retry or discard them.</string>
     <string name="pending_sync_parked_reason">Rejected: %1$s</string>
+    <string name="pending_sync_barcode_in_use">This barcode is already used by another food. Merge the two foods or remove the barcode.</string>
+    <string name="pending_sync_barcode_in_use_by">This barcode is already used by \"%1$s\". Merge the two foods or remove the barcode.</string>
+    <string name="pending_sync_conflict_generic">The server found a conflict with existing data</string>
     <string name="pending_sync_retry">Retry</string>
     <string name="pending_sync_discard">Discard</string>
     <string name="sync_create_entry">Add food entry</string>
@@ -473,12 +497,16 @@
     <string name="migration_discard_text">All foods, recipes, log entries and other data stored on this device will be permanently deleted. The data in your account is kept.</string>
     <string name="migration_account_has_data">Your account already has data</string>
     <string name="migration_upload_or_discard">You can upload the data stored on this device to your account, or discard it and continue with your account data only.</string>
-    <string name="migration_upload_button">Upload local data (%1$d items)</string>
+    <plurals name="migration_upload_button">
+        <item quantity="one">Upload local data (%1$d item)</item>
+        <item quantity="other">Upload local data (%1$d items)</item>
+    </plurals>
     <string name="migration_start_fresh">Start fresh (discard local data)</string>
     <string name="migration_uploading_title">Uploading your data</string>
     <string name="migration_progress_label">%1$s (%2$d/%3$d)…</string>
     <string name="migration_upload_failed_title">Upload failed</string>
     <string name="migration_upload_failed_body">Your local data is safe — already uploaded items are not lost and the upload continues where it stopped.</string>
+    <string name="migration_server_unreachable">Could not reach the server</string>
     <string name="migration_step_preparing">Preparing</string>
     <string name="migration_step_uploading_foods">Uploading foods</string>
     <string name="migration_step_uploading_recipes">Uploading recipes</string>
@@ -662,6 +690,7 @@
     <string name="food_form_deleted">This food no longer exists.</string>
     <string name="food_form_name_required_error">Name is required</string>
     <string name="food_form_required_fields_error">Calories, protein, carbs, fat, and serving size are required</string>
+    <string name="food_form_invalid_values_error">Serving size must be greater than 0 and nutrient values cannot be negative</string>
     <string name="food_form_save_failed">Failed to save food</string>
     <string name="food_form_nutrient_saturated_fat">Saturated Fat (g)</string>
     <string name="food_form_nutrient_sugar">Sugar (g)</string>
@@ -1470,7 +1499,7 @@
     <string name="food_package_incoming">From package</string>
     <string name="food_package_existing">Yours</string>
     <string name="food_package_also_matches">Also matches: %1$s</string>
-    <string name="food_package_note_history">Used in %1$d diary entries and %2$d recipes — replacing changes their totals.</string>
+    <string name="food_package_note_history">Used in %1$s and %2$s — replacing changes their totals.</string>
     <string name="food_package_note_recipe_history">Logged %1$d times — replacing changes those totals.</string>
     <string name="food_package_note_unit_blocked">Can\'t replace: your recipes measure this food in a different unit.</string>
     <string name="food_package_note_barcode_dropped">Keep both imports the copy without its barcode.</string>

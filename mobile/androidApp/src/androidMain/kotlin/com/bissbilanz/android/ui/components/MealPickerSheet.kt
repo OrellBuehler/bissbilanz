@@ -8,8 +8,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,8 +29,8 @@ import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.util.dayLabel
+import com.bissbilanz.android.util.toEditableString
 import com.bissbilanz.util.mealForCurrentTime
-import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
@@ -59,6 +61,16 @@ data class MealLogDetails(
     val notes: String?,
 )
 
+internal fun servingsToGramsText(
+    servings: Double,
+    gramsPerServing: Double,
+): String = (Math.round(servings * gramsPerServing * 10) / 10.0).toEditableString()
+
+internal fun gramsToServingsText(
+    grams: Double,
+    gramsPerServing: Double,
+): String = (Math.round(grams / gramsPerServing * 1000) / 1000.0).toEditableString()
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MealPickerSheet(
@@ -77,19 +89,19 @@ fun MealPickerSheet(
 ) {
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var selectedMeal by remember { mutableStateOf(initialMeal ?: mealForCurrentTime()) }
-    var servingsText by remember { mutableStateOf(initialServings.toDisplayString()) }
-    var byWeight by remember { mutableStateOf(false) }
-    var gramsText by remember {
-        mutableStateOf(gramsPerServing?.let { (initialServings * it).toDisplayString() } ?: "")
+    var selectedMeal by rememberSaveable { mutableStateOf(initialMeal ?: mealForCurrentTime()) }
+    var servingsText by rememberSaveable { mutableStateOf(initialServings.toEditableString()) }
+    var byWeight by rememberSaveable { mutableStateOf(false) }
+    var gramsText by rememberSaveable {
+        mutableStateOf(gramsPerServing?.let { servingsToGramsText(initialServings, it) } ?: "")
     }
-    var selectedDate by remember { mutableStateOf(date) }
+    var selectedDate by rememberSaveable { mutableStateOf(date) }
     val nowLocal = remember { Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()) }
-    var eatenHour by remember { mutableIntStateOf(nowLocal.hour) }
-    var eatenMinute by remember { mutableIntStateOf(nowLocal.minute) }
-    var notes by remember { mutableStateOf("") }
-    var showDatePicker by remember { mutableStateOf(false) }
-    var confirmed by remember { mutableStateOf(false) }
+    var eatenHour by rememberSaveable { mutableIntStateOf(nowLocal.hour) }
+    var eatenMinute by rememberSaveable { mutableIntStateOf(nowLocal.minute) }
+    var notes by rememberSaveable { mutableStateOf("") }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
+    var confirmed by rememberSaveable { mutableStateOf(false) }
     val servings =
         if (byWeight && gramsPerServing != null && gramsPerServing > 0.0) {
             (gramsText.toLocalizedDoubleOrNull() ?: 0.0) / gramsPerServing
@@ -172,14 +184,24 @@ fun MealPickerSheet(
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         selected = !byWeight,
-                        onClick = { byWeight = false },
+                        onClick = {
+                            if (byWeight) {
+                                gramsText.toLocalizedDoubleOrNull()?.let { servingsText = gramsToServingsText(it, gramsPerServing) }
+                            }
+                            byWeight = false
+                        },
                         shape = SegmentedButtonDefaults.itemShape(0, 2),
                     ) {
                         Text(stringResource(R.string.meal_picker_mode_servings), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     SegmentedButton(
                         selected = byWeight,
-                        onClick = { byWeight = true },
+                        onClick = {
+                            if (!byWeight) {
+                                servingsText.toLocalizedDoubleOrNull()?.let { gramsText = servingsToGramsText(it, gramsPerServing) }
+                            }
+                            byWeight = true
+                        },
                         shape = SegmentedButtonDefaults.itemShape(1, 2),
                     ) {
                         Text(stringResource(R.string.meal_picker_mode_grams), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -234,9 +256,9 @@ fun MealPickerSheet(
                     Icon(
                         Icons.Default.CalendarToday,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(ButtonDefaults.IconSize),
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                     Text(dayLabel(LocalDate.parse(selectedDate)))
                 }
 

@@ -12,7 +12,6 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
-import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
@@ -148,7 +147,7 @@ private fun QuickAddContent(
     checkProvider: ImageProvider,
     askForMeal: Boolean,
 ) {
-    val context = LocalContext.current
+    val context = localizedContext()
     val height = LocalSize.current.height
     val visible =
         when {

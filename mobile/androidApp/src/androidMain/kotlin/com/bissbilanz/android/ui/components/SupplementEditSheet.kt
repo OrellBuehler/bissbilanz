@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -50,7 +51,7 @@ private data class SupplementIngredientRow(
     // Original ingredientsText preserved when it's not a simple "<number> <unit>" label,
     // so edits round-trip without losing richer free-form text.
     val originalText: String? = null,
-)
+) : java.io.Serializable
 
 // Parses "42 mg" / "1,5 mg" out of an existing ingredientsText so it round-trips.
 // The number comes back as the text the user typed ("1000", not "1000.0"). Returns
@@ -77,27 +78,28 @@ fun SupplementEditSheet(
     val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var isLoading by remember { mutableStateOf(supplementId != null) }
+    var loaded by rememberSaveable { mutableStateOf(supplementId == null) }
+    var isLoading by remember { mutableStateOf(!loaded) }
     var isSaving by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
     val isEditing = supplementId != null
 
-    var name by remember { mutableStateOf("") }
-    var scheduleType by remember { mutableStateOf(ScheduleType.daily) }
+    var name by rememberSaveable { mutableStateOf("") }
+    var scheduleType by rememberSaveable { mutableStateOf(ScheduleType.daily) }
     // Server encoding: 0 = Sunday .. 6 = Saturday. Required (and non-empty) for the
     // weekly and specific-days schedules, ignored for the other two.
-    var scheduleDays by remember { mutableStateOf(setOf<Int>()) }
+    var scheduleDays by rememberSaveable { mutableStateOf(setOf<Int>()) }
     // The anchor an every_other_day schedule counts from. Purely carried through: the
     // sheet never edits it, but dropping it made every edit — a rename included — reset
     // the anchor locally, and `SupplementSchedule` then treated the supplement as due
     // every day until the next server refresh put the real date back.
-    var scheduleStartDate by remember { mutableStateOf<String?>(null) }
-    var timeOfDay by remember { mutableStateOf("morning") }
-    var reminderTimes by remember { mutableStateOf(listOf<String>()) }
-    var isActive by remember { mutableStateOf(true) }
+    var scheduleStartDate by rememberSaveable { mutableStateOf<String?>(null) }
+    var timeOfDay by rememberSaveable { mutableStateOf("morning") }
+    var reminderTimes by rememberSaveable { mutableStateOf(listOf<String>()) }
+    var isActive by rememberSaveable { mutableStateOf(true) }
 
     // Always at least one ingredient — matches server's minItems: 1 rule.
-    var ingredients by remember {
+    var ingredients by rememberSaveable {
         mutableStateOf(listOf(SupplementIngredientRow()))
     }
 
@@ -105,7 +107,7 @@ fun SupplementEditSheet(
     val saveFailedMessage = stringResource(R.string.supplement_edit_save_failed)
 
     LaunchedEffect(supplementId) {
-        if (supplementId != null) {
+        if (supplementId != null && !loaded) {
             try {
                 val supplements = supplementRepo.supplements().first()
                 val found = supplements.find { it.id == supplementId }
@@ -128,6 +130,7 @@ fun SupplementEditSheet(
                             )
                         }
                     ingredients = rows.ifEmpty { listOf(SupplementIngredientRow()) }
+                    loaded = true
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e

@@ -91,4 +91,17 @@ class GoalsRepositoryTest {
 
             coVerify { syncQueue.enqueue(match<SyncOperation> { it is SyncOperation.SetGoals }) }
         }
+
+    @Test
+    fun refreshKeepsAQueuedLocalEdit() =
+        runTest {
+            val edited = TestFixtures.goals().copy(calorieGoal = 1800.0)
+            repository.setGoals(edited)
+            coEvery { syncQueue.hasPending("goals") } returns true
+            coEvery { api.getGoals() } returns TestFixtures.goals()
+
+            repository.refresh()
+
+            assertEquals(edited, repository.goalsOnce())
+        }
 }

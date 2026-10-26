@@ -52,6 +52,7 @@ fun CalendarScreen(navController: NavController) {
     val refreshManager: RefreshManager = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     var isLoading by remember { mutableStateOf(true) }
+    var hasLoaded by remember { mutableStateOf(false) }
     var calendarDays by remember { mutableStateOf<List<CalendarDay>>(emptyList()) }
     var goals by remember { mutableStateOf<Goals?>(null) }
 
@@ -80,6 +81,7 @@ fun CalendarScreen(navController: NavController) {
         isLoading = true
         fetchMonth(monthIndex)
         isLoading = false
+        hasLoaded = true
     }
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
@@ -129,9 +131,14 @@ fun CalendarScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                if (isLoading) {
+                if (isLoading && !hasLoaded) {
                     LoadingScreen()
                 } else {
+                    Box(modifier = Modifier.fillMaxWidth().height(4.dp)) {
+                        if (isLoading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     // Day of week headers
                     Row(modifier = Modifier.fillMaxWidth()) {
                         DayOfWeek.entries.map { it.displayName() }.forEach { day ->
@@ -148,42 +155,12 @@ fun CalendarScreen(navController: NavController) {
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // Calendar grid
-                    val firstDayOfMonth = LocalDate(currentYear, currentMonth, 1)
-                    val daysInMonth =
-                        when (currentMonth) {
-                            Month.FEBRUARY -> if (currentYear % 4 == 0 && (currentYear % 100 != 0 || currentYear % 400 == 0)) 29 else 28
-                            Month.APRIL, Month.JUNE, Month.SEPTEMBER, Month.NOVEMBER -> 30
-                            else -> 31
-                        }
-                    // ISO: Monday=1
-                    val startDayOfWeek = firstDayOfMonth.dayOfWeek.isoDayNumber
-
-                    val dayMap = calendarDays.associateBy { it.date }
-
-                    var dayCounter = 1
-                    val weeks = mutableListOf<List<Int?>>()
-                    var currentWeek = mutableListOf<Int?>()
-
-                    // Fill empty days before first day
-                    for (i in 1 until startDayOfWeek) {
-                        currentWeek.add(null)
-                    }
-
-                    while (dayCounter <= daysInMonth) {
-                        currentWeek.add(dayCounter)
-                        if (currentWeek.size == 7) {
-                            weeks.add(currentWeek.toList())
-                            currentWeek = mutableListOf()
-                        }
-                        dayCounter++
-                    }
-                    // Fill remaining days in last week
-                    while (currentWeek.size < 7 && currentWeek.isNotEmpty()) {
-                        currentWeek.add(null)
-                    }
-                    if (currentWeek.isNotEmpty()) {
-                        weeks.add(currentWeek.toList())
-                    }
+                    val weeks = remember(monthIndex) { monthWeeks(currentYear, currentMonth) }
+                    val monthPrefix = remember(monthIndex) { "%04d-%02d".format(currentYear, currentMonth.number) }
+                    // Days of the month being fetched are still the previous month's until it lands.
+                    val monthDays = remember(calendarDays, monthPrefix) { calendarDays.filter { it.date.startsWith(monthPrefix) } }
+                    val dayMap = remember(monthDays) { monthDays.associateBy { it.date } }
+                    val todayStr = remember(today) { today.toString() }
 
                     weeks.forEach { week ->
                         Row(modifier = Modifier.fillMaxWidth()) {
@@ -196,8 +173,7 @@ fun CalendarScreen(navController: NavController) {
                                             .padding(2.dp)
                                             .let { mod ->
                                                 if (day != null) {
-                                                    val dateStr = "%04d-%02d-%02d".format(currentYear, currentMonth.number, day)
-                                                    mod.clickable { navController.navigate("daylog/$dateStr") }
+                                                    mod.clickable { navController.navigate("daylog/${day.dateStr}") }
                                                 } else {
                                                     mod
                                                 }
@@ -205,9 +181,8 @@ fun CalendarScreen(navController: NavController) {
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     if (day != null) {
-                                        val dateStr = "%04d-%02d-%02d".format(currentYear, currentMonth.number, day)
-                                        val calDay = dayMap[dateStr]
-                                        val isToday = dateStr == today.toString()
+                                        val calDay = dayMap[day.dateStr]
+                                        val isToday = day.dateStr == todayStr
 
                                         val bgColor =
                                             when {
@@ -248,7 +223,7 @@ fun CalendarScreen(navController: NavController) {
                                             verticalArrangement = Arrangement.Center,
                                         ) {
                                             Text(
-                                                day.toString(),
+                                                day.day.toString(),
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
                                                 color =
@@ -326,12 +301,12 @@ fun CalendarScreen(navController: NavController) {
                             }
 
                             // Summary stats
-                            val daysWithEntries = calendarDays.count { it.hasEntries }
+                            val daysWithEntries = monthDays.count { it.hasEntries }
                             val goalCal = goals?.calorieGoal
-                            val daysGoalMet = calendarDays.count { it.hasEntries && isOnTarget(it.calories, goalCal) }
+                            val daysGoalMet = monthDays.count { it.hasEntries && isOnTarget(it.calories, goalCal) }
                             val avgCalories =
                                 if (daysWithEntries > 0) {
-                                    calendarDays.filter { it.hasEntries }.map { it.calories }.average()
+                                    monthDays.filter { it.hasEntries }.map { it.calories }.average()
                                 } else {
                                     0.0
                                 }
@@ -377,6 +352,29 @@ fun CalendarScreen(navController: NavController) {
             }
         }
     }
+}
+
+private data class CalendarCell(
+    val day: Int,
+    val dateStr: String,
+)
+
+private fun monthWeeks(
+    year: Int,
+    month: Month,
+): List<List<CalendarCell?>> {
+    val daysInMonth =
+        when (month) {
+            Month.FEBRUARY -> if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) 29 else 28
+            Month.APRIL, Month.JUNE, Month.SEPTEMBER, Month.NOVEMBER -> 30
+            else -> 31
+        }
+    // ISO: Monday=1
+    val leadingBlanks = LocalDate(year, month, 1).dayOfWeek.isoDayNumber - 1
+    val cells =
+        List<CalendarCell?>(leadingBlanks) { null } +
+            (1..daysInMonth).map { CalendarCell(it, "%04d-%02d-%02d".format(year, month.number, it)) }
+    return cells.chunked(7).map { week -> week + List(7 - week.size) { null } }
 }
 
 /** Within 10 % of the goal either way — the band the Insights heatmap shows as on target. */

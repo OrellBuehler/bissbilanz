@@ -59,9 +59,9 @@ internal class FoodSearch(
             scope.launch {
                 if (newQuery.length >= 2) {
                     // Searching from the first keystroke, so the debounce never shows
-                    // the previous query's "no results".
+                    // the previous query's "no results". The previous results stay
+                    // until the new ones arrive, so the list does not blink per keystroke.
                     _isSearching.value = true
-                    _offResults.value = emptyList()
                     delay(300)
                     val results =
                         try {
@@ -84,6 +84,8 @@ internal class FoodSearch(
                         } finally {
                             _isSearchingOff.value = false
                         }
+                    } else {
+                        _offResults.value = emptyList()
                     }
                 } else {
                     _isSearching.value = false

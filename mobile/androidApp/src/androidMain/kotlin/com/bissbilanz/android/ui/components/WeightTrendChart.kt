@@ -2,9 +2,6 @@ package com.bissbilanz.android.ui.components
 
 import android.graphics.Paint
 import android.graphics.Typeface
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseOutCubic
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -12,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -103,11 +99,7 @@ fun WeightTrendChart(
         }
     if (chartState == null) return
 
-    val revealFraction = remember { Animatable(0f) }
-    LaunchedEffect(chartState) {
-        revealFraction.snapTo(0f)
-        revealFraction.animateTo(1f, animationSpec = tween(600, easing = EaseOutCubic))
-    }
+    val revealFraction = rememberRevealFraction(600)
 
     val textColor = MaterialTheme.colorScheme.onSurfaceVariant
     val textColorArgb =

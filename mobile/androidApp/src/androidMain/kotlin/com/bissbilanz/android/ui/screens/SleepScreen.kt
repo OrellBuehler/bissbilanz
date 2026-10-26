@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -56,6 +58,7 @@ import com.bissbilanz.android.util.sameMinute
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.api.generated.model.SleepEntry
 import com.bissbilanz.api.generated.model.SleepUpdate
+import com.bissbilanz.util.SleepField
 import com.bissbilanz.util.formatDecimal1
 import com.bissbilanz.util.formatNutrient
 import kotlinx.datetime.LocalDate
@@ -89,9 +92,11 @@ fun SleepScreen(navController: NavController) {
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
 
-    var showAddSheet by remember { mutableStateOf(false) }
-    var entryToEdit by remember { mutableStateOf<SleepEntry?>(null) }
-    var entryToDelete by remember { mutableStateOf<SleepEntry?>(null) }
+    var showAddSheet by rememberSaveable { mutableStateOf(false) }
+    var entryToEditId by rememberSaveable { mutableStateOf<String?>(null) }
+    var entryToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+    val entryToEdit = entries.find { it.id == entryToEditId }
+    val entryToDelete = entries.find { it.id == entryToDeleteId }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
@@ -115,7 +120,7 @@ fun SleepScreen(navController: NavController) {
     entryToEdit?.let { entry ->
         SleepEditSheet(
             existing = entry,
-            onDismiss = { entryToEdit = null },
+            onDismiss = { entryToEditId = null },
             onSave = { create ->
                 viewModel.updateEntry(
                     entry.id,
@@ -128,28 +133,34 @@ fun SleepScreen(navController: NavController) {
                         wakeUps = create.wakeUps,
                         notes = create.notes,
                     ),
+                    buildSet {
+                        if (entry.bedtime != null && create.bedtime == null) add(SleepField.BEDTIME)
+                        if (entry.wakeTime != null && create.wakeTime == null) add(SleepField.WAKE_TIME)
+                        if (entry.wakeUps != null && create.wakeUps == null) add(SleepField.WAKE_UPS)
+                        if (entry.notes != null && create.notes == null) add(SleepField.NOTES)
+                    },
                 )
-                entryToEdit = null
+                entryToEditId = null
             },
         )
     }
 
     entryToDelete?.let { entry ->
         AlertDialog(
-            onDismissRequest = { entryToDelete = null },
+            onDismissRequest = { entryToDeleteId = null },
             title = { Text(stringResource(R.string.sleep_delete_dialog_title)) },
             text = { Text(stringResource(R.string.sleep_delete_dialog_text, formatIsoDate(entry.entryDate))) },
             confirmButton = {
                 TextButton(
                     onClick = {
                         viewModel.deleteEntry(entry.id)
-                        entryToDelete = null
+                        entryToDeleteId = null
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { entryToDelete = null }) { Text(stringResource(R.string.dialog_cancel)) }
+                TextButton(onClick = { entryToDeleteId = null }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         )
     }
@@ -203,7 +214,7 @@ fun SleepScreen(navController: NavController) {
                             ),
                     ) {
                         if (showHealthConnectTip) {
-                            item {
+                            item(key = "health-connect-tip") {
                                 HintCard(
                                     title = stringResource(R.string.tip_health_connect_sleep_title),
                                     text = stringResource(R.string.tip_health_connect_sleep_text),
@@ -216,9 +227,9 @@ fun SleepScreen(navController: NavController) {
                             }
                         }
 
-                        item { SleepSummaryRow(entries) }
+                        item(key = "summary") { SleepSummaryRow(entries) }
 
-                        item {
+                        item(key = "range") {
                             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                                 ranges.forEachIndexed { index, label ->
                                     SegmentedButton(
@@ -233,7 +244,7 @@ fun SleepScreen(navController: NavController) {
                         }
 
                         if (chartEntries.size >= 3) {
-                            item {
+                            item(key = "chart") {
                                 Card(modifier = Modifier.fillMaxWidth()) {
                                     Column(modifier = Modifier.padding(Dimens.CardPadding)) {
                                         Text(
@@ -318,10 +329,10 @@ fun SleepScreen(navController: NavController) {
                                     },
                                     trailingContent = {
                                         Row {
-                                            IconButton(onClick = { entryToEdit = entry }) {
+                                            IconButton(onClick = { entryToEditId = entry.id }) {
                                                 Icon(Icons.Default.Edit, stringResource(R.string.sleep_edit_content_desc))
                                             }
-                                            IconButton(onClick = { entryToDelete = entry }) {
+                                            IconButton(onClick = { entryToDeleteId = entry.id }) {
                                                 Icon(
                                                     Icons.Default.Delete,
                                                     stringResource(R.string.sleep_delete_content_desc),
@@ -408,6 +419,8 @@ private fun formatTimeOfDay(iso: String): String =
         "${local.hour.toString().padStart(2, '0')}:${local.minute.toString().padStart(2, '0')}"
     }.getOrDefault(iso)
 
+private val LocalTimeSaver = Saver<LocalTime, String>(save = { it.toString() }, restore = { LocalTime.parse(it) })
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SleepEditSheet(
@@ -419,18 +432,18 @@ private fun SleepEditSheet(
     val today = Clock.System.todayIn(zone)
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    var date by remember { mutableStateOf(existing?.entryDate ?: today.toString()) }
-    var hours by remember { mutableStateOf(((existing?.durationMinutes ?: 480) / 60).toString()) }
-    var minutes by remember { mutableStateOf(((existing?.durationMinutes ?: 480) % 60).toString()) }
-    var quality by remember { mutableFloatStateOf((existing?.quality ?: 7.0).toFloat()) }
-    var notes by remember { mutableStateOf(existing?.notes ?: "") }
-    var wakeUpsText by remember { mutableStateOf(existing?.wakeUps?.toString() ?: "") }
+    var date by rememberSaveable { mutableStateOf(existing?.entryDate ?: today.toString()) }
+    var hours by rememberSaveable { mutableStateOf(((existing?.durationMinutes ?: 480) / 60).toString()) }
+    var minutes by rememberSaveable { mutableStateOf(((existing?.durationMinutes ?: 480) % 60).toString()) }
+    var quality by rememberSaveable { mutableFloatStateOf((existing?.quality ?: 7.0).toFloat()) }
+    var notes by rememberSaveable { mutableStateOf(existing?.notes ?: "") }
+    var wakeUpsText by rememberSaveable { mutableStateOf(existing?.wakeUps?.toString() ?: "") }
 
     val existingBed = remember(existing) { existing?.bedtime?.let { localTimeOrNull(it, zone) } }
     val existingWake = remember(existing) { existing?.wakeTime?.let { localTimeOrNull(it, zone) } }
-    var timesEnabled by remember { mutableStateOf(existingBed != null && existingWake != null) }
-    var bedtime by remember { mutableStateOf(existingBed ?: LocalTime(23, 0)) }
-    var wakeTime by remember { mutableStateOf(existingWake ?: LocalTime(7, 0)) }
+    var timesEnabled by rememberSaveable { mutableStateOf(existingBed != null && existingWake != null) }
+    var bedtime by rememberSaveable(stateSaver = LocalTimeSaver) { mutableStateOf(existingBed ?: LocalTime(23, 0)) }
+    var wakeTime by rememberSaveable(stateSaver = LocalTimeSaver) { mutableStateOf(existingWake ?: LocalTime(7, 0)) }
     val originalTimes =
         remember(existing) {
             val bed = existing?.bedtime?.let { runCatching { Instant.parse(it) }.getOrNull() }
@@ -459,9 +472,9 @@ private fun SleepEditSheet(
         minutes = (slept % 60).toString()
     }
 
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showBedtimePicker by remember { mutableStateOf(false) }
-    var showWakePicker by remember { mutableStateOf(false) }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
+    var showBedtimePicker by rememberSaveable { mutableStateOf(false) }
+    var showWakePicker by rememberSaveable { mutableStateOf(false) }
 
     val totalMinutes = (hours.toIntOrNull() ?: 0) * 60 + (minutes.toIntOrNull() ?: 0)
     val durationError = totalMinutes <= 0

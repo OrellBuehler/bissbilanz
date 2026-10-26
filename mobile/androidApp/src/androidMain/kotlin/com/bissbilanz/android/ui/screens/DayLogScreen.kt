@@ -19,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -85,17 +86,17 @@ fun DayLogScreen(
     val visibleEntries by viewModel.visibleEntries.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
-    val appMode by appModeManager.mode.collectAsStateWithLifecycle(null)
+    val appMode by appModeManager.mode.collectAsStateWithLifecycle()
     val isLocalMode = appMode == AppMode.LOCAL
     val pendingLogConfirmation by PendingLogConfirmation.confirmation.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
-    var editingEntryId by remember { mutableStateOf<String?>(null) }
-    var showQuickAddSheet by remember { mutableStateOf(false) }
-    var showAiMealSheet by remember { mutableStateOf(false) }
-    var showCopyDialog by remember { mutableStateOf(false) }
-    var addFoodForMeal by remember { mutableStateOf<String?>(null) }
-    var searchQuery by remember { mutableStateOf("") }
+    var editingEntryId by rememberSaveable { mutableStateOf<String?>(null) }
+    var showQuickAddSheet by rememberSaveable { mutableStateOf(false) }
+    var showAiMealSheet by rememberSaveable { mutableStateOf(false) }
+    var showCopyDialog by rememberSaveable { mutableStateOf(false) }
+    var addFoodForMeal by rememberSaveable { mutableStateOf<String?>(null) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     val aiQueuedMessage = stringResource(R.string.ai_task_queued)
     val scope = rememberCoroutineScope()
 
@@ -246,6 +247,7 @@ fun DayLogScreen(
         if (editingEntryId != null) {
             EntryEditSheet(
                 entryId = editingEntryId,
+                initialEntry = visibleEntries.find { it.id == editingEntryId },
                 // Look the edited entry up on the day this screen is showing, not
                 // today: the sheet falls back to today when `date` is null, which
                 // left the form blank (and Save a no-op) whenever this screen was
@@ -319,7 +321,7 @@ fun DayLogScreen(
                         ),
                 ) {
                     if (visibleEntries.isNotEmpty() || searchQuery.isNotEmpty()) {
-                        item {
+                        item(key = "search", contentType = "search") {
                             Spacer(modifier = Modifier.height(8.dp))
                             OutlinedTextField(
                                 value = searchQuery,
@@ -342,7 +344,7 @@ fun DayLogScreen(
                     }
 
                     if (matchingEntries.isEmpty()) {
-                        item {
+                        item(key = "empty", contentType = "empty") {
                             Box(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                                 contentAlignment = Alignment.Center,
@@ -367,7 +369,7 @@ fun DayLogScreen(
                             val mealCarbs = mealEntries.sumOf { it.resolvedCarbs() }
                             val mealFat = mealEntries.sumOf { it.resolvedFat() }
 
-                            item {
+                            item(key = "header-$meal", contentType = "header") {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -394,7 +396,7 @@ fun DayLogScreen(
                                     modifier = Modifier.padding(bottom = 4.dp),
                                 )
                             }
-                            items(mealEntries, key = { it.id }) { entry ->
+                            items(mealEntries, key = { it.id }, contentType = { "entry" }) { entry ->
                                 Box(
                                     modifier =
                                         Modifier

@@ -13,6 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.bissbilanz.android.MainActivity
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.model.Supplement
 
 /**
@@ -47,7 +48,7 @@ object SupplementReminderNotifier {
             NotificationCompat
                 .Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_stat_supplement)
-                .setContentTitle(context.getString(R.string.supplement_reminder_title, supplement.name))
+                .setContentTitle(AppLanguage.localized(context).getString(R.string.supplement_reminder_title, supplement.name))
                 .setContentText(ingredientSummary(supplement))
                 .setAutoCancel(true)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
@@ -55,7 +56,7 @@ object SupplementReminderNotifier {
                 .setContentIntent(openSupplementsIntent(context, notificationId))
                 .addAction(
                     0,
-                    context.getString(R.string.supplement_reminder_action_taken),
+                    AppLanguage.localized(context).getString(R.string.supplement_reminder_action_taken),
                     actionIntent(
                         context,
                         SupplementReminderActionReceiver.ACTION_TAKEN,
@@ -67,7 +68,7 @@ object SupplementReminderNotifier {
                     ),
                 ).addAction(
                     0,
-                    context.getString(R.string.supplement_reminder_action_snooze),
+                    AppLanguage.localized(context).getString(R.string.supplement_reminder_action_snooze),
                     actionIntent(
                         context,
                         SupplementReminderActionReceiver.ACTION_SNOOZE,
@@ -79,7 +80,7 @@ object SupplementReminderNotifier {
                     ),
                 ).addAction(
                     0,
-                    context.getString(R.string.supplement_reminder_action_skip),
+                    AppLanguage.localized(context).getString(R.string.supplement_reminder_action_skip),
                     actionIntent(
                         context,
                         SupplementReminderActionReceiver.ACTION_SKIP,
@@ -118,7 +119,7 @@ object SupplementReminderNotifier {
         NotificationCompat
             .Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_supplement)
-            .setContentTitle(context.getString(R.string.supplement_reminder_summary))
+            .setContentTitle(AppLanguage.localized(context).getString(R.string.supplement_reminder_summary))
             .setGroup(GROUP_KEY)
             .setGroupSummary(true)
             .setAutoCancel(true)
@@ -183,16 +184,15 @@ object SupplementReminderNotifier {
 
     private fun ensureChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
-        if (manager.getNotificationChannel(CHANNEL_ID) != null) return
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                context.getString(R.string.supplement_reminder_channel),
+                AppLanguage.localized(context).getString(R.string.supplement_reminder_channel),
                 // A twice-daily nudge should make a sound but not seize the screen;
                 // IMPORTANCE_HIGH would heads-up over whatever the user is doing.
                 NotificationManager.IMPORTANCE_DEFAULT,
             ).apply {
-                description = context.getString(R.string.supplement_reminder_channel_desc)
+                description = AppLanguage.localized(context).getString(R.string.supplement_reminder_channel_desc)
                 setShowBadge(true)
             },
         )

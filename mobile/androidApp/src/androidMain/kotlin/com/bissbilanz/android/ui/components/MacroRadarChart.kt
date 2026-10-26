@@ -2,9 +2,6 @@ package com.bissbilanz.android.ui.components
 
 import android.graphics.Paint
 import android.graphics.Typeface
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseOutCubic
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -14,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,11 +53,7 @@ fun MacroRadarChart(
 ) {
     if (axes.isEmpty()) return
 
-    val revealFraction = remember { Animatable(0f) }
-    LaunchedEffect(axes) {
-        revealFraction.snapTo(0f)
-        revealFraction.animateTo(1f, animationSpec = tween(600, easing = EaseOutCubic))
-    }
+    val revealFraction = rememberRevealFraction(600)
 
     val density = LocalDensity.current
     val gridColor = MaterialTheme.colorScheme.outlineVariant
