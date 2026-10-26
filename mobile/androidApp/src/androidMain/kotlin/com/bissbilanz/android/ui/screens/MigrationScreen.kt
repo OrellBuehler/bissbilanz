@@ -27,6 +27,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -132,7 +133,7 @@ private fun ChoiceCard(
             )
             Spacer(modifier = Modifier.height(24.dp))
             Button(onClick = onUpload, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.migration_upload_button, localItemCount))
+                Text(pluralStringResource(R.plurals.migration_upload_button, localItemCount, localItemCount))
             }
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(onClick = onStartFresh, modifier = Modifier.fillMaxWidth()) {
@@ -176,7 +177,7 @@ private fun ProgressCard(
 
 @Composable
 private fun FailureCard(
-    message: String,
+    message: String?,
     onRetry: () -> Unit,
     onContinueWithoutAccount: () -> Unit,
 ) {
@@ -195,7 +196,7 @@ private fun FailureCard(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                message,
+                message ?: stringResource(R.string.migration_server_unreachable),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )

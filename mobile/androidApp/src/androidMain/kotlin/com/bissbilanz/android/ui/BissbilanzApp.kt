@@ -1,18 +1,14 @@
 package com.bissbilanz.android.ui
 
 import android.util.Base64
-import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
-import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.AppNavigation
 import com.bissbilanz.android.ui.screens.LoginScreen
 import com.bissbilanz.android.ui.screens.MigrationScreen
@@ -116,14 +112,6 @@ fun BissbilanzApp() {
                 }
 
                 RootDestination.Login -> {
-                    if (authState is AuthState.SessionExpired) {
-                        val context = LocalContext.current
-                        val sessionExpiredMessage = stringResource(R.string.session_expired_message)
-                        LaunchedEffect(Unit) {
-                            Toast.makeText(context, sessionExpiredMessage, Toast.LENGTH_LONG).show()
-                            authManager.clearSessionExpired()
-                        }
-                    }
                     LoginScreen(authManager, appModeManager)
                 }
 

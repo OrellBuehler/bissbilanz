@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -56,18 +57,19 @@ fun ReminderEditSheet(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var isLoading by remember { mutableStateOf(reminderId != null) }
+    var loaded by rememberSaveable { mutableStateOf(reminderId == null) }
+    var isLoading by remember { mutableStateOf(!loaded) }
     var isSaving by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
     val isEditing = reminderId != null
 
-    var kind by remember { mutableStateOf(Reminder.Kind.weight) }
-    var mealType by remember { mutableStateOf(mealTypeOptions.firstOrNull() ?: "Breakfast") }
-    var time by remember { mutableStateOf("08:00") }
-    var weekdays by remember { mutableStateOf(ALL_WEEKDAYS) }
-    var enabled by remember { mutableStateOf(true) }
-    var mealTypeMenuExpanded by remember { mutableStateOf(false) }
+    var kind by rememberSaveable { mutableStateOf(Reminder.Kind.weight) }
+    var mealType by rememberSaveable { mutableStateOf(mealTypeOptions.firstOrNull() ?: "Breakfast") }
+    var time by rememberSaveable { mutableStateOf("08:00") }
+    var weekdays by rememberSaveable { mutableStateOf(ALL_WEEKDAYS) }
+    var enabled by rememberSaveable { mutableStateOf(true) }
+    var mealTypeMenuExpanded by rememberSaveable { mutableStateOf(false) }
 
     var notificationsEnabled by remember {
         mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled())
@@ -82,7 +84,7 @@ fun ReminderEditSheet(
     val deleteFailedMessage = stringResource(R.string.reminders_delete_failed)
 
     LaunchedEffect(reminderId) {
-        if (reminderId != null) {
+        if (reminderId != null && !loaded) {
             try {
                 val found = reminderRepo.reminders().first().find { it.id == reminderId }
                 if (found != null) {
@@ -91,6 +93,7 @@ fun ReminderEditSheet(
                     time = found.time
                     weekdays = found.weekdays
                     enabled = found.enabled
+                    loaded = true
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e

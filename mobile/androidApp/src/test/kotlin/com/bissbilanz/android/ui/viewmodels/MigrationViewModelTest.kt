@@ -26,6 +26,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MigrationViewModelTest {
@@ -189,7 +190,7 @@ class MigrationViewModelTest {
 
             val state = viewModel.uiState.value
             assertIs<MigrationUiState.Failed>(state)
-            assertEquals("offline", state.message)
+            assertNull(state.message)
             coVerify(exactly = 0) { migrator.migrate() }
 
             viewModel.retry()

@@ -120,6 +120,7 @@ fun FoodEditSheet(
     val context = LocalContext.current
     val nameRequiredMessage = stringResource(R.string.food_form_name_required_error)
     val requiredFieldsMessage = stringResource(R.string.food_form_required_fields_error)
+    val invalidValuesMessage = stringResource(R.string.food_form_invalid_values_error)
     val saveFailedMessage = stringResource(R.string.food_form_save_failed)
     val imageSaveFailedMessage = stringResource(R.string.food_image_save_failed)
 
@@ -183,6 +184,14 @@ fun FoodEditSheet(
             return
         }
         val fiberVal = fiber.toLocalizedDoubleOrNull() ?: 0.0
+        val optionalVals =
+            listOf(saturatedFat, sugar, sodium, salt, potassium, calcium, iron, vitaminC, vitaminD) + extraNutrients.values
+        val nutrientVals =
+            listOf(caloriesVal, proteinVal, carbsVal, fatVal, fiberVal) + optionalVals.mapNotNull { it.toLocalizedDoubleOrNull() }
+        if (servingSizeVal <= 0 || nutrientVals.any { it < 0 }) {
+            errorMessage = invalidValuesMessage
+            return
+        }
 
         // A draft restored after process death can outlive its food (deleted on
         // another screen or device meanwhile); saving would recreate nothing useful.
