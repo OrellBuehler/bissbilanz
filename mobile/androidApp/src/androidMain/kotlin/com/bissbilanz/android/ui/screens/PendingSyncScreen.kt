@@ -24,7 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.sync.QueuedRequest
 import com.bissbilanz.sync.SyncManager
 import com.bissbilanz.sync.SyncOperation
@@ -82,28 +84,10 @@ fun PendingSyncScreen(navController: NavController) {
                 LoadingScreen()
             }
         } else if (pending.isNullOrEmpty()) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Icon(
+            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                EmptyState(
+                    stringResource(R.string.pending_sync_empty) + "\n" + stringResource(R.string.pending_sync_empty_detail),
                     Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(48.dp),
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    stringResource(R.string.pending_sync_empty),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    stringResource(R.string.pending_sync_empty_detail),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         } else {
@@ -119,7 +103,7 @@ fun PendingSyncScreen(navController: NavController) {
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Row(
-                                modifier = Modifier.padding(12.dp),
+                                modifier = Modifier.padding(Dimens.CardPadding),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
@@ -158,7 +142,7 @@ fun PendingSyncScreen(navController: NavController) {
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Column(modifier = Modifier.padding(Dimens.CardPadding), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),

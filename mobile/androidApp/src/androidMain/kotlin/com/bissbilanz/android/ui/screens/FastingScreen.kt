@@ -37,6 +37,7 @@ import androidx.navigation.NavController
 import com.bissbilanz.android.R
 import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.fasting.FastingSession
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.FastingIndigo
 import com.bissbilanz.android.ui.theme.TrendGreen
 import com.bissbilanz.android.ui.theme.macroTextTone
@@ -210,7 +211,7 @@ fun FastingScreen(navController: NavController) {
                     .padding(padding)
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(Dimens.CardGap),
         ) {
             val current = session
             if (current != null) {
@@ -340,7 +341,7 @@ private fun ActiveFastSection(
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                modifier = Modifier.fillMaxWidth().padding(Dimens.CardPadding),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(
@@ -525,7 +526,7 @@ private fun HistorySection(
     onEdit: (FastingSession) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(Dimens.CardPadding)) {
             Text(
                 stringResource(R.string.fasting_history),
                 style = MaterialTheme.typography.titleSmall,

@@ -18,6 +18,7 @@ import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.model.MaintenanceResponse
 import com.bissbilanz.repository.AnalyticsRepository
@@ -277,7 +278,7 @@ fun MaintenanceScreen(navController: NavController) {
                             ) {
                                 Text(
                                     stringResource(R.string.maintenance_low_coverage_warning, (m.coverage * 100).toInt()),
-                                    modifier = Modifier.padding(12.dp),
+                                    modifier = Modifier.padding(Dimens.CardPadding),
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }

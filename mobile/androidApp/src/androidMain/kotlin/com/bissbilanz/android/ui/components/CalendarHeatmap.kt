@@ -91,7 +91,7 @@ fun CalendarHeatmap(
             }
             Text(
                 monthLabel,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
             IconButton(onClick = onNextMonth) {

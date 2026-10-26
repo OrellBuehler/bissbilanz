@@ -50,6 +50,7 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.android.ui.components.openFoodFactsSection
 import com.bissbilanz.android.ui.components.rememberJsonStateSaver
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
@@ -251,7 +252,7 @@ fun FoodSearchScreen(navController: NavController) {
                         } else if (searchResults.isEmpty() && offResults.isEmpty() && !isSearchingOff) {
                             PullableEmptyState(stringResource(R.string.food_search_no_results, query))
                         } else {
-                            LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
+                            LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = Dimens.FabClearance)) {
                                 items(searchResults, key = { it.id }) { food ->
                                     FoodListItem(
                                         food = food,
@@ -336,7 +337,7 @@ fun FoodSearchScreen(navController: NavController) {
                             if (recentFoods.isEmpty()) {
                                 PullableEmptyState(stringResource(R.string.food_search_no_recent))
                             } else {
-                                LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
+                                LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = Dimens.FabClearance)) {
                                     foodItems(recentFoods)
                                 }
                             }
@@ -345,7 +346,7 @@ fun FoodSearchScreen(navController: NavController) {
                             if (favoriteFoods.isEmpty()) {
                                 PullableEmptyState(stringResource(R.string.favorites_no_foods))
                             } else {
-                                LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
+                                LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = Dimens.FabClearance)) {
                                     foodItems(favoriteFoods)
                                 }
                             }
@@ -354,7 +355,10 @@ fun FoodSearchScreen(navController: NavController) {
                             if (allFoods.isEmpty() && !isLoadingMore) {
                                 PullableEmptyState(stringResource(R.string.food_search_no_foods))
                             } else {
-                                LazyColumn(state = allFoodsListState, contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
+                                LazyColumn(
+                                    state = allFoodsListState,
+                                    contentPadding = PaddingValues(top = 8.dp, bottom = Dimens.FabClearance),
+                                ) {
                                     foodItems(allFoods)
                                     if (isLoadingMore) {
                                         item {

@@ -22,6 +22,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.screens.MacroRow
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
@@ -131,8 +132,8 @@ fun MealPickerSheet(
         Column(
             modifier =
                 Modifier
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp)
+                    .padding(horizontal = Dimens.SheetHorizontalPadding)
+                    .padding(bottom = Dimens.SheetBottomPadding)
                     .imePadding()
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),

@@ -43,6 +43,7 @@ import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.SheetActionRow
 import com.bissbilanz.android.ui.components.SimpleLineChart
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SleepViewModel
 import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
@@ -189,9 +190,15 @@ fun SleepScreen(navController: NavController) {
                 } else {
                     val chartEntries = remember(entries, selectedRange) { viewModel.chartEntries(entries) }
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp),
+                        contentPadding =
+                            PaddingValues(
+                                start = Dimens.ScreenPadding,
+                                top = Dimens.ListGap,
+                                end = Dimens.ScreenPadding,
+                                bottom = Dimens.FabClearance,
+                            ),
                     ) {
                         if (showHealthConnectTip) {
                             item {
@@ -226,7 +233,7 @@ fun SleepScreen(navController: NavController) {
                         if (chartEntries.size >= 3) {
                             item {
                                 Card(modifier = Modifier.fillMaxWidth()) {
-                                    Column(modifier = Modifier.padding(12.dp)) {
+                                    Column(modifier = Modifier.padding(Dimens.CardPadding)) {
                                         Text(
                                             stringResource(R.string.sleep_duration_trend),
                                             style = MaterialTheme.typography.labelMedium,
@@ -339,7 +346,7 @@ private fun SleepSummaryRow(entries: List<SleepEntry>) {
     val recent = entries.take(7)
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Card(modifier = Modifier.weight(1f)) {
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(modifier = Modifier.padding(Dimens.CardPadding)) {
                 Text(
                     stringResource(R.string.sleep_last_night),
                     style = MaterialTheme.typography.labelSmall,
@@ -361,7 +368,7 @@ private fun SleepSummaryRow(entries: List<SleepEntry>) {
             }
         }
         Card(modifier = Modifier.weight(1f)) {
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(modifier = Modifier.padding(Dimens.CardPadding)) {
                 Text(
                     stringResource(R.string.sleep_seven_day_average),
                     style = MaterialTheme.typography.labelSmall,
@@ -517,8 +524,8 @@ private fun SleepEditSheet(
                 Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 32.dp),
+                    .padding(horizontal = Dimens.SheetHorizontalPadding)
+                    .padding(bottom = Dimens.SheetBottomPadding),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(

@@ -68,6 +68,7 @@ import com.bissbilanz.android.ui.components.insights.WeightForecastCard
 import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.GentleSpring
@@ -256,7 +257,7 @@ fun InsightsScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(Dimens.CardGap))
 
                         // 1. Trends
                         if (dailyStats.isNotEmpty()) {
@@ -312,7 +313,7 @@ fun InsightsScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(Dimens.CardGap))
 
                         // 2. Goal Adherence
                         if (goals != null && dailyStats.isNotEmpty()) {
@@ -857,7 +858,7 @@ fun InsightsScreen(
                 }
 
                 if (isLocalMode) {
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(Dimens.CardGap))
                     Text(
                         stringResource(R.string.insights_more_with_account),
                         style = MaterialTheme.typography.bodySmall,

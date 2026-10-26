@@ -35,6 +35,7 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.SupplementEditSheet
 import com.bissbilanz.android.ui.components.scheduleDisplayName
 import com.bissbilanz.android.ui.components.timeOfDayDisplayName
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.Motion
@@ -182,9 +183,15 @@ fun SupplementsScreen(navController: NavController) {
                     val activeSupplements = supplements.filter { it.isActive }
 
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
+                        contentPadding =
+                            PaddingValues(
+                                start = Dimens.ScreenPadding,
+                                top = Dimens.ListGap,
+                                end = Dimens.ScreenPadding,
+                                bottom = Dimens.FabClearance,
+                            ),
                     ) {
                         item {
                             Text(

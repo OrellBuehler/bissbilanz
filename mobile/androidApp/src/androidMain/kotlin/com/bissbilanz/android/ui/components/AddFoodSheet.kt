@@ -66,6 +66,7 @@ import com.bissbilanz.android.ui.screens.MacroRow
 import com.bissbilanz.android.ui.screens.RecipeListItem
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
@@ -205,8 +206,8 @@ fun AddFoodSheet(
             modifier =
                 Modifier
                     .height(screenHeight * 0.7f)
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 16.dp)
+                    .padding(horizontal = Dimens.SheetHorizontalPadding)
+                    .padding(bottom = Dimens.SheetBottomPadding)
                     .imePadding(),
         ) {
             if (selectedFood != null || selectedRecipe != null) {

@@ -117,8 +117,8 @@ fun CalendarScreen(navController: NavController) {
                     }
                     Text(
                         formatMonthYear(currentYear, currentMonth),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
                     )
                     IconButton(onClick = { monthIndex++ }) {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(R.string.calendar_next_month))

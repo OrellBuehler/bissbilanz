@@ -81,6 +81,7 @@ import com.bissbilanz.android.navigation.PendingPackageImport
 import com.bissbilanz.android.ui.components.ChoiceDropdown
 import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.FoodPickerSheet
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.MacroColors
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
 import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
@@ -310,7 +311,7 @@ private fun ReviewList(
     ) {
         item {
             Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(Modifier.padding(Dimens.CardPadding), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     state.fileName?.let {
                         Text(
                             it,
@@ -416,7 +417,7 @@ private fun NewFoodsSection(
     var limit by rememberSaveable { mutableIntStateOf(NEW_FOODS_PAGE) }
     var searching by rememberSaveable { mutableStateOf<String?>(null) }
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(Dimens.CardPadding), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     if (count == 1) {
@@ -478,7 +479,7 @@ private fun NewFoodCard(
         )
     }
     OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(Dimens.CardPadding), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
@@ -613,7 +614,7 @@ private fun FoodConflictCard(
     onChange: (FoodPackageAction) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(Dimens.CardPadding), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AssistChip(
                     onClick = {},
@@ -702,7 +703,7 @@ private fun RecipeConflictCard(
     onChange: (FoodPackageAction) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(Dimens.CardPadding), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RecipeSide(
                     stringResource(R.string.food_package_incoming),

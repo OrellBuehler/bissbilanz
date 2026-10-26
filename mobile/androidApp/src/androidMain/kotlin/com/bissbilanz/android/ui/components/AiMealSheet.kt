@@ -41,6 +41,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.aitasks.AiTaskUploadWorker
 import com.bissbilanz.android.aitasks.McpConnectionStore
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.util.createImageUri
 import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.android.util.hasPermission
@@ -289,8 +290,8 @@ fun AiMealSheet(
                 Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 32.dp)
+                    .padding(horizontal = Dimens.SheetHorizontalPadding)
+                    .padding(bottom = Dimens.SheetBottomPadding)
                     .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

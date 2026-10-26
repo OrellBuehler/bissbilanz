@@ -41,6 +41,7 @@ import com.bissbilanz.android.ui.components.MacroChipRow
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.android.util.dayLabel
@@ -304,9 +305,15 @@ fun DayLogScreen(
             ) {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).testTag("dayLogList"),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp),
+                    modifier = Modifier.fillMaxSize().testTag("dayLogList"),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.ListGap),
+                    contentPadding =
+                        PaddingValues(
+                            start = Dimens.ScreenPadding,
+                            top = Dimens.ListGap,
+                            end = Dimens.ScreenPadding,
+                            bottom = Dimens.FabClearance,
+                        ),
                 ) {
                     if (visibleEntries.isNotEmpty() || searchQuery.isNotEmpty()) {
                         item {

@@ -23,6 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.android.util.toEditableString
 import com.bissbilanz.model.Entry
@@ -248,8 +249,8 @@ fun EntryEditSheet(
         Column(
             modifier =
                 Modifier
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp)
+                    .padding(horizontal = Dimens.SheetHorizontalPadding)
+                    .padding(bottom = Dimens.SheetBottomPadding)
                     .imePadding()
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),

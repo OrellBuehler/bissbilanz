@@ -27,6 +27,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.util.dayLabel
@@ -231,9 +232,9 @@ fun SupplementHistoryScreen(navController: NavController) {
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 8.dp),
+                contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding, vertical = Dimens.ListGap),
             ) {
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {

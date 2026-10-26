@@ -30,6 +30,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.reminders.SupplementReminderNotifier
 import com.bissbilanz.android.ui.openNotificationSettings
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.ServingUnit
 import com.bissbilanz.model.*
@@ -166,8 +167,8 @@ fun SupplementEditSheet(
             Column(
                 modifier =
                     Modifier
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 32.dp)
+                        .padding(horizontal = Dimens.SheetHorizontalPadding)
+                        .padding(bottom = Dimens.SheetBottomPadding)
                         .imePadding()
                         .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),

@@ -36,6 +36,7 @@ import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.components.rememberExactAlarmsAllowed
 import com.bissbilanz.android.ui.components.weekdayLabels
 import com.bissbilanz.android.ui.openNotificationSettings
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.viewmodels.RemindersViewModel
 import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.api.generated.model.Reminder
@@ -131,7 +132,7 @@ fun RemindersScreen(navController: NavController) {
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(Dimens.CardGap),
             ) {
                 // Snooze duration + notification-permission nudge, moved here from Settings
                 // since they now apply to every reminder kind, not just supplements.

@@ -67,6 +67,7 @@ import com.bissbilanz.android.ui.components.TopFoodsWidget
 import com.bissbilanz.android.ui.components.WaterCard
 import com.bissbilanz.android.ui.components.WeightWidget
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.android.util.DashboardSection
@@ -383,9 +384,7 @@ fun DashboardScreen(navController: NavController) {
                                 onHorizontalDrag = { _, delta -> dragAmount += delta },
                             )
                         }.verticalScroll(rememberScrollState())
-                        // Bottom clearance for the three stacked FABs, which
-                        // otherwise sit on top of the last widget on the day.
-                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 176.dp),
+                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = Dimens.FabClearance),
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -464,7 +463,7 @@ fun DashboardScreen(navController: NavController) {
                 }
 
                 if (activeTipId == TipIds.WIDGETS) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(Dimens.CardGap))
                     val widgetTipContext = LocalContext.current
                     val widgetManager = remember { AppWidgetManager.getInstance(widgetTipContext) }
                     HintCard(
@@ -507,12 +506,12 @@ fun DashboardScreen(navController: NavController) {
                                     when (section) {
                                         DashboardSection.FASTING -> {
                                             if (selectedDate == today) {
-                                                Spacer(modifier = Modifier.height(16.dp))
+                                                Spacer(modifier = Modifier.height(Dimens.CardGap))
                                                 FastingCard(onClick = { navController.navigate("fasting") })
                                             }
 
                                             if (totalCalories == 0.0 && !refreshFailed) {
-                                                Spacer(modifier = Modifier.height(16.dp))
+                                                Spacer(modifier = Modifier.height(Dimens.CardGap))
                                                 Card(
                                                     modifier = Modifier.fillMaxWidth(),
                                                     colors =
@@ -558,7 +557,7 @@ fun DashboardScreen(navController: NavController) {
                                         // next day, and a draft saved while switching days is
                                         // written to the day it was typed on.
                                         DashboardSection.WATER -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             key(selectedDate) {
                                                 val day = selectedDate.toString()
                                                 WaterCard(
@@ -572,7 +571,7 @@ fun DashboardScreen(navController: NavController) {
                                         }
 
                                         DashboardSection.ACTIVITY -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             key(selectedDate) {
                                                 val day = selectedDate.toString()
                                                 ActivityCard(
@@ -586,7 +585,7 @@ fun DashboardScreen(navController: NavController) {
                                         }
 
                                         DashboardSection.NOTES -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             key(selectedDate) {
                                                 val day = selectedDate.toString()
                                                 NotesCard(
@@ -597,7 +596,7 @@ fun DashboardScreen(navController: NavController) {
                                         }
 
                                         DashboardSection.DAYLOG -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             Column {
                                                 mealTypes.forEach { meal ->
                                                     val mealEntries = mealGroups[meal] ?: emptyList()
@@ -642,7 +641,7 @@ fun DashboardScreen(navController: NavController) {
                                         }
 
                                         DashboardSection.CHART -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             CalorieTrendWidget(date = selectedDate.toString(), entries = entries)
                                         }
 
@@ -651,7 +650,7 @@ fun DashboardScreen(navController: NavController) {
                                             // surprise, so favourites only appear on today — same rule
                                             // as the web dashboard.
                                             if (selectedDate == today) {
-                                                Spacer(modifier = Modifier.height(16.dp))
+                                                Spacer(modifier = Modifier.height(Dimens.CardGap))
                                                 FavoritesQuickLogWidget(
                                                     date = selectedDate.toString(),
                                                     onViewAll = { navController.navigate("favorites") },
@@ -669,7 +668,7 @@ fun DashboardScreen(navController: NavController) {
                                             // Suggestions rank recipes against what's left of *today's*
                                             // goal, so — same as favourites — they only make sense on today.
                                             if (selectedDate == today) {
-                                                Spacer(modifier = Modifier.height(16.dp))
+                                                Spacer(modifier = Modifier.height(Dimens.CardGap))
                                                 RecipeSuggestionsWidget(
                                                     date = selectedDate.toString(),
                                                     activityCalories = activityCalories,
@@ -685,7 +684,7 @@ fun DashboardScreen(navController: NavController) {
                                         }
 
                                         DashboardSection.SUPPLEMENTS -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             SupplementsWidget(
                                                 date = selectedDate.toString(),
                                                 onViewAll = { navController.navigate("supplements") },
@@ -693,7 +692,7 @@ fun DashboardScreen(navController: NavController) {
                                         }
 
                                         DashboardSection.WEIGHT -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             WeightWidget(
                                                 date = selectedDate.toString(),
                                                 onViewAll = { navController.navigate("weight") },
@@ -702,17 +701,17 @@ fun DashboardScreen(navController: NavController) {
                                         }
 
                                         DashboardSection.SLEEP -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             SleepWidget(onViewAll = { navController.navigate("sleep") })
                                         }
 
                                         DashboardSection.MEAL_BREAKDOWN -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             MealBreakdownWidget(entries = entries)
                                         }
 
                                         DashboardSection.TOP_FOODS -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             TopFoodsWidget(entries = entries, isLocalMode = isLocalMode)
                                         }
                                     }

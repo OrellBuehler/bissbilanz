@@ -26,6 +26,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.health.HealthSyncPreferences
 import com.bissbilanz.android.reminders.ReminderNotifier
 import com.bissbilanz.android.ui.openNotificationSettings
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.api.generated.model.Reminder
 import com.bissbilanz.api.generated.model.ReminderCreate
 import com.bissbilanz.api.generated.model.ReminderUpdate
@@ -153,8 +154,8 @@ fun ReminderEditSheet(
             Column(
                 modifier =
                     Modifier
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 32.dp)
+                        .padding(horizontal = Dimens.SheetHorizontalPadding)
+                        .padding(bottom = Dimens.SheetBottomPadding)
                         .imePadding()
                         .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),

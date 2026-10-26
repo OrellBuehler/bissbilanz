@@ -40,6 +40,7 @@ import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.WeightTrendChart
 import com.bissbilanz.android.ui.components.linearRegression
 import com.bissbilanz.android.ui.theme.CarbsOrange
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.ProjectionPurple
 import com.bissbilanz.android.ui.theme.TrendGreen
 import com.bissbilanz.android.ui.theme.WeightBlue
@@ -227,9 +228,15 @@ fun WeightScreen(navController: NavController) {
                     EmptyState(stringResource(R.string.weight_empty))
                 } else {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp),
+                        contentPadding =
+                            PaddingValues(
+                                start = Dimens.ScreenPadding,
+                                top = Dimens.ListGap,
+                                end = Dimens.ScreenPadding,
+                                bottom = Dimens.FabClearance,
+                            ),
                     ) {
                         if (showHealthConnectTip) {
                             item {
@@ -301,7 +308,7 @@ fun WeightScreen(navController: NavController) {
                                     WeightTrendChart(
                                         trendData = trendData,
                                         projectionDays = projectionDays,
-                                        modifier = Modifier.fillMaxWidth().height(240.dp).padding(12.dp),
+                                        modifier = Modifier.fillMaxWidth().height(240.dp).padding(Dimens.CardPadding),
                                     )
                                 }
                             }
@@ -369,7 +376,7 @@ private fun WeightTargetCard(
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(Dimens.CardPadding),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {

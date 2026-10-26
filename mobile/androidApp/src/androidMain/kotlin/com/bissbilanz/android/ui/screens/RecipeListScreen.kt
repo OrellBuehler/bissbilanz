@@ -32,6 +32,7 @@ import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeEditSheet
 import com.bissbilanz.android.ui.components.rememberJsonStateSaver
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.util.formatLocalizedNumber
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Recipe
@@ -175,9 +176,15 @@ fun RecipeListScreen(navController: NavController) {
                     EmptyState(stringResource(R.string.recipe_list_empty))
                 } else {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
+                        contentPadding =
+                            PaddingValues(
+                                start = Dimens.ScreenPadding,
+                                top = Dimens.ListGap,
+                                end = Dimens.ScreenPadding,
+                                bottom = Dimens.FabClearance,
+                            ),
                     ) {
                         item(key = "recipe-search-sort") {
                             Column(

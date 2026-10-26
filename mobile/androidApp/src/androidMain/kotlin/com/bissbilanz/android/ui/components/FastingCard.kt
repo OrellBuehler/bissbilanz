@@ -15,6 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.android.R
 import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.ui.screens.formatElapsed
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.FastingIndigo
 import com.bissbilanz.android.ui.theme.macroTextTone
 import kotlinx.coroutines.delay
@@ -43,7 +44,7 @@ fun FastingCard(onClick: () -> Unit) {
 
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(Dimens.CardPadding),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(

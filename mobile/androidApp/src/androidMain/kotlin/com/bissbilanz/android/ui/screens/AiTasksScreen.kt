@@ -51,6 +51,7 @@ import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.formatTimeOfDay
 import com.bissbilanz.android.ui.components.mealTypeDisplayName
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
 import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.api.generated.model.AiTask
@@ -180,9 +181,15 @@ fun AiTasksScreen(navController: NavController) {
                         EmptyState(stringResource(selectedFilter.emptyMessage), Icons.Default.AutoAwesome)
                     } else {
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                            modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
+                            contentPadding =
+                                PaddingValues(
+                                    start = Dimens.ScreenPadding,
+                                    top = Dimens.ListGap,
+                                    end = Dimens.ScreenPadding,
+                                    bottom = Dimens.ScreenPadding,
+                                ),
                         ) {
                             items(queuedUploads, key = { "upload-${it.id}" }) { upload ->
                                 QueuedUploadCard(

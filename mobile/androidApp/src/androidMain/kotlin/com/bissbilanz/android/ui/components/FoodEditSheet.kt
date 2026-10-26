@@ -29,6 +29,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.screens.nutrientCategories
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.util.NAMED_NUTRIENT_KEYS
 import com.bissbilanz.android.util.extraNutrientValues
 import com.bissbilanz.android.util.toEditableString
@@ -322,8 +323,8 @@ fun FoodEditSheet(
             Column(
                 modifier =
                     Modifier
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 32.dp)
+                        .padding(horizontal = Dimens.SheetHorizontalPadding)
+                        .padding(bottom = Dimens.SheetBottomPadding)
                         .imePadding()
                         .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
