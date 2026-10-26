@@ -8,6 +8,7 @@ import androidx.core.graphics.drawable.IconCompat
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.MainActivity
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.userdata.UserDataDatabase
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -102,7 +103,7 @@ object FoodShortcutPublisher {
                     ShortcutManagerCompat.disableShortcuts(
                         context,
                         pinned,
-                        context.getString(R.string.food_shortcut_signed_out),
+                        AppLanguage.localized(context).getString(R.string.food_shortcut_signed_out),
                     )
                 }
             }
@@ -139,7 +140,7 @@ object FoodShortcutPublisher {
         return ShortcutInfoCompat
             .Builder(context, shortcutId(food.id))
             .setShortLabel(food.name.take(SHORT_LABEL_MAX_CHARS))
-            .setLongLabel(context.getString(R.string.quick_add_widget_log, food.name))
+            .setLongLabel(AppLanguage.localized(context).getString(R.string.quick_add_widget_log, food.name))
             .setIcon(IconCompat.createWithResource(context, R.mipmap.ic_launcher))
             .setIntent(intent)
             .setRank(rank)

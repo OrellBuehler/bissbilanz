@@ -69,14 +69,18 @@ class AddFoodViewModel(
 
     init {
         viewModelScope.launch {
-            try {
-                foodRepo.refreshRecentFoods()
-                foodRepo.refreshFavorites()
-                recipeRepo.refresh()
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-            }
+            refreshQuietly { foodRepo.refreshRecentFoods() }
+            refreshQuietly { foodRepo.refreshFavorites() }
+            refreshQuietly { recipeRepo.refresh() }
+        }
+    }
+
+    private suspend fun refreshQuietly(refresh: suspend () -> Unit) {
+        try {
+            refresh()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
         }
     }
 

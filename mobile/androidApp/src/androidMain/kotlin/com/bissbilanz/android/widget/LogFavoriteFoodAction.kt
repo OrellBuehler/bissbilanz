@@ -7,6 +7,7 @@ import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
@@ -71,7 +72,12 @@ class LogFavoriteFoodAction : ActionCallback {
             // The tile reverts without a checkmark either way; only this says the tap failed.
             val name = parameters[FoodNameKey].orEmpty()
             withContext(Dispatchers.Main) {
-                Toast.makeText(context, context.getString(R.string.quick_add_widget_log_failed, name), Toast.LENGTH_SHORT).show()
+                Toast
+                    .makeText(
+                        context,
+                        AppLanguage.localized(context).getString(R.string.quick_add_widget_log_failed, name),
+                        Toast.LENGTH_SHORT,
+                    ).show()
             }
         } finally {
             clearLogged(foodId)

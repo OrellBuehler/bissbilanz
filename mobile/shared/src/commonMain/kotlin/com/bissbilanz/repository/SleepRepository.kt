@@ -14,8 +14,10 @@ import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.rewriteQueuedCreate
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.SleepField
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
+import com.bissbilanz.util.jsonKeys
 import com.bissbilanz.util.newTempId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -49,7 +51,7 @@ class SleepRepository(
         if (appModeManager.isLocal) return
         try {
             val entries = api.getSleepEntries(from, to)
-            withContext(Dispatchers.IO) { cacheSleepEntries(entries) }
+            cacheSleepEntries(entries, from, to)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
@@ -66,9 +68,15 @@ class SleepRepository(
     /** The server id a temp id got once its create uploaded (see `EntryRepository.resolveId`). */
     suspend fun resolveId(id: String): String = if (id.isTempId()) syncQueue.resolveId(id) else id
 
+    /**
+     * [cleared] names the nullable fields the user emptied. [SleepUpdate] encodes both
+     * "unchanged" and "cleared" as null, so without it a blanked bedtime/wake time/wake
+     * ups/notes keeps its old value here and on the server. See `com.bissbilanz.util.PartialUpdate`.
+     */
     suspend fun updateEntry(
         id: String,
         entry: SleepUpdate,
+        cleared: Set<SleepField> = emptySet(),
     ): SleepEntry {
         @Suppress("NAME_SHADOWING")
         val id = resolveId(id)
@@ -81,10 +89,10 @@ class SleepRepository(
                         durationMinutes = entry.durationMinutes ?: existing.durationMinutes,
                         quality = entry.quality ?: existing.quality,
                         entryDate = entry.entryDate ?: existing.entryDate,
-                        bedtime = entry.bedtime ?: existing.bedtime,
-                        wakeTime = entry.wakeTime ?: existing.wakeTime,
-                        wakeUps = entry.wakeUps ?: existing.wakeUps,
-                        notes = entry.notes ?: existing.notes,
+                        bedtime = cleared.pick(SleepField.BEDTIME, entry.bedtime, existing.bedtime),
+                        wakeTime = cleared.pick(SleepField.WAKE_TIME, entry.wakeTime, existing.wakeTime),
+                        wakeUps = cleared.pick(SleepField.WAKE_UPS, entry.wakeUps, existing.wakeUps),
+                        notes = cleared.pick(SleepField.NOTES, entry.notes, existing.notes),
                     )
                 withContext(Dispatchers.IO) { cacheSleepEntry(updated) }
                 updated
@@ -95,29 +103,29 @@ class SleepRepository(
                     entryDate = entry.entryDate ?: "",
                     durationMinutes = entry.durationMinutes ?: 0,
                     quality = entry.quality ?: 0.0,
-                    bedtime = entry.bedtime,
-                    wakeTime = entry.wakeTime,
-                    wakeUps = entry.wakeUps,
+                    bedtime = cleared.pick(SleepField.BEDTIME, entry.bedtime, null),
+                    wakeTime = cleared.pick(SleepField.WAKE_TIME, entry.wakeTime, null),
+                    wakeUps = cleared.pick(SleepField.WAKE_UPS, entry.wakeUps, null),
                     sleepLatencyMinutes = null,
                     deepSleepMinutes = null,
                     lightSleepMinutes = null,
                     remSleepMinutes = null,
                     source = null,
-                    notes = entry.notes,
+                    notes = cleared.pick(SleepField.NOTES, entry.notes, null),
                 )
             }
         if (id.isTempId()) {
             // The create finished uploading meanwhile: the edit belongs to the server record,
             // and the temp row written above must not linger next to it.
-            if (!coalesceQueuedCreate(id, entry)) {
+            if (!coalesceQueuedCreate(id, entry, cleared)) {
                 val uploadedId = resolveId(id)
                 if (uploadedId != id) {
                     withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteSleepEntry(id) }
-                    return updateEntry(uploadedId, entry)
+                    return updateEntry(uploadedId, entry, cleared)
                 }
             }
         } else {
-            syncQueue.enqueue(SyncOperation.UpdateSleep(id, json.encodeToString(entry)))
+            syncQueue.enqueue(SyncOperation.UpdateSleep(id, json.encodeToString(entry), cleared.jsonKeys()))
         }
         return result
     }
@@ -144,6 +152,7 @@ class SleepRepository(
     private suspend fun coalesceQueuedCreate(
         tempId: String,
         update: SleepUpdate,
+        cleared: Set<SleepField>,
     ): Boolean =
         syncQueue.rewriteQueuedCreate("sleep", tempId) { op ->
             val create = op as? SyncOperation.CreateSleep ?: return@rewriteQueuedCreate null
@@ -153,10 +162,10 @@ class SleepRepository(
                     durationMinutes = update.durationMinutes ?: body.durationMinutes,
                     quality = update.quality ?: body.quality,
                     entryDate = update.entryDate ?: body.entryDate,
-                    bedtime = update.bedtime ?: body.bedtime,
-                    wakeTime = update.wakeTime ?: body.wakeTime,
-                    wakeUps = update.wakeUps ?: body.wakeUps,
-                    notes = update.notes ?: body.notes,
+                    bedtime = cleared.pick(SleepField.BEDTIME, update.bedtime, body.bedtime),
+                    wakeTime = cleared.pick(SleepField.WAKE_TIME, update.wakeTime, body.wakeTime),
+                    wakeUps = cleared.pick(SleepField.WAKE_UPS, update.wakeUps, body.wakeUps),
+                    notes = cleared.pick(SleepField.NOTES, update.notes, body.notes),
                 )
             create.copy(body = json.encodeToString(merged))
         }
@@ -195,6 +204,12 @@ class SleepRepository(
         }
     }
 
+    private fun <T> Set<SleepField>.pick(
+        field: SleepField,
+        updated: T?,
+        existing: T?,
+    ): T? = if (field in this) null else updated ?: existing
+
     private fun cacheSleepEntry(entry: SleepEntry) {
         db.userDataDatabaseQueries.insertSleepEntry(
             id = entry.id,
@@ -206,17 +221,45 @@ class SleepRepository(
         )
     }
 
-    private fun cacheSleepEntries(entries: List<SleepEntry>) {
-        db.userDataDatabaseQueries.transaction {
-            db.userDataDatabaseQueries.deleteAllSleepEntries()
-            entries.forEach { entry -> cacheSleepEntry(entry) }
+    private suspend fun cacheSleepEntries(
+        entries: List<SleepEntry>,
+        from: String?,
+        to: String?,
+    ) {
+        // Rows with an un-uploaded write must survive: optimistic temp-id creates whose
+        // upload is still queued, and rows carrying a queued update. A temp row that is
+        // no longer pending was already swapped for its server record, so it goes.
+        // Only the requested window is replaced; a ranged refresh must not truncate the
+        // history outside it (the health import dedupes against that history and
+        // would otherwise re-create those nights and hit 409 duplicates).
+        val pendingIds = pendingSleepIds()
+        val queries = db.userDataDatabaseQueries
+        withContext(Dispatchers.IO) {
+            queries.transaction {
+                queries
+                    .selectAllSleepEntries()
+                    .executeAsList()
+                    .filter { it.id !in pendingIds }
+                    .filter { (from == null || it.entryDate >= from) && (to == null || it.entryDate <= to) }
+                    .forEach { queries.deleteSleepEntry(it.id) }
+                entries.forEach { entry -> if (entry.id !in pendingIds) cacheSleepEntry(entry) }
+            }
+            // SyncMeta lives in the cache database; written after the user-data commit.
+            cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+                entityType = "sleep",
+                lastSyncedAt = Clock.System.now().toString(),
+            )
         }
-        // SyncMeta lives in the cache database; written after the user-data commit.
-        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
-            entityType = "sleep",
-            lastSyncedAt = Clock.System.now().toString(),
-        )
     }
+
+    /** Sleep-entry ids with an un-uploaded (queued or in-flight) sync operation. */
+    private suspend fun pendingSleepIds(): Set<String> =
+        syncQueue
+            .all()
+            .asSequence()
+            .filter { it.operation.affectedTable == "sleep" }
+            .mapNotNull { it.operation.affectedId }
+            .toSet()
 
     private fun sleepCreateToEntry(entry: SleepCreate): SleepEntry =
         SleepEntry(

@@ -13,6 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.bissbilanz.android.MainActivity
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.AppLanguage
 
 /**
  * The ongoing "fast in progress" notification — Android's stand-in for the iOS
@@ -67,9 +68,9 @@ object FastingNotifier {
             NotificationCompat
                 .Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_stat_fasting)
-                .setContentTitle(context.getString(R.string.fasting_notification_title))
+                .setContentTitle(AppLanguage.localized(context).getString(R.string.fasting_notification_title))
                 .setContentText(
-                    context.getString(R.string.fasting_of_target_hours, session.targetHours),
+                    AppLanguage.localized(context).getString(R.string.fasting_of_target_hours, session.targetHours),
                 )
                 // The system ticks the chronometer itself, so a 16h fast needs no
                 // periodic re-posts to stay accurate.
@@ -79,7 +80,7 @@ object FastingNotifier {
                 .setOnlyAlertOnce(true)
                 .setSilent(true)
                 .setContentIntent(openApp)
-                .addAction(0, context.getString(R.string.fasting_end), endFast)
+                .addAction(0, AppLanguage.localized(context).getString(R.string.fasting_end), endFast)
                 .setCategory(NotificationCompat.CATEGORY_STOPWATCH)
                 .build()
 
@@ -101,14 +102,13 @@ object FastingNotifier {
 
     private fun ensureChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
-        if (manager.getNotificationChannel(CHANNEL_ID) != null) return
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                context.getString(R.string.fasting_notification_channel),
+                AppLanguage.localized(context).getString(R.string.fasting_notification_channel),
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
-                description = context.getString(R.string.fasting_notification_channel_desc)
+                description = AppLanguage.localized(context).getString(R.string.fasting_notification_channel_desc)
                 setShowBadge(false)
             },
         )

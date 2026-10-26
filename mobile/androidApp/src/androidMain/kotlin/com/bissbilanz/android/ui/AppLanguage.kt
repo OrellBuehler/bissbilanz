@@ -94,10 +94,22 @@ object AppLanguage {
         val tag = stored(base)
         val locale = if (tag == SYSTEM) deviceDefault else Locale.forLanguageTag(tag)
         Locale.setDefault(locale)
-        if (tag == SYSTEM) return base
-        val config = Configuration(base.resources.configuration)
-        config.setLocale(locale)
-        return base.createConfigurationContext(config)
+        return localized(base)
+    }
+
+    /**
+     * [context] with the stored language applied to its resources, for strings resolved
+     * from the application context (notifications, Glance widgets) which [wrap] never
+     * reaches. Unlike [wrap] it leaves [Locale.getDefault] alone. API 33+ resolves the
+     * per-app language in every context already.
+     */
+    fun localized(context: Context): Context {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return context
+        val tag = stored(context)
+        if (tag == SYSTEM) return context
+        val config = Configuration(context.resources.configuration)
+        config.setLocale(Locale.forLanguageTag(tag))
+        return context.createConfigurationContext(config)
     }
 
     /**
