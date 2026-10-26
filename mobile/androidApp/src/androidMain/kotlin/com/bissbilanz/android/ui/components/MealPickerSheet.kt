@@ -174,14 +174,14 @@ fun MealPickerSheet(
                         onClick = { byWeight = false },
                         shape = SegmentedButtonDefaults.itemShape(0, 2),
                     ) {
-                        Text(stringResource(R.string.meal_picker_mode_servings))
+                        Text(stringResource(R.string.meal_picker_mode_servings), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     SegmentedButton(
                         selected = byWeight,
                         onClick = { byWeight = true },
                         shape = SegmentedButtonDefaults.itemShape(1, 2),
                     ) {
-                        Text(stringResource(R.string.meal_picker_mode_grams))
+                        Text(stringResource(R.string.meal_picker_mode_grams), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }

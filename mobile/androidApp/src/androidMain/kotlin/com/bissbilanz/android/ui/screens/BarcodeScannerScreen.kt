@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -39,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -48,6 +50,7 @@ import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
+import com.bissbilanz.android.ui.components.SheetActionRow
 import com.bissbilanz.android.ui.components.rememberCameraPermission
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.ProteinRed
@@ -271,15 +274,16 @@ fun BarcodeScannerScreen(navController: NavController) {
                                 style = MaterialTheme.typography.bodySmall,
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            SheetActionRow {
                                 OutlinedButton(
                                     onClick = {
                                         scanState = ScanState.SCANNING
                                         scannedBarcode = null
                                     },
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
                                 ) {
-                                    Text(stringResource(R.string.scan_barcode_scan_again))
+                                    Text(stringResource(R.string.scan_barcode_scan_again), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 Button(
                                     onClick = {
@@ -288,8 +292,9 @@ fun BarcodeScannerScreen(navController: NavController) {
                                             ?.set(NAV_KEY_CREATE_FOOD_BARCODE, scannedBarcode)
                                         navController.popBackStack()
                                     },
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
                                 ) {
-                                    Text(stringResource(R.string.scan_barcode_create_food))
+                                    Text(stringResource(R.string.scan_barcode_create_food), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }
@@ -308,18 +313,22 @@ fun BarcodeScannerScreen(navController: NavController) {
                                 textAlign = TextAlign.Center,
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            SheetActionRow {
                                 OutlinedButton(
                                     onClick = {
                                         scanState = ScanState.SCANNING
                                         scannedBarcode = null
                                     },
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
                                 ) {
-                                    Text(stringResource(R.string.scan_barcode_scan_again))
+                                    Text(stringResource(R.string.scan_barcode_scan_again), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
-                                Button(onClick = { scannedBarcode?.let { lookup(it) } }) {
-                                    Text(stringResource(R.string.scan_barcode_retry))
+                                Button(
+                                    onClick = { scannedBarcode?.let { lookup(it) } },
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                ) {
+                                    Text(stringResource(R.string.scan_barcode_retry), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }

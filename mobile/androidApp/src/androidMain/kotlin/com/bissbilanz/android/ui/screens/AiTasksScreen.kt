@@ -18,6 +18,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -122,10 +125,13 @@ fun AiTasksScreen(navController: NavController) {
             title = { Text(stringResource(R.string.ai_tasks_delete)) },
             text = { Text(stringResource(R.string.ai_tasks_delete_confirm)) },
             confirmButton = {
-                TextButton(onClick = {
-                    viewModel.delete(task.id)
-                    taskToDelete = null
-                }) { Text(stringResource(R.string.action_delete)) }
+                TextButton(
+                    onClick = {
+                        viewModel.delete(task.id)
+                        taskToDelete = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
                 TextButton(onClick = { taskToDelete = null }) {
@@ -158,7 +164,7 @@ fun AiTasksScreen(navController: NavController) {
                         onClick = { viewModel.selectFilter(filter) },
                         shape = SegmentedButtonDefaults.itemShape(index, filters.size),
                     ) {
-                        Text(label)
+                        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }

@@ -91,7 +91,6 @@ fun SupplementEditSheet(
     // the anchor locally, and `SupplementSchedule` then treated the supplement as due
     // every day until the next server refresh put the real date back.
     var scheduleStartDate by remember { mutableStateOf<String?>(null) }
-    var showFrequencyMenu by remember { mutableStateOf(false) }
     var timeOfDay by remember { mutableStateOf("morning") }
     var reminderTimes by remember { mutableStateOf(listOf<String>()) }
     var isActive by remember { mutableStateOf(true) }
@@ -217,37 +216,12 @@ fun SupplementEditSheet(
                         stringResource(R.string.supplement_edit_weekly) to ScheduleType.weekly,
                         stringResource(R.string.supplement_edit_specific_days) to ScheduleType.specific_days,
                     )
-                ExposedDropdownMenuBox(
-                    expanded = showFrequencyMenu,
-                    onExpandedChange = { showFrequencyMenu = it },
-                ) {
-                    OutlinedTextField(
-                        value = frequencyOptions.first { it.second == scheduleType }.first,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(stringResource(R.string.supplement_edit_frequency)) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showFrequencyMenu) },
-                        modifier =
-                            Modifier
-                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                                .fillMaxWidth(),
-                        singleLine = true,
-                    )
-                    ExposedDropdownMenu(
-                        expanded = showFrequencyMenu,
-                        onDismissRequest = { showFrequencyMenu = false },
-                    ) {
-                        frequencyOptions.forEach { (label, type) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    scheduleType = type
-                                    showFrequencyMenu = false
-                                },
-                            )
-                        }
-                    }
-                }
+                ChoiceDropdown(
+                    selectedLabel = frequencyOptions.first { it.second == scheduleType }.first,
+                    options = frequencyOptions,
+                    onSelect = { scheduleType = it },
+                    label = stringResource(R.string.supplement_edit_frequency),
+                )
 
                 if (needsScheduleDays) {
                     Text(stringResource(R.string.supplement_edit_days), style = MaterialTheme.typography.labelLarge)
@@ -379,43 +353,18 @@ fun SupplementEditSheet(
                                     modifier = Modifier.weight(1f),
                                     singleLine = true,
                                 )
-                                var showUnitMenu by remember { mutableStateOf(false) }
-                                ExposedDropdownMenuBox(
-                                    expanded = showUnitMenu,
-                                    onExpandedChange = { showUnitMenu = it },
+                                ChoiceDropdown(
+                                    selectedLabel = dosageUnitDisplayName(ingredient.dosageUnit),
+                                    options = unitOptions.map { dosageUnitDisplayName(it) to it },
+                                    onSelect = { unit ->
+                                        ingredients =
+                                            ingredients.toMutableList().apply {
+                                                set(index, ingredient.copy(dosageUnit = unit))
+                                            }
+                                    },
+                                    label = stringResource(R.string.food_form_unit),
                                     modifier = Modifier.weight(0.6f),
-                                ) {
-                                    OutlinedTextField(
-                                        value = dosageUnitDisplayName(ingredient.dosageUnit),
-                                        onValueChange = {},
-                                        readOnly = true,
-                                        label = { Text(stringResource(R.string.food_form_unit)) },
-                                        trailingIcon = {
-                                            ExposedDropdownMenuDefaults.TrailingIcon(
-                                                expanded = showUnitMenu,
-                                            )
-                                        },
-                                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                                        singleLine = true,
-                                    )
-                                    ExposedDropdownMenu(
-                                        expanded = showUnitMenu,
-                                        onDismissRequest = { showUnitMenu = false },
-                                    ) {
-                                        unitOptions.forEach { unit ->
-                                            DropdownMenuItem(
-                                                text = { Text(dosageUnitDisplayName(unit)) },
-                                                onClick = {
-                                                    ingredients =
-                                                        ingredients.toMutableList().apply {
-                                                            set(index, ingredient.copy(dosageUnit = unit))
-                                                        }
-                                                    showUnitMenu = false
-                                                },
-                                            )
-                                        }
-                                    }
-                                }
+                                )
                             }
                         }
                     }

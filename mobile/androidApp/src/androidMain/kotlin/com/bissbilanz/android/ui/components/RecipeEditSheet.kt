@@ -115,7 +115,6 @@ fun RecipeEditSheet(
     // after a list-only refresh): the editor is hidden and a save leaves them untouched
     // rather than sending an empty list that would clear them on the server.
     var stepsAvailable by rememberSaveable { mutableStateOf(true) }
-    var openUnitDropdownKey by remember { mutableStateOf<String?>(null) }
     var showFoodPicker by rememberSaveable { mutableStateOf(false) }
     var showRecipeSource by rememberSaveable { mutableStateOf(false) }
 
@@ -403,44 +402,18 @@ fun RecipeEditSheet(
                                         ingredient.foodUnit?.let { foodUnit ->
                                             ServingUnit.entries.filter { isSameUnitDimension(it.value, foodUnit) }
                                         } ?: ServingUnit.entries.toList()
-                                    ExposedDropdownMenuBox(
-                                        expanded = openUnitDropdownKey == ingredient.key,
-                                        onExpandedChange = {
-                                            openUnitDropdownKey = if (it) ingredient.key else null
+                                    ChoiceDropdown(
+                                        selectedLabel = ingredient.unit.name.lowercase(),
+                                        options = compatibleUnits.map { it.name.lowercase() to it },
+                                        onSelect = { unit ->
+                                            ingredients =
+                                                ingredients.map {
+                                                    if (it.key == ingredient.key) it.copy(unit = unit) else it
+                                                }
                                         },
+                                        label = stringResource(R.string.recipe_edit_unit),
                                         modifier = Modifier.weight(1f),
-                                    ) {
-                                        OutlinedTextField(
-                                            value = ingredient.unit.name.lowercase(),
-                                            onValueChange = {},
-                                            readOnly = true,
-                                            label = { Text(stringResource(R.string.recipe_edit_unit)) },
-                                            trailingIcon = {
-                                                ExposedDropdownMenuDefaults.TrailingIcon(
-                                                    expanded = openUnitDropdownKey == ingredient.key,
-                                                )
-                                            },
-                                            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                                            singleLine = true,
-                                        )
-                                        ExposedDropdownMenu(
-                                            expanded = openUnitDropdownKey == ingredient.key,
-                                            onDismissRequest = { openUnitDropdownKey = null },
-                                        ) {
-                                            compatibleUnits.forEach { unit ->
-                                                DropdownMenuItem(
-                                                    text = { Text(unit.name.lowercase()) },
-                                                    onClick = {
-                                                        ingredients =
-                                                            ingredients.map {
-                                                                if (it.key == ingredient.key) it.copy(unit = unit) else it
-                                                            }
-                                                        openUnitDropdownKey = null
-                                                    },
-                                                )
-                                            }
-                                        }
-                                    }
+                                    )
                                 }
                             }
                         }

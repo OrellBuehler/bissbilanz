@@ -158,7 +158,7 @@ fun FavoritesScreen(navController: NavController) {
                             onClick = { viewModel.selectTab(index) },
                             shape = SegmentedButtonDefaults.itemShape(index, tabLabels.size),
                         ) {
-                            Text(label)
+                            Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }

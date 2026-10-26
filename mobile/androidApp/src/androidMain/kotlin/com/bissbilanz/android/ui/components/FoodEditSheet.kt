@@ -115,7 +115,6 @@ fun FoodEditSheet(
     // declares can be recorded, matching the iOS add-nutrient catalog.
     var extraNutrients by rememberSaveable { mutableStateOf<Map<String, String>>(emptyMap()) }
     var showNutrientPicker by remember { mutableStateOf(false) }
-    var showUnitDropdown by remember { mutableStateOf(false) }
     var showLabelScanner by remember { mutableStateOf(false) }
 
     val loadFailedMessage = stringResource(R.string.food_form_load_failed)
@@ -393,37 +392,13 @@ fun FoodEditSheet(
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                     )
-                    ExposedDropdownMenuBox(
-                        expanded = showUnitDropdown,
-                        onExpandedChange = { showUnitDropdown = it },
+                    ChoiceDropdown(
+                        selectedLabel = servingUnit.name.lowercase(),
+                        options = ServingUnit.entries.map { it.name.lowercase() to it },
+                        onSelect = { servingUnit = it },
+                        label = stringResource(R.string.food_form_unit),
                         modifier = Modifier.weight(1f),
-                    ) {
-                        OutlinedTextField(
-                            value = servingUnit.name.lowercase(),
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(stringResource(R.string.food_form_unit)) },
-                            trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = showUnitDropdown)
-                            },
-                            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                            singleLine = true,
-                        )
-                        ExposedDropdownMenu(
-                            expanded = showUnitDropdown,
-                            onDismissRequest = { showUnitDropdown = false },
-                        ) {
-                            ServingUnit.entries.forEach { unit ->
-                                DropdownMenuItem(
-                                    text = { Text(unit.name.lowercase()) },
-                                    onClick = {
-                                        servingUnit = unit
-                                        showUnitDropdown = false
-                                    },
-                                )
-                            }
-                        }
-                    }
+                    )
                 }
                 OutlinedTextField(
                     value = barcode,

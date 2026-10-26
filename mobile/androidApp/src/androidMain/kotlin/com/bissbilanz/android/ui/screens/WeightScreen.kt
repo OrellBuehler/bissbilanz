@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -270,7 +271,7 @@ fun WeightScreen(navController: NavController) {
                                         onClick = { viewModel.selectRange(index) },
                                         shape = SegmentedButtonDefaults.itemShape(index, ranges.size),
                                     ) {
-                                        Text(label)
+                                        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                             }
@@ -286,7 +287,7 @@ fun WeightScreen(navController: NavController) {
                                             onClick = { viewModel.setProjectionDays(days) },
                                             shape = SegmentedButtonDefaults.itemShape(index, projectionOptions.size),
                                         ) {
-                                            Text(projectionLabels[index])
+                                            Text(projectionLabels[index], maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
                                     }
                                 }

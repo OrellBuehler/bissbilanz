@@ -262,7 +262,7 @@
     <string name="ai_tasks_claude_state_proposed">Vorschlag bereit zur Prüfung</string>
     <string name="ai_tasks_claude_state_blocked">Claude ist nicht verfügbar, wartet</string>
     <string name="ai_tasks_proposal_title">Vorgeschlagene Einträge</string>
-    <string name="ai_tasks_proposal_log">Auswahl eintragen</string>
+    <string name="ai_tasks_proposal_log">Eintragen</string>
     <string name="ai_tasks_proposal_discard">Verwerfen</string>
     <string name="ai_tasks_proposal_new_food">Neues Lebensmittel</string>
     <string name="ai_tasks_proposal_none_selected">Wähle mindestens einen Eintrag aus.</string>

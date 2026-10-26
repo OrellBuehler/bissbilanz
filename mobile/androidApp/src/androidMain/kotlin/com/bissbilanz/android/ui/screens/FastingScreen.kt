@@ -28,6 +28,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -369,10 +370,7 @@ private fun ActiveFastSection(
                     TextButton(onClick = { onShowTargetMenu(true) }, contentPadding = ButtonDefaults.TextButtonWithIconContentPadding) {
                         Icon(Icons.Default.Tune, null, modifier = Modifier.size(ButtonDefaults.IconSize))
                         Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-                        Text(
-                            stringResource(R.string.fasting_change_target),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
+                        Text(stringResource(R.string.fasting_change_target), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     DropdownMenu(expanded = showTargetMenu, onDismissRequest = { onShowTargetMenu(false) }) {
                         TARGET_OPTIONS.forEach { hours ->
@@ -402,7 +400,7 @@ private fun ActiveFastSection(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = FastingIndigo),
         ) {
-            Text(stringResource(R.string.fasting_end), style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.fasting_end))
         }
 
         // Discard drops the fast entirely: no history row, no fasting-day mark. Kept
@@ -412,7 +410,7 @@ private fun ActiveFastSection(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
         ) {
-            Text(stringResource(R.string.fasting_discard), style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.fasting_discard))
         }
     }
 }
@@ -496,7 +494,7 @@ private fun StartSection(
                 )
                 if (startOverride != null) {
                     TextButton(onClick = onResetStart) {
-                        Text(stringResource(R.string.fasting_start_now), style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.fasting_start_now), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
                 AssistChip(
@@ -515,7 +513,7 @@ private fun StartSection(
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = FastingIndigo),
             ) {
-                Text(stringResource(R.string.fasting_start), style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.fasting_start))
             }
         }
     }

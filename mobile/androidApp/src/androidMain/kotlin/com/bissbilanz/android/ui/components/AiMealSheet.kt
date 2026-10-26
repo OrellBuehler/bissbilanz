@@ -132,7 +132,6 @@ fun AiMealSheet(
     // bitmaps and too large for saved state, so only those have to be re-attached.
     var description by rememberSaveable(task?.id) { mutableStateOf(task?.description ?: "") }
     var mealType by rememberSaveable(task?.id) { mutableStateOf(if (task != null) task.mealType else mealTypes.first()) }
-    var mealMenuOpen by remember { mutableStateOf(false) }
     var selectedDate by rememberSaveable(task?.id) { mutableStateOf(task?.date ?: date) }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     val initialEatenLocal =
@@ -330,41 +329,16 @@ fun AiMealSheet(
             }
 
             val noSpecificMeal = stringResource(R.string.ai_task_meal_none)
-            ExposedDropdownMenuBox(
-                expanded = mealMenuOpen,
-                onExpandedChange = { mealMenuOpen = it },
-            ) {
-                OutlinedTextField(
-                    value = mealType?.let { mealTypeDisplayName(it) } ?: noSpecificMeal,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(stringResource(R.string.meal_picker_meal_label)) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = mealMenuOpen) },
-                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
-                )
-                ExposedDropdownMenu(expanded = mealMenuOpen, onDismissRequest = { mealMenuOpen = false }) {
-                    // Only an existing task can be edited into having no meal type; a new
-                    // task always gets one of the four defaults, same as before.
-                    if (isEditing) {
-                        DropdownMenuItem(
-                            text = { Text(noSpecificMeal) },
-                            onClick = {
-                                mealType = null
-                                mealMenuOpen = false
-                            },
-                        )
-                    }
-                    mealTypes.forEach { meal ->
-                        DropdownMenuItem(
-                            text = { Text(mealTypeDisplayName(meal)) },
-                            onClick = {
-                                mealType = meal
-                                mealMenuOpen = false
-                            },
-                        )
-                    }
-                }
-            }
+            ChoiceDropdown(
+                selectedLabel = mealType?.let { mealTypeDisplayName(it) } ?: noSpecificMeal,
+                // Only an existing task can be edited into having no meal type; a new
+                // task always gets one of the four defaults, same as before.
+                options =
+                    (if (isEditing) listOf<Pair<String, String?>>(noSpecificMeal to null) else emptyList()) +
+                        mealTypes.map { mealTypeDisplayName(it) to it },
+                onSelect = { mealType = it },
+                label = stringResource(R.string.meal_picker_meal_label),
+            )
 
             if (isEditing) {
                 Text(stringResource(R.string.ai_task_date_label), style = MaterialTheme.typography.labelLarge)
@@ -448,12 +422,12 @@ fun AiMealSheet(
                             )
                             FilledTonalIconButton(
                                 onClick = { existingPhotoUrls.remove(url) },
-                                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(28.dp),
+                                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
                             ) {
                                 Icon(
                                     Icons.Default.Close,
                                     stringResource(R.string.ai_task_remove_photo),
-                                    modifier = Modifier.size(16.dp),
+                                    modifier = Modifier.size(20.dp),
                                 )
                             }
                         }
@@ -476,12 +450,12 @@ fun AiMealSheet(
                             )
                             FilledTonalIconButton(
                                 onClick = { attached.remove(bitmap) },
-                                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(28.dp),
+                                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
                             ) {
                                 Icon(
                                     Icons.Default.Close,
                                     stringResource(R.string.ai_task_remove_photo),
-                                    modifier = Modifier.size(16.dp),
+                                    modifier = Modifier.size(20.dp),
                                 )
                             }
                         }

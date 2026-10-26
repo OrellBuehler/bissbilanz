@@ -28,6 +28,7 @@ import androidx.navigation.NavController
 import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.NAV_KEY_EDIT_SUPPLEMENT_ID
 import com.bissbilanz.android.reminders.SupplementReminderPreferences
+import com.bissbilanz.android.ui.components.ChoiceDropdown
 import com.bissbilanz.android.ui.components.ExactAlarmPrompt
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.ReminderEditSheet
@@ -57,7 +58,6 @@ fun RemindersScreen(navController: NavController) {
 
     val reminderPrefs: SupplementReminderPreferences = koinInject()
     var snoozeMinutes by remember { mutableIntStateOf(reminderPrefs.snoozeMinutes) }
-    var snoozeMenuExpanded by remember { mutableStateOf(false) }
     var notificationsEnabled by remember {
         mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled())
     }
@@ -143,39 +143,15 @@ fun RemindersScreen(navController: NavController) {
                             fontWeight = FontWeight.SemiBold,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        ExposedDropdownMenuBox(
-                            expanded = snoozeMenuExpanded,
-                            onExpandedChange = { snoozeMenuExpanded = it },
-                        ) {
-                            OutlinedTextField(
-                                value = snoozeLabel(snoozeMinutes),
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text(stringResource(R.string.settings_snooze_duration)) },
-                                trailingIcon = {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = snoozeMenuExpanded)
-                                },
-                                modifier =
-                                    Modifier
-                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                                        .fillMaxWidth(),
-                            )
-                            ExposedDropdownMenu(
-                                expanded = snoozeMenuExpanded,
-                                onDismissRequest = { snoozeMenuExpanded = false },
-                            ) {
-                                SupplementReminderPreferences.SNOOZE_PRESETS.forEach { minutes ->
-                                    DropdownMenuItem(
-                                        text = { Text(snoozeLabel(minutes)) },
-                                        onClick = {
-                                            snoozeMinutes = minutes
-                                            reminderPrefs.snoozeMinutes = minutes
-                                            snoozeMenuExpanded = false
-                                        },
-                                    )
-                                }
-                            }
-                        }
+                        ChoiceDropdown(
+                            selectedLabel = snoozeLabel(snoozeMinutes),
+                            options = SupplementReminderPreferences.SNOOZE_PRESETS.map { snoozeLabel(it) to it },
+                            onSelect = { minutes ->
+                                snoozeMinutes = minutes
+                                reminderPrefs.snoozeMinutes = minutes
+                            },
+                            label = stringResource(R.string.settings_snooze_duration),
+                        )
 
                         if (!notificationsEnabled) {
                             Spacer(modifier = Modifier.height(8.dp))

@@ -12,12 +12,14 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
@@ -250,10 +252,10 @@ fun SupplementHistoryScreen(navController: NavController) {
                                         Icon(
                                             Icons.Default.CalendarMonth,
                                             contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
+                                            modifier = Modifier.size(ButtonDefaults.IconSize),
                                         )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(dayLabel(fromDate), style = MaterialTheme.typography.bodyMedium)
+                                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                                        Text(dayLabel(fromDate), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
@@ -266,10 +268,10 @@ fun SupplementHistoryScreen(navController: NavController) {
                                         Icon(
                                             Icons.Default.CalendarMonth,
                                             contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
+                                            modifier = Modifier.size(ButtonDefaults.IconSize),
                                         )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(dayLabel(toDate), style = MaterialTheme.typography.bodyMedium)
+                                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                                        Text(dayLabel(toDate), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                             }

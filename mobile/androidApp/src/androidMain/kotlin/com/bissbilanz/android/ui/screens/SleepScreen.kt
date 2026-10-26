@@ -217,7 +217,7 @@ fun SleepScreen(navController: NavController) {
                                         onClick = { viewModel.selectRange(index) },
                                         shape = SegmentedButtonDefaults.itemShape(index, ranges.size),
                                     ) {
-                                        Text(label)
+                                        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                             }

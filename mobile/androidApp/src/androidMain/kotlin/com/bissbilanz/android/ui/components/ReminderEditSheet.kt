@@ -69,7 +69,6 @@ fun ReminderEditSheet(
     var time by remember { mutableStateOf("08:00") }
     var weekdays by remember { mutableStateOf(ALL_WEEKDAYS) }
     var enabled by remember { mutableStateOf(true) }
-    var mealTypeMenuExpanded by remember { mutableStateOf(false) }
 
     var notificationsEnabled by remember {
         mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled())
@@ -210,37 +209,11 @@ fun ReminderEditSheet(
 
                 if (kind == Reminder.Kind.meal) {
                     Text(stringResource(R.string.reminders_meal_type), style = MaterialTheme.typography.labelLarge)
-                    ExposedDropdownMenuBox(
-                        expanded = mealTypeMenuExpanded,
-                        onExpandedChange = { mealTypeMenuExpanded = it },
-                    ) {
-                        OutlinedTextField(
-                            value = mealTypeDisplayName(mealType),
-                            onValueChange = {},
-                            readOnly = true,
-                            trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = mealTypeMenuExpanded)
-                            },
-                            modifier =
-                                Modifier
-                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                                    .fillMaxWidth(),
-                        )
-                        ExposedDropdownMenu(
-                            expanded = mealTypeMenuExpanded,
-                            onDismissRequest = { mealTypeMenuExpanded = false },
-                        ) {
-                            mealTypeOptions.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(mealTypeDisplayName(option)) },
-                                    onClick = {
-                                        mealType = option
-                                        mealTypeMenuExpanded = false
-                                    },
-                                )
-                            }
-                        }
-                    }
+                    ChoiceDropdown(
+                        selectedLabel = mealTypeDisplayName(mealType),
+                        options = mealTypeOptions.map { mealTypeDisplayName(it) to it },
+                        onSelect = { mealType = it },
+                    )
                 }
 
                 Text(stringResource(R.string.reminders_time), style = MaterialTheme.typography.labelLarge)
