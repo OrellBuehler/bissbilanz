@@ -28,7 +28,9 @@ import com.bissbilanz.test.inMemoryCacheDatabase
 import com.bissbilanz.test.inMemoryUserDataDatabase
 import com.bissbilanz.userdata.UserDataDatabase
 import com.bissbilanz.util.EntryField
+import com.bissbilanz.util.SleepField
 import com.bissbilanz.util.SupplementField
+import com.bissbilanz.util.WeightField
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
@@ -420,6 +422,68 @@ class TempIdCoalescingTest {
             assertTrue(ops.any { it is SyncOperation.UpdateSleep && it.id == "server-1" })
             assertTrue(ops.any { it is SyncOperation.DeleteSleep && it.id == "server-2" })
         }
+
+    @Test
+    fun weightUpdateCarriesClearedNotesIntoTheQueue() =
+        runTest {
+            val repo = weightRepository()
+
+            repo.updateEntry("server-1", WeightUpdate(weightKg = 80.0), setOf(WeightField.NOTES))
+
+            val op = syncQueue.drain().single().operation as SyncOperation.UpdateWeight
+            assertEquals(listOf("notes"), op.clearedKeys)
+        }
+
+    @Test
+    fun weightClearOnAQueuedCreateEmptiesTheCreateBody() =
+        runTest {
+            val repo = weightRepository()
+            val temp = repo.createEntry(WeightCreate(weightKg = 80.0, entryDate = "2024-01-15", notes = "morning"))
+
+            repo.updateEntry(temp.id, WeightUpdate(), setOf(WeightField.NOTES))
+
+            val create = syncQueue.drain().single().operation as SyncOperation.CreateWeight
+            assertNull(json.decodeFromString<WeightCreate>(create.body).notes)
+        }
+
+    @Test
+    fun sleepUpdateCarriesClearedFieldsIntoTheQueue() =
+        runTest {
+            val repo = sleepRepository()
+
+            repo.updateEntry("server-1", SleepUpdate(quality = 8.0), setOf(SleepField.WAKE_UPS, SleepField.BEDTIME))
+
+            val op = syncQueue.drain().single().operation as SyncOperation.UpdateSleep
+            assertEquals(listOf("bedtime", "wakeUps"), op.clearedKeys)
+        }
+
+    @Test
+    fun sleepClearOnAQueuedCreateEmptiesTheCreateBody() =
+        runTest {
+            val repo = sleepRepository()
+            val temp =
+                repo.createEntry(
+                    SleepCreate(durationMinutes = 480, quality = 7.0, entryDate = "2024-01-15", wakeUps = 2, notes = "restless"),
+                )
+
+            repo.updateEntry(temp.id, SleepUpdate(), setOf(SleepField.WAKE_UPS, SleepField.NOTES))
+
+            val create = syncQueue.drain().single().operation as SyncOperation.CreateSleep
+            val body = json.decodeFromString<SleepCreate>(create.body)
+            assertNull(body.wakeUps)
+            assertNull(body.notes)
+        }
+
+    @Test
+    fun aQueuedUpdateWrittenBeforeClearedKeysExistedStillDecodes() {
+        val op =
+            json.decodeFromString(
+                SyncOperation.serializer(),
+                """{"type":"update_sleep","id":"s1","body":"{}"}""",
+            )
+
+        assertEquals(emptyList(), (op as SyncOperation.UpdateSleep).clearedKeys)
+    }
 
     // Supplements
 

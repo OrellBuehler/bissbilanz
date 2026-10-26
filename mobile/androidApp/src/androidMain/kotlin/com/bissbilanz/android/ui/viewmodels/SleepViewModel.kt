@@ -10,6 +10,7 @@ import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.api.generated.model.SleepEntry
 import com.bissbilanz.api.generated.model.SleepUpdate
 import com.bissbilanz.repository.SleepRepository
+import com.bissbilanz.util.SleepField
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -90,10 +91,11 @@ class SleepViewModel(
     fun updateEntry(
         id: String,
         entry: SleepUpdate,
+        cleared: Set<SleepField> = emptySet(),
     ) {
         viewModelScope.launch {
             try {
-                sleepRepo.updateEntry(id, entry)
+                sleepRepo.updateEntry(id, entry, cleared)
                 healthExporter.exportLatestSleep()
                 _snackbarMessage.value = UiMessage(R.string.sleep_updated)
             } catch (e: Exception) {

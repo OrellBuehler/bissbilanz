@@ -19,6 +19,7 @@ import com.bissbilanz.api.generated.model.Supplement
 import com.bissbilanz.api.generated.model.SupplementCreate
 import com.bissbilanz.api.generated.model.WeightCreate
 import com.bissbilanz.api.generated.model.WeightEntry
+import com.bissbilanz.api.generated.model.WeightUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.model.Entry
@@ -1423,4 +1424,130 @@ class SyncManagerTest {
                     every { headers } returns headersOf("X-Sync-Conflict", "server-newer")
                 },
         )
+
+    @Test
+    fun executesUpdateWeightWithClearedKeys() =
+        runTest {
+            syncQueue.enqueue(
+                SyncOperation.UpdateWeight("srv-weight-1", json.encodeToString(WeightUpdate(weightKg = 80.0)), listOf("notes")),
+            )
+            coEvery { api.updateWeightEntry("srv-weight-1", any(), any(), any(), listOf("notes")) } returns weightEntry("srv-weight-1")
+
+            manager.syncPendingQueue()
+
+            coVerify { api.updateWeightEntry("srv-weight-1", any(), any(), any(), listOf("notes")) }
+            assertEquals(0, syncQueue.pendingCount())
+        }
+
+    @Test
+    fun aDuplicateBarcodeConflictParksWithTheOtherFoodsName() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.UpdateFood("srv-food-1", json.encodeToString(foodCreate("Cola"))))
+            coEvery { api.updateFood("srv-food-1", any(), any(), any()) } throws
+                ApiException(
+                    "conflict",
+                    409,
+                    responseBody = """{"error": "A food with barcode 5449000169327 already exists: \"Coca-Cola Zero\""}""",
+                )
+
+            manager.syncPendingQueue()
+
+            assertEquals(
+                ParkReason.BARCODE_IN_USE_BY_PREFIX + "Coca-Cola Zero",
+                manager.parkedChanges().single().failureReason,
+            )
+            assertTrue(
+                manager.state.value.errors
+                    .single()
+                    .contains("already used by \"Coca-Cola Zero\""),
+            )
+        }
+
+    @Test
+    fun aConflictWithoutAReadableBodyParksWithTheGenericReason() =
+        runTest {
+            syncQueue.enqueue(SyncOperation.UpdateFood("srv-food-1", json.encodeToString(foodCreate("Cola"))))
+            coEvery { api.updateFood("srv-food-1", any(), any(), any()) } throws ApiException("conflict", 409)
+
+            manager.syncPendingQueue()
+
+            assertEquals(ParkReason.CONFLICT, manager.parkedChanges().single().failureReason)
+        }
+
+    private fun insertCachedFood(
+        id: String,
+        name: String,
+    ) {
+        userDb.userDataDatabaseQueries.insertFood(
+            id = id,
+            name = name,
+            brand = null,
+            calories = 130.0,
+            protein = 2.7,
+            carbs = 28.0,
+            fat = 0.3,
+            fiber = 0.4,
+            isFavorite = 0L,
+            barcode = null,
+            jsonData =
+                json.encodeToString(
+                    TestFixtures.food(id = id, name = name).copy(calories = 130.0, protein = 2.7, carbs = 28.0, fat = 0.3, fiber = 0.4),
+                ),
+        )
+    }
+
+    private fun entryOf(foodId: String) =
+        SyncOperation.CreateEntry(
+            json.encodeToString(EntryCreate(mealType = "lunch", servings = 2.0, date = "2024-01-15", foodId = foodId)),
+            localId = "temp_e1",
+        )
+
+    @Test
+    fun discardingARejectedFoodCreateKeepsItsQueuedEntriesAsQuickEntries() =
+        runTest {
+            insertCachedFood("temp_f1", "Rice")
+            enqueueAt(SyncOperation.CreateFood(json.encodeToString(foodCreate()), localId = "temp_f1"), createdAt = 1)
+            enqueueAt(entryOf("temp_f1"), createdAt = 2)
+            coEvery { api.createFood(any(), any(), any()) } throws ApiException("invalid", 400)
+            manager.syncPendingQueue()
+            val foodRow = manager.parkedChanges().single { it.operation is SyncOperation.CreateFood }
+            assertEquals(2, manager.parkedChanges().size)
+
+            manager.discardParked(foodRow.id)
+
+            val remaining = manager.parkedChanges()
+            assertTrue(remaining.isEmpty())
+            val entry = syncQueue.all().single().operation as SyncOperation.CreateEntry
+            val body = json.decodeFromString<EntryCreate>(entry.body)
+            assertNull(body.foodId)
+            assertEquals("Rice", body.quickName)
+            assertEquals(130.0, body.quickCalories)
+            assertEquals(2.0, body.servings)
+            assertEquals(1, syncQueue.pendingCount())
+
+            coEvery { api.createEntry(any(), any(), any()) } returns TestFixtures.entry()
+            manager.syncPendingQueue()
+            coVerify { api.createEntry(match { it.quickName == "Rice" && it.foodId == null }, any(), any()) }
+            assertEquals(0, syncQueue.pendingCount())
+        }
+
+    @Test
+    fun anEntryWhoseFoodCreateIsGoneIsLoggedAsAQuickEntryWhenTheFoodIsCached() =
+        runTest {
+            insertCachedFood("temp_f1", "Rice")
+            enqueueAt(entryOf("temp_f1"), createdAt = 1)
+            coEvery { api.createEntry(any(), any(), any()) } returns TestFixtures.entry()
+
+            manager.syncPendingQueue()
+            manager.syncPendingQueue()
+
+            assertTrue(
+                manager.state.value.conflictNotices
+                    .single()
+                    .contains("Rice"),
+            )
+            coVerify { api.createEntry(match { it.quickName == "Rice" && it.foodId == null && it.quickProtein == 2.7 }, any(), any()) }
+            assertEquals(0, syncQueue.pendingCount())
+            assertEquals(0, syncQueue.failedCount())
+        }
 }
