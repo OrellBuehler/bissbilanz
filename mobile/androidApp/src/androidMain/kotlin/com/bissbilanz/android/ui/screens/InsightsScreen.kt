@@ -464,22 +464,31 @@ fun InsightsScreen(
                     }
 
                     1 -> {
-                        if (nutritionLoading) {
-                            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
-                        } else {
-                            val novaResult by viewModel.novaResult.collectAsStateWithLifecycle()
-                            val omegaResult by viewModel.omegaResult.collectAsStateWithLifecycle()
-                            val diiResult by viewModel.diiResult.collectAsStateWithLifecycle()
-                            val tefResult by viewModel.tefResult.collectAsStateWithLifecycle()
-                            val proteinDistResult by viewModel.proteinDistributionResult.collectAsStateWithLifecycle()
-                            val frontLoadResult by viewModel.frontLoadingResult.collectAsStateWithLifecycle()
-                            val calorieCyclingResult by viewModel.calorieCyclingResult.collectAsStateWithLifecycle()
-                            val weekdayWeekendResult by viewModel.weekdayWeekendResult.collectAsStateWithLifecycle()
-                            val mealRegularityResult by viewModel.mealRegularityResult.collectAsStateWithLifecycle()
-                            val foodDiversityResult by viewModel.foodDiversityResult.collectAsStateWithLifecycle()
-
+                        val novaResult by viewModel.novaResult.collectAsStateWithLifecycle()
+                        val omegaResult by viewModel.omegaResult.collectAsStateWithLifecycle()
+                        val diiResult by viewModel.diiResult.collectAsStateWithLifecycle()
+                        val tefResult by viewModel.tefResult.collectAsStateWithLifecycle()
+                        val proteinDistResult by viewModel.proteinDistributionResult.collectAsStateWithLifecycle()
+                        val frontLoadResult by viewModel.frontLoadingResult.collectAsStateWithLifecycle()
+                        val calorieCyclingResult by viewModel.calorieCyclingResult.collectAsStateWithLifecycle()
+                        val weekdayWeekendResult by viewModel.weekdayWeekendResult.collectAsStateWithLifecycle()
+                        val mealRegularityResult by viewModel.mealRegularityResult.collectAsStateWithLifecycle()
+                        val foodDiversityResult by viewModel.foodDiversityResult.collectAsStateWithLifecycle()
+                        val hasNutritionContent =
+                            listOf(
+                                novaResult,
+                                omegaResult,
+                                diiResult,
+                                tefResult,
+                                proteinDistResult,
+                                frontLoadResult,
+                                calorieCyclingResult,
+                                weekdayWeekendResult,
+                                mealRegularityResult,
+                                foodDiversityResult,
+                            ).any { it != null }
+                        AnalyticsLoadingIndicator(nutritionLoading, hasNutritionContent)
+                        if (hasNutritionContent || !nutritionLoading) {
                             novaResult?.let {
                                 NOVAScoreCard(it)
                                 Spacer(Modifier.height(12.dp))
@@ -524,20 +533,21 @@ fun InsightsScreen(
                     }
 
                     2 -> {
-                        if (weightLoading) {
-                            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
-                        } else {
-                            val tdeeResult by viewModel.tdeeResult.collectAsStateWithLifecycle()
-                            val plateauResult by viewModel.plateauResult.collectAsStateWithLifecycle()
-                            val weightForecastResult by viewModel.weightForecastResult.collectAsStateWithLifecycle()
-                            val sodiumWeightResult by viewModel.sodiumWeightResult.collectAsStateWithLifecycle()
-                            val caloricLagResult by viewModel.caloricLagResult.collectAsStateWithLifecycle()
-                            val macroImpactResult by viewModel.macroImpactResult.collectAsStateWithLifecycle()
-                            val mealTimingSummary by viewModel.mealTimingSummary.collectAsStateWithLifecycle()
-                            val nutrientAdequacyResult by viewModel.nutrientAdequacyResult.collectAsStateWithLifecycle()
-
+                        val tdeeResult by viewModel.tdeeResult.collectAsStateWithLifecycle()
+                        val plateauResult by viewModel.plateauResult.collectAsStateWithLifecycle()
+                        val weightForecastResult by viewModel.weightForecastResult.collectAsStateWithLifecycle()
+                        val sodiumWeightResult by viewModel.sodiumWeightResult.collectAsStateWithLifecycle()
+                        val caloricLagResult by viewModel.caloricLagResult.collectAsStateWithLifecycle()
+                        val macroImpactResult by viewModel.macroImpactResult.collectAsStateWithLifecycle()
+                        val mealTimingSummary by viewModel.mealTimingSummary.collectAsStateWithLifecycle()
+                        val nutrientAdequacyResult by viewModel.nutrientAdequacyResult.collectAsStateWithLifecycle()
+                        val hasWeightContent =
+                            listOf(tdeeResult, plateauResult, weightForecastResult, sodiumWeightResult, caloricLagResult, mealTimingSummary)
+                                .any { it != null } ||
+                                macroImpactResult.isNotEmpty() ||
+                                nutrientAdequacyResult.isNotEmpty()
+                        AnalyticsLoadingIndicator(weightLoading, hasWeightContent)
+                        if (hasWeightContent || !weightLoading) {
                             tdeeResult?.let {
                                 AdaptiveTDEECard(it)
                                 Spacer(Modifier.height(12.dp))
@@ -573,6 +583,8 @@ fun InsightsScreen(
                     3 -> {
                         val sleepEntries by viewModel.sleepEntries.collectAsStateWithLifecycle()
                         val sleepFoodCorrelation by viewModel.sleepFoodCorrelation.collectAsStateWithLifecycle()
+                        val sleepByDate = remember(sleepEntries) { sleepEntries.sortedBy { it.entryDate } }
+                        val recentSleep = remember(sleepEntries) { sleepEntries.sortedByDescending { it.entryDate }.take(5) }
                         var sleepEntryToDelete by remember { mutableStateOf<SleepEntry?>(null) }
 
                         CollapsibleCard(title = stringResource(R.string.sleep_section_title), sectionId = "sleep") {
@@ -607,7 +619,7 @@ fun InsightsScreen(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     SimpleLineChart(
-                                        data = sleepEntries.sortedBy { it.entryDate }.map { it.quality.toFloat() },
+                                        data = sleepByDate.map { it.quality.toFloat() },
                                         color = MaterialTheme.colorScheme.tertiary,
                                         modifier = Modifier.fillMaxWidth().height(80.dp),
                                         unit = "",
@@ -621,7 +633,7 @@ fun InsightsScreen(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     SimpleLineChart(
-                                        data = sleepEntries.sortedBy { it.entryDate }.map { it.durationMinutes.toFloat() / 60f },
+                                        data = sleepByDate.map { it.durationMinutes.toFloat() / 60f },
                                         color = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.fillMaxWidth().height(80.dp),
                                         unit = "h",
@@ -665,7 +677,7 @@ fun InsightsScreen(
                                 Spacer(modifier = Modifier.height(12.dp))
 
                                 // Recent entries list (last 5)
-                                sleepEntries.sortedByDescending { it.entryDate }.take(5).forEach { entry ->
+                                recentSleep.forEach { entry ->
                                     val qStr = entry.quality.formatNutrient()
                                     Row(
                                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -813,16 +825,17 @@ fun InsightsScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         // Sleep analytics cards are now computed on-device from the local DB.
-                        if (sleepLoading) {
-                            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
-                        } else {
-                            val foodSleepResult by viewModel.foodSleepResult.collectAsStateWithLifecycle()
-                            val nutrientSleepCorrelations by viewModel.nutrientSleepCorrelations.collectAsStateWithLifecycle()
-                            val preSleepTimingSummary by viewModel.preSleepTimingSummary.collectAsStateWithLifecycle()
-                            val caffeineSleepResult by viewModel.caffeineSleepResult.collectAsStateWithLifecycle()
-
+                        val foodSleepResult by viewModel.foodSleepResult.collectAsStateWithLifecycle()
+                        val nutrientSleepCorrelations by viewModel.nutrientSleepCorrelations.collectAsStateWithLifecycle()
+                        val preSleepTimingSummary by viewModel.preSleepTimingSummary.collectAsStateWithLifecycle()
+                        val caffeineSleepResult by viewModel.caffeineSleepResult.collectAsStateWithLifecycle()
+                        val hasSleepContent =
+                            foodSleepResult != null ||
+                                preSleepTimingSummary != null ||
+                                caffeineSleepResult != null ||
+                                nutrientSleepCorrelations.isNotEmpty()
+                        AnalyticsLoadingIndicator(sleepLoading, hasSleepContent)
+                        if (hasSleepContent || !sleepLoading) {
                             FoodSleepCard(foodSleepResult)
                             Spacer(Modifier.height(12.dp))
                             NutrientSleepCard(nutrientSleepCorrelations)
@@ -869,6 +882,26 @@ fun InsightsScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
             }
+        }
+    }
+}
+
+/**
+ * A spinner only while nothing has loaded yet; a reload over existing content keeps it on
+ * screen under a thin progress bar so the tab does not shrink and clamp the scroll.
+ */
+@Composable
+private fun AnalyticsLoadingIndicator(
+    loading: Boolean,
+    hasContent: Boolean,
+) {
+    if (loading && !hasContent) {
+        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    } else {
+        Box(Modifier.fillMaxWidth().height(4.dp)) {
+            if (loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
 }

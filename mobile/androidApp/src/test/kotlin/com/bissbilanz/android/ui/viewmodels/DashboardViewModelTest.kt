@@ -353,6 +353,25 @@ class DashboardViewModelTest {
         }
 
     @Test
+    fun switchingDaysKeepsTheShownValuesUntilTheNewDaysCacheReadReturns() =
+        runTest {
+            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+            val yesterday = today.minus(1, DateTimeUnit.DAY).toString()
+            val yesterdayCache = CompletableDeferred<DayProperties?>()
+            coEvery { entryRepo.getDayProperties(any()) } coAnswers { awaitCancellation() }
+            coEvery { entryRepo.localDayProperties(today.toString()) } returns dayProperties(today.toString(), waterMl = 1500)
+            coEvery { entryRepo.localDayProperties(yesterday) } coAnswers { yesterdayCache.await() }
+            val viewModel = DashboardViewModel(entryRepo, goalsRepo, prefsRepo, refreshManager, errorReporter, SavedStateHandle())
+            assertEquals(1500, viewModel.waterMl.value)
+
+            viewModel.previousDay()
+            assertEquals(1500, viewModel.waterMl.value)
+
+            yesterdayCache.complete(dayProperties(yesterday, waterMl = 500))
+            assertEquals(500, viewModel.waterMl.value)
+        }
+
+    @Test
     fun aDraftSavedForTheDayJustLeftKeepsTheNewDaysServerAnswer() =
         runTest {
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())

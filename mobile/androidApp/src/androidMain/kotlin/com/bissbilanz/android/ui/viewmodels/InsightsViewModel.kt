@@ -177,6 +177,7 @@ class InsightsViewModel(
     private val tabLoadIds = mutableMapOf<Int, Int>()
     private var nextTabLoadId = 0
     private var dataJob: Job? = null
+    private var calendarJob: Job? = null
 
     private var cachedInsights: Pair<Pair<String, String>, InsightsBundle>? = null
     private var inFlightInsights: Pair<Pair<String, String>, Deferred<InsightsBundle?>>? = null
@@ -286,16 +287,19 @@ class InsightsViewModel(
     }
 
     fun loadCalendarStats() {
-        viewModelScope.launch {
-            val monthStr = "%04d-%02d".format(calendarYear.value, calendarMonth.value)
-            try {
-                _calendarDays.value = statsRepo.getCalendarStats(monthStr)
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
-                _calendarDays.value = emptyList()
+        calendarJob?.cancel()
+        calendarJob =
+            viewModelScope.launch {
+                val monthStr = "%04d-%02d".format(calendarYear.value, calendarMonth.value)
+                try {
+                    val days = statsRepo.getCalendarStats(monthStr)
+                    if (monthStr == "%04d-%02d".format(calendarYear.value, calendarMonth.value)) _calendarDays.value = days
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    errorReporter.captureException(e)
+                    _calendarDays.value = emptyList()
+                }
             }
-        }
     }
 
     fun loadSleepData() {
@@ -402,7 +406,7 @@ class InsightsViewModel(
                                 } catch (e: Exception) {
                                     if (e is kotlinx.coroutines.CancellationException) throw e
                                     errorReporter.captureException(e)
-                                    emptyList()
+                                    null
                                 }
                             }
                         val dailyStatsDeferred =
@@ -412,7 +416,7 @@ class InsightsViewModel(
                                 } catch (e: Exception) {
                                     if (e is kotlinx.coroutines.CancellationException) throw e
                                     errorReporter.captureException(e)
-                                    emptyList()
+                                    null
                                 }
                             }
                         val mealBreakdownDeferred =
@@ -423,7 +427,7 @@ class InsightsViewModel(
                                 } catch (e: Exception) {
                                     if (e is kotlinx.coroutines.CancellationException) throw e
                                     errorReporter.captureException(e)
-                                    emptyList()
+                                    null
                                 }
                             }
                         val goalsDeferred =
@@ -441,9 +445,9 @@ class InsightsViewModel(
                         _weeklyStats.value = weeklyDeferred.await() ?: _weeklyStats.value
                         _monthlyStats.value = monthlyDeferred.await() ?: _monthlyStats.value
                         _streaks.value = streaksDeferred.await() ?: _streaks.value
-                        _topFoods.value = topFoodsDeferred.await()
-                        _dailyStats.value = dailyStatsDeferred.await()
-                        _mealBreakdown.value = mealBreakdownDeferred.await()
+                        _topFoods.value = topFoodsDeferred.await() ?: _topFoods.value
+                        _dailyStats.value = dailyStatsDeferred.await() ?: _dailyStats.value
+                        _mealBreakdown.value = mealBreakdownDeferred.await() ?: _mealBreakdown.value
                         goalsDeferred.await()
                     }
                 } catch (e: Exception) {
