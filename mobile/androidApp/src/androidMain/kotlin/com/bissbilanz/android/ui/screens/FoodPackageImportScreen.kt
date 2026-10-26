@@ -842,7 +842,7 @@ private fun PackageThumbnail(
     name: String,
 ) {
     if (imageUrl == null) return
-    val modifier = Modifier.size(40.dp).clip(RoundedCornerShape(6.dp))
+    val modifier = Modifier.size(Dimens.ThumbList).clip(MaterialTheme.shapes.small)
     if (imageUrl.startsWith("data:")) {
         val bitmap =
             remember(imageUrl) {

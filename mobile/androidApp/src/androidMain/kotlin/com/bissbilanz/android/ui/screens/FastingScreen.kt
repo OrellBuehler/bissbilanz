@@ -30,7 +30,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -310,7 +309,7 @@ private fun ActiveFastSection(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     formatElapsed(elapsed),
-                    fontSize = 38.sp,
+                    style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(

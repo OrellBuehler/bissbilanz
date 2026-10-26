@@ -65,7 +65,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
@@ -426,7 +425,7 @@ private fun StepPage(
         }
         Text(
             step.text,
-            style = MaterialTheme.typography.headlineSmall.copy(fontSize = 26.sp, lineHeight = 38.sp),
+            style = MaterialTheme.typography.headlineMedium,
         )
     }
 }

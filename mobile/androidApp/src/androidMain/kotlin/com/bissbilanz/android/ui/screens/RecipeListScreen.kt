@@ -4,13 +4,13 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -251,8 +251,8 @@ fun RecipeListItem(
                     contentDescription = recipe.name,
                     modifier =
                         Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(8.dp)),
+                            .size(Dimens.ThumbCard)
+                            .clip(MaterialTheme.shapes.small),
                 )
                 Spacer(modifier = Modifier.width(12.dp))
             }

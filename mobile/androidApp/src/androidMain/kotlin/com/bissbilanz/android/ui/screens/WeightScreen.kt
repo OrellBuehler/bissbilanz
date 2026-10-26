@@ -4,7 +4,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -39,11 +39,11 @@ import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.WeightTrendChart
 import com.bissbilanz.android.ui.components.linearRegression
-import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.ProjectionPurple
 import com.bissbilanz.android.ui.theme.TrendGreen
 import com.bissbilanz.android.ui.theme.WeightBlue
+import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
@@ -514,7 +514,7 @@ private fun WeightStatsRow(
     val delta = latest.weightKg - first.weightKg
     val deltaColor =
         when {
-            delta > 0 -> CarbsOrange
+            delta > 0 -> MaterialTheme.colorScheme.error
             delta < 0 -> TrendGreen
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         }
@@ -525,9 +525,9 @@ private fun WeightStatsRow(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = CircleShape,
             color = WeightBlue.copy(alpha = 0.1f),
-            contentColor = WeightBlue,
+            contentColor = WeightBlue.macroTextTone(),
         ) {
             Text(
                 stringResource(R.string.weight_kg_value, latest.weightKg.formatDecimal1()),
@@ -539,9 +539,9 @@ private fun WeightStatsRow(
 
         latest.movingAvg?.let { avg ->
             Surface(
-                shape = RoundedCornerShape(20.dp),
+                shape = CircleShape,
                 color = TrendGreen.copy(alpha = 0.1f),
-                contentColor = TrendGreen,
+                contentColor = TrendGreen.macroTextTone(),
             ) {
                 Text(
                     stringResource(R.string.weight_stats_trend, avg.formatDecimal1()),
@@ -553,9 +553,9 @@ private fun WeightStatsRow(
         }
 
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = CircleShape,
             color = deltaColor.copy(alpha = 0.1f),
-            contentColor = deltaColor,
+            contentColor = deltaColor.macroTextTone(),
         ) {
             Text(
                 stringResource(R.string.weight_stats_delta, "$deltaSign${delta.formatDecimal1()}"),
@@ -584,9 +584,9 @@ private fun WeightStatsRow(
 
             if (projectedWeight != null) {
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = CircleShape,
                     color = ProjectionPurple.copy(alpha = 0.1f),
-                    contentColor = ProjectionPurple,
+                    contentColor = ProjectionPurple.macroTextTone(),
                 ) {
                     Text(
                         stringResource(R.string.weight_stats_projected, projectedWeight.formatDecimal1()),

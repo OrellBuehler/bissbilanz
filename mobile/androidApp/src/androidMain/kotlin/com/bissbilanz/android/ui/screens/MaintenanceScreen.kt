@@ -273,7 +273,7 @@ fun MaintenanceScreen(navController: NavController) {
                             Card(
                                 colors =
                                     CardDefaults.cardColors(
-                                        containerColor = FatYellow.copy(alpha = 0.15f),
+                                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                                     ),
                             ) {
                                 Text(

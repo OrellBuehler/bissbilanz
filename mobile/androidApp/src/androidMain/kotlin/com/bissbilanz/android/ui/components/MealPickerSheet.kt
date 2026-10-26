@@ -3,12 +3,12 @@ package com.bissbilanz.android.ui.components
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -148,8 +148,8 @@ fun MealPickerSheet(
                         contentDescription = null,
                         modifier =
                             Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(10.dp)),
+                                .size(Dimens.ThumbCard)
+                                .clip(MaterialTheme.shapes.small),
                     )
                 }
                 Text(

@@ -86,6 +86,8 @@ fun WeightTrendChart(
     if (trendData.isEmpty()) return
 
     val density = LocalDensity.current
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val dotFill = MaterialTheme.colorScheme.surface
     val labelSizeSp = 10.sp
     val labelSizePx = with(density) { labelSizeSp.toPx() }
 
@@ -246,7 +248,7 @@ fun WeightTrendChart(
                     textPaint,
                 )
                 drawLine(
-                    color = Color.Gray.copy(alpha = 0.15f),
+                    color = gridColor.copy(alpha = 0.5f),
                     start = Offset(leftPadding, y),
                     end = Offset(size.width - rightPadding, y),
                     strokeWidth = 1f,
@@ -320,7 +322,7 @@ fun WeightTrendChart(
                 val sel = selectedPoint
                 if (sel != null) {
                     drawLine(
-                        color = Color.Gray.copy(alpha = 0.5f),
+                        color = gridColor,
                         start = Offset(sel.canvasOffset.x, topPadding),
                         end = Offset(sel.canvasOffset.x, topPadding + chartHeight),
                         strokeWidth = 1f,
@@ -332,7 +334,7 @@ fun WeightTrendChart(
                         center = sel.canvasOffset,
                     )
                     drawCircle(
-                        color = Color.White,
+                        color = dotFill,
                         radius = 3f,
                         center = sel.canvasOffset,
                     )

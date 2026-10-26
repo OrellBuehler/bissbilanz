@@ -297,7 +297,7 @@ fun CalendarHeatmap(
             Spacer(modifier = Modifier.width(12.dp))
             LegendDot(color = CaloriesBlue, label = stringResource(R.string.calendar_heatmap_under))
             Spacer(modifier = Modifier.width(12.dp))
-            LegendDot(color = Color.Gray.copy(alpha = 0.3f), label = stringResource(R.string.chart_no_data))
+            LegendDot(color = MaterialTheme.colorScheme.outlineVariant, label = stringResource(R.string.chart_no_data))
         }
     }
 }

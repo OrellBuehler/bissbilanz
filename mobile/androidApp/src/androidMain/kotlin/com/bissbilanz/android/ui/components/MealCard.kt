@@ -1,10 +1,10 @@
 package com.bissbilanz.android.ui.components
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.model.Entry
 import com.bissbilanz.util.formatAsInt
 import com.bissbilanz.util.resolvedCalories
@@ -110,8 +111,8 @@ fun MealCard(
                                 contentDescription = null,
                                 modifier =
                                     Modifier
-                                        .size(28.dp)
-                                        .clip(RoundedCornerShape(6.dp)),
+                                        .size(Dimens.ThumbCompact)
+                                        .clip(MaterialTheme.shapes.small),
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                         }

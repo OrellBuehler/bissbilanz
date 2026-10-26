@@ -28,8 +28,6 @@ import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.Dimens
-import com.bissbilanz.android.ui.theme.FiberGreen
-import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.android.util.formatShortDate
 import com.bissbilanz.model.Supplement
@@ -401,7 +399,7 @@ private fun HistorySupplementRow(
             Icon(
                 imageVector = if (taken) Icons.Default.Check else Icons.Default.Close,
                 contentDescription = stringResource(if (taken) R.string.supplement_history_taken else R.string.supplement_history_missed),
-                tint = if (taken) FiberGreen else ProteinRed,
+                tint = if (taken) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
                 modifier = Modifier.size(18.dp),
             )
             Spacer(modifier = Modifier.width(8.dp))

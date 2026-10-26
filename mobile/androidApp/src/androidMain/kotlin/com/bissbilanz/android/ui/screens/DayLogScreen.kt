@@ -488,7 +488,11 @@ fun SwipeToDismissEntry(
                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                     )
                 } else {
-                    Icon(Icons.Default.Delete, stringResource(R.string.daylog_delete_entry), tint = MaterialTheme.colorScheme.error)
+                    Icon(
+                        Icons.Default.Delete,
+                        stringResource(R.string.daylog_delete_entry),
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                    )
                 }
             }
         },

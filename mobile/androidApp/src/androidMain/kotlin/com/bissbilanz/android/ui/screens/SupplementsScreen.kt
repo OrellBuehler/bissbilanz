@@ -36,10 +36,8 @@ import com.bissbilanz.android.ui.components.SupplementEditSheet
 import com.bissbilanz.android.ui.components.scheduleDisplayName
 import com.bissbilanz.android.ui.components.timeOfDayDisplayName
 import com.bissbilanz.android.ui.theme.Dimens
-import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.Motion
-import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.repository.SupplementRepository
@@ -214,7 +212,7 @@ fun SupplementsScreen(navController: NavController) {
                                 LinearProgressIndicator(
                                     progress = { animatedProgress },
                                     modifier = Modifier.fillMaxWidth(),
-                                    color = FiberGreen,
+                                    color = MaterialTheme.colorScheme.tertiary,
                                 )
                             }
                             Spacer(modifier = Modifier.height(8.dp))
@@ -306,7 +304,7 @@ fun SupplementChecklistItem(
 ) {
     val defaultCardColor = CardDefaults.cardColors().containerColor
     val cardColor by animateColorAsState(
-        targetValue = if (isTaken) FiberGreen.copy(alpha = 0.15f) else defaultCardColor,
+        targetValue = if (isTaken) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f) else defaultCardColor,
         animationSpec = spring(dampingRatio = Motion.SNAP_DAMPING, stiffness = Motion.SNAP_STIFFNESS),
         label = "supp-card",
     )
@@ -368,7 +366,7 @@ fun SupplementChecklistItem(
                         Icon(
                             Icons.Default.Check,
                             stringResource(R.string.supplements_taken),
-                            tint = FiberGreen.macroTextTone(),
+                            tint = MaterialTheme.colorScheme.tertiary,
                             modifier =
                                 androidx.compose.ui.Modifier
                                     .align(androidx.compose.ui.Alignment.CenterVertically),

@@ -251,7 +251,7 @@ private fun QueuedUploadCard(
                     AsyncImage(
                         model = File(path),
                         contentDescription = null,
-                        modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
+                        modifier = Modifier.size(Dimens.ThumbCard).clip(MaterialTheme.shapes.small),
                         contentScale = ContentScale.Crop,
                     )
                     Spacer(modifier = Modifier.width(12.dp))
@@ -424,7 +424,7 @@ private fun AiTaskListItem(
                 Spacer(modifier = Modifier.height(8.dp))
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = MaterialTheme.shapes.small,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
