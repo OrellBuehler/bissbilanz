@@ -12,6 +12,12 @@ import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
 
 /**
+ * Whether a row for this entry keeps room for a thumbnail even before its URL resolves:
+ * the lookup is asynchronous, so a row that makes room only once it arrives shifts its text.
+ */
+fun Entry.reservesImageSlot(): Boolean = foodId != null || recipeId != null
+
+/**
  * The image URL of the food or recipe a log entry points at, or null.
  *
  * `/api/entries` carries the resolved image flat on the row; `Entry.food`/`Entry.recipe`
