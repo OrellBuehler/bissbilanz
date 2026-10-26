@@ -127,7 +127,12 @@ fun DashboardScreen(navController: NavController) {
     // on screen, so "today" follows the calendar instead of turning into yesterday.
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(lifecycleOwner) {
+        var firstResume = true
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            // Entries logged elsewhere (web, MCP, another device) only show up after a
+            // refresh; the first resume is the initial load the view model already did.
+            if (!firstResume) viewModel.loadData()
+            firstResume = false
             while (true) {
                 viewModel.rollOverToToday()
                 delay(millisUntilNextDay())
