@@ -13,6 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.bissbilanz.android.MainActivity
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.api.generated.model.AiTask
 
 /**
@@ -52,12 +53,12 @@ object AiTaskNotifier {
         for (task in tasks) {
             val body =
                 task.resultSummary?.takeIf { it.isNotBlank() }
-                    ?: context.getString(R.string.ai_tasks_notification_body_fallback)
+                    ?: AppLanguage.localized(context).getString(R.string.ai_tasks_notification_body_fallback)
             val notification =
                 NotificationCompat
                     .Builder(context, CHANNEL_ID)
                     .setSmallIcon(R.drawable.ic_stat_ai_task)
-                    .setContentTitle(context.getString(R.string.ai_tasks_notification_title))
+                    .setContentTitle(AppLanguage.localized(context).getString(R.string.ai_tasks_notification_title))
                     .setContentText(body)
                     // The assistant's reason is prose and routinely longer than one line.
                     .setStyle(NotificationCompat.BigTextStyle().bigText(body))
@@ -89,12 +90,12 @@ object AiTaskNotifier {
         ensureChannel(context)
         val body =
             description?.takeIf { it.isNotBlank() }
-                ?: context.getString(R.string.ai_tasks_upload_failed_body)
+                ?: AppLanguage.localized(context).getString(R.string.ai_tasks_upload_failed_body)
         val notification =
             NotificationCompat
                 .Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_stat_ai_task)
-                .setContentTitle(context.getString(R.string.ai_tasks_upload_failed_title))
+                .setContentTitle(AppLanguage.localized(context).getString(R.string.ai_tasks_upload_failed_title))
                 .setContentText(body)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(body))
                 .setAutoCancel(true)
@@ -109,7 +110,7 @@ object AiTaskNotifier {
         NotificationCompat
             .Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_ai_task)
-            .setContentTitle(context.getString(R.string.ai_tasks_notification_summary))
+            .setContentTitle(AppLanguage.localized(context).getString(R.string.ai_tasks_notification_summary))
             .setGroup(GROUP_KEY)
             .setGroupSummary(true)
             .setAutoCancel(true)
@@ -149,16 +150,15 @@ object AiTaskNotifier {
 
     private fun ensureChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
-        if (manager.getNotificationChannel(CHANNEL_ID) != null) return
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                context.getString(R.string.ai_tasks_notification_channel),
+                AppLanguage.localized(context).getString(R.string.ai_tasks_notification_channel),
                 // Worth a sound — the meal did not get logged — but not worth taking
                 // over the screen, which IMPORTANCE_HIGH would do.
                 NotificationManager.IMPORTANCE_DEFAULT,
             ).apply {
-                description = context.getString(R.string.ai_tasks_notification_channel_desc)
+                description = AppLanguage.localized(context).getString(R.string.ai_tasks_notification_channel_desc)
                 setShowBadge(true)
             },
         )

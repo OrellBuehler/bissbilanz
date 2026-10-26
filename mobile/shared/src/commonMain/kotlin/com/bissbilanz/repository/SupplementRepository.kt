@@ -69,7 +69,7 @@ class SupplementRepository(
     suspend fun refresh() {
         if (appModeManager.isLocal) return
         val supplements = api.getSupplements()
-        withContext(Dispatchers.IO) { cacheSupplements(supplements) }
+        cacheSupplements(supplements)
     }
 
     suspend fun createSupplement(supplement: SupplementCreate): Supplement {
@@ -298,7 +298,7 @@ class SupplementRepository(
         }
         return try {
             val all = api.getAllSupplements().supplements
-            withContext(Dispatchers.IO) { cacheSupplements(all, includeInactive = true) }
+            cacheSupplements(all, includeInactive = true)
             all
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -323,22 +323,47 @@ class SupplementRepository(
         errorReporter.runHook { onSupplementsChanged?.invoke() }
     }
 
-    private fun cacheSupplements(
+    private suspend fun cacheSupplements(
         supplements: List<Supplement>,
         includeInactive: Boolean = false,
     ) {
-        db.userDataDatabaseQueries.transaction {
-            if (includeInactive) {
-                db.userDataDatabaseQueries.deleteAllSupplements()
+        // Keep rows with an un-uploaded write: optimistic temp-id creates and rows carrying
+        // a queued edit must not be reverted to the stale server copy, and a queued delete
+        // must not be resurrected by it. A temp row that is no longer pending was already
+        // swapped for its server record.
+        val pendingIds = pendingSupplementIds()
+        val queries = db.userDataDatabaseQueries
+        withContext(Dispatchers.IO) {
+            queries.transaction {
+                if (includeInactive) {
+                    queries
+                        .selectAllSupplements()
+                        .executeAsList()
+                        .filter { it.id !in pendingIds }
+                        .forEach { queries.deleteSupplement(it.id) }
+                }
+                supplements.forEach { supplement -> if (supplement.id !in pendingIds) cacheSupplement(supplement) }
             }
-            supplements.forEach { supplement -> cacheSupplement(supplement) }
+            // SyncMeta lives in the cache database; written after the user-data commit.
+            cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
+                entityType = "supplements",
+                lastSyncedAt = Clock.System.now().toString(),
+            )
         }
-        // SyncMeta lives in the cache database; written after the user-data commit.
-        cacheDb.bissbilanzDatabaseQueries.upsertSyncMeta(
-            entityType = "supplements",
-            lastSyncedAt = Clock.System.now().toString(),
-        )
     }
+
+    /** Supplement ids with an un-uploaded (queued or in-flight) create, edit or delete. */
+    private suspend fun pendingSupplementIds(): Set<String> =
+        syncQueue
+            .all()
+            .asSequence()
+            .map { it.operation }
+            .filter {
+                it is SyncOperation.CreateSupplement ||
+                    it is SyncOperation.UpdateSupplement ||
+                    it is SyncOperation.DeleteSupplement
+            }.mapNotNull { it.affectedId }
+            .toSet()
 
     private fun supplementCreateToSupplement(
         supplement: SupplementCreate,

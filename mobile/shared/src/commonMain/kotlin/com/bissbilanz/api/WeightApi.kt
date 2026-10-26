@@ -8,6 +8,7 @@ import com.bissbilanz.api.generated.model.WeightLatestResponse
 import com.bissbilanz.api.generated.model.WeightTrendEntry
 import com.bissbilanz.api.generated.model.WeightTrendResponse
 import com.bissbilanz.api.generated.model.WeightUpdate
+import com.bissbilanz.util.encodePartialUpdate
 import io.ktor.client.request.*
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
@@ -37,10 +38,12 @@ interface WeightApi : ApiTransport {
         entry: WeightUpdate,
         idempotencyKey: String? = null,
         clientEditedAt: String? = null,
+        clearedKeys: Collection<String> = emptyList(),
     ): WeightEntry {
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
-        val response: WeightEntryResponse = patch("/api/weight/$id", entry, key, editedAt)
+        val response: WeightEntryResponse =
+            patchRawJson("/api/weight/$id", json.encodePartialUpdate(entry, clearedKeys).toString(), key, editedAt)
         return response.entry
     }
 

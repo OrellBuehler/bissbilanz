@@ -365,10 +365,10 @@ SELECT COUNT(*) FROM CachedRecipeLabel;
 
 -- Supplements
 selectAllSupplements:
-SELECT * FROM CachedSupplement ORDER BY sortOrder;
+SELECT * FROM CachedSupplement ORDER BY sortOrder, name;
 
 selectActiveSupplements:
-SELECT * FROM CachedSupplement WHERE isActive = 1 ORDER BY sortOrder;
+SELECT * FROM CachedSupplement WHERE isActive = 1 ORDER BY sortOrder, name;
 
 selectSupplementById:
 SELECT * FROM CachedSupplement WHERE id = ?;

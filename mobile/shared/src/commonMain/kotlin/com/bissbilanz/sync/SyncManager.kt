@@ -267,8 +267,18 @@ class SyncManager(
                             continue
                         }
                         // Nothing will ever resolve this `temp_` id: the create it
-                        // depended on is gone (the user discarded it). Park rather than
-                        // delete — the user's change stays visible until they decide.
+                        // depended on is gone (the user discarded it). A log entry can
+                        // still be kept as a quick entry from the cached food or recipe;
+                        // anything else is parked rather than deleted — the user's change
+                        // stays visible until they decide.
+                        val recovered = (op as? SyncOperation.CreateEntry)?.let { recoverAsQuickEntry(req.id, it) }
+                        if (recovered != null) {
+                            addConflict("\"$recovered\" was never created, so its log entry was saved as a quick entry.")
+                            sawConflict = true
+                            syncQueue.setNextAttemptAt(req.id, Clock.System.now().toEpochMilliseconds())
+                            syncQueue.releaseForRetry(req.id)
+                            continue
+                        }
                         parkFailed(
                             req,
                             "the food or recipe it depended on was never created",
@@ -343,7 +353,7 @@ class SyncManager(
 
                         // 409 without header → real duplicate/validation conflict; park
                         e.statusCode == 409 -> {
-                            parkFailed(req, "HTTP ${e.statusCode}")
+                            parkFailed(req, ParkReason.forConflict(e.responseBody, json))
                         }
 
                         // 401 is the session, not this change: treat it like the auth-expired
@@ -583,6 +593,7 @@ class SyncManager(
                     json.decodeFromString<WeightUpdate>(op.body),
                     idempotencyKey,
                     clientEditedAt,
+                    op.clearedKeys,
                 )
             }
 
@@ -680,6 +691,7 @@ class SyncManager(
                     json.decodeFromString<SleepUpdate>(op.body),
                     idempotencyKey,
                     clientEditedAt,
+                    op.clearedKeys,
                 )
             }
 
@@ -843,7 +855,8 @@ class SyncManager(
                 val edited = json.decodeOrNull<WeightCreate>(currentBody) ?: return emptyList()
                 if (edited == sent) return emptyList()
                 val update = WeightUpdate(weightKg = edited.weightKg, entryDate = edited.entryDate, notes = edited.notes)
-                listOf(SyncOperation.UpdateWeight(serverId, json.encodeToString(update)))
+                val cleared = if (sent.notes != null && edited.notes == null) listOf("notes") else emptyList()
+                listOf(SyncOperation.UpdateWeight(serverId, json.encodeToString(update), cleared))
             }
 
             is SyncOperation.CreateSleep -> {
@@ -860,7 +873,15 @@ class SyncManager(
                         wakeUps = edited.wakeUps,
                         notes = edited.notes,
                     )
-                listOf(SyncOperation.UpdateSleep(serverId, json.encodeToString(update)))
+                val cleared =
+                    listOf(
+                        "bedtime" to (sent.bedtime to edited.bedtime),
+                        "wakeTime" to (sent.wakeTime to edited.wakeTime),
+                        "wakeUps" to (sent.wakeUps to edited.wakeUps),
+                        "notes" to (sent.notes to edited.notes),
+                    ).filter { (_, values) -> values.first != null && values.second == null }
+                        .map { it.first }
+                listOf(SyncOperation.UpdateSleep(serverId, json.encodeToString(update), cleared))
             }
 
             is SyncOperation.CreateSupplement -> {
@@ -1266,7 +1287,9 @@ class SyncManager(
         reason: String,
     ) {
         syncQueue.park(req.id, reason)
-        addError("Could not sync ${req.operation.description} ($reason). It was kept so you can retry or discard it.")
+        addError(
+            "Could not sync ${req.operation.description} (${ParkReason.describe(reason)}). It was kept so you can retry or discard it.",
+        )
     }
 
     /**
@@ -1289,6 +1312,7 @@ class SyncManager(
     /** Deletes a parked change (or all of them, when [id] is null) on the user's say-so. */
     suspend fun discardParked(id: Long? = null) {
         val parked = syncQueue.all().filter { it.failedAt != null && (id == null || it.id == id) }
+        recoverEntriesOfDiscardedCreates(parked)
         syncQueue.discardParked(id)
         // A discarded create never reaches the server, so its optimistic `temp_` row would
         // otherwise linger: refreshes deliberately keep every temp-id row.
@@ -1301,6 +1325,122 @@ class SyncManager(
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
         }
+    }
+
+    /**
+     * Discarding a rejected food or recipe create would strand the log entries queued
+     * against its `temp_` id (they would park as "never created"). Each of those is turned
+     * into a quick entry from the cached food or recipe instead and put back in line.
+     */
+    private suspend fun recoverEntriesOfDiscardedCreates(discarded: List<QueuedRequest>) {
+        val discardedIds = discarded.map { it.id }.toSet()
+        val tempIds =
+            discarded
+                .mapNotNull {
+                    when (val op = it.operation) {
+                        is SyncOperation.CreateFood -> op.localId
+                        is SyncOperation.CreateRecipe -> op.localId
+                        else -> null
+                    }
+                }.filter { it.isTempId() }
+                .toSet()
+        if (tempIds.isEmpty()) return
+        for (dependent in syncQueue.all()) {
+            val op = dependent.operation as? SyncOperation.CreateEntry ?: continue
+            if (dependent.id in discardedIds) continue
+            val body = json.decodeOrNull<EntryCreate>(op.body) ?: continue
+            if (body.foodId !in tempIds && body.recipeId !in tempIds) continue
+            if (recoverAsQuickEntry(dependent.id, op) == null) continue
+            if (dependent.failedAt != null) {
+                syncQueue.unpark(dependent.id)
+            } else {
+                syncQueue.setNextAttemptAt(dependent.id, Clock.System.now().toEpochMilliseconds())
+            }
+        }
+    }
+
+    private data class QuickMacros(
+        val name: String,
+        val calories: Double,
+        val protein: Double,
+        val carbs: Double,
+        val fat: Double,
+        val fiber: Double,
+    )
+
+    /** Per-serving name and macros of the cached food or recipe the `temp_` reference in [body] points at. */
+    private fun cachedQuickMacros(body: EntryCreate): QuickMacros? {
+        val queries = db.userDataDatabaseQueries
+        body.foodId?.takeIf { it.isTempId() }?.let { id ->
+            queries
+                .selectFoodById(id)
+                .executeAsOneOrNull()
+                ?.let { json.decodeOrNull<Food>(it.jsonData) }
+                ?.let { return QuickMacros(it.name, it.calories, it.protein, it.carbs, it.fat, it.fiber) }
+        }
+        body.recipeId?.takeIf { it.isTempId() }?.let { id ->
+            queries
+                .selectRecipeById(id)
+                .executeAsOneOrNull()
+                ?.let { json.decodeOrNull<RecipeDetail>(it.jsonData) }
+                ?.let { return QuickMacros(it.name, it.calories, it.protein, it.carbs, it.fat, it.fiber) }
+        }
+        return null
+    }
+
+    /**
+     * Rewrites the queued create [op] (queue row [queueId]) so it logs a quick entry with
+     * the cached food's or recipe's name and per-serving macros (the server multiplies by
+     * the servings, which stay), and does the same to its optimistic local row. Returns the
+     * entry's name, or null when no cached food or recipe is left to build it from.
+     */
+    private suspend fun recoverAsQuickEntry(
+        queueId: Long,
+        op: SyncOperation.CreateEntry,
+    ): String? {
+        val body = json.decodeOrNull<EntryCreate>(op.body) ?: return null
+        val macros = cachedQuickMacros(body) ?: return null
+        val quick =
+            body.copy(
+                foodId = null,
+                recipeId = null,
+                quickName = macros.name,
+                quickCalories = macros.calories,
+                quickProtein = macros.protein,
+                quickCarbs = macros.carbs,
+                quickFat = macros.fat,
+                quickFiber = macros.fiber,
+            )
+        syncQueue.replaceOperation(queueId, op.copy(body = json.encodeToString(quick)))
+        val localId = op.localId ?: return macros.name
+        db.userDataDatabaseQueries
+            .selectEntryById(localId)
+            .executeAsOneOrNull()
+            ?.let { json.decodeOrNull<LocalEntry>(it.jsonData) }
+            ?.let { local ->
+                db.userDataDatabaseQueries.cacheEntryRow(
+                    local.copy(
+                        foodId = null,
+                        recipeId = null,
+                        food = null,
+                        recipe = null,
+                        foodName = macros.name,
+                        quickName = macros.name,
+                        quickCalories = macros.calories,
+                        quickProtein = macros.protein,
+                        quickCarbs = macros.carbs,
+                        quickFat = macros.fat,
+                        quickFiber = macros.fiber,
+                        calories = local.calories ?: macros.calories,
+                        protein = local.protein ?: macros.protein,
+                        carbs = local.carbs ?: macros.carbs,
+                        fat = local.fat ?: macros.fat,
+                        fiber = local.fiber ?: macros.fiber,
+                    ),
+                    json,
+                )
+            }
+        return macros.name
     }
 
     private fun removeOptimisticRow(op: SyncOperation) {

@@ -255,4 +255,30 @@ class PreferencesRepositoryTest {
 
             assertEquals(ClaudeCapability(available = true), repository.claudeCapability.value)
         }
+
+    @Test
+    fun refreshKeepsAQueuedLocalEdit() =
+        runTest {
+            repository.updatePreferences(PreferencesUpdate(timeZone = "Europe/Zurich"))
+            coEvery { api.getPreferencesResponse() } returns
+                PreferencesResponse(TestFixtures.preferences().copy(timeZone = "UTC"), ClaudeCapability(available = true))
+
+            repository.refresh()
+
+            assertEquals("Europe/Zurich", cached()?.timeZone)
+            assertEquals(ClaudeCapability(available = true), repository.claudeCapability.value)
+        }
+
+    @Test
+    fun refreshAppliesServerPreferencesOnceTheQueueIsEmpty() =
+        runTest {
+            repository.updatePreferences(PreferencesUpdate(timeZone = "Europe/Zurich"))
+            syncQueue.clear()
+            coEvery { api.getPreferencesResponse() } returns
+                PreferencesResponse(TestFixtures.preferences().copy(timeZone = "UTC"))
+
+            repository.refresh()
+
+            assertEquals("UTC", cached()?.timeZone)
+        }
 }
