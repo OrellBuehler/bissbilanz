@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -285,7 +286,7 @@ fun InsightsScreen(
                                         modifier = Modifier.weight(1f),
                                     )
                                     Text(
-                                        stringResource(R.string.insights_days_count, dailyStats.size),
+                                        pluralStringResource(R.plurals.insights_days_count, dailyStats.size, dailyStats.size),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -1096,7 +1097,7 @@ private fun GoalAdherenceCard(
         }
         Spacer(modifier = Modifier.height(2.dp))
         Text(
-            stringResource(R.string.insights_days_with_entries, daysWithEntries),
+            pluralStringResource(R.plurals.insights_days_with_entries, daysWithEntries, daysWithEntries),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
