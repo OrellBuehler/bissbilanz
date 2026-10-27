@@ -26,7 +26,7 @@ appcompat = "1.8.0"
 lifecycle = "2.11.0"
 sentry-android = "8.60.0"
 sentry-gradle = "6.23.0"
-coil = "2.7.0"
+coil = "3.6.3"
 okhttp = "5.5.0"
 glance = "1.1.1"
 health-connect = "1.2.0-alpha06"
@@ -99,7 +99,8 @@ browser = { group = "androidx.browser", name = "browser", version.ref = "browser
 sentry-android = { group = "io.sentry", name = "sentry-android", version.ref = "sentry-android" }
 
 # Image Loading
-coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 
 # Widget
