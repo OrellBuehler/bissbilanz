@@ -278,7 +278,10 @@ describe('callClaude against the SDK boundary', () => {
 		expect(fetchMock).toHaveBeenCalledTimes(2);
 		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
 		expect(url).toContain('/v1/messages');
-		expect(new Headers(init.headers).get('x-api-key')).toBe(KEY);
+		const headers = new Headers(init.headers);
+		expect(headers.get('authorization')).toBe(`Bearer ${KEY}`);
+		expect(headers.get('x-api-key')).toBeNull();
+		expect(headers.get('anthropic-version')).toBe('2026-10-21');
 		const body = JSON.parse(String(init.body));
 		expect(body).toMatchObject({
 			model: 'claude-opus-5-5',
