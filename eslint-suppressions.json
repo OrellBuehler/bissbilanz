@@ -4,11 +4,6 @@
 			"count": 1
 		}
 	},
-	"src/lib/components/LanguageSwitcher.svelte": {
-		"@typescript-eslint/no-floating-promises": {
-			"count": 1
-		}
-	},
 	"src/lib/components/MacroSliders.svelte": {
 		"svelte/require-each-key": {
 			"count": 1
@@ -335,16 +330,6 @@
 			"count": 1
 		},
 		"svelte/no-at-html-tags": {
-			"count": 1
-		}
-	},
-	"src/lib/components/ui/resizable/resizable-pane-group.svelte": {
-		"no-useless-assignment": {
-			"count": 1
-		}
-	},
-	"src/lib/components/ui/sidebar/sidebar-trigger.svelte": {
-		"no-useless-assignment": {
 			"count": 1
 		}
 	},
