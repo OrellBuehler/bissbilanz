@@ -14,7 +14,7 @@
 	const handleChange = async (value: string) => {
 		if (value === currentLocale) return;
 		await savePreference('locale', value);
-		setLocale(value as 'en' | 'de');
+		void setLocale(value as 'en' | 'de');
 	};
 </script>
 
