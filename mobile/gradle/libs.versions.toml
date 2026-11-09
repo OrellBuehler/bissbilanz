@@ -1,5 +1,5 @@
 [versions]
-agp = "9.5.0"
+agp = "9.5.1"
 kotlin = "2.4.10"
 compose-bom = "2026.09.00"
 compose-navigation = "2.10.2"
@@ -24,8 +24,8 @@ browser = "1.10.0"
 activity-compose = "1.13.0"
 appcompat = "1.8.0"
 lifecycle = "2.11.0"
-sentry-android = "8.62.0"
-sentry-gradle = "6.25.0"
+sentry-android = "8.63.0"
+sentry-gradle = "6.26.0"
 coil = "3.6.3"
 okhttp = "5.5.1"
 glance = "1.1.1"
@@ -36,7 +36,7 @@ wear-watchface = "1.3.0"
 play-services-wearable = "20.0.1"
 robolectric = "4.17"
 reorderable = "3.1.0"
-guava = "33.7.2-android"
+guava = "33.8.0-android"
 
 [libraries]
 # Compose
