@@ -59,6 +59,7 @@ fun PlateauDetectionCard(result: PlateauResult) {
                 stringResource(R.string.insights_plateau_days),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
             )
             Text(
                 "${result.plateauDays}",
@@ -73,6 +74,7 @@ fun PlateauDetectionCard(result: PlateauResult) {
                     stringResource(R.string.insights_plateau_est_deficit),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
                 )
                 Text(
                     stringResource(R.string.insights_kcal_per_day, deficit.roundToInt()),

@@ -4,26 +4,34 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.CallMerge
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
+import com.bissbilanz.android.ui.components.ErrorState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.MergeConfirmDialog
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.viewmodels.FoodDuplicatesViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.model.FoodDuplicateFood
 import com.bissbilanz.model.FoodDuplicateGroup
 import com.bissbilanz.model.FoodDuplicateReason
@@ -41,19 +49,14 @@ fun FoodDuplicatesScreen(navController: NavController) {
     val groups by viewModel.groups.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val isMerging by viewModel.isMerging.collectAsStateWithLifecycle()
-    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
+    val loadFailed by viewModel.loadFailed.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val resources = LocalResources.current
 
     var resolvingGroup by remember { mutableStateOf<FoodDuplicateGroup?>(null) }
     var pendingMerge by remember { mutableStateOf<Pair<FoodDuplicateGroup, FoodDuplicateFood>?>(null) }
 
-    LaunchedEffect(snackbarMessageRes) {
-        snackbarMessageRes?.let { res ->
-            snackbarHostState.showSnackbar(resources.getString(res))
-            viewModel.clearSnackbar()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     resolvingGroup?.let { group ->
         GroupKeeperPickerDialog(
@@ -79,15 +82,15 @@ fun FoodDuplicatesScreen(navController: NavController) {
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.food_duplicates_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
-                    }
-                },
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
+                title = stringResource(R.string.food_duplicates_title),
+                onBack = { navController.popBackStack() },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -100,15 +103,27 @@ fun FoodDuplicatesScreen(navController: NavController) {
                         icon = Icons.Outlined.CloudOff,
                     )
                 isLoading -> LoadingScreen()
+                loadFailed ->
+                    ErrorState(
+                        message = stringResource(R.string.food_duplicates_load_failed),
+                        onRetry = { viewModel.load() },
+                    )
                 groups.isEmpty() ->
                     PullToRefreshWrapper(
                         onRefresh = { viewModel.load() },
                         modifier = Modifier.fillMaxSize(),
                     ) {
-                        EmptyState(
-                            message = stringResource(R.string.food_duplicates_empty),
-                            icon = Icons.Outlined.CheckCircle,
-                        )
+                        // Scrollable, or the pull gesture has nothing to grab.
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            item {
+                                Box(modifier = Modifier.fillParentMaxSize()) {
+                                    EmptyState(
+                                        message = stringResource(R.string.food_duplicates_empty),
+                                        icon = Icons.Outlined.CheckCircle,
+                                    )
+                                }
+                            }
+                        }
                     }
                 else ->
                     PullToRefreshWrapper(
@@ -129,6 +144,7 @@ fun FoodDuplicatesScreen(navController: NavController) {
                             items(groups, key = { it.reason.name + ":" + it.key }) { group ->
                                 DuplicateGroupCard(
                                     group = group,
+                                    enabled = !isMerging,
                                     onResolve = { resolvingGroup = group },
                                 )
                             }
@@ -142,6 +158,7 @@ fun FoodDuplicatesScreen(navController: NavController) {
 @Composable
 private fun DuplicateGroupCard(
     group: FoodDuplicateGroup,
+    enabled: Boolean,
     onResolve: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -161,9 +178,9 @@ private fun DuplicateGroupCard(
             }
             Spacer(modifier = Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                Button(onClick = onResolve) {
-                    Icon(Icons.AutoMirrored.Filled.CallMerge, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
+                Button(onClick = onResolve, enabled = enabled, contentPadding = ButtonDefaults.ButtonWithIconContentPadding) {
+                    Icon(Icons.AutoMirrored.Filled.CallMerge, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                     Text(stringResource(R.string.food_duplicates_resolve))
                 }
             }
@@ -188,17 +205,19 @@ private fun GroupKeeperPickerDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.food_merge_pick_keeper)) },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 group.foods.forEach { food ->
                     ListItem(
                         headlineContent = { Text(food.name) },
                         supportingContent = food.brand?.let { brand -> { Text(brand) } },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         modifier = Modifier.clickable { onSelected(food) },
                     )
                 }
             }
         },
-        confirmButton = {
+        confirmButton = {},
+        dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
         },
     )

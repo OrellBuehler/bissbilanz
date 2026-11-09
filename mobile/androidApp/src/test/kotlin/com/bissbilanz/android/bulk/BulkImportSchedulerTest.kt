@@ -28,6 +28,16 @@ class BulkImportSchedulerTest {
     ) = WorkInfo(id = UUID.randomUUID(), state = state, tags = emptySet(), outputData = output, progress = progress)
 
     @Test
+    fun cancelFindsThePackagesOfRunsThatHaveNotEnded() {
+        val tags = setOf(BulkImportScheduler.pathTag("/cache/a.pkg"), "other")
+        val waiting = WorkInfo(id = UUID.randomUUID(), state = WorkInfo.State.ENQUEUED, tags = tags)
+        val done =
+            WorkInfo(id = UUID.randomUUID(), state = WorkInfo.State.SUCCEEDED, tags = setOf(BulkImportScheduler.pathTag("/cache/b.pkg")))
+
+        assertEquals(listOf("/cache/a.pkg"), BulkImportScheduler.packagePaths(listOf(waiting, done)))
+    }
+
+    @Test
     fun nothingRunningMeansIdle() {
         assertEquals(BulkImportStatus.Idle, BulkImportScheduler.statusOf(null))
         assertEquals(BulkImportStatus.Idle, BulkImportScheduler.statusOf(info(WorkInfo.State.CANCELLED)))

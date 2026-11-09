@@ -32,8 +32,9 @@ sealed class MigrationUiState {
         val step: String,
     ) : MigrationUiState()
 
+    /** A null [message] means the server could not be reached; the screen words that itself. */
     data class Failed(
-        val message: String,
+        val message: String?,
     ) : MigrationUiState()
 }
 
@@ -61,9 +62,7 @@ class MigrationViewModel(
 
         data object Migrating : Phase()
 
-        data class PreflightFailed(
-            val message: String,
-        ) : Phase()
+        data object PreflightFailed : Phase()
     }
 
     private val phase = MutableStateFlow<Phase>(Phase.Deciding)
@@ -80,7 +79,7 @@ class MigrationViewModel(
                 }
 
                 is Phase.PreflightFailed -> {
-                    MigrationUiState.Failed(phase.message)
+                    MigrationUiState.Failed(null)
                 }
 
                 is Phase.Migrating -> {
@@ -125,7 +124,7 @@ class MigrationViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                phase.value = Phase.PreflightFailed(e.message ?: "Could not reach the server")
+                phase.value = Phase.PreflightFailed
             }
         }
     }

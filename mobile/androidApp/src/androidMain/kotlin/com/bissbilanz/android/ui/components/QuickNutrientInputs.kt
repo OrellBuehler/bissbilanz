@@ -12,8 +12,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.R
@@ -48,13 +49,13 @@ fun QuickNutrientInputs(
     val allowedKeys = visibleNutrientKeys?.takeIf { it.isNotEmpty() } ?: ALL_NUTRIENT_KEYS.toSet()
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        TextButton(onClick = { expanded = !expanded }) {
+        TextButton(onClick = { expanded = !expanded }, contentPadding = ButtonDefaults.TextButtonWithIconContentPadding) {
             Icon(
-                if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                Icons.Default.ExpandMore,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(ButtonDefaults.IconSize).rotate(if (expanded) 180f else 0f),
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
             Text(stringResource(R.string.quick_add_more_nutrients))
         }
         AnimatedVisibility(visible = expanded) {
@@ -78,9 +79,9 @@ fun QuickNutrientInputs(
                     }
                 }
                 Box {
-                    TextButton(onClick = { showNutrientPicker = true }) {
-                        Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
+                    TextButton(onClick = { showNutrientPicker = true }, contentPadding = ButtonDefaults.TextButtonWithIconContentPadding) {
+                        Icon(Icons.Default.Add, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                         Text(stringResource(R.string.food_form_add_nutrient))
                     }
                     DropdownMenu(

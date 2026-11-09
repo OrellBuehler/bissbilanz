@@ -9,6 +9,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -21,7 +22,10 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +41,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.aitasks.AiTaskUploadWorker
 import com.bissbilanz.android.aitasks.McpConnectionStore
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.util.createImageUri
 import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.android.util.hasPermission
@@ -103,7 +108,8 @@ fun AiMealSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val isEditing = task != null
 
-    val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(initialValue = null)
+    val preferencesFlow = remember(prefsRepo) { prefsRepo.preferences() }
+    val prefs by preferencesFlow.collectAsStateWithLifecycle(initialValue = null)
     val processorIsDevice = prefs?.effectiveAiTaskProcessor() == "device"
     val claudeCapability by prefsRepo.claudeCapability.collectAsStateWithLifecycle()
     val claudeEnabled = claudeProcessingEnabled(prefs, claudeCapability)
@@ -124,11 +130,12 @@ fun AiMealSheet(
     }
     val canProcess = processorIsDevice || claudeEnabled || mcpConnected
 
-    var description by remember(task?.id) { mutableStateOf(task?.description ?: "") }
-    var mealType by remember(task?.id) { mutableStateOf(if (task != null) task.mealType else mealTypes.first()) }
-    var mealMenuOpen by remember { mutableStateOf(false) }
-    var selectedDate by remember(task?.id) { mutableStateOf(task?.date ?: date) }
-    var showDatePicker by remember { mutableStateOf(false) }
+    // Saveable so rotation or process death keeps the draft; picked photos are
+    // bitmaps and too large for saved state, so only those have to be re-attached.
+    var description by rememberSaveable(task?.id) { mutableStateOf(task?.description ?: "") }
+    var mealType by rememberSaveable(task?.id) { mutableStateOf(if (task != null) task.mealType else mealTypes.first()) }
+    var selectedDate by rememberSaveable(task?.id) { mutableStateOf(task?.date ?: date) }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
     val initialEatenLocal =
         remember(task?.id) {
             task?.eatenAt?.let {
@@ -138,13 +145,15 @@ fun AiMealSheet(
     // Unset means "when I sent it" on creation, or "no specific time" on an edit: the
     // server stamps its own clock on a task for today and leaves a back-dated one to
     // the assistant.
-    var eatenHour by remember(task?.id) { mutableStateOf(initialEatenLocal?.hour) }
-    var eatenMinute by remember(task?.id) { mutableStateOf(initialEatenLocal?.minute) }
-    var showTimePicker by remember { mutableStateOf(false) }
+    var eatenHour by rememberSaveable(task?.id) { mutableStateOf(initialEatenLocal?.hour) }
+    var eatenMinute by rememberSaveable(task?.id) { mutableStateOf(initialEatenLocal?.minute) }
+    var showTimePicker by rememberSaveable { mutableStateOf(false) }
     val existingPhotoUrls =
-        remember(task?.id) { mutableStateListOf<String>().apply { task?.photoUrls?.let(::addAll) } }
+        rememberSaveable(task?.id, saver = listSaver(save = { it.toList() }, restore = { it.toMutableStateList() })) {
+            mutableStateListOf<String>().apply { task?.photoUrls?.let(::addAll) }
+        }
     val attached = remember(task?.id) { mutableStateListOf<Bitmap>() }
-    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var isSending by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var cameraPermanentlyDenied by remember { mutableStateOf(false) }
@@ -282,8 +291,8 @@ fun AiMealSheet(
                 Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 32.dp)
+                    .padding(horizontal = Dimens.SheetHorizontalPadding)
+                    .padding(bottom = Dimens.SheetBottomPadding)
                     .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -322,50 +331,26 @@ fun AiMealSheet(
             }
 
             val noSpecificMeal = stringResource(R.string.ai_task_meal_none)
-            ExposedDropdownMenuBox(
-                expanded = mealMenuOpen,
-                onExpandedChange = { mealMenuOpen = it },
-            ) {
-                OutlinedTextField(
-                    value = mealType?.let { mealTypeDisplayName(it) } ?: noSpecificMeal,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(stringResource(R.string.meal_picker_meal_label)) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = mealMenuOpen) },
-                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
-                )
-                ExposedDropdownMenu(expanded = mealMenuOpen, onDismissRequest = { mealMenuOpen = false }) {
-                    // Only an existing task can be edited into having no meal type; a new
-                    // task always gets one of the four defaults, same as before.
-                    if (isEditing) {
-                        DropdownMenuItem(
-                            text = { Text(noSpecificMeal) },
-                            onClick = {
-                                mealType = null
-                                mealMenuOpen = false
-                            },
-                        )
-                    }
-                    mealTypes.forEach { meal ->
-                        DropdownMenuItem(
-                            text = { Text(mealTypeDisplayName(meal)) },
-                            onClick = {
-                                mealType = meal
-                                mealMenuOpen = false
-                            },
-                        )
-                    }
-                }
-            }
+            ChoiceDropdown(
+                selectedLabel = mealType?.let { mealTypeDisplayName(it) } ?: noSpecificMeal,
+                // Only an existing task can be edited into having no meal type; a new
+                // task always gets one of the four defaults, same as before.
+                options =
+                    (if (isEditing) listOf<Pair<String, String?>>(noSpecificMeal to null) else emptyList()) +
+                        mealTypes.map { mealTypeDisplayName(it) to it },
+                onSelect = { mealType = it },
+                label = stringResource(R.string.meal_picker_meal_label),
+            )
 
             if (isEditing) {
                 Text(stringResource(R.string.ai_task_date_label), style = MaterialTheme.typography.labelLarge)
                 OutlinedButton(
                     onClick = { showDatePicker = true },
                     modifier = Modifier.fillMaxWidth(),
+                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                 ) {
-                    Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                     Text(
                         runCatching { LocalDate.parse(selectedDate) }.getOrNull()?.let { dayLabel(it) } ?: selectedDate,
                     )
@@ -388,9 +373,10 @@ fun AiMealSheet(
                 OutlinedButton(
                     onClick = { showTimePicker = true },
                     modifier = Modifier.weight(1f),
+                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                 ) {
-                    Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                     Text(formatTimeOfDay(eatenHour, eatenMinute))
                 }
                 if (eatenHour != null) {
@@ -438,12 +424,12 @@ fun AiMealSheet(
                             )
                             FilledTonalIconButton(
                                 onClick = { existingPhotoUrls.remove(url) },
-                                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(28.dp),
+                                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
                             ) {
                                 Icon(
                                     Icons.Default.Close,
                                     stringResource(R.string.ai_task_remove_photo),
-                                    modifier = Modifier.size(16.dp),
+                                    modifier = Modifier.size(20.dp),
                                 )
                             }
                         }
@@ -466,12 +452,12 @@ fun AiMealSheet(
                             )
                             FilledTonalIconButton(
                                 onClick = { attached.remove(bitmap) },
-                                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(28.dp),
+                                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
                             ) {
                                 Icon(
                                     Icons.Default.Close,
                                     stringResource(R.string.ai_task_remove_photo),
-                                    modifier = Modifier.size(16.dp),
+                                    modifier = Modifier.size(20.dp),
                                 )
                             }
                         }
@@ -488,9 +474,10 @@ fun AiMealSheet(
                             takePicture.launch(uri)
                         },
                         modifier = Modifier.weight(1f),
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                     ) {
-                        Icon(Icons.Outlined.PhotoCamera, null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(Icons.Outlined.PhotoCamera, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                         Text(stringResource(R.string.ai_task_photo_camera), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     OutlinedButton(
@@ -500,9 +487,10 @@ fun AiMealSheet(
                             )
                         },
                         modifier = Modifier.weight(1f),
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                     ) {
-                        Icon(Icons.Outlined.PhotoLibrary, null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(Icons.Outlined.PhotoLibrary, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                         Text(stringResource(R.string.ai_task_photo_gallery), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
@@ -534,12 +522,12 @@ fun AiMealSheet(
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            SheetActionRow {
                 OutlinedButton(
                     onClick = onDismiss,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                     enabled = !isSending,
-                ) { Text(stringResource(R.string.dialog_cancel)) }
+                ) { Text(stringResource(R.string.dialog_cancel), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 Button(
                     onClick = {
                         isSending = true
@@ -594,23 +582,29 @@ fun AiMealSheet(
                             }
                         }
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                     enabled = canSend && !isSending,
                 ) {
                     if (isSending) {
                         CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(if (isEditing) R.string.ai_task_saving else R.string.ai_task_sending))
+                        Text(
+                            stringResource(if (isEditing) R.string.ai_task_saving else R.string.ai_task_sending),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     } else {
                         Text(
                             stringResource(
                                 when {
-                                    isEditing -> R.string.weight_save
+                                    isEditing -> R.string.action_save
                                     claudeEnabled -> R.string.ai_task_send_to_claude
                                     processorIsDevice -> R.string.ai_task_send_device
                                     else -> R.string.ai_task_send
                                 },
                             ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }

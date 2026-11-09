@@ -31,6 +31,8 @@ class AccountDowngradeController(
     private val preferencesRepository: PreferencesRepository,
 ) {
     sealed interface State {
+        val isInProgress: Boolean get() = this == Syncing || this == Downloading || this == Deleting
+
         data object Idle : State
 
         data object Syncing : State

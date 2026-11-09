@@ -27,6 +27,13 @@ object PendingNavigation {
 
     private val pendingFoodQuery = MutableStateFlow<String?>(null)
 
+    /**
+     * The query [requestFoodSearch] queued, observed rather than read once: with Foods
+     * already open the single-top navigation keeps the same screen, which would never
+     * look again.
+     */
+    val foodQuery: StateFlow<String?> = pendingFoodQuery.asStateFlow()
+
     fun request(route: String) {
         _route.value = route
     }

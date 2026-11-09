@@ -1,7 +1,9 @@
 package com.bissbilanz.android.bulk
 
 import android.content.Context
+import android.os.Build
 import androidx.work.CoroutineWorker
+import androidx.work.WorkInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.bissbilanz.ErrorReporter
@@ -41,15 +43,19 @@ class BulkImportWorker(
         if (!File(path).isFile) return failure(KIND_UNREADABLE)
         val isLocal = koin.get<AppModeManager>().isLocal
         val userId = if (isLocal) null else jwtSubject(koin.get<AuthManager>().getAccessToken())
-        if (!isLocal && userId == null) return failure(KIND_SIGNED_OUT)
+        if (!isLocal && userId == null) {
+            IncomingPackageFiles.delete(path)
+            return failure(KIND_SIGNED_OUT)
+        }
         val foods = koin.get<FoodRepository>()
-        if (!isLocal) refreshMirror(foods, errorReporter)
+        val checkpoints = koin.get<BulkImportCheckpoints>()
         return try {
+            if (!isLocal) refreshMirror(foods, errorReporter)
             val preferences = koin.get<BulkUploadPreferences>()
             val runner =
                 BulkImportRunner(
                     importer = koin.get<BulkPackageImporter>(),
-                    checkpoints = koin.get<BulkImportCheckpoints>(),
+                    checkpoints = checkpoints,
                     onFoodsQueued = {
                         if (!preferences.paused.value) BulkUploadWorker.enqueue(applicationContext, preferences.wifiOnly.value)
                     },
@@ -70,9 +76,17 @@ class BulkImportWorker(
         } catch (e: FoodPackageException) {
             IncomingPackageFiles.delete(path)
             failure(e.kind.name)
+        } catch (e: CancellationException) {
+            // A system stop re-queues the job, which resumes from the file; a cancel by the user
+            // ends it for good. Below API 31 the two look alike, and the cache sweep drops the file.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && stopReason == WorkInfo.STOP_REASON_CANCELLED_BY_APP) {
+                checkpoints.clear(path)
+                IncomingPackageFiles.delete(path)
+            }
+            throw e
         } catch (e: Exception) {
-            if (e is CancellationException) throw e
             errorReporter.captureException(e)
+            IncomingPackageFiles.delete(path)
             failure(KIND_FAILED)
         }
     }

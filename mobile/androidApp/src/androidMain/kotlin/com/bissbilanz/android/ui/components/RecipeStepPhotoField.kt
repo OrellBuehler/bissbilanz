@@ -22,11 +22,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,13 +36,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
-import com.bissbilanz.android.images.FoodImageUploader
 import com.bissbilanz.android.util.createImageUri
 import com.bissbilanz.android.util.rememberCameraCaptureLauncher
 import com.bissbilanz.android.util.requireUprightBitmap
-import com.bissbilanz.android.util.toUploadBytes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -65,25 +66,47 @@ fun RecipeStepPhotoField(
     imageUrl: String?,
     onImageUrlChange: (String?) -> Unit,
     modifier: Modifier = Modifier,
+    onUploadingChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
-    val uploader: FoodImageUploader = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
 
     // The upload outlives the composition that started it; the newest callback sees the
     // steps as they are now, so text typed meanwhile is not overwritten.
     val currentOnImageUrlChange by rememberUpdatedState(onImageUrlChange)
-    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    val currentOnUploadingChange by rememberUpdatedState(onUploadingChange)
+    // Saveable: the camera app can outlive this process, and the result must still
+    // know where the photo went.
+    var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var reviewCandidate by remember { mutableStateOf<Bitmap?>(null) }
-    var isUploading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var readFailedFlag by remember { mutableStateOf(false) }
 
-    val uploadFailed = stringResource(R.string.recipe_edit_step_photo_failed)
-    val readFailed = stringResource(R.string.photo_read_failed)
+    // Same as FoodImageField: the upload runs in a view model, so rotating mid-upload
+    // neither cancels it nor drops the URL.
+    val (uploads, uploadKey) = rememberImageUpload()
+    val allUploads by uploads.uploads.collectAsStateWithLifecycle()
+    val upload = allUploads[uploadKey] ?: FoodImageUploadViewModel.Upload()
+    val uploadedUrl = upload.url
+    val isUploading = upload.isUploading
+
+    LaunchedEffect(isUploading) { currentOnUploadingChange(isUploading) }
+    LaunchedEffect(uploadedUrl) {
+        uploadedUrl?.let {
+            currentOnImageUrlChange(it)
+            uploads.consumeUploadedUrl(uploadKey)
+        }
+    }
+
+    val errorMessage =
+        when {
+            readFailedFlag -> stringResource(R.string.photo_read_failed)
+            upload.failed -> stringResource(R.string.recipe_edit_step_photo_failed)
+            else -> null
+        }
 
     fun load(uri: Uri) {
-        errorMessage = null
+        readFailedFlag = false
         scope.launch {
             try {
                 reviewCandidate = withContext(Dispatchers.IO) { requireUprightBitmap(context, uri) }
@@ -91,7 +114,7 @@ fun RecipeStepPhotoField(
                 throw e
             } catch (e: Exception) {
                 errorReporter.captureException(e)
-                errorMessage = readFailed
+                readFailedFlag = true
             }
         }
     }
@@ -101,25 +124,8 @@ fun RecipeStepPhotoField(
         transparent: Boolean,
     ) {
         reviewCandidate = null
-        isUploading = true
-        errorMessage = null
-        scope.launch {
-            try {
-                val encoded =
-                    withContext(Dispatchers.IO) {
-                        photo.toUploadBytes(STEP_MAX_DIMENSION, STEP_UPLOAD_QUALITY, transparent)
-                    }
-                currentOnImageUrlChange(
-                    uploader.store(encoded.bytes, purpose = RECIPE_STEP_PURPOSE, format = encoded.format),
-                )
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                errorReporter.captureException(e)
-                errorMessage = uploadFailed
-            }
-            isUploading = false
-        }
+        readFailedFlag = false
+        uploads.upload(uploadKey, photo, transparent, STEP_MAX_DIMENSION, STEP_UPLOAD_QUALITY, RECIPE_STEP_PURPOSE)
     }
 
     val pickMedia =

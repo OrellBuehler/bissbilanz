@@ -4,19 +4,24 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.theme.Dimens
+import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.model.MaintenanceResponse
 import com.bissbilanz.repository.AnalyticsRepository
 import com.bissbilanz.util.formatAsInt
@@ -65,15 +70,15 @@ fun MaintenanceScreen(navController: NavController) {
         }
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.maintenance_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
-                    }
-                },
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
+                title = stringResource(R.string.maintenance_title),
+                onBack = { navController.popBackStack() },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -155,8 +160,8 @@ fun MaintenanceScreen(navController: NavController) {
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Icon(Icons.Default.Calculate, stringResource(R.string.maintenance_calculate))
-                Spacer(modifier = Modifier.width(8.dp))
+                Icon(Icons.Default.Calculate, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                 Text(stringResource(R.string.maintenance_calculate))
             }
 
@@ -247,7 +252,7 @@ fun MaintenanceScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(8.dp))
                         MaintenanceRow(
                             stringResource(R.string.maintenance_period),
-                            stringResource(R.string.maintenance_period_range, m.startDate, m.endDate),
+                            stringResource(R.string.maintenance_period_range, formatIsoDate(m.startDate), formatIsoDate(m.endDate)),
                         )
                         MaintenanceRow(stringResource(R.string.maintenance_total_days), "${m.totalDays}")
                         MaintenanceRow(stringResource(R.string.maintenance_weight_entries), "${m.weightEntries}")
@@ -270,12 +275,12 @@ fun MaintenanceScreen(navController: NavController) {
                             Card(
                                 colors =
                                     CardDefaults.cardColors(
-                                        containerColor = FatYellow.copy(alpha = 0.15f),
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                     ),
                             ) {
                                 Text(
                                     stringResource(R.string.maintenance_low_coverage_warning, (m.coverage * 100).toInt()),
-                                    modifier = Modifier.padding(12.dp),
+                                    modifier = Modifier.padding(Dimens.CardPadding),
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }

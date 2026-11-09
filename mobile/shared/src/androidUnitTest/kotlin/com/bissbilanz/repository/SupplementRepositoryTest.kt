@@ -8,6 +8,7 @@ import com.bissbilanz.api.generated.model.Supplement
 import com.bissbilanz.api.generated.model.SupplementBackingFood
 import com.bissbilanz.api.generated.model.SupplementCreate
 import com.bissbilanz.api.generated.model.SupplementIngredientInput
+import com.bissbilanz.api.generated.model.SupplementsListResponse
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.sync.SyncQueue
@@ -16,6 +17,7 @@ import com.bissbilanz.test.appModeManager
 import com.bissbilanz.test.inMemoryCacheDatabase
 import com.bissbilanz.test.inMemoryUserDataDatabase
 import com.bissbilanz.userdata.UserDataDatabase
+import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
@@ -196,5 +198,84 @@ class SupplementRepositoryTest {
                 listOf("Magnesium Citrate", "Magnesium Glycinate"),
                 decoded.ingredients.map { it.food.name },
             )
+        }
+
+    private fun serverSupplement(
+        id: String,
+        name: String,
+        sortOrder: Int = 0,
+    ) = Supplement(
+        id = id,
+        userId = "u",
+        name = name,
+        scheduleType = Supplement.ScheduleType.daily,
+        scheduleDays = null,
+        scheduleStartDate = null,
+        sortOrder = sortOrder,
+        timeOfDay = null,
+        ingredients = emptyList(),
+    )
+
+    private fun syncedRepository(): SupplementRepository {
+        val appMode = appModeManager(AppMode.SYNCED)
+        return SupplementRepository(api, db, cacheDb, SyncQueue(cacheDb, json, appMode), json, NoopErrorReporter(), appMode)
+    }
+
+    private fun cachedNames(): List<String> =
+        db.userDataDatabaseQueries
+            .selectAllSupplements()
+            .executeAsList()
+            .map { json.decodeFromString<Supplement>(it.jsonData).name }
+            .sorted()
+
+    @Test
+    fun refreshKeepsAQueuedEditOverTheStaleServerCopy() =
+        runTest {
+            val synced = syncedRepository()
+            coEvery { api.getSupplements() } returns listOf(serverSupplement("s1", "Old"))
+            synced.refresh()
+            synced.updateSupplement(
+                "s1",
+                SupplementCreate(name = "Edited", scheduleType = SupplementCreate.ScheduleType.daily, ingredients = emptyList()),
+            )
+
+            synced.refresh()
+
+            assertEquals(listOf("Edited"), cachedNames())
+        }
+
+    @Test
+    fun fullRefreshKeepsQueuedTempCreatesAndDropsStaleRows() =
+        runTest {
+            val synced = syncedRepository()
+            coEvery { api.getAllSupplements() } returns
+                SupplementsListResponse(listOf(serverSupplement("s1", "Server"), serverSupplement("gone", "Gone")))
+            synced.getAllSupplements()
+            synced.createSupplement(
+                SupplementCreate(name = "Local", scheduleType = SupplementCreate.ScheduleType.daily, ingredients = emptyList()),
+            )
+            coEvery { api.getAllSupplements() } returns SupplementsListResponse(listOf(serverSupplement("s1", "Server")))
+
+            synced.getAllSupplements()
+
+            assertEquals(listOf("Local", "Server"), cachedNames())
+        }
+
+    @Test
+    fun supplementsWithTheSameSortOrderListByName() =
+        runTest {
+            val queries = db.userDataDatabaseQueries
+            listOf("s1" to "Zinc", "s2" to "Iron", "s3" to "Magnesium").forEach { (id, name) ->
+                queries.insertSupplement(
+                    id = id,
+                    name = name,
+                    isActive = 1L,
+                    sortOrder = 0L,
+                    jsonData = json.encodeToString(serverSupplement(id, name)),
+                )
+            }
+
+            assertEquals(listOf("Iron", "Magnesium", "Zinc"), queries.selectActiveSupplements().executeAsList().map { it.name })
+            assertEquals(listOf("Iron", "Magnesium", "Zinc"), queries.selectAllSupplements().executeAsList().map { it.name })
         }
 }

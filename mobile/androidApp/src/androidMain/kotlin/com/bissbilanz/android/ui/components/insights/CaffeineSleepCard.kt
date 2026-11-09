@@ -59,6 +59,7 @@ fun CaffeineSleepCard(result: CaffeineSleepResult?) {
                     "${impact.hour}:00",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
                 )
                 Text(
                     "${"%.1f".format(impact.avgQuality)}",

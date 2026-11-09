@@ -2,9 +2,6 @@ package com.bissbilanz.android.ui.components
 
 import android.graphics.Paint
 import android.graphics.Typeface
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseOutCubic
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -14,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,13 +53,11 @@ fun MacroRadarChart(
 ) {
     if (axes.isEmpty()) return
 
-    val revealFraction = remember { Animatable(0f) }
-    LaunchedEffect(axes) {
-        revealFraction.snapTo(0f)
-        revealFraction.animateTo(1f, animationSpec = tween(600, easing = EaseOutCubic))
-    }
+    val revealFraction = rememberRevealFraction(600)
 
     val density = LocalDensity.current
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val dotFill = MaterialTheme.colorScheme.surface
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
     var selectedOffset by remember { mutableStateOf(Offset.Zero) }
@@ -158,7 +152,7 @@ fun MacroRadarChart(
                 ringPath.close()
                 drawPath(
                     ringPath,
-                    color = Color.Gray.copy(alpha = 0.15f),
+                    color = gridColor.copy(alpha = 0.5f),
                     style = Stroke(width = 1f),
                 )
             }
@@ -168,7 +162,7 @@ fun MacroRadarChart(
                 val x = cx + radius * cos(angle).toFloat()
                 val y = cy + radius * sin(angle).toFloat()
                 drawLine(
-                    color = Color.Gray.copy(alpha = 0.2f),
+                    color = gridColor.copy(alpha = 0.6f),
                     start = Offset(cx, cy),
                     end = Offset(x, y),
                     strokeWidth = 1f,
@@ -185,7 +179,7 @@ fun MacroRadarChart(
             goalPath.close()
             drawPath(
                 goalPath,
-                color = Color.Gray.copy(alpha = 0.5f),
+                color = gridColor,
                 style =
                     Stroke(
                         width = 2f,
@@ -227,7 +221,7 @@ fun MacroRadarChart(
                 )
                 if (isSelected) {
                     drawCircle(
-                        color = Color.White,
+                        color = dotFill,
                         radius = 3f,
                         center = Offset(x, y),
                     )

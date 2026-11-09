@@ -8,16 +8,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -29,20 +32,22 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.NAV_KEY_EDIT_SUPPLEMENT_ID
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.SupplementEditSheet
 import com.bissbilanz.android.ui.components.scheduleDisplayName
 import com.bissbilanz.android.ui.components.timeOfDayDisplayName
-import com.bissbilanz.android.ui.theme.FiberGreen
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.Motion
-import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.model.Supplement
 import com.bissbilanz.repository.SupplementRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.compose.koinInject
@@ -66,15 +71,19 @@ fun SupplementsScreen(navController: NavController) {
     val supplementRepo: SupplementRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
     val errorReporter: ErrorReporter = koinInject()
-    val supplements by supplementRepo.supplements().collectAsStateWithLifecycle(emptyList())
+    val supplementsFlow = remember(supplementRepo) { supplementRepo.supplements() }
+    // Null until the local list has been read, so "not loaded yet" is not mistaken for "none".
+    val loadedSupplements by supplementsFlow.collectAsStateWithLifecycle<List<Supplement>?>(null)
+    val supplements = loadedSupplements.orEmpty()
     var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
     var takenIds by remember { mutableStateOf(setOf<String>()) }
-    var showCreateSheet by remember { mutableStateOf(false) }
-    var editingSupplementId by remember { mutableStateOf<String?>(null) }
+    var pendingIds by remember { mutableStateOf(setOf<String>()) }
+    var showCreateSheet by rememberSaveable { mutableStateOf(false) }
+    var editingSupplementId by rememberSaveable { mutableStateOf<String?>(null) }
     val loadFailedMessage = stringResource(R.string.supplements_load_failed)
     val updateFailedMessage = stringResource(R.string.supplements_update_failed)
 
@@ -88,27 +97,50 @@ fun SupplementsScreen(navController: NavController) {
     }
 
     LaunchedEffect(Unit) {
-        isLoading = true
+        // The local checklist first, so a revisit shows the ticks at once instead of
+        // all supplements as untaken until the server answers.
         try {
-            supplementRepo.refresh()
-            takenIds = supplementRepo.getChecklist(today).map { it.supplementId }.toSet()
+            takenIds = withContext(Dispatchers.IO) { supplementRepo.cachedChecklist(today) }.map { it.supplementId }.toSet()
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            snackbarHostState.showSnackbar(loadFailedMessage)
+        }
+        val refreshFailed =
+            try {
+                supplementRepo.refresh()
+                false
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                true
+            }
+        // The checklist must still come from the local logs when offline, otherwise every
+        // supplement shows as untaken and ticking it logs a duplicate.
+        try {
+            val logs =
+                if (refreshFailed) {
+                    withContext(Dispatchers.IO) { supplementRepo.cachedChecklist(today) }
+                } else {
+                    supplementRepo.getChecklist(today)
+                }
+            takenIds = logs.map { it.supplementId }.toSet()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            errorReporter.captureException(e)
         }
         isLoading = false
+        if (refreshFailed) snackbarHostState.showSnackbar(loadFailedMessage)
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.chart_supplements)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
-                    }
-                },
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
+                title = stringResource(R.string.chart_supplements),
+                onBack = { navController.popBackStack() },
                 actions = {
                     IconButton(onClick = { navController.navigate("supplement-history") }) {
                         Icon(Icons.Default.DateRange, stringResource(R.string.calendar_title))
@@ -130,10 +162,7 @@ fun SupplementsScreen(navController: NavController) {
             SupplementEditSheet(
                 supplementId = null,
                 onDismiss = { showCreateSheet = false },
-                onSaved = {
-                    showCreateSheet = false
-                    scope.launch { supplementRepo.refresh() }
-                },
+                onSaved = { showCreateSheet = false },
             )
         }
 
@@ -141,10 +170,7 @@ fun SupplementsScreen(navController: NavController) {
             SupplementEditSheet(
                 supplementId = editingSupplementId,
                 onDismiss = { editingSupplementId = null },
-                onSaved = {
-                    editingSupplementId = null
-                    scope.launch { supplementRepo.refresh() }
-                },
+                onSaved = { editingSupplementId = null },
             )
         }
 
@@ -160,7 +186,8 @@ fun SupplementsScreen(navController: NavController) {
             },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
-            Crossfade(targetState = isLoading, label = "supplements") { loading ->
+            val showSpinner = loadedSupplements == null || (supplements.isEmpty() && isLoading)
+            Crossfade(targetState = showSpinner, label = "supplements") { loading ->
                 if (loading) {
                     LoadingScreen()
                 } else if (supplements.isEmpty()) {
@@ -169,9 +196,15 @@ fun SupplementsScreen(navController: NavController) {
                     val activeSupplements = supplements.filter { it.isActive }
 
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
+                        contentPadding =
+                            PaddingValues(
+                                start = Dimens.ScreenPadding,
+                                top = Dimens.ListGap,
+                                end = Dimens.ScreenPadding,
+                                bottom = Dimens.FabClearance,
+                            ),
                     ) {
                         item {
                             Text(
@@ -194,7 +227,7 @@ fun SupplementsScreen(navController: NavController) {
                                 LinearProgressIndicator(
                                     progress = { animatedProgress },
                                     modifier = Modifier.fillMaxWidth(),
-                                    color = FiberGreen,
+                                    color = MaterialTheme.colorScheme.tertiary,
                                 )
                             }
                             Spacer(modifier = Modifier.height(8.dp))
@@ -207,7 +240,9 @@ fun SupplementsScreen(navController: NavController) {
                                 isTaken = isTaken,
                                 onEdit = { editingSupplementId = supplement.id },
                                 modifier = Modifier.animateItem(),
-                                onToggle = {
+                                onToggle = toggle@{
+                                    if (supplement.id in pendingIds) return@toggle
+                                    pendingIds = pendingIds + supplement.id
                                     haptic(HapticFeedbackType.LongPress)
                                     takenIds =
                                         if (isTaken) takenIds - supplement.id else takenIds + supplement.id
@@ -223,8 +258,10 @@ fun SupplementsScreen(navController: NavController) {
                                             takenIds =
                                                 if (isTaken) takenIds + supplement.id else takenIds - supplement.id
                                             errorReporter.captureException(e)
+                                            pendingIds = pendingIds - supplement.id
                                             snackbarHostState.showSnackbar(updateFailedMessage)
                                         }
+                                        pendingIds = pendingIds - supplement.id
                                     }
                                 },
                             )
@@ -282,7 +319,7 @@ fun SupplementChecklistItem(
 ) {
     val defaultCardColor = CardDefaults.cardColors().containerColor
     val cardColor by animateColorAsState(
-        targetValue = if (isTaken) FiberGreen.copy(alpha = 0.15f) else defaultCardColor,
+        targetValue = if (isTaken) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f) else defaultCardColor,
         animationSpec = spring(dampingRatio = Motion.SNAP_DAMPING, stiffness = Motion.SNAP_STIFFNESS),
         label = "supp-card",
     )
@@ -340,15 +377,15 @@ fun SupplementChecklistItem(
                             )
                         }
                     }
-                    if (isTaken) {
-                        Icon(
-                            Icons.Default.Check,
-                            stringResource(R.string.supplements_taken),
-                            tint = FiberGreen.macroTextTone(),
-                            modifier =
-                                androidx.compose.ui.Modifier
-                                    .align(androidx.compose.ui.Alignment.CenterVertically),
-                        )
+                    // The slot stays when untaken, so ticking a row does not change its width.
+                    Box(modifier = Modifier.size(24.dp).align(Alignment.CenterVertically)) {
+                        if (isTaken) {
+                            Icon(
+                                Icons.Default.Check,
+                                stringResource(R.string.supplements_taken),
+                                tint = MaterialTheme.colorScheme.tertiary,
+                            )
+                        }
                     }
                 }
             },

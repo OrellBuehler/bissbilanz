@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Clear
@@ -17,11 +16,15 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -33,19 +36,25 @@ import androidx.navigation.NavController
 import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.PendingLogConfirmation
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.AddFoodSheet
 import com.bissbilanz.android.ui.components.AiMealSheet
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.DayLogSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.MacroChipRow
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.android.util.dayLabel
+import com.bissbilanz.android.util.formatShortDate
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.Entry
 import com.bissbilanz.util.formatAsInt
+import com.bissbilanz.util.mealForCurrentTime
 import com.bissbilanz.util.mealTypes
 import com.bissbilanz.util.normalizeMealType
 import com.bissbilanz.util.resolvedCalories
@@ -74,20 +83,20 @@ fun DayLogScreen(
     val refreshManager: RefreshManager = koinInject()
     val appModeManager: AppModeManager = koinInject()
     val context = LocalContext.current
-    val entries by viewModel.entries.collectAsStateWithLifecycle()
+    val visibleEntries by viewModel.visibleEntries.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val error by viewModel.error.collectAsStateWithLifecycle()
-    val appMode by appModeManager.mode.collectAsStateWithLifecycle(null)
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
+    val appMode by appModeManager.mode.collectAsStateWithLifecycle()
     val isLocalMode = appMode == AppMode.LOCAL
     val pendingLogConfirmation by PendingLogConfirmation.confirmation.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
-    var pendingDeleteIds by remember { mutableStateOf(setOf<String>()) }
-    var editingEntryId by remember { mutableStateOf<String?>(null) }
-    var showQuickAddSheet by remember { mutableStateOf(false) }
-    var showAiMealSheet by remember { mutableStateOf(false) }
-    var showCopyDialog by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
+    var editingEntryId by rememberSaveable { mutableStateOf<String?>(null) }
+    var showQuickAddSheet by rememberSaveable { mutableStateOf(false) }
+    var showAiMealSheet by rememberSaveable { mutableStateOf(false) }
+    var showCopyDialog by rememberSaveable { mutableStateOf(false) }
+    var addFoodForMeal by rememberSaveable { mutableStateOf<String?>(null) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     val aiQueuedMessage = stringResource(R.string.ai_task_queued)
     val scope = rememberCoroutineScope()
 
@@ -99,12 +108,7 @@ fun DayLogScreen(
         viewModel.loadEntries(date)
     }
 
-    LaunchedEffect(error) {
-        error?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearError()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     // An Assistant / shortcut log always lands here through a fresh navigation, so
     // this is the first SnackbarHostState around to show its confirmation on.
@@ -122,10 +126,6 @@ fun DayLogScreen(
         }
     }
 
-    val visibleEntries =
-        remember(entries, pendingDeleteIds) {
-            entries.filter { it.id !in pendingDeleteIds }
-        }
     // The search field narrows the day by the name the row actually shows, and meals
     // with no match drop out of the list entirely — same behaviour as the iOS day log.
     val matchingEntries =
@@ -171,23 +171,28 @@ fun DayLogScreen(
 
     if (showCopyDialog) {
         val parsedDate = LocalDate.parse(date)
-        val yesterday = parsedDate.minus(1, DateTimeUnit.DAY).toString()
+        val previousDay = parsedDate.minus(1, DateTimeUnit.DAY)
+        val yesterday = previousDay.toString()
         AlertDialog(
             onDismissRequest = { showCopyDialog = false },
             title = { Text(stringResource(R.string.dashboard_copy_from_yesterday)) },
-            text = { Text(stringResource(R.string.daylog_copy_dialog_text, yesterday, date)) },
+            text = {
+                Text(stringResource(R.string.daylog_copy_dialog_text, formatShortDate(previousDay), formatShortDate(parsedDate)))
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showCopyDialog = false
                         scope.launch {
                             val count = viewModel.copyEntries(yesterday, date)
-                            if (count != null) {
-                                snackbarHostState.showSnackbar(context.getString(R.string.daylog_copied_entries, count))
-                                viewModel.loadEntries(date, force = true)
-                            } else {
-                                snackbarHostState.showSnackbar(context.getString(R.string.daylog_no_entries_to_copy))
-                            }
+                            val message =
+                                when (count) {
+                                    null -> context.getString(R.string.dashboard_copy_error)
+                                    0 -> context.getString(R.string.daylog_no_entries_to_copy)
+                                    else -> context.resources.getQuantityString(R.plurals.daylog_copied_entries, count, count)
+                                }
+                            if (count != null && count > 0) viewModel.loadEntries(date, force = true)
+                            snackbarHostState.showSnackbar(message)
                         }
                     },
                 ) {
@@ -200,15 +205,15 @@ fun DayLogScreen(
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(dayLabel(LocalDate.parse(date))) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
-                    }
-                },
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
+                title = dayLabel(LocalDate.parse(date)),
+                onBack = { navController.popBackStack() },
                 actions = {
                     // Queuing a meal for the assistant needs the server, so it is
                     // hidden in local mode — same rule as the dashboard and iOS.
@@ -228,9 +233,10 @@ fun DayLogScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
+                // Logs to the day on screen, not today — the food search tab always logs today.
                 onClick = {
                     haptic(HapticFeedbackType.LongPress)
-                    navController.navigate("foods")
+                    addFoodForMeal = mealForCurrentTime()
                 },
             ) {
                 Icon(Icons.Default.Add, stringResource(R.string.dashboard_add_entry))
@@ -241,6 +247,7 @@ fun DayLogScreen(
         if (editingEntryId != null) {
             EntryEditSheet(
                 entryId = editingEntryId,
+                initialEntry = visibleEntries.find { it.id == editingEntryId },
                 // Look the edited entry up on the day this screen is showing, not
                 // today: the sheet falls back to today when `date` is null, which
                 // left the form blank (and Save a no-op) whenever this screen was
@@ -267,6 +274,18 @@ fun DayLogScreen(
             )
         }
 
+        addFoodForMeal?.let { meal ->
+            AddFoodSheet(
+                mealType = meal,
+                date = date,
+                onDismiss = { addFoodForMeal = null },
+                onLogged = {
+                    addFoodForMeal = null
+                    viewModel.loadEntries(date, force = true)
+                },
+            )
+        }
+
         if (showAiMealSheet) {
             AiMealSheet(
                 date = date,
@@ -283,7 +302,7 @@ fun DayLogScreen(
         }
 
         if (isLoading) {
-            DayLogSkeleton()
+            DayLogSkeleton(Modifier.padding(padding))
         } else {
             PullToRefreshWrapper(
                 onRefresh = { refreshManager.refreshAll(date) },
@@ -291,12 +310,18 @@ fun DayLogScreen(
             ) {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).testTag("dayLogList"),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp),
+                    modifier = Modifier.fillMaxSize().testTag("dayLogList"),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.ListGap),
+                    contentPadding =
+                        PaddingValues(
+                            start = Dimens.ScreenPadding,
+                            top = Dimens.ListGap,
+                            end = Dimens.ScreenPadding,
+                            bottom = Dimens.FabClearance,
+                        ),
                 ) {
                     if (visibleEntries.isNotEmpty() || searchQuery.isNotEmpty()) {
-                        item {
+                        item(key = "search", contentType = "search") {
                             Spacer(modifier = Modifier.height(8.dp))
                             OutlinedTextField(
                                 value = searchQuery,
@@ -319,7 +344,7 @@ fun DayLogScreen(
                     }
 
                     if (matchingEntries.isEmpty()) {
-                        item {
+                        item(key = "empty", contentType = "empty") {
                             Box(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                                 contentAlignment = Alignment.Center,
@@ -344,7 +369,7 @@ fun DayLogScreen(
                             val mealCarbs = mealEntries.sumOf { it.resolvedCarbs() }
                             val mealFat = mealEntries.sumOf { it.resolvedFat() }
 
-                            item {
+                            item(key = "header-$meal", contentType = "header") {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -355,6 +380,7 @@ fun DayLogScreen(
                                         mealTypeDisplayName(meal),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.weight(1f),
                                     )
                                     Text(
                                         stringResource(R.string.format_kcal, mealCalories.formatAsInt()),
@@ -370,7 +396,7 @@ fun DayLogScreen(
                                     modifier = Modifier.padding(bottom = 4.dp),
                                 )
                             }
-                            items(mealEntries, key = { it.id }) { entry ->
+                            items(mealEntries, key = { it.id }, contentType = { "entry" }) { entry ->
                                 Box(
                                     modifier =
                                         Modifier
@@ -389,7 +415,7 @@ fun DayLogScreen(
                                         onDelete = {
                                             haptic(HapticFeedbackType.LongPress)
                                             val deletedEntry = entry
-                                            pendingDeleteIds = pendingDeleteIds + entry.id
+                                            viewModel.scheduleDelete(deletedEntry)
                                             scope.launch {
                                                 val result =
                                                     snackbarHostState.showSnackbar(
@@ -398,14 +424,8 @@ fun DayLogScreen(
                                                         duration = SnackbarDuration.Short,
                                                     )
                                                 when (result) {
-                                                    SnackbarResult.ActionPerformed -> {
-                                                        pendingDeleteIds = pendingDeleteIds - deletedEntry.id
-                                                    }
-
-                                                    SnackbarResult.Dismissed -> {
-                                                        viewModel.deleteEntry(deletedEntry.id)
-                                                        pendingDeleteIds = pendingDeleteIds - deletedEntry.id
-                                                    }
+                                                    SnackbarResult.ActionPerformed -> viewModel.undoDelete(deletedEntry.id)
+                                                    SnackbarResult.Dismissed -> viewModel.commitDelete(deletedEntry.id)
                                                 }
                                             }
                                         },
@@ -434,20 +454,19 @@ fun SwipeToDismissEntry(
     // Trailing swipe deletes, leading swipe edits — the same two directions the
     // iOS day log offers. Neither settles into a dismissed state; both fire an
     // action and snap back.
-    val dismissState =
-        rememberSwipeToDismissBoxState(
-            confirmValueChange = { value ->
-                when (value) {
-                    SwipeToDismissBoxValue.EndToStart -> onDelete()
-                    SwipeToDismissBoxValue.StartToEnd -> onEdit()
-                    else -> Unit
-                }
-                false
-            },
-        )
+    val dismissState = rememberSwipeToDismissBoxState()
+    val dismissScope = rememberCoroutineScope()
 
     SwipeToDismissBox(
         state = dismissState,
+        onDismiss = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.EndToStart -> onDelete()
+                SwipeToDismissBoxValue.StartToEnd -> onEdit()
+                else -> Unit
+            }
+            dismissScope.launch { dismissState.reset() }
+        },
         backgroundContent = {
             val deleting = dismissState.targetValue == SwipeToDismissBoxValue.EndToStart
             val editing = dismissState.targetValue == SwipeToDismissBoxValue.StartToEnd
@@ -474,7 +493,11 @@ fun SwipeToDismissEntry(
                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                     )
                 } else {
-                    Icon(Icons.Default.Delete, stringResource(R.string.daylog_delete_entry), tint = MaterialTheme.colorScheme.error)
+                    Icon(
+                        Icons.Default.Delete,
+                        stringResource(R.string.daylog_delete_entry),
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                    )
                 }
             }
         },

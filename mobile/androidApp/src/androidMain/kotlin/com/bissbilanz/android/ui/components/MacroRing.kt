@@ -10,7 +10,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,9 +40,11 @@ fun MacroRing(
 ) {
     val progress = if (goal > 0) (current / goal).toFloat() else 0f
 
-    val animatedProgress = remember { Animatable(0f) }
+    var revealed by rememberSaveable { mutableStateOf(false) }
+    val animatedProgress = remember { Animatable(if (revealed) progress else 0f) }
     LaunchedEffect(progress) {
         animatedProgress.animateTo(progress, animationSpec = GentleSpring)
+        revealed = true
     }
 
     val animatedCounter by animateIntAsState(

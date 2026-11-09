@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
@@ -23,10 +24,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -37,6 +39,7 @@ import com.bissbilanz.android.ui.viewmodels.MigrationUiState
 import com.bissbilanz.android.ui.viewmodels.MigrationViewModel
 import com.bissbilanz.migration.LocalDataMigrator
 import org.koin.androidx.compose.koinViewModel
+import java.util.UUID
 
 /**
  * Shown when a user signs in while in Local mode: uploads the local data to the account
@@ -45,9 +48,13 @@ import org.koin.androidx.compose.koinViewModel
  */
 @Composable
 fun MigrationScreen() {
-    val viewModel: MigrationViewModel = koinViewModel()
+    // The screen sits outside the nav host, so a plain koinViewModel() is Activity-scoped and
+    // a later sign-in would get the finished (or failed) attempt back. One key per visit:
+    // kept across rotation, new once the screen has left the composition.
+    val attemptKey = rememberSaveable { UUID.randomUUID().toString() }
+    val viewModel: MigrationViewModel = koinViewModel(key = attemptKey)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var showDiscardDialog by remember { mutableStateOf(false) }
+    var showDiscardDialog by rememberSaveable { mutableStateOf(false) }
 
     if (showDiscardDialog) {
         AlertDialog(
@@ -57,10 +64,13 @@ fun MigrationScreen() {
                 Text(stringResource(R.string.migration_discard_text))
             },
             confirmButton = {
-                TextButton(onClick = {
-                    showDiscardDialog = false
-                    viewModel.startFresh()
-                }) { Text(stringResource(R.string.action_discard)) }
+                TextButton(
+                    onClick = {
+                        showDiscardDialog = false
+                        viewModel.startFresh()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text(stringResource(R.string.action_discard)) }
             },
             dismissButton = {
                 TextButton(onClick = { showDiscardDialog = false }) { Text(stringResource(R.string.dialog_cancel)) }
@@ -127,7 +137,7 @@ private fun ChoiceCard(
             )
             Spacer(modifier = Modifier.height(24.dp))
             Button(onClick = onUpload, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.migration_upload_button, localItemCount))
+                Text(pluralStringResource(R.plurals.migration_upload_button, localItemCount, localItemCount))
             }
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(onClick = onStartFresh, modifier = Modifier.fillMaxWidth()) {
@@ -171,7 +181,7 @@ private fun ProgressCard(
 
 @Composable
 private fun FailureCard(
-    message: String,
+    message: String?,
     onRetry: () -> Unit,
     onContinueWithoutAccount: () -> Unit,
 ) {
@@ -190,7 +200,7 @@ private fun FailureCard(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                message,
+                message ?: stringResource(R.string.migration_server_unreachable),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )

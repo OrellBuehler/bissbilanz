@@ -1,5 +1,6 @@
 package com.bissbilanz.android.ui.components
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -22,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -34,9 +37,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -44,12 +44,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +59,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.android.R
@@ -66,10 +69,13 @@ import com.bissbilanz.android.ui.screens.MacroRow
 import com.bissbilanz.android.ui.screens.RecipeListItem
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
+import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.model.Food
 import com.bissbilanz.model.Recipe
@@ -93,7 +99,14 @@ fun AddFoodSheet(
     val viewModel: AddFoodViewModel = koinViewModel()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    LaunchedEffect(Unit) { viewModel.reset() }
+    // Cleared when the sheet leaves, so the next opening starts empty on its first frame;
+    // a rotation recreates the sheet and keeps the search.
+    val activity = LocalActivity.current
+    DisposableEffect(viewModel) {
+        onDispose {
+            if (activity?.isChangingConfigurations != true) viewModel.reset()
+        }
+    }
 
     val query by viewModel.query.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
@@ -110,7 +123,7 @@ fun AddFoodSheet(
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val visibleNutrients by viewModel.visibleNutrients.collectAsStateWithLifecycle()
 
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     val tabLabels =
         listOf(
             stringResource(R.string.add_food_tab_search),
@@ -122,34 +135,43 @@ fun AddFoodSheet(
 
     // The caller's day is only the starting point — the sheet can backdate,
     // matching the date picker iOS added to its log-food sheet.
-    var logDate by remember(date) { mutableStateOf(date) }
-    var showDatePicker by remember { mutableStateOf(false) }
+    var logDate by rememberSaveable(date) { mutableStateOf(date) }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
 
     val nowLocal = remember { Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()) }
-    var eatenHour by remember { mutableIntStateOf(nowLocal.hour) }
-    var eatenMinute by remember { mutableIntStateOf(nowLocal.minute) }
+    var eatenHour by rememberSaveable { mutableIntStateOf(nowLocal.hour) }
+    var eatenMinute by rememberSaveable { mutableIntStateOf(nowLocal.minute) }
 
-    var selectedFood by remember { mutableStateOf<Food?>(null) }
-    var selectedRecipe by remember { mutableStateOf<Recipe?>(null) }
-    var servingsText by remember { mutableStateOf("1") }
+    var selectedFood by rememberSaveable(stateSaver = rememberJsonStateSaver<Food>()) { mutableStateOf<Food?>(null) }
+    // Only the id is saved (a recipe with its ingredients and steps can be large);
+    // after recreation the recipe is read back from the local cache.
+    var selectedRecipeId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pickedRecipe by remember { mutableStateOf<Recipe?>(null) }
+    val restoredRecipe = remember(selectedRecipeId) { selectedRecipeId?.let(viewModel::cachedRecipe) }
+    val selectedRecipe = pickedRecipe?.takeIf { it.id == selectedRecipeId } ?: restoredRecipe
 
-    var quickName by remember { mutableStateOf("") }
-    var quickCalories by remember { mutableStateOf("") }
-    var quickProtein by remember { mutableStateOf("") }
-    var quickCarbs by remember { mutableStateOf("") }
-    var quickFat by remember { mutableStateOf("") }
-    var quickFiber by remember { mutableStateOf("") }
-    var quickNutrients by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    var quickNotes by remember { mutableStateOf("") }
+    fun selectRecipe(recipe: Recipe?) {
+        pickedRecipe = recipe
+        selectedRecipeId = recipe?.id
+    }
+
+    // The caller's meal is only the default: the day log's "+" passes the meal for
+    // the current time, and the user may be logging something else.
+    var selectedMeal by rememberSaveable(mealType) { mutableStateOf(mealType) }
+    var servingsText by rememberSaveable { mutableStateOf("1") }
+
+    var quickName by rememberSaveable { mutableStateOf("") }
+    var quickCalories by rememberSaveable { mutableStateOf("") }
+    var quickProtein by rememberSaveable { mutableStateOf("") }
+    var quickCarbs by rememberSaveable { mutableStateOf("") }
+    var quickFat by rememberSaveable { mutableStateOf("") }
+    var quickFiber by rememberSaveable { mutableStateOf("") }
+    var quickNutrients by rememberSaveable { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var quickNotes by rememberSaveable { mutableStateOf("") }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(snackbarMessage) {
-        snackbarMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
@@ -187,8 +209,8 @@ fun AddFoodSheet(
             modifier =
                 Modifier
                     .height(screenHeight * 0.7f)
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 16.dp)
+                    .padding(horizontal = Dimens.SheetHorizontalPadding)
+                    .padding(bottom = Dimens.SheetBottomPadding)
                     .imePadding(),
         ) {
             if (selectedFood != null || selectedRecipe != null) {
@@ -199,7 +221,7 @@ fun AddFoodSheet(
                 ) {
                     IconButton(onClick = {
                         selectedFood = null
-                        selectedRecipe = null
+                        selectRecipe(null)
                         servingsText = "1"
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
@@ -266,32 +288,30 @@ fun AddFoodSheet(
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(8.dp))
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
+                SheetActionRow {
                     OutlinedButton(
                         onClick = {
                             selectedFood = null
-                            selectedRecipe = null
+                            selectRecipe(null)
                             servingsText = "1"
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         enabled = !isSaving,
-                    ) { Text(stringResource(R.string.dialog_cancel)) }
+                    ) { Text(stringResource(R.string.dialog_cancel), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    val servings = servingsText.toLocalizedDoubleOrNull()?.takeIf { it > 0 }
                     Button(
                         onClick = {
-                            val servings = servingsText.toLocalizedDoubleOrNull() ?: 1.0
+                            if (servings == null) return@Button
                             val eatenAt = buildEatenAt(logDate, eatenHour, eatenMinute)
                             if (selectedFood != null) {
-                                viewModel.logFood(selectedFood!!, mealType, servings, logDate, eatenAt) { onLogged() }
+                                viewModel.logFood(selectedFood!!, selectedMeal, servings, logDate, eatenAt) { onLogged() }
                             } else if (selectedRecipe != null) {
-                                viewModel.logRecipe(selectedRecipe!!, mealType, servings, logDate, eatenAt) { onLogged() }
+                                viewModel.logRecipe(selectedRecipe, selectedMeal, servings, logDate, eatenAt) { onLogged() }
                             }
                         },
-                        modifier = Modifier.weight(1f),
-                        enabled = !isSaving,
-                    ) { Text(stringResource(R.string.food_detail_log)) }
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        enabled = !isSaving && servings != null,
+                    ) { Text(stringResource(R.string.food_detail_log), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             } else {
@@ -300,34 +320,41 @@ fun AddFoodSheet(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        stringResource(R.string.add_food_title, mealTypeDisplayName(mealType)),
+                        stringResource(R.string.add_food_title, mealTypeDisplayName(selectedMeal)),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 8.dp).weight(1f),
                     )
-                    TextButton(onClick = { showDatePicker = true }) {
+                    TextButton(onClick = { showDatePicker = true }, contentPadding = ButtonDefaults.TextButtonWithIconContentPadding) {
                         Icon(
                             Icons.Default.CalendarToday,
                             stringResource(R.string.insights_sleep_pick_date),
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(ButtonDefaults.IconSize),
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(logDate)
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                        Text(runCatching { LocalDate.parse(logDate) }.getOrNull()?.let { dayLabel(it) } ?: logDate, maxLines = 1)
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
 
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    tabLabels.forEachIndexed { index, label ->
-                        SegmentedButton(
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index },
-                            shape = SegmentedButtonDefaults.itemShape(index, tabLabels.size),
-                            icon = {},
-                        ) {
-                            Text(label, maxLines = 1)
-                        }
-                    }
+                // Dropdowns rather than tabs: five translated sources (and a custom
+                // meal name) do not fit side by side on a phone in German.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ChoiceDropdown(
+                        selectedLabel = tabLabels[selectedTab],
+                        options = tabLabels.mapIndexed { index, label -> label to index },
+                        onSelect = { selectedTab = it },
+                        modifier = Modifier.weight(1f),
+                    )
+                    ChoiceDropdown(
+                        selectedLabel = mealTypeDisplayName(selectedMeal),
+                        options = (mealTypes + mealType).distinctBy { it.lowercase() }.map { mealTypeDisplayName(it) to it },
+                        onSelect = { selectedMeal = it },
+                        modifier = Modifier.weight(1f),
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -345,7 +372,7 @@ fun AddFoodSheet(
                                 isSearchingOff,
                                 isResolvingOff,
                                 onSelect = { selectedFood = it },
-                                onSelectRecipe = { selectedRecipe = it },
+                                onSelectRecipe = { selectRecipe(it) },
                             )
                         }
 
@@ -354,7 +381,7 @@ fun AddFoodSheet(
                                 favoriteFoods,
                                 favoriteRecipes,
                                 onSelectFood = { selectedFood = it },
-                                onSelectRecipe = { selectedRecipe = it },
+                                onSelectRecipe = { selectRecipe(it) },
                             )
                         }
 
@@ -363,7 +390,7 @@ fun AddFoodSheet(
                         }
 
                         3 -> {
-                            RecipesTab(recipes, onSearch = viewModel::searchRecipes, onSelect = { selectedRecipe = it })
+                            RecipesTab(recipes, onSearch = viewModel::searchRecipes, onSelect = { selectRecipe(it) })
                         }
 
                         4 -> {
@@ -388,7 +415,7 @@ fun AddFoodSheet(
                                 onNotesChange = { quickNotes = it },
                                 onSave = {
                                     viewModel.logQuickEntry(
-                                        mealType,
+                                        selectedMeal,
                                         logDate,
                                         quickName,
                                         quickCalories.toLocalizedDoubleOrNull(),
@@ -424,6 +451,11 @@ private fun SearchTab(
     onSelect: (Food) -> Unit,
     onSelectRecipe: (Recipe) -> Unit,
 ) {
+    val listState = rememberLazyListState()
+    // A fresh result set starts at its top.
+    LaunchedEffect(isSearching) {
+        if (!isSearching) listState.scrollToItem(0)
+    }
     Column {
         OutlinedTextField(
             value = query,
@@ -434,14 +466,18 @@ private fun SearchTab(
         )
         Spacer(modifier = Modifier.height(8.dp))
         if (query.length >= 2) {
-            if (isSearching) {
+            val hasResults = searchResults.isNotEmpty() || recipeResults.isNotEmpty() || offResults.isNotEmpty()
+            if (isSearching && !hasResults) {
                 Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 }
-            } else if (searchResults.isEmpty() && recipeResults.isEmpty() && offResults.isEmpty() && !isSearchingOff) {
+            } else if (!isSearching && !hasResults && !isSearchingOff) {
                 EmptyState(stringResource(R.string.food_search_no_results, query))
             } else {
-                LazyColumn(modifier = Modifier.fillMaxHeight()) {
+                Box(modifier = Modifier.fillMaxWidth().height(4.dp)) {
+                    if (isSearching) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+                LazyColumn(state = listState, modifier = Modifier.fillMaxHeight()) {
                     items(searchResults, key = { it.id }) { food ->
                         FoodListItem(
                             food = food,
@@ -618,14 +654,30 @@ private fun QuickTab(
             minLines = 2,
             maxLines = 4,
         )
+        if (name.isNotBlank() && !canSaveQuickEntry(name, calories)) {
+            Text(
+                stringResource(R.string.entry_edit_calories_required),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         if (isSaving) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
         Button(
             onClick = onSave,
             modifier = Modifier.fillMaxWidth(),
-            enabled = name.isNotBlank() && !isSaving,
-        ) { Text(stringResource(R.string.weight_save)) }
+            enabled = canSaveQuickEntry(name, calories) && !isSaving,
+        ) { Text(stringResource(R.string.action_save)) }
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
+
+/**
+ * The server rejects an entry with neither food nor recipe unless quickCalories is positive,
+ * and the sync queue then strands it as a local temp_ row, so Save waits for a calorie value.
+ */
+internal fun canSaveQuickEntry(
+    name: String,
+    calories: String,
+): Boolean = name.isNotBlank() && (calories.toLocalizedDoubleOrNull() ?: 0.0) > 0.0

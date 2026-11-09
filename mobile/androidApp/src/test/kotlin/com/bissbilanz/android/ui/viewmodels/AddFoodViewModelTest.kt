@@ -1,6 +1,7 @@
 package com.bissbilanz.android.ui.viewmodels
 
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.R
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.repository.EntryRepository
@@ -184,7 +185,7 @@ class AddFoodViewModelTest {
             advanceUntilIdle()
 
             assertNull(resolved)
-            assertEquals("Couldn't add from Open Food Facts", vm.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.food_search_off_add_failed), vm.snackbarMessage.value)
         }
 
     @Test
@@ -197,7 +198,7 @@ class AddFoodViewModelTest {
             advanceUntilIdle()
 
             assertEquals(emptyList(), vm.searchResults.value)
-            assertEquals("Search failed", vm.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.food_search_failed), vm.snackbarMessage.value)
         }
 
     @Test
@@ -205,16 +206,19 @@ class AddFoodViewModelTest {
         runTest {
             val results = listOf(testFood())
             coEvery { foodRepo.searchFoods(any()) } returns results
+            coEvery { foodRepo.searchOpenFoodFacts(any()) } returns listOf(offProduct())
 
             val vm = viewModel()
             vm.updateQuery("apple")
             advanceUntilIdle()
             assertEquals("apple", vm.query.value)
+            assertEquals(listOf(offProduct()), vm.offResults.value)
 
             vm.reset()
 
             assertEquals("", vm.query.value)
             assertEquals(emptyList(), vm.searchResults.value)
+            assertEquals(emptyList(), vm.offResults.value)
         }
 
     @Test
@@ -270,7 +274,7 @@ class AddFoodViewModelTest {
             vm.logFood(food, "breakfast", 1.0, "2024-01-15") {}
             advanceUntilIdle()
 
-            assertEquals("Failed to log food", vm.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.food_detail_log_failed), vm.snackbarMessage.value)
             assertEquals(false, vm.isSaving.value)
         }
 
@@ -433,7 +437,7 @@ class AddFoodViewModelTest {
             val vm = viewModel()
             vm.updateQuery("ap")
             advanceUntilIdle()
-            assertEquals("Search failed", vm.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.food_search_failed), vm.snackbarMessage.value)
 
             vm.clearSnackbar()
 

@@ -45,7 +45,7 @@ class LauncherShortcutsTest {
         navController.navigatorProvider.addNavigator(ComposeNavigator())
         navController.graph =
             navController.createGraph(startDestination = Screen.Dashboard.route) {
-                bissbilanzDestinations(navController)
+                bissbilanzDestinations(navController) { defaultTabRoutes }
             }
 
         routes.forEach { route ->

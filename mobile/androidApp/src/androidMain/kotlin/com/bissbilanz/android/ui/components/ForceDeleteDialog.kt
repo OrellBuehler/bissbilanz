@@ -9,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.R
@@ -30,14 +31,17 @@ fun ForceDeleteDialog(
 ) {
     val recipeCount = outcome.recipeCount ?: 0
     val supplementCount = outcome.supplementIngredientCount ?: 0
+    val entriesText = pluralStringResource(R.plurals.usage_entries_count, outcome.entryCount, outcome.entryCount)
+    val recipesText = pluralStringResource(R.plurals.usage_recipes_count, recipeCount, recipeCount)
+    val supplementsText = pluralStringResource(R.plurals.usage_supplements_count, supplementCount, supplementCount)
     val message =
         when {
             outcome.forceUnavailable ->
-                stringResource(R.string.delete_conflict_summary, outcome.entryCount, recipeCount, supplementCount)
+                stringResource(R.string.delete_conflict_summary, entriesText, recipesText, supplementsText)
             outcome.entryCount > 0 && recipeCount > 0 ->
-                stringResource(R.string.delete_conflict_entries_and_recipes, outcome.entryCount, recipeCount)
-            recipeCount > 0 -> stringResource(R.string.delete_conflict_recipes, recipeCount)
-            else -> stringResource(R.string.delete_conflict_entries, outcome.entryCount)
+                stringResource(R.string.delete_conflict_entries_and_recipes, entriesText, recipesText)
+            recipeCount > 0 -> pluralStringResource(R.plurals.delete_conflict_recipes, recipeCount, recipeCount)
+            else -> pluralStringResource(R.plurals.delete_conflict_entries, outcome.entryCount, outcome.entryCount)
         }
     val reason =
         when {
@@ -46,7 +50,7 @@ fun ForceDeleteDialog(
                     R.string.delete_conflict_last_ingredient,
                     outcome.lastIngredientRecipes.joinToString { "\"${it.name}\"" },
                 )
-            supplementCount > 0 -> stringResource(R.string.delete_conflict_supplements, supplementCount)
+            supplementCount > 0 -> pluralStringResource(R.plurals.delete_conflict_supplements, supplementCount, supplementCount)
             else -> null
         }
     AlertDialog(

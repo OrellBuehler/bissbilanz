@@ -6,17 +6,20 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import com.bissbilanz.ErrorReporter
@@ -24,6 +27,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.health.HealthSyncPreferences
 import com.bissbilanz.android.reminders.ReminderNotifier
 import com.bissbilanz.android.ui.openNotificationSettings
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.api.generated.model.Reminder
 import com.bissbilanz.api.generated.model.ReminderCreate
 import com.bissbilanz.api.generated.model.ReminderUpdate
@@ -56,18 +60,18 @@ fun ReminderEditSheet(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var isLoading by remember { mutableStateOf(reminderId != null) }
+    var loaded by rememberSaveable { mutableStateOf(reminderId == null) }
+    var isLoading by remember { mutableStateOf(!loaded) }
     var isSaving by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
     val isEditing = reminderId != null
 
-    var kind by remember { mutableStateOf(Reminder.Kind.weight) }
-    var mealType by remember { mutableStateOf(mealTypeOptions.firstOrNull() ?: "Breakfast") }
-    var time by remember { mutableStateOf("08:00") }
-    var weekdays by remember { mutableStateOf(ALL_WEEKDAYS) }
-    var enabled by remember { mutableStateOf(true) }
-    var mealTypeMenuExpanded by remember { mutableStateOf(false) }
+    var kind by rememberSaveable { mutableStateOf(Reminder.Kind.weight) }
+    var mealType by rememberSaveable { mutableStateOf(mealTypeOptions.firstOrNull() ?: "Breakfast") }
+    var time by rememberSaveable { mutableStateOf("08:00") }
+    var weekdays by rememberSaveable { mutableStateOf(ALL_WEEKDAYS) }
+    var enabled by rememberSaveable { mutableStateOf(true) }
 
     var notificationsEnabled by remember {
         mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled())
@@ -82,7 +86,7 @@ fun ReminderEditSheet(
     val deleteFailedMessage = stringResource(R.string.reminders_delete_failed)
 
     LaunchedEffect(reminderId) {
-        if (reminderId != null) {
+        if (reminderId != null && !loaded) {
             try {
                 val found = reminderRepo.reminders().first().find { it.id == reminderId }
                 if (found != null) {
@@ -91,6 +95,7 @@ fun ReminderEditSheet(
                     time = found.time
                     weekdays = found.weekdays
                     enabled = found.enabled
+                    loaded = true
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -152,8 +157,8 @@ fun ReminderEditSheet(
             Column(
                 modifier =
                     Modifier
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 32.dp)
+                        .padding(horizontal = Dimens.SheetHorizontalPadding)
+                        .padding(bottom = Dimens.SheetBottomPadding)
                         .imePadding()
                         .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -208,37 +213,11 @@ fun ReminderEditSheet(
 
                 if (kind == Reminder.Kind.meal) {
                     Text(stringResource(R.string.reminders_meal_type), style = MaterialTheme.typography.labelLarge)
-                    ExposedDropdownMenuBox(
-                        expanded = mealTypeMenuExpanded,
-                        onExpandedChange = { mealTypeMenuExpanded = it },
-                    ) {
-                        OutlinedTextField(
-                            value = mealType,
-                            onValueChange = {},
-                            readOnly = true,
-                            trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = mealTypeMenuExpanded)
-                            },
-                            modifier =
-                                Modifier
-                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                                    .fillMaxWidth(),
-                        )
-                        ExposedDropdownMenu(
-                            expanded = mealTypeMenuExpanded,
-                            onDismissRequest = { mealTypeMenuExpanded = false },
-                        ) {
-                            mealTypeOptions.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(option) },
-                                    onClick = {
-                                        mealType = option
-                                        mealTypeMenuExpanded = false
-                                    },
-                                )
-                            }
-                        }
-                    }
+                    ChoiceDropdown(
+                        selectedLabel = mealTypeDisplayName(mealType),
+                        options = mealTypeOptions.map { mealTypeDisplayName(it) to it },
+                        onSelect = { mealType = it },
+                    )
                 }
 
                 Text(stringResource(R.string.reminders_time), style = MaterialTheme.typography.labelLarge)
@@ -310,17 +289,14 @@ fun ReminderEditSheet(
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
+                SheetActionRow {
                     OutlinedButton(
                         onClick = {
                             scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                     ) {
-                        Text(stringResource(R.string.dialog_cancel))
+                        Text(stringResource(R.string.dialog_cancel), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Button(
                         onClick = {
@@ -372,10 +348,10 @@ fun ReminderEditSheet(
                                 isSaving = false
                             }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         enabled = !isSaving && isValid,
                     ) {
-                        Text(stringResource(R.string.reminders_save))
+                        Text(stringResource(R.string.reminders_save), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
 

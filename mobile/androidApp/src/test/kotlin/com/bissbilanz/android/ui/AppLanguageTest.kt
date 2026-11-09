@@ -72,4 +72,26 @@ class AppLanguageTest {
 
         assertEquals(context, AppLanguage.wrap(context))
     }
+
+    @Test
+    fun localizedAppliesTheStoredTagWithoutTouchingTheProcessDefault() {
+        val before = Locale.getDefault()
+        AppLanguage.apply(context, "de")
+
+        val localized = AppLanguage.localized(context)
+
+        assertEquals(
+            "de",
+            localized.resources.configuration.locales[0]
+                .language,
+        )
+        assertEquals(before, Locale.getDefault())
+    }
+
+    @Test
+    fun localizedLeavesTheContextAloneForSystem() {
+        AppLanguage.apply(context, AppLanguage.SYSTEM)
+
+        assertEquals(context, AppLanguage.localized(context))
+    }
 }

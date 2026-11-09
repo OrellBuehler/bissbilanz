@@ -8,6 +8,7 @@ import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Month
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.minus
 import kotlinx.datetime.number
@@ -51,6 +52,29 @@ fun formatShortDate(
     return DateTimeFormatter
         .ofPattern(pattern, locale)
         .format(java.time.LocalDate.of(date.year, date.month.number, date.day))
+}
+
+/**
+ * Abbreviated month and year for a month header ("Okt. 2026" / "Oct 2026"); the full
+ * month name is too wide for a header between two arrow buttons in German.
+ */
+fun formatMonthYear(
+    year: Int,
+    month: Month,
+    locale: Locale = Locale.getDefault(),
+): String = "${java.time.Month.of(month.number).getDisplayName(TextStyle.SHORT, locale)} $year"
+
+/** Time until [slackMs] after the next local midnight, for re-checking which day is "today". */
+fun millisUntilNextDay(
+    timeZone: TimeZone = TimeZone.currentSystemDefault(),
+    slackMs: Long = 1_000,
+): Long {
+    val nextMidnight =
+        Clock.System
+            .todayIn(timeZone)
+            .plus(1, DateTimeUnit.DAY)
+            .atStartOfDayIn(timeZone)
+    return (nextMidnight - Clock.System.now()).inWholeMilliseconds.coerceAtLeast(0) + slackMs
 }
 
 /**

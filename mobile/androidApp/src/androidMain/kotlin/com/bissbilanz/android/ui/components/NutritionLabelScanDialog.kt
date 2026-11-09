@@ -7,15 +7,18 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -141,12 +144,11 @@ fun NutritionLabelScanDialog(
                             takePicture.launch(uri)
                         },
                         modifier = Modifier.fillMaxWidth(),
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                     ) {
-                        Icon(Icons.Outlined.PhotoCamera, contentDescription = null)
-                        Text(
-                            stringResource(R.string.scan_label_take_photo),
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
+                        Icon(Icons.Outlined.PhotoCamera, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                        Text(stringResource(R.string.scan_label_take_photo))
                     }
                     OutlinedButton(
                         onClick = {
@@ -155,12 +157,11 @@ fun NutritionLabelScanDialog(
                             )
                         },
                         modifier = Modifier.fillMaxWidth(),
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                     ) {
-                        Icon(Icons.Outlined.PhotoLibrary, contentDescription = null)
-                        Text(
-                            stringResource(R.string.scan_label_choose_photo),
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
+                        Icon(Icons.Outlined.PhotoLibrary, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+                        Text(stringResource(R.string.scan_label_choose_photo))
                     }
                 }
                 errorMessage?.let {

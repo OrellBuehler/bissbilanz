@@ -60,10 +60,12 @@ internal suspend inline fun <reified T> ApiTransport.get(
             block()
         }
     if (!response.status.isSuccess()) {
+        val body = response.bodyAsText()
         throw ApiException(
-            "GET $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
+            "GET $path failed: HTTP ${response.status.value} $body",
             response.status.value,
             response,
+            body,
         )
     }
     return response.body()
@@ -83,10 +85,12 @@ internal suspend inline fun <reified T> ApiTransport.post(
             block()
         }
     if (!response.status.isSuccess()) {
+        val body = response.bodyAsText()
         throw ApiException(
-            "POST $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
+            "POST $path failed: HTTP ${response.status.value} $body",
             response.status.value,
             response,
+            body,
         )
     }
     return response.body()
@@ -104,10 +108,12 @@ internal suspend inline fun <reified T> ApiTransport.put(
             applySyncHeaders(idempotencyKey, clientEditedAt)
         }
     if (!response.status.isSuccess()) {
+        val body = response.bodyAsText()
         throw ApiException(
-            "PUT $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
+            "PUT $path failed: HTTP ${response.status.value} $body",
             response.status.value,
             response,
+            body,
         )
     }
     return response.body()
@@ -125,10 +131,12 @@ internal suspend inline fun <reified T> ApiTransport.patch(
             applySyncHeaders(idempotencyKey, clientEditedAt)
         }
     if (!response.status.isSuccess()) {
+        val body = response.bodyAsText()
         throw ApiException(
-            "PATCH $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
+            "PATCH $path failed: HTTP ${response.status.value} $body",
             response.status.value,
             response,
+            body,
         )
     }
     return response.body()
@@ -152,10 +160,12 @@ internal suspend inline fun <reified T> ApiTransport.putRawJson(
             applySyncHeaders(idempotencyKey, clientEditedAt)
         }
     if (!response.status.isSuccess()) {
+        val body = response.bodyAsText()
         throw ApiException(
-            "PUT $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
+            "PUT $path failed: HTTP ${response.status.value} $body",
             response.status.value,
             response,
+            body,
         )
     }
     return response.body()
@@ -178,10 +188,12 @@ internal suspend inline fun <reified T> ApiTransport.patchRawJson(
             applySyncHeaders(idempotencyKey, clientEditedAt)
         }
     if (!response.status.isSuccess()) {
+        val body = response.bodyAsText()
         throw ApiException(
-            "PATCH $path failed: HTTP ${response.status.value} ${response.bodyAsText()}",
+            "PATCH $path failed: HTTP ${response.status.value} $body",
             response.status.value,
             response,
+            body,
         )
     }
     return response.body()

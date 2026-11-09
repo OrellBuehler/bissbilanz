@@ -50,6 +50,8 @@ import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.util.displayName
+import com.bissbilanz.android.util.formatIsoDate
+import com.bissbilanz.android.util.formatMonthYear
 import com.bissbilanz.model.CalendarDay
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -76,7 +78,7 @@ fun CalendarHeatmap(
         revealFraction.animateTo(1f, animationSpec = tween(400, easing = EaseOutCubic))
     }
 
-    val monthName = Month(month).displayName()
+    val monthLabel = formatMonthYear(year, Month(month))
 
     Column(modifier = modifier) {
         Row(
@@ -88,8 +90,8 @@ fun CalendarHeatmap(
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.calendar_previous_month))
             }
             Text(
-                "$monthName $year",
-                style = MaterialTheme.typography.titleSmall,
+                monthLabel,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
             IconButton(onClick = onNextMonth) {
@@ -251,7 +253,7 @@ fun CalendarHeatmap(
                 if (selDay != null) {
                     Column {
                         Text(
-                            selDay,
+                            formatIsoDate(selDay),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.7f),
                         )
@@ -295,7 +297,7 @@ fun CalendarHeatmap(
             Spacer(modifier = Modifier.width(12.dp))
             LegendDot(color = CaloriesBlue, label = stringResource(R.string.calendar_heatmap_under))
             Spacer(modifier = Modifier.width(12.dp))
-            LegendDot(color = Color.Gray.copy(alpha = 0.3f), label = stringResource(R.string.chart_no_data))
+            LegendDot(color = MaterialTheme.colorScheme.outlineVariant, label = stringResource(R.string.chart_no_data))
         }
     }
 }

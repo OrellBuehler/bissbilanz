@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -39,13 +40,15 @@ import com.bissbilanz.util.newTempId
 /**
  * The "Steps" section of the recipe form: a numbered card per step with multi-line
  * text, up/down reordering, removal and an optional photo. The list itself is owned
- * by the caller so the form can send it along with the rest of the recipe.
+ * by the caller so the form can send it along with the rest of the recipe;
+ * [onStepUploadingChange] reports a step photo upload in flight by step key.
  */
 @Composable
 fun RecipeStepsEditor(
     steps: List<RecipeStepDraft>,
     onStepsChange: (List<RecipeStepDraft>) -> Unit,
     modifier: Modifier = Modifier,
+    onStepUploadingChange: (String, Boolean) -> Unit = { _, _ -> },
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
@@ -61,9 +64,10 @@ fun RecipeStepsEditor(
             FilledTonalButton(
                 onClick = { onStepsChange(steps + RecipeStepDraft(key = newTempId())) },
                 enabled = steps.size < MAX_RECIPE_STEPS,
+                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
             ) {
-                Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(4.dp))
+                Icon(Icons.Default.Add, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                 Text(stringResource(R.string.action_add))
             }
         }
@@ -127,6 +131,7 @@ fun RecipeStepsEditor(
                             onImageUrlChange = { url ->
                                 onStepsChange(steps.map { if (it.key == step.key) it.copy(imageUrl = url) else it })
                             },
+                            onUploadingChange = { onStepUploadingChange(step.key, it) },
                         )
                     }
                 }

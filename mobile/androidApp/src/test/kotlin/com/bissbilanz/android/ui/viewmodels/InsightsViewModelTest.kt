@@ -7,6 +7,7 @@ import com.bissbilanz.analytics.computeInsights
 import com.bissbilanz.android.R
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
+import com.bissbilanz.model.CalendarDay
 import com.bissbilanz.model.SleepCreate
 import com.bissbilanz.model.SleepEntry
 import com.bissbilanz.model.SleepFoodCorrelationEntry
@@ -20,6 +21,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -170,7 +172,7 @@ class InsightsViewModelTest {
             val viewModel = createViewModel()
             viewModel.createSleepEntry(entry)
 
-            assertEquals(R.string.sleep_logged, viewModel.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.sleep_logged), viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -182,7 +184,7 @@ class InsightsViewModelTest {
             val viewModel = createViewModel()
             viewModel.createSleepEntry(entry)
 
-            assertEquals(R.string.sleep_log_failed, viewModel.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.sleep_log_failed), viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -193,7 +195,7 @@ class InsightsViewModelTest {
             val viewModel = createViewModel()
             viewModel.deleteSleepEntry("entry-1")
 
-            assertEquals(R.string.sleep_deleted, viewModel.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.sleep_deleted), viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -204,7 +206,7 @@ class InsightsViewModelTest {
             val viewModel = createViewModel()
             viewModel.deleteSleepEntry("entry-1")
 
-            assertEquals(R.string.sleep_delete_failed, viewModel.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.sleep_delete_failed), viewModel.snackbarMessage.value)
         }
 
     @Test
@@ -226,7 +228,7 @@ class InsightsViewModelTest {
 
             val viewModel = createViewModel()
             viewModel.deleteSleepEntry("entry-1")
-            assertEquals(R.string.sleep_deleted, viewModel.snackbarMessage.value)
+            assertEquals(UiMessage(R.string.sleep_deleted), viewModel.snackbarMessage.value)
 
             viewModel.clearSnackbar()
 
@@ -310,6 +312,34 @@ class InsightsViewModelTest {
         }
 
     @Test
+    fun emptyTabLoadShowsAnErrorAndIsRetriedOnNextSelect() =
+        runTest {
+            coEvery { analyticsRepo.getInsights(any(), any(), any()) } returns null
+            val viewModel = createViewModel()
+
+            viewModel.selectTab(1)
+            assertEquals(UiMessage(R.string.insights_load_failed), viewModel.snackbarMessage.value)
+
+            coEvery { analyticsRepo.getInsights(any(), any(), any()) } returns emptyRangeBundle()
+            viewModel.selectTab(0)
+            viewModel.selectTab(1)
+
+            coVerify(exactly = 2) { analyticsRepo.getInsights(any(), any(), any()) }
+            assertNotNull(viewModel.foodDiversityResult.value)
+        }
+
+    @Test
+    fun refreshRecomputesTheCurrentTab() =
+        runTest {
+            val viewModel = createViewModel()
+
+            viewModel.selectTab(2)
+            viewModel.refresh()
+
+            coVerify(exactly = 2) { analyticsRepo.getInsights(any(), any(), any()) }
+        }
+
+    @Test
     fun nutritionLoadErrorDoesNotCrash() =
         runTest {
             coEvery { analyticsRepo.getInsights(any(), any(), any()) } throws RuntimeException("fail")
@@ -366,6 +396,20 @@ class InsightsViewModelTest {
             coVerify(exactly = 0) { statsRepo.getMealBreakdown(any(), any()) }
             coVerify(atLeast = 1) { statsRepo.getDailyStats(any(), any()) }
             coVerify(atLeast = 1) { statsRepo.getCalendarStats(any()) }
+        }
+
+    @Test
+    fun anOlderCalendarMonthResponseNeverOverwritesTheShownMonth() =
+        runTest {
+            val staleMonth = CompletableDeferred<List<CalendarDay>>()
+            coEvery { statsRepo.getCalendarStats(any()) } coAnswers { staleMonth.await() }
+            val viewModel = createViewModel()
+            coEvery { statsRepo.getCalendarStats(any()) } returns emptyList()
+
+            viewModel.prevMonth()
+            staleMonth.complete(listOf(mockk(relaxed = true)))
+
+            assertEquals(emptyList(), viewModel.calendarDays.value)
         }
 
     // On-device analytics (issue #321): AnalyticsRepository now computes these

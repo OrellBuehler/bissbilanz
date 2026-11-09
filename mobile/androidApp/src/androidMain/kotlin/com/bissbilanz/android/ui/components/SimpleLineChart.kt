@@ -1,15 +1,11 @@
 package com.bissbilanz.android.ui.components
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseOutCubic
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,7 +22,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
-import kotlin.math.roundToInt
+import com.bissbilanz.android.util.formatLocalizedNumber
 
 @Composable
 fun SimpleLineChart(
@@ -34,16 +30,16 @@ fun SimpleLineChart(
     color: Color,
     modifier: Modifier = Modifier,
     unit: String = "",
+    // Tooltip decimals: whole for kcal and grams, one for hours ("7.4 h").
+    decimals: Int = 0,
 ) {
     if (data.isEmpty()) return
     val maxVal = data.max().coerceAtLeast(1f)
     val minVal = data.min()
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val dotFill = MaterialTheme.colorScheme.surface
 
-    val revealFraction = remember { Animatable(0f) }
-    LaunchedEffect(data) {
-        revealFraction.snapTo(0f)
-        revealFraction.animateTo(1f, animationSpec = tween(500, easing = EaseOutCubic))
-    }
+    val revealFraction = rememberRevealFraction(500)
 
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
@@ -55,14 +51,15 @@ fun SimpleLineChart(
                 Modifier
                     .matchParentSize()
                     .pointerInput(data) {
-                        detectDragGestures(
+                        // Horizontal only, so a vertical swipe over the chart still scrolls the page.
+                        detectHorizontalDragGestures(
                             onDragStart = { offset ->
                                 val stepX = size.width.toFloat() / (data.size - 1).coerceAtLeast(1)
                                 val idx = (offset.x / stepX).toInt().coerceIn(0, data.lastIndex)
                                 selectedIndex = idx
                                 touchOffset = offset
                             },
-                            onDrag = { change, _ ->
+                            onHorizontalDrag = { change, _ ->
                                 change.consume()
                                 val stepX = size.width.toFloat() / (data.size - 1).coerceAtLeast(1)
                                 val idx = (change.position.x / stepX).toInt().coerceIn(0, data.lastIndex)
@@ -100,9 +97,9 @@ fun SimpleLineChart(
                     val isSelected = selectedIndex == i
                     drawCircle(color = color, radius = if (isSelected) 6f else 3f, center = Offset(x, y))
                     if (isSelected) {
-                        drawCircle(color = Color.White, radius = 3f, center = Offset(x, y))
+                        drawCircle(color = dotFill, radius = 3f, center = Offset(x, y))
                         drawLine(
-                            color = Color.Gray.copy(alpha = 0.4f),
+                            color = gridColor,
                             start = Offset(x, 0f),
                             end = Offset(x, size.height),
                             strokeWidth = 1f,
@@ -122,7 +119,7 @@ fun SimpleLineChart(
         ) {
             if (selIdx != null && selIdx in data.indices) {
                 Text(
-                    "${data[selIdx].roundToInt()}${if (unit.isNotEmpty()) " $unit" else ""}",
+                    "${formatLocalizedNumber(data[selIdx].toDouble(), decimals)}${if (unit.isNotEmpty()) " $unit" else ""}",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.inverseOnSurface,

@@ -16,9 +16,12 @@ import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.rewriteQueuedCreate
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.WeightField
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
+import com.bissbilanz.util.jsonKeys
 import com.bissbilanz.util.newTempId
+import com.bissbilanz.util.runHook
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -59,21 +62,32 @@ class WeightRepository(
         if (appModeManager.isLocal) return
         val entries = api.getWeightEntries(limit)
         cacheWeightEntries(entries)
-        onWeightRefreshed?.invoke()
+        errorReporter.runHook { onWeightRefreshed?.invoke() }
     }
 
     suspend fun createEntry(entry: WeightCreate): WeightEntry {
         val temp = weightCreateToEntry(entry)
         withContext(Dispatchers.IO) { cacheWeightEntry(temp) }
         syncQueue.enqueue(SyncOperation.CreateWeight(json.encodeToString(entry), localId = temp.id))
-        onWeightChanged?.invoke()
+        errorReporter.runHook { onWeightChanged?.invoke() }
         return temp
     }
 
+    /** The server id a temp id got once its create uploaded (see `EntryRepository.resolveId`). */
+    suspend fun resolveId(id: String): String = if (id.isTempId()) syncQueue.resolveId(id) else id
+
+    /**
+     * [cleared] names the fields the user emptied. [WeightUpdate] encodes both
+     * "unchanged" and "cleared" as null, so without it a blanked note keeps its old
+     * value here and on the server. See `com.bissbilanz.util.PartialUpdate`.
+     */
     suspend fun updateEntry(
         id: String,
         entry: WeightUpdate,
+        cleared: Set<WeightField> = emptySet(),
     ): WeightEntry {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         val cached = db.userDataDatabaseQueries.selectAllWeightEntries().executeAsList()
         val existing = cached.mapNotNull { json.decodeOrNull<WeightEntry>(it.jsonData) }.find { it.id == id }
         val result =
@@ -82,7 +96,7 @@ class WeightRepository(
                     existing.copy(
                         weightKg = entry.weightKg ?: existing.weightKg,
                         entryDate = entry.entryDate ?: existing.entryDate,
-                        notes = entry.notes ?: existing.notes,
+                        notes = if (WeightField.NOTES in cleared) null else entry.notes ?: existing.notes,
                     )
                 withContext(Dispatchers.IO) { cacheWeightEntry(updated) }
                 updated
@@ -92,15 +106,23 @@ class WeightRepository(
                     userId = "",
                     weightKg = entry.weightKg ?: 0.0,
                     entryDate = entry.entryDate ?: "",
-                    notes = entry.notes,
+                    notes = if (WeightField.NOTES in cleared) null else entry.notes,
                 )
             }
         if (id.isTempId()) {
-            coalesceQueuedCreate(id, entry)
+            // The create finished uploading meanwhile: the edit belongs to the server record,
+            // and the temp row written above must not linger next to it.
+            if (!coalesceQueuedCreate(id, entry, cleared)) {
+                val uploadedId = resolveId(id)
+                if (uploadedId != id) {
+                    withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteWeightEntry(id) }
+                    return updateEntry(uploadedId, entry, cleared)
+                }
+            }
         } else {
-            syncQueue.enqueue(SyncOperation.UpdateWeight(id, json.encodeToString(entry)))
+            syncQueue.enqueue(SyncOperation.UpdateWeight(id, json.encodeToString(entry), cleared.jsonKeys()))
         }
-        onWeightChanged?.invoke()
+        errorReporter.runHook { onWeightChanged?.invoke() }
         return result
     }
 
@@ -112,7 +134,8 @@ class WeightRepository(
     private suspend fun coalesceQueuedCreate(
         tempId: String,
         update: WeightUpdate,
-    ) {
+        cleared: Set<WeightField>,
+    ): Boolean =
         syncQueue.rewriteQueuedCreate("weight", tempId) { op ->
             val create = op as? SyncOperation.CreateWeight ?: return@rewriteQueuedCreate null
             val body = json.decodeOrNull<WeightCreate>(create.body) ?: return@rewriteQueuedCreate null
@@ -120,11 +143,10 @@ class WeightRepository(
                 body.copy(
                     weightKg = update.weightKg ?: body.weightKg,
                     entryDate = update.entryDate ?: body.entryDate,
-                    notes = update.notes ?: body.notes,
+                    notes = if (WeightField.NOTES in cleared) null else update.notes ?: body.notes,
                 )
             create.copy(body = json.encodeToString(merged))
         }
-    }
 
     suspend fun getTrend(
         from: String,
@@ -140,6 +162,12 @@ class WeightRepository(
         }
     }
 
+    /** The trend from cached entries only, shown while [getTrend] waits on the network. */
+    suspend fun localTrend(
+        from: String,
+        to: String,
+    ): List<WeightTrendEntry> = withContext(Dispatchers.IO) { trendFromCache(from, to) }
+
     private fun trendFromCache(
         from: String,
         to: String,
@@ -154,13 +182,18 @@ class WeightRepository(
             .map { WeightTrendEntry(entryDate = it.date, weightKg = it.weightKg, movingAvg = it.movingAvg) }
 
     suspend fun deleteEntry(id: String) {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
         withContext(Dispatchers.IO) { db.userDataDatabaseQueries.deleteWeightEntry(id) }
         if (id.isTempId()) {
-            syncQueue.removeByAffected("weight", id)
+            if (syncQueue.removeByAffected("weight", id) == 0) {
+                val uploadedId = resolveId(id)
+                if (uploadedId != id) return deleteEntry(uploadedId)
+            }
         } else {
             syncQueue.enqueue(SyncOperation.DeleteWeight(id))
         }
-        onWeightChanged?.invoke()
+        errorReporter.runHook { onWeightChanged?.invoke() }
     }
 
     private fun cacheWeightEntry(entry: WeightEntry) {

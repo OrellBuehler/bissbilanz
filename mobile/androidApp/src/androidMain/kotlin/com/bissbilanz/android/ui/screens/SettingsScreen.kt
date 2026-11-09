@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -19,12 +20,15 @@ import androidx.navigation.NavController
 import com.bissbilanz.android.R
 import com.bissbilanz.android.bulk.formatCount
 import com.bissbilanz.android.health.HealthConnectService
+import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.auth.AuthManager
+import com.bissbilanz.auth.AuthState
 import com.bissbilanz.foodpackage.BulkUploadCounts
 import com.bissbilanz.foodpackage.BulkUploadStore
 import com.bissbilanz.mode.AppMode
@@ -45,7 +49,7 @@ fun SettingsScreen(navController: NavController) {
     val bulkStore: BulkUploadStore = koinInject()
     val bulkCounts by remember(bulkStore) { bulkStore.countsFlow() }
         .collectAsStateWithLifecycle(initialValue = BulkUploadCounts(0, 0, 0, 0))
-    var showUnsyncedSignOutDialog by remember { mutableStateOf(false) }
+    var showUnsyncedSignOutDialog by rememberSaveable { mutableStateOf(false) }
     val pendingSyncCount = syncState.pendingCount + syncState.failedCount
     val mode by viewModel.mode.collectAsStateWithLifecycle()
     val isLocalMode = mode == AppMode.LOCAL
@@ -54,14 +58,20 @@ fun SettingsScreen(navController: NavController) {
     val claudeCapability by viewModel.claudeCapability.collectAsStateWithLifecycle()
     val customMealTypes by viewModel.customMealTypes.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
-    val snackbarMessageRes by viewModel.snackbarMessageRes.collectAsStateWithLifecycle()
     val authState by authManager.authState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
-    var showMealTypeDialog by remember { mutableStateOf(false) }
-    var showDeleteAccountDialog by remember { mutableStateOf(false) }
-    var showDowngradeDialog by remember { mutableStateOf(false) }
+    var showMealTypeDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeleteAccountDialog by rememberSaveable { mutableStateOf(false) }
+    var showDowngradeDialog by rememberSaveable { mutableStateOf(false) }
+    var showSignInDialog by rememberSaveable { mutableStateOf(false) }
+    // Only fetched while a sign-in button is on screen.
+    val needsSignIn = isLocalMode || (authState !is AuthState.Authenticated && authState !is AuthState.Refreshing)
+    val enabledProviders by produceState(defaultEnabledProviders, needsSignIn) {
+        if (needsSignIn) authManager.fetchLoginProviders()?.let { value = it }
+    }
     val downgradeState by viewModel.downgradeState.collectAsStateWithLifecycle()
+    val downgradeRunning = downgradeState.isInProgress
     var editedNutrients by remember { mutableStateOf<Set<String>?>(null) }
     var nutrientsDirty by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -75,22 +85,7 @@ fun SettingsScreen(navController: NavController) {
                 ?: com.bissbilanz.android.navigation.defaultTabRoutes,
         )
     }
-    LaunchedEffect(snackbarMessage) {
-        snackbarMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
-        }
-    }
-    // Resolved in composition rather than with context.getString inside the effect:
-    // a Context read is not configuration-aware, so an app-language change would show
-    // the previous locale's text.
-    val snackbarMessageText = snackbarMessageRes?.let { stringResource(it) }
-    LaunchedEffect(snackbarMessageText) {
-        snackbarMessageText?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbarRes()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     val exportingData by viewModel.exportingData.collectAsStateWithLifecycle()
     val exportedFile by viewModel.exportedFile.collectAsStateWithLifecycle()
@@ -152,7 +147,20 @@ fun SettingsScreen(navController: NavController) {
         )
     }
 
-    if (showDowngradeDialog) {
+    if (showSignInDialog) {
+        SignInProviderDialog(
+            enabledProviders = enabledProviders,
+            onSelect = { provider ->
+                showSignInDialog = false
+                launchLoginFlow(context, authManager, provider)
+            },
+            onDismiss = { showSignInDialog = false },
+        )
+    }
+
+    // Kept up while a downgrade runs or has just finished even if the flag was lost: the
+    // controller outlives this screen, and Sign out must not be reachable mid-downgrade.
+    if (showDowngradeDialog || downgradeRunning || downgradeState == AccountDowngradeController.State.Done) {
         DowngradeDialog(
             downgradeState = downgradeState,
             onConfirm = { viewModel.downgradeToLocal() },
@@ -241,7 +249,7 @@ fun SettingsScreen(navController: NavController) {
                 prefs?.let { p ->
                     Card(modifier = Modifier.fillMaxWidth()) {
                         SettingsNavItem(stringResource(R.string.dashboard_layout_title), Icons.Outlined.Tune) {
-                            navController.navigate("dashboard-layout")
+                            navController.navigate("dashboard-layout") { launchSingleTop = true }
                         }
                     }
 
@@ -249,7 +257,7 @@ fun SettingsScreen(navController: NavController) {
 
                     Card(modifier = Modifier.fillMaxWidth()) {
                         SettingsNavItem(stringResource(R.string.reminders_title), Icons.Default.NotificationsActive) {
-                            navController.navigate("reminders")
+                            navController.navigate("reminders") { launchSingleTop = true }
                         }
                     }
 
@@ -284,7 +292,15 @@ fun SettingsScreen(navController: NavController) {
                     authState = authState,
                     pendingSyncCount = pendingSyncCount,
                     exportingData = exportingData,
-                    onSignIn = { launchLoginFlow(context, authManager) },
+                    signOutEnabled = !downgradeRunning,
+                    onSignIn = {
+                        val visible = visibleLoginProviders(enabledProviders)
+                        if (visible.size == 1) {
+                            launchLoginFlow(context, authManager, visible.single().first)
+                        } else {
+                            showSignInDialog = true
+                        }
+                    },
                     onExportData = { viewModel.exportData(context.cacheDir) },
                     onSignOut = {
                         // Signing out wipes the device, and imported foods that were never uploaded exist nowhere else.

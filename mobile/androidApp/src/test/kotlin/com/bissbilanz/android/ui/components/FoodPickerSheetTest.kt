@@ -8,9 +8,9 @@ import androidx.compose.ui.test.performClick
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.ui.viewmodels.FoodSearchViewModel
 import com.bissbilanz.api.generated.model.Food
-import com.bissbilanz.api.generated.model.FoodsListResponse
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.FoodRepository
+import com.bissbilanz.repository.FoodsPage
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -68,8 +68,8 @@ class FoodPickerSheetTest {
                 every { recentFoods } returns MutableStateFlow(emptyList())
                 every { favorites() } returns flowOf(emptyList())
             }
-        coEvery { foodRepo.fetchFoodsPaginated(any(), any()) } returns
-            FoodsListResponse(foods = listOf(food("a", "Erbsen gefroren"), food("b", "Erdbeeren gefroren")), total = 2)
+        coEvery { foodRepo.fetchFoodsPage(any(), any(), any()) } returns
+            FoodsPage(foods = listOf(food("a", "Erbsen gefroren"), food("b", "Erdbeeren gefroren")), total = 2)
         val entryRepo: EntryRepository = mockk(relaxed = true)
         val errorReporter: ErrorReporter = mockk(relaxed = true)
         startKoin {

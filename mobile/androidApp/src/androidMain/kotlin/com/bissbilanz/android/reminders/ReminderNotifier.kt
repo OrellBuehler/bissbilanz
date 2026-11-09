@@ -13,6 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.bissbilanz.android.MainActivity
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.api.generated.model.Reminder
 
 /**
@@ -56,7 +57,7 @@ object ReminderNotifier {
                 .setContentIntent(openRouteIntent(context, route, notificationId))
                 .addAction(
                     0,
-                    context.getString(R.string.reminder_action_snooze),
+                    AppLanguage.localized(context).getString(R.string.reminder_action_snooze),
                     actionIntent(
                         context,
                         ReminderActionReceiver.ACTION_SNOOZE,
@@ -68,7 +69,7 @@ object ReminderNotifier {
                     ),
                 ).addAction(
                     0,
-                    context.getString(R.string.reminder_action_skip),
+                    AppLanguage.localized(context).getString(R.string.reminder_action_skip),
                     actionIntent(
                         context,
                         ReminderActionReceiver.ACTION_SKIP,
@@ -107,11 +108,11 @@ object ReminderNotifier {
         reminder: Reminder,
     ): Pair<String, String> =
         when (reminder.kind) {
-            Reminder.Kind.weight -> context.getString(R.string.reminder_notification_weight) to "weight"
-            Reminder.Kind.sleep -> context.getString(R.string.reminder_notification_sleep) to "sleep"
+            Reminder.Kind.weight -> AppLanguage.localized(context).getString(R.string.reminder_notification_weight) to "weight"
+            Reminder.Kind.sleep -> AppLanguage.localized(context).getString(R.string.reminder_notification_sleep) to "sleep"
             Reminder.Kind.meal -> {
                 val mealType = reminder.mealType.orEmpty()
-                context.getString(R.string.reminder_notification_meal, mealType) to "dashboard"
+                AppLanguage.localized(context).getString(R.string.reminder_notification_meal, mealType) to "dashboard"
             }
         }
 
@@ -119,7 +120,7 @@ object ReminderNotifier {
         NotificationCompat
             .Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_reminder)
-            .setContentTitle(context.getString(R.string.reminder_notification_summary))
+            .setContentTitle(AppLanguage.localized(context).getString(R.string.reminder_notification_summary))
             .setGroup(GROUP_KEY)
             .setGroupSummary(true)
             .setAutoCancel(true)
@@ -183,16 +184,15 @@ object ReminderNotifier {
 
     private fun ensureChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
-        if (manager.getNotificationChannel(CHANNEL_ID) != null) return
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                context.getString(R.string.reminder_notification_channel),
+                AppLanguage.localized(context).getString(R.string.reminder_notification_channel),
                 // A reminder should make a sound but not seize the screen; IMPORTANCE_HIGH
                 // would heads-up over whatever the user is doing.
                 NotificationManager.IMPORTANCE_DEFAULT,
             ).apply {
-                description = context.getString(R.string.reminder_notification_channel_desc)
+                description = AppLanguage.localized(context).getString(R.string.reminder_notification_channel_desc)
                 setShowBadge(true)
             },
         )

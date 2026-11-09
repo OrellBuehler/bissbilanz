@@ -13,22 +13,25 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.android.R
-import com.bissbilanz.repository.SupplementRepository
-import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
+import com.bissbilanz.android.ui.viewmodels.DashboardWidgetsViewModel
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun SupplementsWidget(
     date: String,
     onViewAll: () -> Unit,
+    viewModel: DashboardWidgetsViewModel = koinViewModel(),
 ) {
-    val supplementRepo: SupplementRepository = koinInject()
-    val supplements by supplementRepo.supplements().collectAsStateWithLifecycle(emptyList())
-    var takenIds by remember { mutableStateOf(setOf<String>()) }
-    val scope = rememberCoroutineScope()
+    val supplements =
+        viewModel.supplements
+            .collectAsStateWithLifecycle()
+            .value
+            .orEmpty()
+    val takenByDate by viewModel.takenByDate.collectAsStateWithLifecycle()
+    val takenIds = takenByDate[date]
 
     LaunchedEffect(date) {
-        takenIds = supplementRepo.getChecklist(date).map { it.supplementId }.toSet()
+        viewModel.loadChecklist(date)
     }
 
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -50,14 +53,14 @@ fun SupplementsWidget(
                 )
             }
             Text(
-                stringResource(R.string.chart_supplements_taken, takenIds.size, supplements.size),
+                stringResource(R.string.chart_supplements_taken, takenIds?.size ?: 0, supplements.size),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 28.dp),
             )
             Spacer(modifier = Modifier.height(8.dp))
             supplements.forEach { supplement ->
-                val isTaken = takenIds.contains(supplement.id)
+                val isTaken = takenIds?.contains(supplement.id) == true
                 Row(
                     modifier =
                         Modifier
@@ -67,22 +70,9 @@ fun SupplementsWidget(
                 ) {
                     Checkbox(
                         checked = isTaken,
+                        enabled = takenIds != null,
                         onCheckedChange = { checked ->
-                            takenIds =
-                                if (checked) takenIds + supplement.id else takenIds - supplement.id
-                            scope.launch {
-                                try {
-                                    if (checked) {
-                                        supplementRepo.logSupplement(supplement.id, date)
-                                    } else {
-                                        supplementRepo.unlogSupplement(supplement.id, date)
-                                    }
-                                } catch (e: Exception) {
-                                    if (e is kotlinx.coroutines.CancellationException) throw e
-                                    takenIds =
-                                        if (checked) takenIds - supplement.id else takenIds + supplement.id
-                                }
-                            }
+                            viewModel.setSupplementTaken(supplement.id, date, checked)
                         },
                     )
                     val ings = supplement.ingredients

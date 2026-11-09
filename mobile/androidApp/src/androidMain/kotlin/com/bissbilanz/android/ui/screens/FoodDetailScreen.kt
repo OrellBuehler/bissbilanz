@@ -4,35 +4,40 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.CallMerge
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.AppTopBar
+import com.bissbilanz.android.ui.components.ErrorState
 import com.bissbilanz.android.ui.components.FoodEditSheet
 import com.bissbilanz.android.ui.components.FoodImage
 import com.bissbilanz.android.ui.components.FoodPickerSheet
@@ -67,6 +72,8 @@ private val NovaYellow = Color(0xFFFECB02)
 private val NovaOrange = Color(0xFFEE8100)
 private val NovaRed = Color(0xFFE63E11)
 
+private fun onBadgeColor(background: Color): Color = if (background.luminance() > 0.3f) Color(0xFF1B2329) else Color.White
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FoodDetailScreen(
@@ -78,17 +85,19 @@ fun FoodDetailScreen(
     val refreshManager: RefreshManager = koinInject()
     val prefsRepo: PreferencesRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
-    val prefs by prefsRepo.preferences().collectAsStateWithLifecycle(null)
+    val preferencesFlow = remember(prefsRepo) { prefsRepo.preferences() }
+    val prefs by preferencesFlow.collectAsStateWithLifecycle(null)
     val visibleNutrients = prefs?.visibleNutrients?.toSet()
     var food by remember { mutableStateOf<Food?>(null) }
     var isLoading by remember { mutableStateOf(true) }
-    var showLogDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
+    var loadAttempt by remember { mutableIntStateOf(0) }
+    var showLogDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
     var deleteConflict by remember { mutableStateOf<DeleteOutcome.Blocked?>(null) }
-    var showUsage by remember { mutableStateOf(false) }
-    var showEditSheet by remember { mutableStateOf(false) }
+    var showUsage by rememberSaveable { mutableStateOf(false) }
+    var showEditSheet by rememberSaveable { mutableStateOf(false) }
     var isEnriching by remember { mutableStateOf(false) }
-    var showMergeTargetPicker by remember { mutableStateOf(false) }
+    var showMergeTargetPicker by rememberSaveable { mutableStateOf(false) }
     var mergeTarget by remember { mutableStateOf<Food?>(null) }
     var isMerging by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -104,7 +113,7 @@ fun FoodDetailScreen(
     val mergeFailedMessage = stringResource(R.string.food_merge_failed)
     val mergeOfflineMessage = stringResource(R.string.food_merge_unavailable_offline)
 
-    LaunchedEffect(foodId) {
+    LaunchedEffect(foodId, loadAttempt) {
         isLoading = true
         try {
             food = foodRepo.getFood(foodId)
@@ -112,7 +121,8 @@ fun FoodDetailScreen(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            snackbarHostState.showSnackbar(loadFailedMessage)
+            // No snackbar: without a food the error state below says so, and with
+            // one only the preferences refresh failed, which the cached ones cover.
         }
         isLoading = false
     }
@@ -277,9 +287,13 @@ fun FoodDetailScreen(
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -300,11 +314,7 @@ fun FoodDetailScreen(
                         )
                     }
                 },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
-                    }
-                },
+                onBack = { navController.popBackStack() },
                 actions = {
                     if (food != null) {
                         if (food?.barcode != null) {
@@ -363,6 +373,10 @@ fun FoodDetailScreen(
     ) { padding ->
         if (isLoading) {
             LoadingScreen()
+        } else if (food == null) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                ErrorState(message = loadFailedMessage, onRetry = { loadAttempt++ })
+            }
         } else {
             PullToRefreshWrapper(
                 onRefresh = {
@@ -716,23 +730,22 @@ private fun NutriScoreBadge(score: String) {
             letters.forEachIndexed { index, letter ->
                 val isActive = index == activeIndex
                 val bgColor = if (isActive) colors[index] else colors[index].copy(alpha = 0.15f)
-                val textColor = if (isActive) Color.White else colors[index].copy(alpha = 0.5f)
+                val textColor = if (isActive) onBadgeColor(colors[index]) else colors[index].copy(alpha = 0.5f)
                 val size = if (isActive) 40.dp else 32.dp
-                val fontSize = if (isActive) 18.sp else 14.sp
 
                 Box(
                     modifier =
                         Modifier
                             .size(size)
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(MaterialTheme.shapes.extraSmall)
                             .background(bgColor),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         letter,
                         color = textColor,
+                        style = if (isActive) MaterialTheme.typography.titleMedium else MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
-                        fontSize = fontSize,
                     )
                 }
             }
@@ -766,15 +779,15 @@ private fun NovaGroupBadge(group: Int) {
                 modifier =
                     Modifier
                         .size(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(MaterialTheme.shapes.small)
                         .background(novaInfo.second),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     group.toString(),
-                    color = Color.White,
+                    color = onBadgeColor(novaInfo.second),
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
                 )
             }
             Text(
@@ -800,7 +813,7 @@ private fun AdditivesSection(additives: List<String>) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.small,
                 color = MaterialTheme.colorScheme.errorContainer,
             ) {
                 Text(
@@ -850,7 +863,7 @@ private fun IngredientsSection(text: String) {
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .then(if (isLong) Modifier.clickable { expanded = !expanded } else Modifier),
+                    .then(if (isLong) Modifier.clickable { expanded = !expanded }.heightIn(min = 48.dp) else Modifier),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -861,9 +874,9 @@ private fun IngredientsSection(text: String) {
             )
             if (isLong) {
                 Icon(
-                    if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    Icons.Default.ExpandMore,
                     contentDescription = stringResource(if (expanded) R.string.food_detail_collapse else R.string.food_detail_expand),
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(20.dp).rotate(if (expanded) 180f else 0f),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -874,7 +887,7 @@ private fun IngredientsSection(text: String) {
                 Modifier
                     .fillMaxWidth()
                     .animateContentSize(),
-            shape = RoundedCornerShape(8.dp),
+            shape = MaterialTheme.shapes.small,
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         ) {
             Text(

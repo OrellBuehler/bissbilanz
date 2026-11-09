@@ -1,6 +1,7 @@
 package com.bissbilanz.android.ui
 
 import android.app.Activity
+import android.app.LocaleManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.res.Configuration
@@ -51,6 +52,18 @@ object AppLanguage {
         return if (tag in SUPPORTED_TAGS) tag else SYSTEM
     }
 
+    /**
+     * The language actually in effect. On API 33+ the platform owns the per-app language
+     * and the user can change it in Android's app settings, bypassing [apply], so the
+     * stored tag may be stale there.
+     */
+    fun current(context: Context): String {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return stored(context)
+        val locales = context.getSystemService(LocaleManager::class.java)?.applicationLocales
+        val tag = if (locales == null || locales.isEmpty) SYSTEM else locales[0].language
+        return if (tag in SUPPORTED_TAGS) tag else SYSTEM
+    }
+
     fun apply(
         context: Context,
         tag: String,
@@ -81,10 +94,22 @@ object AppLanguage {
         val tag = stored(base)
         val locale = if (tag == SYSTEM) deviceDefault else Locale.forLanguageTag(tag)
         Locale.setDefault(locale)
-        if (tag == SYSTEM) return base
-        val config = Configuration(base.resources.configuration)
-        config.setLocale(locale)
-        return base.createConfigurationContext(config)
+        return localized(base)
+    }
+
+    /**
+     * [context] with the stored language applied to its resources, for strings resolved
+     * from the application context (notifications, Glance widgets) which [wrap] never
+     * reaches. Unlike [wrap] it leaves [Locale.getDefault] alone. API 33+ resolves the
+     * per-app language in every context already.
+     */
+    fun localized(context: Context): Context {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return context
+        val tag = stored(context)
+        if (tag == SYSTEM) return context
+        val config = Configuration(context.resources.configuration)
+        config.setLocale(Locale.forLanguageTag(tag))
+        return context.createConfigurationContext(config)
     }
 
     /**

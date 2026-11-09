@@ -9,6 +9,7 @@ import com.bissbilanz.analytics.SuggestionCandidate
 import com.bissbilanz.analytics.SuggestionMacros
 import com.bissbilanz.analytics.adjustGoalsForActivity
 import com.bissbilanz.analytics.suggestRecipes
+import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.components.MealLogDetails
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Goals
@@ -20,11 +21,13 @@ import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.util.resolveDefaultMeal
 import com.bissbilanz.util.totalMacros
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
@@ -37,6 +40,7 @@ data class SuggestedRecipe(
     val suggestion: RecipeSuggestion,
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class RecipeSuggestionsViewModel(
     private val recipeRepo: RecipeRepository,
     private val entryRepo: EntryRepository,
@@ -44,13 +48,15 @@ class RecipeSuggestionsViewModel(
     private val prefsRepo: PreferencesRepository,
     private val errorReporter: ErrorReporter,
 ) : ViewModel() {
-    private val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
+    private fun currentDay() = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
+
+    private val today = MutableStateFlow(currentDay())
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _snackbarMessage = MutableStateFlow<String?>(null)
-    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
+    val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
 
     val goals: StateFlow<Goals?> =
         goalsRepo
@@ -70,7 +76,14 @@ class RecipeSuggestionsViewModel(
     private val activityCalories = MutableStateFlow<Int?>(null)
 
     val remaining: StateFlow<MacroBudget?> =
-        combine(entryRepo.entriesByDate(today), goalsRepo.goals(), preferences, activityCalories) { entries, goals, prefs, calories ->
+        combine(
+            today.flatMapLatest {
+                entryRepo.entriesByDate(it)
+            },
+            goalsRepo.goals(),
+            preferences,
+            activityCalories,
+        ) { entries, goals, prefs, calories ->
             adjustGoalsForActivity(
                 goals,
                 calories,
@@ -106,8 +119,11 @@ class RecipeSuggestionsViewModel(
     init {
         viewModelScope.launch {
             _isLoading.value = true
+            val day = currentDay()
+            today.value = day
+            activityCalories.value = entryRepo.localDayProperties(day)?.activityCalories
             try {
-                entryRepo.refresh(today)
+                entryRepo.refresh(day)
                 recipeRepo.refresh()
                 goalsRepo.refresh()
                 prefsRepo.refresh()
@@ -116,7 +132,7 @@ class RecipeSuggestionsViewModel(
                 errorReporter.captureException(e)
             }
             try {
-                activityCalories.value = entryRepo.getDayProperties(today)?.activityCalories
+                activityCalories.value = entryRepo.getDayProperties(day)?.activityCalories
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
@@ -130,8 +146,6 @@ class RecipeSuggestionsViewModel(
     fun logRecipe(
         recipe: Recipe,
         details: MealLogDetails,
-        loggedMessage: (String) -> String,
-        failedMessage: String,
     ) {
         viewModelScope.launch {
             try {
@@ -146,11 +160,11 @@ class RecipeSuggestionsViewModel(
                     ),
                     recipe = recipe,
                 )
-                _snackbarMessage.value = loggedMessage(recipe.name)
+                _snackbarMessage.value = UiMessage(R.string.recipe_suggestions_logged, listOf(recipe.name))
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessage.value = failedMessage
+                _snackbarMessage.value = UiMessage(R.string.recipe_suggestions_log_failed)
             }
         }
     }

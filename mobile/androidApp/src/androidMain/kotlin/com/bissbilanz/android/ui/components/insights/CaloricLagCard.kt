@@ -46,6 +46,7 @@ fun CaloricLagCard(result: CaloricLagResult) {
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = if (isBest) FontWeight.SemiBold else FontWeight.Normal,
                     color = if (isBest) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
                 )
                 Text(
                     "r = ${"%.2f".format(correlation.r)}",

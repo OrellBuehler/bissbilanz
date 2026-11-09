@@ -95,6 +95,6 @@ dependencies {
     implementation(libs.sentry.android)
     debugImplementation(libs.compose.ui.tooling)
     testImplementation(libs.kotlin.test)
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.4.10")
+    testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.kotlinx.coroutines.test)
 }

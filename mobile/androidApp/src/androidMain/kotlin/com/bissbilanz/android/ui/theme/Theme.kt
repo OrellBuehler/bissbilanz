@@ -108,7 +108,7 @@ fun Color.macroTextTone(): Color {
         FiberGreen, TrendGreen -> palette.fiber
         FastingIndigo -> palette.fasting
         WaterCyan -> palette.water
-        ActivityViolet -> palette.activity
+        ActivityViolet, ProjectionPurple -> palette.activity
         else -> this
     }
 }

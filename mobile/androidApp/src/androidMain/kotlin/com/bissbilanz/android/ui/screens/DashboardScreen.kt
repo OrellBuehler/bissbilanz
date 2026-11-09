@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,7 +31,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.bissbilanz.android.R
@@ -63,9 +67,12 @@ import com.bissbilanz.android.ui.components.TopFoodsWidget
 import com.bissbilanz.android.ui.components.WaterCard
 import com.bissbilanz.android.ui.components.WeightWidget
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.android.util.DashboardSection
 import com.bissbilanz.android.util.dayLabel
+import com.bissbilanz.android.util.millisUntilNextDay
 import com.bissbilanz.android.util.resolveDashboardSections
 import com.bissbilanz.android.widget.DayOverviewWidgetReceiver
 import com.bissbilanz.mode.AppMode
@@ -79,6 +86,7 @@ import com.bissbilanz.util.resolvedCarbs
 import com.bissbilanz.util.resolvedFat
 import com.bissbilanz.util.resolvedFiber
 import com.bissbilanz.util.resolvedProtein
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
@@ -105,33 +113,42 @@ fun DashboardScreen(navController: NavController) {
 
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val appModeManager: AppModeManager = koinInject()
-    val appMode by appModeManager.mode.collectAsStateWithLifecycle(null)
+    val appMode by appModeManager.mode.collectAsStateWithLifecycle()
     val isLocalMode = appMode == AppMode.LOCAL
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val haptic = rememberHaptic()
 
-    LaunchedEffect(snackbarMessage) {
-        snackbarMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
     val aiQueuedMessage = stringResource(R.string.ai_task_queued)
-    val copyFailedMessage = stringResource(R.string.dashboard_copy_failed)
-    val copiedFormat = stringResource(R.string.dashboard_copied_count)
     val loggedFormat = stringResource(R.string.dashboard_favorite_logged)
-    val copyEntries = {
-        viewModel.copyEntriesFromYesterday({ count -> copiedFormat.format(count) }, copyFailedMessage)
+
+    // Re-checked on every resume and again at each midnight while the dashboard stays
+    // on screen, so "today" follows the calendar instead of turning into yesterday.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        var firstResume = true
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            // Entries logged elsewhere (web, MCP, another device) only show up after a
+            // refresh; the first resume is the initial load the view model already did.
+            if (!firstResume) viewModel.loadData()
+            firstResume = false
+            while (true) {
+                viewModel.rollOverToToday()
+                delay(millisUntilNextDay())
+            }
+        }
     }
 
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     var showQuickAddSheet by remember { mutableStateOf(false) }
     var showAiMealSheet by remember { mutableStateOf(false) }
     var fabMenuExpanded by remember { mutableStateOf(false) }
-    var createFoodBarcode by remember { mutableStateOf<String?>(null) }
-    var addFoodForMeal by remember { mutableStateOf<String?>(null) }
+    var createFoodBarcode by androidx.compose.runtime.saveable
+        .rememberSaveable { mutableStateOf<String?>(null) }
+    var addFoodForMeal by androidx.compose.runtime.saveable
+        .rememberSaveable { mutableStateOf<String?>(null) }
 
     val tipStore: TipStore = koinInject()
     val tipFoodLoggedCount by tipStore.foodLoggedCount.collectAsStateWithLifecycle()
@@ -189,9 +206,11 @@ fun DashboardScreen(navController: NavController) {
                     }
                 },
                 actions = {
+                    // An icon rather than a text button: "Zu heute springen" left the
+                    // centred title no room on a German phone.
                     if (selectedDate != today) {
-                        TextButton(onClick = { viewModel.goToToday() }) {
-                            Text(stringResource(R.string.dashboard_go_to_today))
+                        IconButton(onClick = { viewModel.goToToday() }) {
+                            Icon(Icons.Default.Today, stringResource(R.string.dashboard_go_to_today))
                         }
                     }
                     IconButton(
@@ -370,9 +389,7 @@ fun DashboardScreen(navController: NavController) {
                                 onHorizontalDrag = { _, delta -> dragAmount += delta },
                             )
                         }.verticalScroll(rememberScrollState())
-                        // Bottom clearance for the three stacked FABs, which
-                        // otherwise sit on top of the last widget on the day.
-                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 176.dp),
+                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = Dimens.FabClearance),
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -451,7 +468,7 @@ fun DashboardScreen(navController: NavController) {
                 }
 
                 if (activeTipId == TipIds.WIDGETS) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(Dimens.CardGap))
                     val widgetTipContext = LocalContext.current
                     val widgetManager = remember { AppWidgetManager.getInstance(widgetTipContext) }
                     HintCard(
@@ -482,7 +499,7 @@ fun DashboardScreen(navController: NavController) {
                 val sections =
                     remember(prefs) { resolveDashboardSections(prefs?.widgetOrder, prefs) }
 
-                Crossfade(targetState = isLoading, label = "dashboard") { loading ->
+                Crossfade(targetState = isLoading && entries.isEmpty(), label = "dashboard") { loading ->
                     if (loading) {
                         DashboardSkeleton()
                     } else {
@@ -494,12 +511,12 @@ fun DashboardScreen(navController: NavController) {
                                     when (section) {
                                         DashboardSection.FASTING -> {
                                             if (selectedDate == today) {
-                                                Spacer(modifier = Modifier.height(16.dp))
+                                                Spacer(modifier = Modifier.height(Dimens.CardGap))
                                                 FastingCard(onClick = { navController.navigate("fasting") })
                                             }
 
                                             if (totalCalories == 0.0 && !refreshFailed) {
-                                                Spacer(modifier = Modifier.height(16.dp))
+                                                Spacer(modifier = Modifier.height(Dimens.CardGap))
                                                 Card(
                                                     modifier = Modifier.fillMaxWidth(),
                                                     colors =
@@ -541,38 +558,50 @@ fun DashboardScreen(navController: NavController) {
                                             }
                                         }
 
+                                        // Keyed by day so a draft never carries over to the
+                                        // next day, and a draft saved while switching days is
+                                        // written to the day it was typed on.
                                         DashboardSection.WATER -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
-                                            WaterCard(
-                                                waterMl = waterMl,
-                                                waterGoalMl = waterGoalMl,
-                                                onAddWater = { viewModel.addWater(it) },
-                                                onSetWater = { viewModel.setWater(it) },
-                                                onClearWater = { viewModel.clearWater() },
-                                            )
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
+                                            key(selectedDate) {
+                                                val day = selectedDate.toString()
+                                                WaterCard(
+                                                    waterMl = waterMl,
+                                                    waterGoalMl = waterGoalMl,
+                                                    onAddWater = { viewModel.addWater(it) },
+                                                    onSetWater = { viewModel.setWater(it, day) },
+                                                    onClearWater = { viewModel.setWater(null, day) },
+                                                )
+                                            }
                                         }
 
                                         DashboardSection.ACTIVITY -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
-                                            ActivityCard(
-                                                activityCalories = activityCalories,
-                                                activityCaloriesSource = activityCaloriesSource,
-                                                activityNote = activityNote,
-                                                onSetActivity = { cal, note -> viewModel.setActivity(cal, note) },
-                                                onClearActivity = { viewModel.clearActivity() },
-                                            )
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
+                                            key(selectedDate) {
+                                                val day = selectedDate.toString()
+                                                ActivityCard(
+                                                    activityCalories = activityCalories,
+                                                    activityCaloriesSource = activityCaloriesSource,
+                                                    activityNote = activityNote,
+                                                    onSetActivity = { cal, note -> viewModel.setActivity(cal, note, day) },
+                                                    onClearActivity = { viewModel.setActivity(null, null, day) },
+                                                )
+                                            }
                                         }
 
                                         DashboardSection.NOTES -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
-                                            NotesCard(
-                                                notes = notes,
-                                                onNotesChanged = { viewModel.setNotes(it) },
-                                            )
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
+                                            key(selectedDate) {
+                                                val day = selectedDate.toString()
+                                                NotesCard(
+                                                    notes = notes,
+                                                    onNotesChanged = { viewModel.setNotes(it, day) },
+                                                )
+                                            }
                                         }
 
                                         DashboardSection.DAYLOG -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             Column {
                                                 mealTypes.forEach { meal ->
                                                     val mealEntries = mealGroups[meal] ?: emptyList()
@@ -600,7 +629,7 @@ fun DashboardScreen(navController: NavController) {
                                                         RefreshErrorState(onRetry = { viewModel.loadData() })
                                                     } else {
                                                         OutlinedButton(
-                                                            onClick = { copyEntries() },
+                                                            onClick = { viewModel.copyEntriesFromYesterday() },
                                                             modifier = Modifier.align(Alignment.CenterHorizontally),
                                                         ) {
                                                             Icon(
@@ -617,7 +646,7 @@ fun DashboardScreen(navController: NavController) {
                                         }
 
                                         DashboardSection.CHART -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             CalorieTrendWidget(date = selectedDate.toString(), entries = entries)
                                         }
 
@@ -626,7 +655,7 @@ fun DashboardScreen(navController: NavController) {
                                             // surprise, so favourites only appear on today — same rule
                                             // as the web dashboard.
                                             if (selectedDate == today) {
-                                                Spacer(modifier = Modifier.height(16.dp))
+                                                Spacer(modifier = Modifier.height(Dimens.CardGap))
                                                 FavoritesQuickLogWidget(
                                                     date = selectedDate.toString(),
                                                     onViewAll = { navController.navigate("favorites") },
@@ -644,9 +673,10 @@ fun DashboardScreen(navController: NavController) {
                                             // Suggestions rank recipes against what's left of *today's*
                                             // goal, so — same as favourites — they only make sense on today.
                                             if (selectedDate == today) {
-                                                Spacer(modifier = Modifier.height(16.dp))
+                                                Spacer(modifier = Modifier.height(Dimens.CardGap))
                                                 RecipeSuggestionsWidget(
                                                     date = selectedDate.toString(),
+                                                    entries = entries,
                                                     activityCalories = activityCalories,
                                                     onViewAll = { navController.navigate("recipe-suggestions") },
                                                     onLogged = { name ->
@@ -660,7 +690,7 @@ fun DashboardScreen(navController: NavController) {
                                         }
 
                                         DashboardSection.SUPPLEMENTS -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             SupplementsWidget(
                                                 date = selectedDate.toString(),
                                                 onViewAll = { navController.navigate("supplements") },
@@ -668,7 +698,7 @@ fun DashboardScreen(navController: NavController) {
                                         }
 
                                         DashboardSection.WEIGHT -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             WeightWidget(
                                                 date = selectedDate.toString(),
                                                 onViewAll = { navController.navigate("weight") },
@@ -677,17 +707,17 @@ fun DashboardScreen(navController: NavController) {
                                         }
 
                                         DashboardSection.SLEEP -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
-                                            SleepWidget(onViewAll = { navController.navigate("sleep") })
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
+                                            SleepWidget(date = selectedDate.toString(), onViewAll = { navController.navigate("sleep") })
                                         }
 
                                         DashboardSection.MEAL_BREAKDOWN -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             MealBreakdownWidget(entries = entries)
                                         }
 
                                         DashboardSection.TOP_FOODS -> {
-                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             TopFoodsWidget(entries = entries, isLocalMode = isLocalMode)
                                         }
                                     }

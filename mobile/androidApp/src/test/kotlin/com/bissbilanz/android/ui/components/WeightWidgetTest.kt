@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.ui.theme.BissbilanzTheme
+import com.bissbilanz.android.ui.viewmodels.DashboardWidgetsViewModel
 import com.bissbilanz.repository.WeightRepository
 import io.mockk.coEvery
 import io.mockk.every
@@ -24,6 +25,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -55,6 +57,19 @@ class WeightWidgetTest {
                 module {
                     single<WeightRepository> { weightRepo }
                     single<ErrorReporter> { errorReporter }
+                    viewModel {
+                        DashboardWidgetsViewModel(
+                            foodRepo = mockk(relaxed = true),
+                            recipeRepo = mockk(relaxed = true),
+                            goalsRepo = mockk(relaxed = true),
+                            prefsRepo = mockk(relaxed = true),
+                            weightRepo = weightRepo,
+                            sleepRepo = mockk(relaxed = true),
+                            supplementRepo = mockk(relaxed = true),
+                            statsRepo = mockk(relaxed = true),
+                            errorReporter = errorReporter,
+                        )
+                    }
                 },
             )
         }

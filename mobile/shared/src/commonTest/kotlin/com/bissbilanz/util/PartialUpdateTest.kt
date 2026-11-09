@@ -103,4 +103,24 @@ class PartialUpdateTest {
 
         assertEquals(JsonNull, body["eatenAt"])
     }
+
+    @Test
+    fun weightAndSleepNullableFieldsClearAsExplicitNulls() {
+        val weight =
+            testJson.encodePartialUpdate(
+                com.bissbilanz.api.generated.model
+                    .WeightUpdate(weightKg = 80.0),
+                setOf(WeightField.NOTES).jsonKeys(),
+            )
+        assertEquals(JsonNull, weight["notes"])
+
+        val sleep =
+            testJson.encodePartialUpdate(
+                com.bissbilanz.api.generated.model
+                    .SleepUpdate(quality = 7.0),
+                SleepField.entries.toSet().jsonKeys(),
+            )
+        assertEquals(setOf("quality", "bedtime", "wakeTime", "wakeUps", "notes"), sleep.keys)
+        assertEquals(JsonNull, sleep["wakeUps"])
+    }
 }

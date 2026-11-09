@@ -1,31 +1,36 @@
 package com.bissbilanz.android.ui.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.screens.MacroRow
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.util.dayLabel
+import com.bissbilanz.android.util.toEditableString
 import com.bissbilanz.util.mealForCurrentTime
-import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
@@ -56,6 +61,16 @@ data class MealLogDetails(
     val notes: String?,
 )
 
+internal fun servingsToGramsText(
+    servings: Double,
+    gramsPerServing: Double,
+): String = (Math.round(servings * gramsPerServing * 10) / 10.0).toEditableString()
+
+internal fun gramsToServingsText(
+    grams: Double,
+    gramsPerServing: Double,
+): String = (Math.round(grams / gramsPerServing * 1000) / 1000.0).toEditableString()
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MealPickerSheet(
@@ -74,23 +89,24 @@ fun MealPickerSheet(
 ) {
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var selectedMeal by remember { mutableStateOf(initialMeal ?: mealForCurrentTime()) }
-    var servingsText by remember { mutableStateOf(initialServings.toDisplayString()) }
-    var byWeight by remember { mutableStateOf(false) }
-    var gramsText by remember {
-        mutableStateOf(gramsPerServing?.let { (initialServings * it).toDisplayString() } ?: "")
+    var selectedMeal by rememberSaveable { mutableStateOf(initialMeal ?: mealForCurrentTime()) }
+    var servingsText by rememberSaveable { mutableStateOf(initialServings.toEditableString()) }
+    var byWeight by rememberSaveable { mutableStateOf(false) }
+    var gramsText by rememberSaveable {
+        mutableStateOf(gramsPerServing?.let { servingsToGramsText(initialServings, it) } ?: "")
     }
-    var selectedDate by remember { mutableStateOf(date) }
+    var selectedDate by rememberSaveable { mutableStateOf(date) }
     val nowLocal = remember { Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()) }
-    var eatenHour by remember { mutableIntStateOf(nowLocal.hour) }
-    var eatenMinute by remember { mutableIntStateOf(nowLocal.minute) }
-    var notes by remember { mutableStateOf("") }
-    var showDatePicker by remember { mutableStateOf(false) }
+    var eatenHour by rememberSaveable { mutableIntStateOf(nowLocal.hour) }
+    var eatenMinute by rememberSaveable { mutableIntStateOf(nowLocal.minute) }
+    var notes by rememberSaveable { mutableStateOf("") }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
+    var confirmed by rememberSaveable { mutableStateOf(false) }
     val servings =
         if (byWeight && gramsPerServing != null && gramsPerServing > 0.0) {
             (gramsText.toLocalizedDoubleOrNull() ?: 0.0) / gramsPerServing
         } else {
-            servingsText.toLocalizedDoubleOrNull() ?: 1.0
+            servingsText.toLocalizedDoubleOrNull() ?: 0.0
         }
 
     if (showDatePicker) {
@@ -128,8 +144,8 @@ fun MealPickerSheet(
         Column(
             modifier =
                 Modifier
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp)
+                    .padding(horizontal = Dimens.SheetHorizontalPadding)
+                    .padding(bottom = Dimens.SheetBottomPadding)
                     .imePadding()
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -144,8 +160,8 @@ fun MealPickerSheet(
                         contentDescription = null,
                         modifier =
                             Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(10.dp)),
+                                .size(Dimens.ThumbCard)
+                                .clip(MaterialTheme.shapes.small),
                     )
                 }
                 Text(
@@ -156,38 +172,39 @@ fun MealPickerSheet(
             }
 
             if (showMealPicker) {
-                Text(stringResource(R.string.meal_picker_meal_label), style = MaterialTheme.typography.labelLarge)
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    mealTypes.forEachIndexed { index, meal ->
-                        SegmentedButton(
-                            selected = selectedMeal == meal,
-                            onClick = { selectedMeal = meal },
-                            shape = SegmentedButtonDefaults.itemShape(index, mealTypes.size),
-                        ) {
-                            Text(
-                                mealTypeDisplayName(meal),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        }
-                    }
-                }
+                ChoiceDropdown(
+                    label = stringResource(R.string.meal_picker_meal_label),
+                    selectedLabel = mealTypeDisplayName(selectedMeal),
+                    options = mealTypes.map { mealTypeDisplayName(it) to it },
+                    onSelect = { selectedMeal = it },
+                )
             }
 
             if (gramsPerServing != null && gramsPerServing > 0.0) {
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         selected = !byWeight,
-                        onClick = { byWeight = false },
+                        onClick = {
+                            if (byWeight) {
+                                gramsText.toLocalizedDoubleOrNull()?.let { servingsText = gramsToServingsText(it, gramsPerServing) }
+                            }
+                            byWeight = false
+                        },
                         shape = SegmentedButtonDefaults.itemShape(0, 2),
                     ) {
-                        Text(stringResource(R.string.meal_picker_mode_servings))
+                        Text(stringResource(R.string.meal_picker_mode_servings), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     SegmentedButton(
                         selected = byWeight,
-                        onClick = { byWeight = true },
+                        onClick = {
+                            if (!byWeight) {
+                                servingsText.toLocalizedDoubleOrNull()?.let { gramsText = servingsToGramsText(it, gramsPerServing) }
+                            }
+                            byWeight = true
+                        },
                         shape = SegmentedButtonDefaults.itemShape(1, 2),
                     ) {
-                        Text(stringResource(R.string.meal_picker_mode_grams))
+                        Text(stringResource(R.string.meal_picker_mode_grams), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -239,9 +256,9 @@ fun MealPickerSheet(
                     Icon(
                         Icons.Default.CalendarToday,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(ButtonDefaults.IconSize),
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
                     Text(dayLabel(LocalDate.parse(selectedDate)))
                 }
 
@@ -265,21 +282,21 @@ fun MealPickerSheet(
                 )
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
+            SheetActionRow {
                 OutlinedButton(
                     onClick = {
                         scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                 ) {
-                    Text(stringResource(R.string.dialog_cancel))
+                    Text(stringResource(R.string.dialog_cancel), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Button(
                     onClick = {
-                        if (servings > 0) {
+                        if (!confirmed && servings > 0) {
+                            // invokeOnCompletion also fires when the hide animation is
+                            // cancelled by a second tap, so guard against logging twice.
+                            confirmed = true
                             scope.launch { sheetState.hide() }.invokeOnCompletion {
                                 onConfirm(
                                     MealLogDetails(
@@ -293,9 +310,14 @@ fun MealPickerSheet(
                             }
                         }
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    enabled = !confirmed && servings > 0,
                 ) {
-                    Text(stringResource(if (showMealPicker) R.string.meal_picker_log else R.string.meal_picker_confirm))
+                    Text(
+                        stringResource(if (showMealPicker) R.string.meal_picker_log else R.string.meal_picker_confirm),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }

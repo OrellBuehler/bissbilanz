@@ -5,8 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.util.formatLocalizedNumber
 import com.bissbilanz.api.generated.model.RecipeIngredient
 import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.RecipeRepository
@@ -79,7 +80,8 @@ fun RecipeSourceSheet(
     val errorReporter: ErrorReporter = koinInject()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
-    val recipes by recipeRepo.allRecipes().collectAsStateWithLifecycle(emptyList())
+    val recipesFlow = remember(recipeRepo) { recipeRepo.allRecipes() }
+    val recipes by recipesFlow.collectAsStateWithLifecycle(emptyList())
     var query by remember { mutableStateOf("") }
     var selected by remember { mutableStateOf<Recipe?>(null) }
     var amountText by remember { mutableStateOf("") }
@@ -189,7 +191,7 @@ fun RecipeSourceSheet(
                                         Text(
                                             stringResource(
                                                 R.string.recipe_list_item_summary,
-                                                recipe.totalServings.toInt(),
+                                                formatLocalizedNumber(recipe.totalServings, 2),
                                                 recipe.ingredients.size,
                                             ),
                                             style = MaterialTheme.typography.bodySmall,
@@ -271,15 +273,15 @@ fun RecipeSourceSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    SheetActionRow {
                         OutlinedButton(
                             onClick = {
                                 selected = null
                                 errorMessage = null
                             },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         ) {
-                            Text(stringResource(R.string.action_back), maxLines = 1)
+                            Text(stringResource(R.string.action_back), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         Button(
                             onClick = {
@@ -305,12 +307,12 @@ fun RecipeSourceSheet(
                                 }
                             },
                             enabled = factor != null && !isAdding,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         ) {
                             if (isAdding) {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                             } else {
-                                Text(stringResource(R.string.action_add), maxLines = 1)
+                                Text(stringResource(R.string.action_add), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }

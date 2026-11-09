@@ -1,10 +1,13 @@
 package com.bissbilanz.android.wear
 
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.widget.widgetsSignedIn
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.WeightCreate
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.repository.FoodRepository
+import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.repository.SleepRepository
 import com.bissbilanz.repository.WeightRepository
 import com.bissbilanz.wear.WearLogRequest
@@ -103,12 +106,18 @@ class WearMessageService : WearableListenerService() {
         // means the claim outlived the write it was made for.
         var claimed: String? = null
 
+        // Signed out there is no account to write to: a log stored now would be uploaded
+        // to whichever account signs in next. Failed keeps it queued on the watch.
+        if (path != WearPaths.REQUEST_STATE && !widgetsSignedIn()) return WearRequestOutcome.Failed
+
         return try {
             when (path) {
                 WearPaths.LOG_FOOD -> {
                     val request = json.decodeFromString<WearLogRequest>(payload)
                     if (WearAppliedRequests.markApplied(this@WearMessageService, request.requestId)) {
                         claimed = request.requestId
+                        // The cached food/recipe gives the new entry its macros right away;
+                        // without it the day counted the log as 0 kcal until a server refresh.
                         koin.get<EntryRepository>().createEntry(
                             EntryCreate(
                                 foodId = request.foodId,
@@ -117,6 +126,8 @@ class WearMessageService : WearableListenerService() {
                                 servings = request.servings,
                                 date = request.date,
                             ),
+                            food = request.foodId?.let { koin.get<FoodRepository>().getFoodCached(it) },
+                            recipe = request.recipeId?.let { koin.get<RecipeRepository>().getRecipeCached(it) },
                         )
                         claimed = null
                     }

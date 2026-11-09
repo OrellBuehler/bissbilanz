@@ -1,12 +1,15 @@
 package com.bissbilanz.util
 
 import com.bissbilanz.api.generated.model.RecipeStepInput
+import kotlinx.serialization.Serializable
 
-/** Server limits for a recipe's cooking steps (`MAX_RECIPE_STEPS` / `MAX_RECIPE_STEP_TEXT`). */
+/** Server limits for a recipe's name and cooking steps (`recipeCreateSchema`, `MAX_RECIPE_STEPS` / `MAX_RECIPE_STEP_TEXT`). */
+const val MAX_RECIPE_NAME = 200
 const val MAX_RECIPE_STEPS = 50
 const val MAX_RECIPE_STEP_TEXT = 2000
 
 /** A step as the editor holds it: [key] keeps its widgets stable while the list is reordered. */
+@Serializable
 data class RecipeStepDraft(
     val key: String,
     val text: String = "",

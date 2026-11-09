@@ -12,5 +12,5 @@
     android:updatePeriodMillis="0"
     android:description="@string/day_overview_widget_description"
     android:previewImage="@mipmap/ic_launcher"
-    android:initialLayout="@layout/favorites_widget_preview"
+    android:initialLayout="@layout/widget_loading"
     android:widgetCategory="home_screen" />

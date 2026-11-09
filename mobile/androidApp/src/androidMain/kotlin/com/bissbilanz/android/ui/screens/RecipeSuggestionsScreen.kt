@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,8 +35,10 @@ import com.bissbilanz.android.ui.components.MealPickerMacros
 import com.bissbilanz.android.ui.components.MealPickerSheet
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.viewmodels.RecipeSuggestionsViewModel
 import com.bissbilanz.android.ui.viewmodels.SuggestedRecipe
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.util.cookedWeightServingSize
 import com.bissbilanz.util.formatAsInt
 import com.bissbilanz.util.toDisplayString
@@ -57,22 +60,14 @@ fun RecipeSuggestionsScreen(navController: NavController) {
 
     var recipeToLog by remember { mutableStateOf<SuggestedRecipe?>(null) }
 
-    val loggedFormat = stringResource(R.string.recipe_suggestions_logged)
-    val logFailedMessage = stringResource(R.string.recipe_suggestions_log_failed)
-
-    LaunchedEffect(snackbarMessage) {
-        snackbarMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     recipeToLog?.let { suggested ->
         val recipe = suggested.recipe
         MealPickerSheet(
             onDismiss = { recipeToLog = null },
             onConfirm = { details ->
-                viewModel.logRecipe(recipe, details, { name -> loggedFormat.format(name) }, logFailedMessage)
+                viewModel.logRecipe(recipe, details)
                 recipeToLog = null
             },
             macros = MealPickerMacros(recipe.calories, recipe.protein, recipe.carbs, recipe.fat, recipe.fiber),
@@ -94,11 +89,13 @@ fun RecipeSuggestionsScreen(navController: NavController) {
             onRefresh = { refreshManager.refreshAll() },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
-            Crossfade(targetState = isLoading, label = "recipe-suggestions") { loading ->
+            Crossfade(targetState = isLoading && recipes.isEmpty(), label = "recipe-suggestions") { loading ->
                 when {
-                    loading -> LoadingScreen()
+                    loading -> {
+                        LoadingScreen()
+                    }
 
-                    goals == null ->
+                    goals == null -> {
                         EmptyState(
                             message = stringResource(R.string.recipe_suggestions_no_goals),
                             icon = Icons.Filled.Flag,
@@ -108,8 +105,9 @@ fun RecipeSuggestionsScreen(navController: NavController) {
                                 }
                             },
                         )
+                    }
 
-                    recipes.isEmpty() ->
+                    recipes.isEmpty() -> {
                         EmptyState(
                             message = stringResource(R.string.recipe_suggestions_no_recipes),
                             icon = Icons.AutoMirrored.Filled.MenuBook,
@@ -119,14 +117,16 @@ fun RecipeSuggestionsScreen(navController: NavController) {
                                 }
                             },
                         )
+                    }
 
-                    suggestions.isEmpty() ->
+                    suggestions.isEmpty() -> {
                         EmptyState(
                             message = stringResource(R.string.recipe_suggestions_goal_reached),
                             icon = Icons.Filled.CheckCircle,
                         )
+                    }
 
-                    else ->
+                    else -> {
                         Column(
                             modifier =
                                 Modifier
@@ -143,6 +143,7 @@ fun RecipeSuggestionsScreen(navController: NavController) {
                             }
                             Spacer(modifier = Modifier.height(16.dp))
                         }
+                    }
                 }
             }
         }
@@ -183,7 +184,7 @@ private fun SuggestionCard(
                 FoodImage(
                     imageUrl = url,
                     contentDescription = recipe.name,
-                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(10.dp)),
+                    modifier = Modifier.size(Dimens.ThumbCard).clip(MaterialTheme.shapes.small),
                 )
                 Spacer(modifier = Modifier.width(12.dp))
             }
@@ -231,7 +232,7 @@ private fun SuggestionCard(
                 Spacer(modifier = Modifier.height(6.dp))
                 LinearProgressIndicator(
                     progress = { (suggested.suggestion.fit / 100f).coerceIn(0f, 1f) },
-                    color = CaloriesBlue,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

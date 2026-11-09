@@ -10,6 +10,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.bissbilanz.android.MainActivity
 import com.bissbilanz.android.navigation.Screen
 import com.bissbilanz.android.navigation.bissbilanzDestinations
+import com.bissbilanz.android.navigation.defaultTabRoutes
 import com.bissbilanz.android.navigation.takeNavigateRoute
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -69,7 +70,7 @@ class WidgetLaunchTest {
         navController.navigatorProvider.addNavigator(ComposeNavigator())
         navController.graph =
             navController.createGraph(startDestination = Screen.Dashboard.route) {
-                bissbilanzDestinations(navController)
+                bissbilanzDestinations(navController) { defaultTabRoutes }
             }
 
         listOf(WidgetRoutes.SCANNER, WidgetRoutes.FOODS, WidgetRoutes.FAVORITES).forEach { route ->

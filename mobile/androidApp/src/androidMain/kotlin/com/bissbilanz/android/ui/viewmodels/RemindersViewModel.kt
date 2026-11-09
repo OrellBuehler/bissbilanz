@@ -44,8 +44,8 @@ class RemindersViewModel(
     private val _customMealTypes = MutableStateFlow<List<MealType>>(emptyList())
     val customMealTypes: StateFlow<List<MealType>> = _customMealTypes.asStateFlow()
 
-    private val _snackbarMessageRes = MutableStateFlow<Int?>(null)
-    val snackbarMessageRes: StateFlow<Int?> = _snackbarMessageRes.asStateFlow()
+    private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
+    val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
 
     init {
         refresh()
@@ -53,8 +53,16 @@ class RemindersViewModel(
 
     fun refresh() {
         viewModelScope.launch {
-            reminderRepo.refresh()
-            supplementRepo.refresh()
+            // Separate tries so a failed reminder refresh still refreshes the supplements.
+            for (refresh in listOf(reminderRepo::refresh, supplementRepo::refresh)) {
+                try {
+                    refresh()
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    errorReporter.captureException(e)
+                    _snackbarMessage.value = UiMessage(R.string.reminders_list_load_failed)
+                }
+            }
             // Custom meal types are server-only; Local mode only offers the four defaults.
             if (!appModeManager.isLocal) {
                 try {
@@ -74,7 +82,7 @@ class RemindersViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.reminders_save_failed
+                _snackbarMessage.value = UiMessage(R.string.reminders_save_failed)
             }
         }
     }
@@ -89,7 +97,7 @@ class RemindersViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.reminders_save_failed
+                _snackbarMessage.value = UiMessage(R.string.reminders_save_failed)
             }
         }
     }
@@ -101,12 +109,12 @@ class RemindersViewModel(
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
-                _snackbarMessageRes.value = R.string.reminders_delete_failed
+                _snackbarMessage.value = UiMessage(R.string.reminders_delete_failed)
             }
         }
     }
 
     fun clearSnackbar() {
-        _snackbarMessageRes.value = null
+        _snackbarMessage.value = null
     }
 }

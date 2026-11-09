@@ -1,15 +1,15 @@
 [versions]
-agp = "9.4.1"
+agp = "9.5.1"
 kotlin = "2.4.10"
 compose-bom = "2026.09.00"
 compose-navigation = "2.10.2"
-ktor = "3.6.0"
+ktor = "3.6.1"
 sqldelight = "2.4.1"
 koin = "4.2.2"
 coroutines = "1.11.0"
-serialization = "1.11.0"
+serialization = "1.12.0"
 datetime = "0.8.0"
-skie = "0.10.15"
+skie = "0.10.16"
 mlkit-barcode = "17.3.0"
 mlkit-text = "16.0.1"
 zxing-core = "3.5.4"
@@ -24,20 +24,19 @@ browser = "1.10.0"
 activity-compose = "1.13.0"
 appcompat = "1.8.0"
 lifecycle = "2.11.0"
-material3 = "1.3.1"
-sentry-android = "8.60.0"
-sentry-gradle = "6.23.0"
-coil = "2.7.0"
-okhttp = "5.5.0"
+sentry-android = "8.63.0"
+sentry-gradle = "6.26.0"
+coil = "3.6.3"
+okhttp = "5.5.1"
 glance = "1.1.1"
 health-connect = "1.2.0-alpha06"
 work = "2.12.0"
 wear-compose = "1.7.0"
 wear-watchface = "1.3.0"
 play-services-wearable = "20.0.1"
-horologist = "0.9.0"
 robolectric = "4.17"
 reorderable = "3.1.0"
+guava = "33.8.0-android"
 
 [libraries]
 # Compose
@@ -100,7 +99,8 @@ browser = { group = "androidx.browser", name = "browser", version.ref = "browser
 sentry-android = { group = "io.sentry", name = "sentry-android", version.ref = "sentry-android" }
 
 # Image Loading
-coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 
 # Widget
@@ -117,16 +117,21 @@ kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "ko
 
 # Testing
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlin" }
+kotlin-test-junit = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit", version.ref = "kotlin" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 ktor-client-mock = { group = "io.ktor", name = "ktor-client-mock", version.ref = "ktor" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
+navigation-testing = { group = "androidx.navigation", name = "navigation-testing", version.ref = "compose-navigation" }
 compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 compose-ui-test-junit4-android = { group = "androidx.compose.ui", name = "ui-test-junit4-android" }
 test-runner = { group = "androidx.test", name = "runner", version = "1.7.0" }
 test-rules = { group = "androidx.test", name = "rules", version = "1.7.0" }
+
+# Guava
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 
 # Drag and drop
 reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "reorderable" }

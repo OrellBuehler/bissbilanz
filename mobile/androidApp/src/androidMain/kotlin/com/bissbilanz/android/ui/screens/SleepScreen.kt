@@ -8,7 +8,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.CalendarToday
@@ -16,15 +15,20 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -37,25 +41,29 @@ import com.bissbilanz.android.tips.HintCard
 import com.bissbilanz.android.tips.TipIds
 import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.tips.openHelp
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
+import com.bissbilanz.android.ui.components.SheetActionRow
 import com.bissbilanz.android.ui.components.SimpleLineChart
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.SleepViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
+import com.bissbilanz.android.util.SleepTimes
 import com.bissbilanz.android.util.formatIsoDate
+import com.bissbilanz.android.util.resolveSleepTimes
+import com.bissbilanz.android.util.sameMinute
 import com.bissbilanz.api.generated.model.SleepCreate
 import com.bissbilanz.api.generated.model.SleepEntry
 import com.bissbilanz.api.generated.model.SleepUpdate
+import com.bissbilanz.util.SleepField
 import com.bissbilanz.util.formatDecimal1
 import com.bissbilanz.util.formatNutrient
-import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.minus
-import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
@@ -84,28 +92,18 @@ fun SleepScreen(navController: NavController) {
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
 
-    var showAddSheet by remember { mutableStateOf(false) }
-    var entryToEdit by remember { mutableStateOf<SleepEntry?>(null) }
-    var entryToDelete by remember { mutableStateOf<SleepEntry?>(null) }
+    var showAddSheet by rememberSaveable { mutableStateOf(false) }
+    var entryToEditId by rememberSaveable { mutableStateOf<String?>(null) }
+    var entryToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+    val entryToEdit = entries.find { it.id == entryToEditId }
+    val entryToDelete = entries.find { it.id == entryToDeleteId }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = rememberHaptic()
 
     val ranges = listOf("7d", "30d", "90d", stringResource(R.string.weight_range_all))
 
-    val loggedMessage = stringResource(R.string.sleep_logged)
-    val logFailedMessage = stringResource(R.string.sleep_log_failed)
-    val updatedMessage = stringResource(R.string.sleep_updated)
-    val updateFailedMessage = stringResource(R.string.sleep_update_failed)
-    val deletedMessage = stringResource(R.string.sleep_deleted)
-    val deleteFailedMessage = stringResource(R.string.sleep_delete_failed)
-
-    LaunchedEffect(snackbarMessage) {
-        snackbarMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
-        }
-    }
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     if (showAddSheet) {
         SleepEditSheet(
@@ -113,7 +111,7 @@ fun SleepScreen(navController: NavController) {
             onDismiss = { showAddSheet = false },
             onSave = { create ->
                 haptic(HapticFeedbackType.LongPress)
-                viewModel.createEntry(create, loggedMessage, logFailedMessage)
+                viewModel.createEntry(create)
                 showAddSheet = false
             },
         )
@@ -122,7 +120,7 @@ fun SleepScreen(navController: NavController) {
     entryToEdit?.let { entry ->
         SleepEditSheet(
             existing = entry,
-            onDismiss = { entryToEdit = null },
+            onDismiss = { entryToEditId = null },
             onSave = { create ->
                 viewModel.updateEntry(
                     entry.id,
@@ -135,43 +133,47 @@ fun SleepScreen(navController: NavController) {
                         wakeUps = create.wakeUps,
                         notes = create.notes,
                     ),
-                    updatedMessage,
-                    updateFailedMessage,
+                    buildSet {
+                        if (entry.bedtime != null && create.bedtime == null) add(SleepField.BEDTIME)
+                        if (entry.wakeTime != null && create.wakeTime == null) add(SleepField.WAKE_TIME)
+                        if (entry.wakeUps != null && create.wakeUps == null) add(SleepField.WAKE_UPS)
+                        if (entry.notes != null && create.notes == null) add(SleepField.NOTES)
+                    },
                 )
-                entryToEdit = null
+                entryToEditId = null
             },
         )
     }
 
     entryToDelete?.let { entry ->
         AlertDialog(
-            onDismissRequest = { entryToDelete = null },
+            onDismissRequest = { entryToDeleteId = null },
             title = { Text(stringResource(R.string.sleep_delete_dialog_title)) },
             text = { Text(stringResource(R.string.sleep_delete_dialog_text, formatIsoDate(entry.entryDate))) },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteEntry(entry.id, deletedMessage, deleteFailedMessage)
-                        entryToDelete = null
+                        viewModel.deleteEntry(entry.id)
+                        entryToDeleteId = null
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { entryToDelete = null }) { Text(stringResource(R.string.dialog_cancel)) }
+                TextButton(onClick = { entryToDeleteId = null }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.sleep_section_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
-                    }
-                },
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
+                title = stringResource(R.string.sleep_section_title),
+                onBack = { navController.popBackStack() },
             )
         },
         floatingActionButton = {
@@ -201,12 +203,18 @@ fun SleepScreen(navController: NavController) {
                 } else {
                     val chartEntries = remember(entries, selectedRange) { viewModel.chartEntries(entries) }
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp),
+                        contentPadding =
+                            PaddingValues(
+                                start = Dimens.ScreenPadding,
+                                top = Dimens.ListGap,
+                                end = Dimens.ScreenPadding,
+                                bottom = Dimens.FabClearance,
+                            ),
                     ) {
                         if (showHealthConnectTip) {
-                            item {
+                            item(key = "health-connect-tip") {
                                 HintCard(
                                     title = stringResource(R.string.tip_health_connect_sleep_title),
                                     text = stringResource(R.string.tip_health_connect_sleep_text),
@@ -219,9 +227,9 @@ fun SleepScreen(navController: NavController) {
                             }
                         }
 
-                        item { SleepSummaryRow(entries) }
+                        item(key = "summary") { SleepSummaryRow(entries) }
 
-                        item {
+                        item(key = "range") {
                             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                                 ranges.forEachIndexed { index, label ->
                                     SegmentedButton(
@@ -229,16 +237,16 @@ fun SleepScreen(navController: NavController) {
                                         onClick = { viewModel.selectRange(index) },
                                         shape = SegmentedButtonDefaults.itemShape(index, ranges.size),
                                     ) {
-                                        Text(label)
+                                        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                             }
                         }
 
                         if (chartEntries.size >= 3) {
-                            item {
+                            item(key = "chart") {
                                 Card(modifier = Modifier.fillMaxWidth()) {
-                                    Column(modifier = Modifier.padding(12.dp)) {
+                                    Column(modifier = Modifier.padding(Dimens.CardPadding)) {
                                         Text(
                                             stringResource(R.string.sleep_duration_trend),
                                             style = MaterialTheme.typography.labelMedium,
@@ -250,6 +258,7 @@ fun SleepScreen(navController: NavController) {
                                             color = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.fillMaxWidth().height(120.dp),
                                             unit = "h",
+                                            decimals = 1,
                                         )
                                         Spacer(modifier = Modifier.height(12.dp))
                                         Text(
@@ -320,10 +329,10 @@ fun SleepScreen(navController: NavController) {
                                     },
                                     trailingContent = {
                                         Row {
-                                            IconButton(onClick = { entryToEdit = entry }) {
+                                            IconButton(onClick = { entryToEditId = entry.id }) {
                                                 Icon(Icons.Default.Edit, stringResource(R.string.sleep_edit_content_desc))
                                             }
-                                            IconButton(onClick = { entryToDelete = entry }) {
+                                            IconButton(onClick = { entryToDeleteId = entry.id }) {
                                                 Icon(
                                                     Icons.Default.Delete,
                                                     stringResource(R.string.sleep_delete_content_desc),
@@ -350,7 +359,7 @@ private fun SleepSummaryRow(entries: List<SleepEntry>) {
     val recent = entries.take(7)
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Card(modifier = Modifier.weight(1f)) {
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(modifier = Modifier.padding(Dimens.CardPadding)) {
                 Text(
                     stringResource(R.string.sleep_last_night),
                     style = MaterialTheme.typography.labelSmall,
@@ -372,7 +381,7 @@ private fun SleepSummaryRow(entries: List<SleepEntry>) {
             }
         }
         Card(modifier = Modifier.weight(1f)) {
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(modifier = Modifier.padding(Dimens.CardPadding)) {
                 Text(
                     stringResource(R.string.sleep_seven_day_average),
                     style = MaterialTheme.typography.labelSmall,
@@ -410,6 +419,8 @@ private fun formatTimeOfDay(iso: String): String =
         "${local.hour.toString().padStart(2, '0')}:${local.minute.toString().padStart(2, '0')}"
     }.getOrDefault(iso)
 
+private val LocalTimeSaver = Saver<LocalTime, String>(save = { it.toString() }, restore = { LocalTime.parse(it) })
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SleepEditSheet(
@@ -421,22 +432,49 @@ private fun SleepEditSheet(
     val today = Clock.System.todayIn(zone)
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    var date by remember { mutableStateOf(existing?.entryDate ?: today.toString()) }
-    var hours by remember { mutableStateOf(((existing?.durationMinutes ?: 480) / 60).toString()) }
-    var minutes by remember { mutableStateOf(((existing?.durationMinutes ?: 480) % 60).toString()) }
-    var quality by remember { mutableFloatStateOf((existing?.quality ?: 7.0).toFloat()) }
-    var notes by remember { mutableStateOf(existing?.notes ?: "") }
-    var wakeUpsText by remember { mutableStateOf(existing?.wakeUps?.toString() ?: "") }
+    var date by rememberSaveable { mutableStateOf(existing?.entryDate ?: today.toString()) }
+    var hours by rememberSaveable { mutableStateOf(((existing?.durationMinutes ?: 480) / 60).toString()) }
+    var minutes by rememberSaveable { mutableStateOf(((existing?.durationMinutes ?: 480) % 60).toString()) }
+    var quality by rememberSaveable { mutableFloatStateOf((existing?.quality ?: 7.0).toFloat()) }
+    var notes by rememberSaveable { mutableStateOf(existing?.notes ?: "") }
+    var wakeUpsText by rememberSaveable { mutableStateOf(existing?.wakeUps?.toString() ?: "") }
 
     val existingBed = remember(existing) { existing?.bedtime?.let { localTimeOrNull(it, zone) } }
     val existingWake = remember(existing) { existing?.wakeTime?.let { localTimeOrNull(it, zone) } }
-    var timesEnabled by remember { mutableStateOf(existingBed != null && existingWake != null) }
-    var bedtime by remember { mutableStateOf(existingBed ?: LocalTime(23, 0)) }
-    var wakeTime by remember { mutableStateOf(existingWake ?: LocalTime(7, 0)) }
+    var timesEnabled by rememberSaveable { mutableStateOf(existingBed != null && existingWake != null) }
+    var bedtime by rememberSaveable(stateSaver = LocalTimeSaver) { mutableStateOf(existingBed ?: LocalTime(23, 0)) }
+    var wakeTime by rememberSaveable(stateSaver = LocalTimeSaver) { mutableStateOf(existingWake ?: LocalTime(7, 0)) }
+    val originalTimes =
+        remember(existing) {
+            val bed = existing?.bedtime?.let { runCatching { Instant.parse(it) }.getOrNull() }
+            val wake = existing?.wakeTime?.let { runCatching { Instant.parse(it) }.getOrNull() }
+            if (bed != null && wake != null) SleepTimes(bed, wake) else null
+        }
+    val originalEntryDate = remember(existing) { existing?.entryDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() } }
 
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showBedtimePicker by remember { mutableStateOf(false) }
-    var showWakePicker by remember { mutableStateOf(false) }
+    fun currentTimes(): SleepTimes =
+        resolveSleepTimes(
+            entryDate = runCatching { LocalDate.parse(date) }.getOrDefault(today),
+            bedtime = bedtime,
+            wakeTime = wakeTime,
+            zone = zone,
+            original = originalTimes,
+            originalEntryDate = originalEntryDate,
+        )
+
+    // Picking a bed or wake time rewrites the duration so the two never disagree; the
+    // fields stay editable for nights with time awake in bed. Back on the stored times,
+    // the stored (asleep) duration comes back rather than the time in bed.
+    fun syncDurationFromTimes() {
+        val times = currentTimes()
+        val slept = if (existing != null && times == originalTimes) existing.durationMinutes else times.durationMinutes
+        hours = (slept / 60).toString()
+        minutes = (slept % 60).toString()
+    }
+
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
+    var showBedtimePicker by rememberSaveable { mutableStateOf(false) }
+    var showWakePicker by rememberSaveable { mutableStateOf(false) }
 
     val totalMinutes = (hours.toIntOrNull() ?: 0) * 60 + (minutes.toIntOrNull() ?: 0)
     val durationError = totalMinutes <= 0
@@ -470,9 +508,12 @@ private fun SleepEditSheet(
             initial = bedtime,
             title = stringResource(R.string.sleep_bedtime_label),
             onDismiss = { showBedtimePicker = false },
-            onConfirm = {
-                bedtime = it
+            onConfirm = { picked ->
                 showBedtimePicker = false
+                if (!sameMinute(picked, bedtime)) {
+                    bedtime = picked
+                    syncDurationFromTimes()
+                }
             },
         )
     }
@@ -482,9 +523,12 @@ private fun SleepEditSheet(
             initial = wakeTime,
             title = stringResource(R.string.sleep_wake_time_label),
             onDismiss = { showWakePicker = false },
-            onConfirm = {
-                wakeTime = it
+            onConfirm = { picked ->
                 showWakePicker = false
+                if (!sameMinute(picked, wakeTime)) {
+                    wakeTime = picked
+                    syncDurationFromTimes()
+                }
             },
         )
     }
@@ -495,8 +539,8 @@ private fun SleepEditSheet(
                 Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 32.dp),
+                    .padding(horizontal = Dimens.SheetHorizontalPadding)
+                    .padding(bottom = Dimens.SheetBottomPadding),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
@@ -572,26 +616,43 @@ private fun SleepEditSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(stringResource(R.string.sleep_bed_and_wake_times), style = MaterialTheme.typography.bodyMedium)
-                Switch(checked = timesEnabled, onCheckedChange = { timesEnabled = it })
+                Switch(
+                    checked = timesEnabled,
+                    onCheckedChange = {
+                        timesEnabled = it
+                        if (it) syncDurationFromTimes()
+                    },
+                )
             }
 
             if (timesEnabled) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                ) {
                     OutlinedButton(
                         onClick = { showBedtimePicker = true },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                     ) {
                         Icon(Icons.Default.Schedule, null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.sleep_bedtime_value, formatLocalTime(bedtime)))
+                        Text(
+                            stringResource(R.string.sleep_bedtime_value, formatLocalTime(bedtime)),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                     OutlinedButton(
                         onClick = { showWakePicker = true },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                     ) {
                         Icon(Icons.Default.Schedule, null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.sleep_wake_time_value, formatLocalTime(wakeTime)))
+                        Text(
+                            stringResource(R.string.sleep_wake_time_value, formatLocalTime(wakeTime)),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 }
             }
@@ -613,43 +674,25 @@ private fun SleepEditSheet(
                 maxLines = 3,
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.dialog_cancel))
-                }
-                Button(
-                    onClick = {
-                        val entryDate = runCatching { LocalDate.parse(date) }.getOrDefault(today)
-                        onSave(
-                            SleepCreate(
-                                durationMinutes = totalMinutes,
-                                quality = quality.roundToInt().toDouble(),
-                                entryDate = date,
-                                // Bedtime belongs to the evening before the entry date;
-                                // wake time to the entry date itself.
-                                bedtime =
-                                    if (timesEnabled) {
-                                        LocalDateTime(entryDate.minus(1, DateTimeUnit.DAY), bedtime)
-                                            .toInstant(zone)
-                                            .toString()
-                                    } else {
-                                        null
-                                    },
-                                wakeTime =
-                                    if (timesEnabled) {
-                                        LocalDateTime(entryDate, wakeTime).toInstant(zone).toString()
-                                    } else {
-                                        null
-                                    },
-                                wakeUps = wakeUpsText.toIntOrNull(),
-                                notes = notes.trim().ifBlank { null },
-                            ),
-                        )
-                    },
-                    enabled = !durationError,
-                    modifier = Modifier.weight(1f),
-                ) { Text(stringResource(R.string.weight_save)) }
-            }
+            SheetActionRow(
+                onCancel = onDismiss,
+                confirmLabel = stringResource(R.string.action_save),
+                confirmEnabled = !durationError,
+                onConfirm = {
+                    val times = if (timesEnabled) currentTimes() else null
+                    onSave(
+                        SleepCreate(
+                            durationMinutes = totalMinutes,
+                            quality = quality.roundToInt().toDouble(),
+                            entryDate = date,
+                            bedtime = times?.bedtime?.toString(),
+                            wakeTime = times?.wakeTime?.toString(),
+                            wakeUps = wakeUpsText.toIntOrNull(),
+                            notes = notes.trim().ifBlank { null },
+                        ),
+                    )
+                },
+            )
         }
     }
 }

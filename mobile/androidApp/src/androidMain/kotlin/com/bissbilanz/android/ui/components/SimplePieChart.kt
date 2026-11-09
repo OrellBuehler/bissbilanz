@@ -1,8 +1,5 @@
 package com.bissbilanz.android.ui.components
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseOutCubic
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -10,7 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,27 +21,19 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import com.bissbilanz.android.R
-import com.bissbilanz.android.ui.theme.CaloriesBlue
-import com.bissbilanz.android.ui.theme.CarbsOrange
-import com.bissbilanz.android.ui.theme.FatYellow
-import com.bissbilanz.android.ui.theme.FiberGreen
-import com.bissbilanz.android.ui.theme.ProjectionPurple
-import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.model.MealBreakdownEntry
 import kotlin.math.roundToInt
 
-// The first five reuse the app's macro color tokens; the last two are extra
-// categorical accents for meal types beyond the five macros (custom meal types).
 val MealColors =
     listOf(
-        CaloriesBlue,
-        ProteinRed,
-        CarbsOrange,
-        FatYellow,
-        FiberGreen,
-        ProjectionPurple,
-        Color(0xFFEC4899),
         Color(0xFF14B8A6),
+        Color(0xFFEC4899),
+        Color(0xFF8B5CF6),
+        Color(0xFF64748B),
+        Color(0xFFA8744F),
+        Color(0xFF6366F1),
+        Color(0xFF06B6D4),
+        Color(0xFF84CC16),
     )
 
 @Composable
@@ -57,11 +45,7 @@ fun SimplePieChart(
     if (total <= 0f) return
     val surfaceColor = MaterialTheme.colorScheme.surfaceContainerLow
 
-    val sweepFraction = remember { Animatable(0f) }
-    LaunchedEffect(entries) {
-        sweepFraction.snapTo(0f)
-        sweepFraction.animateTo(1f, animationSpec = tween(600, easing = EaseOutCubic))
-    }
+    val sweepFraction = rememberRevealFraction(600)
 
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
     var selectedIndex by remember { mutableStateOf<Int?>(null) }

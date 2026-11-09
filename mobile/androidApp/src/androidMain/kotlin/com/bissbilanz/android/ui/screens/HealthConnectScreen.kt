@@ -7,23 +7,28 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.navigation.NavController
+import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.health.EXTENDED_HEALTH_NUTRIENTS
 import com.bissbilanz.android.health.HealthConnectService
 import com.bissbilanz.android.health.HealthImporter
 import com.bissbilanz.android.health.HealthSyncPreferences
+import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.ToggleRow
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -39,6 +44,7 @@ fun HealthConnectScreen(navController: NavController) {
     val health: HealthConnectService = koinInject()
     val prefs: HealthSyncPreferences = koinInject()
     val importer: HealthImporter = koinInject()
+    val errorReporter: ErrorReporter = koinInject()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -61,8 +67,8 @@ fun HealthConnectScreen(navController: NavController) {
             }
         }
 
-    val available = remember { health.isAvailable() }
-    val needsUpdate = remember { health.needsProviderUpdate() }
+    var available by remember { mutableStateOf(health.isAvailable()) }
+    var needsUpdate by remember { mutableStateOf(health.needsProviderUpdate()) }
     val isConnected = granted.isNotEmpty()
     val exportableKeys = remember { EXTENDED_HEALTH_NUTRIENTS.map { it.key }.toSet() }
     val extendedNutrientCategories =
@@ -82,7 +88,28 @@ fun HealthConnectScreen(navController: NavController) {
             scope.launch { granted = health.grantedPermissions() }
         }
 
-    LaunchedEffect(Unit) { granted = health.grantedPermissions() }
+    // Health Connect can be installed, updated or have its permissions changed in its own
+    // app while this screen sits in the background, so re-read everything on return.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        try {
+            available = health.isAvailable()
+            needsUpdate = health.needsProviderUpdate()
+        } catch (e: Exception) {
+            errorReporter.captureException(e)
+            available = false
+            needsUpdate = false
+        }
+        scope.launch {
+            granted =
+                try {
+                    health.grantedPermissions()
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    errorReporter.captureException(e)
+                    emptySet()
+                }
+        }
+    }
 
     if (showDisconnectConfirm) {
         AlertDialog(
@@ -147,15 +174,15 @@ fun HealthConnectScreen(navController: NavController) {
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.health_connect_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
-                    }
-                },
+            AppTopBar(
+                scrollBehavior = scrollBehavior,
+                title = stringResource(R.string.health_connect_title),
+                onBack = { navController.popBackStack() },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },

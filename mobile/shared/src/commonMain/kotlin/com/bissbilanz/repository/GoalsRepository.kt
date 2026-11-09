@@ -64,7 +64,8 @@ class GoalsRepository(
     suspend fun refresh() {
         if (appModeManager.isLocal) return
         val goals = api.getGoals()
-        if (goals != null) {
+        // A goals edit still waiting to upload is newer than what the server holds.
+        if (goals != null && !syncQueue.hasPending("goals")) {
             withContext(Dispatchers.IO) { cacheGoals(goals) }
         }
     }

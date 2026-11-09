@@ -10,9 +10,9 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
-# Two license runs pushing to main at once would race each other; the retry in
-# the commit step only covers merges landing from elsewhere.
+# Both runs would push the same bot branch; the later one should win.
 concurrency:
   group: update-licenses
   cancel-in-progress: false
@@ -25,9 +25,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
-          # Full history: the commit step rebases onto main when a merge lands
-          # mid-run, and a depth-1 clone has no merge base to rebase onto.
-          fetch-depth: 0
+          token: ${{ secrets.LICENSES_PR_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -63,22 +61,24 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Commit updated licenses
+      # main only accepts changes through a pull request, so the regenerated file
+      # goes to a bot branch and an open PR is created or refreshed. A PR opened
+      # with GITHUB_TOKEN does not trigger CI; set LICENSES_PR_TOKEN (a PAT or
+      # app token with contents + pull-requests write) to get checks on it.
+      - name: Open or update pull request
         if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.LICENSES_PR_TOKEN || secrets.GITHUB_TOKEN }}
+          BRANCH: chore/update-third-party-licenses
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
           git add THIRD_PARTY_LICENSES.md
-          git commit --no-verify -m "docs: update third-party licenses [skip ci]"
-          # A merge landing while this job runs moves main out from under it and
-          # the push is rejected, failing an otherwise fine run (twice on
-          # 2026-08-31 during a batch of merges). Rebase onto whatever is on
-          # main now and try again -- the commit only touches a generated file.
-          for attempt in 1 2 3; do
-            if git pull --rebase origin main && git push; then
-              exit 0
-            fi
-            sleep $((attempt * 10))
-          done
-          echo "could not push the updated licenses after 3 attempts" >&2
-          exit 1
+          git commit --no-verify -m "docs: update third-party licenses"
+          git push --force origin "$BRANCH"
+          if [ -z "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')" ]; then
+            gh pr create --base main --head "$BRANCH" \
+              --title "docs: update third-party licenses" \
+              --body "Regenerated \`THIRD_PARTY_LICENSES.md\` after a dependency change on main (${GITHUB_SHA})."
+          fi

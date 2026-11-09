@@ -5,6 +5,7 @@ import com.bissbilanz.api.generated.model.SleepEntriesResponse
 import com.bissbilanz.api.generated.model.SleepEntry
 import com.bissbilanz.api.generated.model.SleepEntryResponse
 import com.bissbilanz.api.generated.model.SleepUpdate
+import com.bissbilanz.util.encodePartialUpdate
 import io.ktor.client.request.*
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
@@ -41,10 +42,12 @@ interface SleepApi : ApiTransport {
         entry: SleepUpdate,
         idempotencyKey: String? = null,
         clientEditedAt: String? = null,
+        clearedKeys: Collection<String> = emptyList(),
     ): SleepEntry {
         val key = idempotencyKey ?: Uuid.random().toString()
         val editedAt = clientEditedAt ?: Clock.System.now().toString()
-        val response: SleepEntryResponse = patch("/api/sleep/$id", entry, key, editedAt)
+        val response: SleepEntryResponse =
+            patchRawJson("/api/sleep/$id", json.encodePartialUpdate(entry, clearedKeys).toString(), key, editedAt)
         return response.entry
     }
 

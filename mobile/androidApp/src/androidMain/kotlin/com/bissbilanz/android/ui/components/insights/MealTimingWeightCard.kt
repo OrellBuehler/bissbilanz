@@ -47,6 +47,7 @@ fun MealTimingWeightCard(summary: MealTimingSummary?) {
                 stringResource(R.string.insights_first_meal),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
             )
             Text(
                 summary.avgFirstMealTime,
@@ -59,6 +60,7 @@ fun MealTimingWeightCard(summary: MealTimingSummary?) {
                 stringResource(R.string.insights_last_meal),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
             )
             Text(
                 summary.avgLastMealTime,

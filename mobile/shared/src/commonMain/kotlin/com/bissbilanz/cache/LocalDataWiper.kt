@@ -2,6 +2,7 @@ package com.bissbilanz.cache
 
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.Failures
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
@@ -53,6 +54,12 @@ class LocalDataWiper(
                 cacheQueries.clearAllSyncMeta()
             }
         }
-        onWiped?.invoke()
+        // The data is gone either way; a failing image cleanup must not fail the logout.
+        try {
+            onWiped?.invoke()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Failures.report(e)
+        }
     }
 }

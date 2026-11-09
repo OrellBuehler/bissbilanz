@@ -1,10 +1,11 @@
 package com.bissbilanz.android
 
 import android.app.Application
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import coil.ImageLoader
-import coil.ImageLoaderFactory
+import android.content.res.Configuration
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.aitasks.AiTaskNotificationPreferences
 import com.bissbilanz.android.aitasks.AiTaskNotifier
@@ -40,6 +41,7 @@ import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
 import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
+import com.bissbilanz.android.ui.viewmodels.DashboardWidgetsViewModel
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
 import com.bissbilanz.android.ui.viewmodels.FoodDuplicatesViewModel
@@ -54,15 +56,18 @@ import com.bissbilanz.android.ui.viewmodels.SleepViewModel
 import com.bissbilanz.android.ui.viewmodels.WeightViewModel
 import com.bissbilanz.android.wear.WearStatePublisher
 import com.bissbilanz.android.widget.AssistantFoodLogger
-import com.bissbilanz.android.widget.DayOverviewWidget
+import com.bissbilanz.android.widget.FavoritesWidget
 import com.bissbilanz.android.widget.FavoritesWidgetWorker
 import com.bissbilanz.android.widget.FoodShortcutPublisher
-import com.bissbilanz.android.widget.MacroWidget
 import com.bissbilanz.android.widget.QuickAddWidget
 import com.bissbilanz.android.widget.QuickWeightWidget
+import com.bissbilanz.android.widget.WidgetFoodImages
+import com.bissbilanz.android.widget.WidgetRefresher
+import com.bissbilanz.android.widget.WidgetRolloverWorker
 import com.bissbilanz.api.UnauthorizedException
 import com.bissbilanz.api.sanitizeClientVersion
 import com.bissbilanz.auth.AuthManager
+import com.bissbilanz.auth.AuthState
 import com.bissbilanz.auth.SecureStorage
 import com.bissbilanz.auth.jwtSubject
 import com.bissbilanz.cache.DatabaseDriverFactory
@@ -80,6 +85,7 @@ import com.bissbilanz.foodpackage.LocalFoodPackageService
 import com.bissbilanz.foodpackage.PackageImageStore
 import com.bissbilanz.migration.AccountDowngrader
 import com.bissbilanz.migration.LocalDataMigrator
+import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.repository.*
 import com.bissbilanz.repository.FoodRepository
@@ -88,9 +94,11 @@ import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.sync.SyncManager
 import com.bissbilanz.util.Failures
 import io.sentry.android.core.SentryAndroid
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
@@ -109,9 +117,11 @@ import kotlin.time.Clock
 
 class BissbilanzApplication :
     Application(),
-    ImageLoaderFactory {
+    SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
+        lastLocales = resources.configuration.locales.toLanguageTags()
+        lastNightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
 
         if (BuildConfig.SENTRY_DSN.isNotBlank()) {
             SentryAndroid.init(this) { options ->
@@ -164,7 +174,7 @@ class BissbilanzApplication :
                         currentUserId = { jwtSubject(authManager.getAccessToken()) },
                     )
                 }
-                single { BulkImportScheduler(androidContext()) }
+                single { BulkImportScheduler(androidContext(), get()) }
                 single<BulkImportCheckpoints> { PreferencesBulkImportCheckpoints(androidContext()) }
                 single { BulkUploadController(androidContext(), get(), get(), get(), get()) }
                 single { RefreshManager(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
@@ -206,6 +216,7 @@ class BissbilanzApplication :
 
                 viewModelOf(::AiTasksViewModel)
                 viewModelOf(::DashboardViewModel)
+                viewModelOf(::DashboardWidgetsViewModel)
                 viewModelOf(::DayLogViewModel)
                 viewModelOf(::InsightsViewModel)
                 viewModelOf(::FoodSearchViewModel)
@@ -249,11 +260,30 @@ class BissbilanzApplication :
 
         val wearPublisher = koin.get<WearStatePublisher>()
 
-        koin.get<EntryRepository>().onEntryChanged = {
-            refreshDayWidgets()
-            healthExporter.exportNutrition(today())
-            wearPublisher.publish()
+        // The repositories await their change hooks, and the user's delete or save
+        // waits with them. Widgets, Health Connect and the watch follow the local
+        // write in the background instead.
+        val hookScope = koin.get<CoroutineScope>()
+        val hookErrors = koin.get<ErrorReporter>()
+        val inBackground: (suspend () -> Unit) -> (suspend () -> Unit) = { block ->
+            {
+                hookScope.launch {
+                    try {
+                        block()
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        hookErrors.captureException(e)
+                    }
+                }
+            }
         }
+
+        koin.get<EntryRepository>().onEntryChanged =
+            inBackground {
+                refreshDayWidgets()
+                healthExporter.exportNutrition(today())
+                wearPublisher.publish()
+            }
         // Counts real food logs (not edits or deletes) toward the usage-gated tips —
         // e.g. nudging a frequent logger toward favorites once they have earned it.
         val tipStore = koin.get<TipStore>()
@@ -264,6 +294,13 @@ class BissbilanzApplication :
         // onEntryChanged — export the refreshed day so Health Connect follows.
         koin.get<EntryRepository>().onEntriesRefreshed = { date ->
             healthExporter.exportNutrition(date)
+            // The widgets only draw today; a refresh of another day leaves them as they are.
+            if (date == today()) refreshDayWidgets()
+        }
+        // Activity calories saved on the day move its goal when activity goal
+        // adjustment is on.
+        koin.get<EntryRepository>().onDayPropertiesChanged = { date ->
+            if (date == today()) refreshGoalWidgets()
         }
         // Images live on the file system, so a deleted row leaves its copy behind
         // unless something removes it — and for a Local-mode `file://` image that
@@ -280,29 +317,30 @@ class BissbilanzApplication :
             LocalImageStore.clear(this@BissbilanzApplication)
             mcpConnectionStore.clear()
             koin.get<PreferencesRepository>().clearClaudeCapability()
+            // Shortcuts and thumbnails were drawn from the data just wiped. The widgets
+            // redraw once the logout drops the token (see the signed-in observer below).
+            FoodShortcutPublisher.clear(this@BissbilanzApplication)
+            WidgetFoodImages.clear(this@BissbilanzApplication)
         }
         // A diary entry that points at a food still waiting for its bulk upload sends that food first.
         koin.get<SyncManager>().bulkFoodGate = koin.get<BulkFoodUploader>()
 
-        koin.get<FoodRepository>().onFoodChanged = {
-            WorkManager
-                .getInstance(this@BissbilanzApplication)
-                .enqueue(
-                    OneTimeWorkRequestBuilder<FavoritesWidgetWorker>()
-                        .build(),
-                )
-            // A renamed or deleted food changes what the quick-add rows and the
-            // Assistant's food shortcuts say, so both are republished from here too.
-            QuickAddWidget.updateAllWidgets(this@BissbilanzApplication)
-            FoodShortcutPublisher.publish(this@BissbilanzApplication)
-            // Favourites drive the watch's quick-log list.
-            wearPublisher.publish()
-        }
-        val publishWeight: suspend () -> Unit = {
-            QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
-            healthExporter.exportLatestWeight()
-            wearPublisher.publish()
-        }
+        koin.get<FoodRepository>().onFoodChanged =
+            inBackground {
+                FavoritesWidgetWorker.enqueue(this@BissbilanzApplication)
+                // A renamed or deleted food changes what the quick-add rows and the
+                // Assistant's food shortcuts say, so both are republished from here too.
+                QuickAddWidget.updateAllWidgets(this@BissbilanzApplication)
+                FoodShortcutPublisher.publish(this@BissbilanzApplication)
+                // Favourites drive the watch's quick-log list.
+                wearPublisher.publish()
+            }
+        val publishWeight =
+            inBackground {
+                QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
+                healthExporter.exportLatestWeight()
+                wearPublisher.publish()
+            }
         koin.get<WeightRepository>().onWeightChanged = publishWeight
         // Weights logged elsewhere (web, MCP, iOS) arrive via refresh, not
         // onWeightChanged — same three consumers, or Health Connect, the widget and
@@ -312,7 +350,8 @@ class BissbilanzApplication :
         // Goals and sleep are the two things the watch shows that no callback announces:
         // GoalsRepository and SleepRepository have no onXChanged hook. Observing their
         // cached flows keeps the watch's rings measured against the current goal and its
-        // Sleep tab on last night, instead of both waiting for the next food log.
+        // Sleep tab on last night, instead of both waiting for the next food log. The
+        // day widgets measure against the same goal.
         val wearScope = koin.get<CoroutineScope>()
         wearScope.launch {
             koin
@@ -320,8 +359,35 @@ class BissbilanzApplication :
                 .goals()
                 .distinctUntilChanged()
                 .drop(1)
-                .collect { wearPublisher.publish() }
+                .collect {
+                    wearPublisher.publish()
+                    refreshGoalWidgets()
+                }
         }
+        // Preferences decide the activity goal adjustment the day widgets apply and
+        // whether a quick-log tile logs straight away or opens the app to ask for a meal.
+        wearScope.launch {
+            koin
+                .get<PreferencesRepository>()
+                .preferences()
+                .distinctUntilChanged()
+                .drop(1)
+                .collect {
+                    refreshGoalWidgets()
+                    FavoritesWidget.updateAllWidgets(this@BissbilanzApplication)
+                    QuickAddWidget.updateAllWidgets(this@BissbilanzApplication)
+                }
+        }
+        // Signing out, signing in and picking Local mode all change whether the widgets
+        // may show data at all.
+        wearScope.launch {
+            combine(koin.get<AuthManager>().authState, koin.get<AppModeManager>().mode) { auth, mode ->
+                mode == AppMode.LOCAL || auth !is AuthState.Unauthenticated
+            }.distinctUntilChanged()
+                .drop(1)
+                .collect { WidgetRefresher.refreshAll(this@BissbilanzApplication) }
+        }
+        WidgetRolloverWorker.schedule(this)
         wearScope.launch {
             koin
                 .get<SleepRepository>()
@@ -377,12 +443,7 @@ class BissbilanzApplication :
             refreshManager.refreshAll()
             refreshDayWidgets()
             QuickWeightWidget.updateAllWidgets(this@BissbilanzApplication)
-            WorkManager
-                .getInstance(this@BissbilanzApplication)
-                .enqueue(
-                    OneTimeWorkRequestBuilder<FavoritesWidgetWorker>()
-                        .build(),
-                )
+            FavoritesWidgetWorker.enqueue(this@BissbilanzApplication)
         }
 
         // Nothing else publishes the launcher/Assistant shortcuts while the app is
@@ -410,14 +471,34 @@ class BissbilanzApplication :
         }
     }
 
+    private var lastLocales = ""
+    private var lastNightMode = 0
+
+    /**
+     * The widgets draw their labels and ring/placeholder bitmaps once, so a language
+     * change (also the in-app picker on API 33+, which reconfigures the process) or a
+     * switch between light and dark has to redraw them.
+     */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        val locales = newConfig.locales.toLanguageTags()
+        val nightMode = newConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        if (locales == lastLocales && nightMode == lastNightMode) return
+        lastLocales = locales
+        lastNightMode = nightMode
+        // Through the worker, so it collapses with the LOCALE_CHANGED broadcast that
+        // follows a system language change.
+        WidgetRolloverWorker.runNow(this)
+    }
+
+    private suspend fun refreshGoalWidgets() = WidgetRefresher.refreshGoalWidgets(this)
+
     /**
      * Every home-screen surface that renders today's log, plus the Assistant shortcuts
      * that rank foods by how often they were logged.
      */
     private suspend fun refreshDayWidgets() {
-        MacroWidget.updateAllWidgets(this)
-        DayOverviewWidget.updateAllWidgets(this)
-        QuickAddWidget.updateAllWidgets(this)
+        WidgetRefresher.refreshDayWidgets(this)
         FoodShortcutPublisher.publish(this)
     }
 
@@ -426,19 +507,25 @@ class BissbilanzApplication :
      * product photos. The token is attached by host, never blanket — see
      * [ApiHostAuthInterceptor].
      */
-    override fun newImageLoader(): ImageLoader {
+    override fun newImageLoader(context: PlatformContext): ImageLoader {
         val koin =
             org.koin.java.KoinJavaComponent
                 .getKoin()
         val authManager = koin.get<AuthManager>()
         return ImageLoader
-            .Builder(this)
-            .okHttpClient {
-                OkHttpClient
-                    .Builder()
-                    .addInterceptor(
-                        ApiHostAuthInterceptor(BuildConfig.BASE_URL) { authManager.getAccessToken() },
-                    ).build()
+            .Builder(context)
+            .components {
+                add(
+                    OkHttpNetworkFetcherFactory(
+                        callFactory = {
+                            OkHttpClient
+                                .Builder()
+                                .addInterceptor(
+                                    ApiHostAuthInterceptor(BuildConfig.BASE_URL) { authManager.getAccessToken() },
+                                ).build()
+                        },
+                    ),
+                )
             }.build()
     }
 

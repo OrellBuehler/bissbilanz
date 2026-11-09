@@ -2,7 +2,6 @@ package com.bissbilanz.android.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,8 +33,6 @@ import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.api.generated.model.AiTaskProposal
 import com.bissbilanz.util.ProposalSelection
 import kotlin.math.roundToInt
-
-private val buttonPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
 
 /**
  * Claude's suggested entries for a pending task. Every item starts selected; the user logs
@@ -150,16 +147,14 @@ fun ClaudeProposalCard(
                 Button(
                     onClick = { onLog(chosen) },
                     enabled = !busy && chosen.isNotEmpty(),
-                    contentPadding = buttonPadding,
-                    modifier = Modifier.weight(3f),
+                    modifier = Modifier.weight(1f),
                 ) {
                     Text(stringResource(R.string.ai_tasks_proposal_log), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 OutlinedButton(
                     onClick = onDiscard,
                     enabled = !busy,
-                    contentPadding = buttonPadding,
-                    modifier = Modifier.weight(2f),
+                    modifier = Modifier.weight(1f),
                 ) {
                     Text(stringResource(R.string.ai_tasks_proposal_discard), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }

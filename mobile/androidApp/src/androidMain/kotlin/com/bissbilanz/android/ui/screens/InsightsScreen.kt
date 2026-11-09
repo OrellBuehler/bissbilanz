@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -68,12 +69,14 @@ import com.bissbilanz.android.ui.components.insights.WeightForecastCard
 import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.theme.CaloriesBlue
 import com.bissbilanz.android.ui.theme.CarbsOrange
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.ProteinRed
 import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.viewmodels.InsightsViewModel
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.model.DailyStatsEntry
 import com.bissbilanz.model.Goals
@@ -90,7 +93,10 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InsightsScreen(navController: NavController) {
+fun InsightsScreen(
+    navController: NavController,
+    showBack: Boolean = false,
+) {
     val viewModel: InsightsViewModel = koinViewModel()
     val refreshManager: RefreshManager = koinInject()
     val weeklyStats by viewModel.weeklyStats.collectAsStateWithLifecycle()
@@ -109,6 +115,10 @@ fun InsightsScreen(navController: NavController) {
     val nutritionLoading by viewModel.nutritionLoading.collectAsStateWithLifecycle()
     val weightLoading by viewModel.weightLoading.collectAsStateWithLifecycle()
     val sleepLoading by viewModel.sleepLoading.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     val isLocalMode = viewModel.isLocalMode
     val macroSourcesState by viewModel.macroSources.collectAsStateWithLifecycle()
@@ -151,15 +161,20 @@ fun InsightsScreen(navController: NavController) {
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = { AppTopBar(stringResource(R.string.settings_nav_insights), scrollBehavior) },
+        topBar = {
+            AppTopBar(
+                stringResource(R.string.settings_nav_insights),
+                scrollBehavior,
+                onBack = if (showBack) ({ navController.popBackStack() }) else null,
+            )
+        },
     ) { padding ->
         PullToRefreshWrapper(
             onRefresh = {
                 refreshManager.refreshAll()
-                viewModel.loadData()
-                viewModel.loadCalendarStats()
-                viewModel.loadSleepData()
+                viewModel.refresh()
             },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
@@ -177,7 +192,7 @@ fun InsightsScreen(navController: NavController) {
                             onClick = { viewModel.selectRange(index) },
                             shape = SegmentedButtonDefaults.itemShape(index, ranges.size),
                         ) {
-                            Text(label)
+                            Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }
@@ -243,7 +258,7 @@ fun InsightsScreen(navController: NavController) {
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(Dimens.CardGap))
 
                         // 1. Trends
                         if (dailyStats.isNotEmpty()) {
@@ -268,9 +283,10 @@ fun InsightsScreen(navController: NavController) {
                                         stringResource(R.string.insights_avg_value_unit, avgCal.formatAsInt(), calUnit),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.weight(1f),
                                     )
                                     Text(
-                                        stringResource(R.string.insights_days_count, dailyStats.size),
+                                        pluralStringResource(R.plurals.insights_days_count, dailyStats.size, dailyStats.size),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -299,7 +315,7 @@ fun InsightsScreen(navController: NavController) {
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(Dimens.CardGap))
 
                         // 2. Goal Adherence
                         if (goals != null && dailyStats.isNotEmpty()) {
@@ -451,22 +467,31 @@ fun InsightsScreen(navController: NavController) {
                     }
 
                     1 -> {
-                        if (nutritionLoading) {
-                            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
-                        } else {
-                            val novaResult by viewModel.novaResult.collectAsStateWithLifecycle()
-                            val omegaResult by viewModel.omegaResult.collectAsStateWithLifecycle()
-                            val diiResult by viewModel.diiResult.collectAsStateWithLifecycle()
-                            val tefResult by viewModel.tefResult.collectAsStateWithLifecycle()
-                            val proteinDistResult by viewModel.proteinDistributionResult.collectAsStateWithLifecycle()
-                            val frontLoadResult by viewModel.frontLoadingResult.collectAsStateWithLifecycle()
-                            val calorieCyclingResult by viewModel.calorieCyclingResult.collectAsStateWithLifecycle()
-                            val weekdayWeekendResult by viewModel.weekdayWeekendResult.collectAsStateWithLifecycle()
-                            val mealRegularityResult by viewModel.mealRegularityResult.collectAsStateWithLifecycle()
-                            val foodDiversityResult by viewModel.foodDiversityResult.collectAsStateWithLifecycle()
-
+                        val novaResult by viewModel.novaResult.collectAsStateWithLifecycle()
+                        val omegaResult by viewModel.omegaResult.collectAsStateWithLifecycle()
+                        val diiResult by viewModel.diiResult.collectAsStateWithLifecycle()
+                        val tefResult by viewModel.tefResult.collectAsStateWithLifecycle()
+                        val proteinDistResult by viewModel.proteinDistributionResult.collectAsStateWithLifecycle()
+                        val frontLoadResult by viewModel.frontLoadingResult.collectAsStateWithLifecycle()
+                        val calorieCyclingResult by viewModel.calorieCyclingResult.collectAsStateWithLifecycle()
+                        val weekdayWeekendResult by viewModel.weekdayWeekendResult.collectAsStateWithLifecycle()
+                        val mealRegularityResult by viewModel.mealRegularityResult.collectAsStateWithLifecycle()
+                        val foodDiversityResult by viewModel.foodDiversityResult.collectAsStateWithLifecycle()
+                        val hasNutritionContent =
+                            listOf(
+                                novaResult,
+                                omegaResult,
+                                diiResult,
+                                tefResult,
+                                proteinDistResult,
+                                frontLoadResult,
+                                calorieCyclingResult,
+                                weekdayWeekendResult,
+                                mealRegularityResult,
+                                foodDiversityResult,
+                            ).any { it != null }
+                        AnalyticsLoadingIndicator(nutritionLoading, hasNutritionContent)
+                        if (hasNutritionContent || !nutritionLoading) {
                             novaResult?.let {
                                 NOVAScoreCard(it)
                                 Spacer(Modifier.height(12.dp))
@@ -511,20 +536,21 @@ fun InsightsScreen(navController: NavController) {
                     }
 
                     2 -> {
-                        if (weightLoading) {
-                            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
-                        } else {
-                            val tdeeResult by viewModel.tdeeResult.collectAsStateWithLifecycle()
-                            val plateauResult by viewModel.plateauResult.collectAsStateWithLifecycle()
-                            val weightForecastResult by viewModel.weightForecastResult.collectAsStateWithLifecycle()
-                            val sodiumWeightResult by viewModel.sodiumWeightResult.collectAsStateWithLifecycle()
-                            val caloricLagResult by viewModel.caloricLagResult.collectAsStateWithLifecycle()
-                            val macroImpactResult by viewModel.macroImpactResult.collectAsStateWithLifecycle()
-                            val mealTimingSummary by viewModel.mealTimingSummary.collectAsStateWithLifecycle()
-                            val nutrientAdequacyResult by viewModel.nutrientAdequacyResult.collectAsStateWithLifecycle()
-
+                        val tdeeResult by viewModel.tdeeResult.collectAsStateWithLifecycle()
+                        val plateauResult by viewModel.plateauResult.collectAsStateWithLifecycle()
+                        val weightForecastResult by viewModel.weightForecastResult.collectAsStateWithLifecycle()
+                        val sodiumWeightResult by viewModel.sodiumWeightResult.collectAsStateWithLifecycle()
+                        val caloricLagResult by viewModel.caloricLagResult.collectAsStateWithLifecycle()
+                        val macroImpactResult by viewModel.macroImpactResult.collectAsStateWithLifecycle()
+                        val mealTimingSummary by viewModel.mealTimingSummary.collectAsStateWithLifecycle()
+                        val nutrientAdequacyResult by viewModel.nutrientAdequacyResult.collectAsStateWithLifecycle()
+                        val hasWeightContent =
+                            listOf(tdeeResult, plateauResult, weightForecastResult, sodiumWeightResult, caloricLagResult, mealTimingSummary)
+                                .any { it != null } ||
+                                macroImpactResult.isNotEmpty() ||
+                                nutrientAdequacyResult.isNotEmpty()
+                        AnalyticsLoadingIndicator(weightLoading, hasWeightContent)
+                        if (hasWeightContent || !weightLoading) {
                             tdeeResult?.let {
                                 AdaptiveTDEECard(it)
                                 Spacer(Modifier.height(12.dp))
@@ -560,6 +586,8 @@ fun InsightsScreen(navController: NavController) {
                     3 -> {
                         val sleepEntries by viewModel.sleepEntries.collectAsStateWithLifecycle()
                         val sleepFoodCorrelation by viewModel.sleepFoodCorrelation.collectAsStateWithLifecycle()
+                        val sleepByDate = remember(sleepEntries) { sleepEntries.sortedBy { it.entryDate } }
+                        val recentSleep = remember(sleepEntries) { sleepEntries.sortedByDescending { it.entryDate }.take(5) }
                         var sleepEntryToDelete by remember { mutableStateOf<SleepEntry?>(null) }
 
                         CollapsibleCard(title = stringResource(R.string.sleep_section_title), sectionId = "sleep") {
@@ -572,6 +600,7 @@ fun InsightsScreen(navController: NavController) {
                                     stringResource(R.string.sleep_recent),
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.weight(1f),
                                 )
                                 IconButton(onClick = { navController.navigate("sleep") }) {
                                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.sleep_log_content_desc))
@@ -594,7 +623,7 @@ fun InsightsScreen(navController: NavController) {
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     SimpleLineChart(
-                                        data = sleepEntries.sortedBy { it.entryDate }.map { it.quality.toFloat() },
+                                        data = sleepByDate.map { it.quality.toFloat() },
                                         color = MaterialTheme.colorScheme.tertiary,
                                         modifier = Modifier.fillMaxWidth().height(80.dp),
                                         unit = "",
@@ -608,10 +637,11 @@ fun InsightsScreen(navController: NavController) {
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     SimpleLineChart(
-                                        data = sleepEntries.sortedBy { it.entryDate }.map { it.durationMinutes.toFloat() / 60f },
+                                        data = sleepByDate.map { it.durationMinutes.toFloat() / 60f },
                                         color = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.fillMaxWidth().height(80.dp),
                                         unit = "h",
+                                        decimals = 1,
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
                                 }
@@ -651,7 +681,7 @@ fun InsightsScreen(navController: NavController) {
                                 Spacer(modifier = Modifier.height(12.dp))
 
                                 // Recent entries list (last 5)
-                                sleepEntries.sortedByDescending { it.entryDate }.take(5).forEach { entry ->
+                                recentSleep.forEach { entry ->
                                     val qStr = entry.quality.formatNutrient()
                                     Row(
                                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -799,16 +829,17 @@ fun InsightsScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(12.dp))
 
                         // Sleep analytics cards are now computed on-device from the local DB.
-                        if (sleepLoading) {
-                            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
-                        } else {
-                            val foodSleepResult by viewModel.foodSleepResult.collectAsStateWithLifecycle()
-                            val nutrientSleepCorrelations by viewModel.nutrientSleepCorrelations.collectAsStateWithLifecycle()
-                            val preSleepTimingSummary by viewModel.preSleepTimingSummary.collectAsStateWithLifecycle()
-                            val caffeineSleepResult by viewModel.caffeineSleepResult.collectAsStateWithLifecycle()
-
+                        val foodSleepResult by viewModel.foodSleepResult.collectAsStateWithLifecycle()
+                        val nutrientSleepCorrelations by viewModel.nutrientSleepCorrelations.collectAsStateWithLifecycle()
+                        val preSleepTimingSummary by viewModel.preSleepTimingSummary.collectAsStateWithLifecycle()
+                        val caffeineSleepResult by viewModel.caffeineSleepResult.collectAsStateWithLifecycle()
+                        val hasSleepContent =
+                            foodSleepResult != null ||
+                                preSleepTimingSummary != null ||
+                                caffeineSleepResult != null ||
+                                nutrientSleepCorrelations.isNotEmpty()
+                        AnalyticsLoadingIndicator(sleepLoading, hasSleepContent)
+                        if (hasSleepContent || !sleepLoading) {
                             FoodSleepCard(foodSleepResult)
                             Spacer(Modifier.height(12.dp))
                             NutrientSleepCard(nutrientSleepCorrelations)
@@ -843,7 +874,7 @@ fun InsightsScreen(navController: NavController) {
                 }
 
                 if (isLocalMode) {
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(Dimens.CardGap))
                     Text(
                         stringResource(R.string.insights_more_with_account),
                         style = MaterialTheme.typography.bodySmall,
@@ -855,6 +886,26 @@ fun InsightsScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(24.dp))
             }
+        }
+    }
+}
+
+/**
+ * A spinner only while nothing has loaded yet; a reload over existing content keeps it on
+ * screen under a thin progress bar so the tab does not shrink and clamp the scroll.
+ */
+@Composable
+private fun AnalyticsLoadingIndicator(
+    loading: Boolean,
+    hasContent: Boolean,
+) {
+    if (loading && !hasContent) {
+        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    } else {
+        Box(Modifier.fillMaxWidth().height(4.dp)) {
+            if (loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
 }
@@ -951,7 +1002,13 @@ private fun MacroTrendRow(
 ) {
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.SemiBold)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = color,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
             val avg = if (data.isNotEmpty()) data.average() else 0.0
             Text(
                 stringResource(R.string.insights_avg_value_unit, avg.formatAsInt(), unit),
@@ -1040,7 +1097,7 @@ private fun GoalAdherenceCard(
         }
         Spacer(modifier = Modifier.height(2.dp))
         Text(
-            stringResource(R.string.insights_days_with_entries, daysWithEntries),
+            pluralStringResource(R.plurals.insights_days_with_entries, daysWithEntries, daysWithEntries),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

@@ -73,6 +73,7 @@ fun AdaptiveTDEECard(result: TDEEResult) {
                     stringResource(R.string.insights_avg_intake),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
                 )
                 Text(
                     stringResource(R.string.insights_kcal_per_day, result.avgIntake.roundToInt()),
@@ -85,6 +86,7 @@ fun AdaptiveTDEECard(result: TDEEResult) {
                     stringResource(R.string.insights_weekly_rate),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
                 )
                 val sign = if (result.weeklyRate >= 0) "+" else ""
                 Text(

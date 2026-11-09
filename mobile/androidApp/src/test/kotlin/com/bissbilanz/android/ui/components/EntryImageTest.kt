@@ -21,6 +21,8 @@ import org.koin.core.context.stopKoin
 import org.koin.dsl.module
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [31], application = EntryImageTest.TestApp::class)
@@ -73,6 +75,13 @@ class EntryImageTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("none").assertIsDisplayed()
+    }
+
+    @Test
+    fun onlyFoodAndRecipeEntriesReserveAnImageSlot() {
+        assertTrue(entry("1", null).copy(foodId = "f").reservesImageSlot())
+        assertTrue(entry("2", null).copy(recipeId = "r").reservesImageSlot())
+        assertFalse(entry("3", null).reservesImageSlot())
     }
 
     @Test
