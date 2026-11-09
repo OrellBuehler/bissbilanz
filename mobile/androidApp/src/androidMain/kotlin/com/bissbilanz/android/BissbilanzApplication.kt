@@ -2,8 +2,10 @@ package com.bissbilanz.android
 
 import android.app.Application
 import android.content.res.Configuration
-import coil.ImageLoader
-import coil.ImageLoaderFactory
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.aitasks.AiTaskNotificationPreferences
 import com.bissbilanz.android.aitasks.AiTaskNotifier
@@ -115,7 +117,7 @@ import kotlin.time.Clock
 
 class BissbilanzApplication :
     Application(),
-    ImageLoaderFactory {
+    SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
         lastLocales = resources.configuration.locales.toLanguageTags()
@@ -505,19 +507,25 @@ class BissbilanzApplication :
      * product photos. The token is attached by host, never blanket — see
      * [ApiHostAuthInterceptor].
      */
-    override fun newImageLoader(): ImageLoader {
+    override fun newImageLoader(context: PlatformContext): ImageLoader {
         val koin =
             org.koin.java.KoinJavaComponent
                 .getKoin()
         val authManager = koin.get<AuthManager>()
         return ImageLoader
-            .Builder(this)
-            .okHttpClient {
-                OkHttpClient
-                    .Builder()
-                    .addInterceptor(
-                        ApiHostAuthInterceptor(BuildConfig.BASE_URL) { authManager.getAccessToken() },
-                    ).build()
+            .Builder(context)
+            .components {
+                add(
+                    OkHttpNetworkFetcherFactory(
+                        callFactory = {
+                            OkHttpClient
+                                .Builder()
+                                .addInterceptor(
+                                    ApiHostAuthInterceptor(BuildConfig.BASE_URL) { authManager.getAccessToken() },
+                                ).build()
+                        },
+                    ),
+                )
             }.build()
     }
 

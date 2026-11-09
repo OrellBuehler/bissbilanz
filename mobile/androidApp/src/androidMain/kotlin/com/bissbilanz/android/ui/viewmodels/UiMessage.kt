@@ -1,19 +1,26 @@
 package com.bissbilanz.android.ui.viewmodels
 
-import androidx.annotation.StringRes
+import androidx.annotation.AnyRes
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 
-/** A localized message from a view model, resolved to text by the screen. */
+/** A localized message from a view model, resolved to text by the screen. [res] is a plurals resource when [quantity] is set. */
 data class UiMessage(
-    @StringRes val res: Int,
+    @AnyRes val res: Int,
     val args: List<Any> = emptyList(),
+    val quantity: Int? = null,
 )
 
 @Composable
-fun UiMessage.text(): String = if (args.isEmpty()) stringResource(res) else stringResource(res, *args.toTypedArray())
+fun UiMessage.text(): String =
+    when {
+        quantity != null -> pluralStringResource(res, quantity, *args.toTypedArray())
+        args.isEmpty() -> stringResource(res)
+        else -> stringResource(res, *args.toTypedArray())
+    }
 
 /**
  * Shows [message] as a snackbar and calls [onShown] once it is gone, so the view model can clear it.

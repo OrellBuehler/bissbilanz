@@ -155,7 +155,10 @@
     <string name="dashboard_refresh_failed_title">Etwas ist schiefgelaufen</string>
     <string name="dashboard_refresh_failed_body">Dein Log konnte nicht aktualisiert werden.</string>
     <string name="dashboard_retry">Erneut versuchen</string>
-    <string name="dashboard_copied_count">%1$d Einträge von gestern kopiert</string>
+    <plurals name="dashboard_copied_count">
+        <item quantity="one">%1$d Eintrag von gestern kopiert</item>
+        <item quantity="other">%1$d Einträge von gestern kopiert</item>
+    </plurals>
     <string name="dashboard_copy_nothing">Keine Einträge von gestern zum Kopieren</string>
     <string name="dashboard_copy_error">Einträge von gestern konnten nicht kopiert werden</string>
     <string name="dashboard_fasting_update_failed">Fastentag konnte nicht gespeichert werden</string>
@@ -564,7 +567,10 @@
 
     <!-- Day log -->
     <string name="daylog_copy_dialog_text">Dies kopiert alle Einträge von %1$s nach %2$s. Bestehende Einträge bleiben unverändert.</string>
-    <string name="daylog_copied_entries">%1$d Einträge kopiert</string>
+    <plurals name="daylog_copied_entries">
+        <item quantity="one">%1$d Eintrag kopiert</item>
+        <item quantity="other">%1$d Einträge kopiert</item>
+    </plurals>
     <string name="daylog_no_entries_to_copy">Keine Einträge zum Kopieren</string>
     <string name="daylog_load_failed">Einträge konnten nicht geladen werden</string>
     <string name="daylog_delete_failed">Eintrag konnte nicht gelöscht werden</string>
@@ -1124,7 +1130,10 @@
     <string name="insights_trends">Trends</string>
     <string name="insights_calorie_trend">Kalorienverlauf</string>
     <string name="insights_avg_value_unit">Ø %1$s %2$s</string>
-    <string name="insights_days_count">%1$d Tage</string>
+    <plurals name="insights_days_count">
+        <item quantity="one">%1$d Tag</item>
+        <item quantity="other">%1$d Tage</item>
+    </plurals>
     <string name="insights_kcal_unit">kcal</string>
     <string name="insights_cal_unit">Kal</string>
     <string name="insights_hours_unit">h</string>
@@ -1149,7 +1158,10 @@
     <string name="insights_meal_pct_format">%1$s kcal (%2$s%%)</string>
     <string name="insights_goal_adherence">Zielerreichung</string>
     <string name="insights_goal_checks_met">%1$d von %2$d Tageszielen erreicht</string>
-    <string name="insights_days_with_entries">%1$d Tage mit Einträgen</string>
+    <plurals name="insights_days_with_entries">
+        <item quantity="one">%1$d Tag mit Einträgen</item>
+        <item quantity="other">%1$d Tage mit Einträgen</item>
+    </plurals>
     <string name="insights_goal_rule_minimum">mindestens %1$s</string>
     <string name="insights_goal_rule_maximum">höchstens %1$s</string>
     <string name="insights_goal_rule_range">innerhalb ±10 %% von %1$s</string>

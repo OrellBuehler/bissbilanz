@@ -6,7 +6,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.bissbilanz.android.images.FoodImageResolver
 import org.koin.compose.koinInject
 

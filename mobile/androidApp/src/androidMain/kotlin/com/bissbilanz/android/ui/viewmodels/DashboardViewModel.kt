@@ -438,7 +438,7 @@ class DashboardViewModel(
                 if (count == 0) {
                     _snackbarMessage.value = UiMessage(R.string.dashboard_copy_nothing)
                 } else {
-                    _snackbarMessage.value = UiMessage(R.string.dashboard_copied_count, listOf(count))
+                    _snackbarMessage.value = UiMessage(R.plurals.dashboard_copied_count, listOf(count), quantity = count)
                 }
                 if (today.toString() == selectedDateString.value) loadData()
             } catch (e: Exception) {

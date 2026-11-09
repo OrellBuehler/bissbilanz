@@ -1,15 +1,15 @@
 [versions]
-agp = "9.4.1"
+agp = "9.5.0"
 kotlin = "2.4.10"
 compose-bom = "2026.09.00"
 compose-navigation = "2.10.2"
-ktor = "3.6.0"
+ktor = "3.6.1"
 sqldelight = "2.4.1"
 koin = "4.2.2"
 coroutines = "1.11.0"
-serialization = "1.11.0"
+serialization = "1.12.0"
 datetime = "0.8.0"
-skie = "0.10.15"
+skie = "0.10.16"
 mlkit-barcode = "17.3.0"
 mlkit-text = "16.0.1"
 zxing-core = "3.5.4"
@@ -24,10 +24,10 @@ browser = "1.10.0"
 activity-compose = "1.13.0"
 appcompat = "1.8.0"
 lifecycle = "2.11.0"
-sentry-android = "8.60.0"
-sentry-gradle = "6.23.0"
-coil = "2.7.0"
-okhttp = "5.5.0"
+sentry-android = "8.62.0"
+sentry-gradle = "6.25.0"
+coil = "3.6.3"
+okhttp = "5.5.1"
 glance = "1.1.1"
 health-connect = "1.2.0-alpha06"
 work = "2.12.0"
@@ -99,7 +99,8 @@ browser = { group = "androidx.browser", name = "browser", version.ref = "browser
 sentry-android = { group = "io.sentry", name = "sentry-android", version.ref = "sentry-android" }
 
 # Image Loading
-coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 
 # Widget

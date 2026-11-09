@@ -189,7 +189,7 @@ fun DayLogScreen(
                                 when (count) {
                                     null -> context.getString(R.string.dashboard_copy_error)
                                     0 -> context.getString(R.string.daylog_no_entries_to_copy)
-                                    else -> context.getString(R.string.daylog_copied_entries, count)
+                                    else -> context.resources.getQuantityString(R.plurals.daylog_copied_entries, count, count)
                                 }
                             if (count != null && count > 0) viewModel.loadEntries(date, force = true)
                             snackbarHostState.showSnackbar(message)

@@ -147,6 +147,7 @@ android {
         implementation(libs.appcompat)
         implementation(libs.sentry.android)
         implementation(libs.coil.compose)
+        implementation(libs.coil.network.okhttp)
         implementation(libs.okhttp)
         implementation(libs.glance.appwidget)
         implementation(libs.health.connect)
