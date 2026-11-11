@@ -135,7 +135,7 @@ private extension MealEstimator {
     func generateOnPrivateCloud(prompt: String, usesTools: Bool, toolResultLimit: Int) async throws -> MealEstimate {
         let matchedIds = MatchedFoodIds()
         let tools: [any Tool] = usesTools
-            ? [FoodSearchTool(search: makeSearchClosure(limit: toolResultLimit), matchedIds: matchedIds)]
+            ? [FoodSearchTool(search: makeSearchClosure(), matchedIds: matchedIds, resultLimit: toolResultLimit)]
             : []
         let session = LanguageModelSession(
             model: PrivateCloudComputeLanguageModel(),

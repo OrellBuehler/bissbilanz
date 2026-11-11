@@ -135,7 +135,7 @@ extension MealEstimator {
     ) async throws -> MealEstimate {
         let matchedIds = MatchedFoodIds()
         let tools: [any Tool] = usesTools
-            ? [FoodSearchTool(search: makeSearchClosure(limit: toolResultLimit), matchedIds: matchedIds)]
+            ? [FoodSearchTool(search: makeSearchClosure(), matchedIds: matchedIds, resultLimit: toolResultLimit)]
             : []
         let session = switch source {
         case .onDevice:

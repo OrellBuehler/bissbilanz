@@ -27,7 +27,10 @@ enum MealEstimatorAvailability: Equatable {
 
 enum MealEstimatorError: Error {
     case guardrailViolation
-    case contextWindowExceeded
+    /// `matchedMessage` is the framework message the overflow was recognised
+    /// from when no typed error said so (`MealEstimator.estimatorError(for:)`),
+    /// kept for telemetry so a wrong match is visible; nil for a typed error.
+    case contextWindowExceeded(matchedMessage: String?)
     case unsupportedLanguage
     /// The model's output could not be deserialized into the `@Generable`
     /// shape (`LanguageModelSession.GenerationError.decodingFailure`), even
@@ -198,7 +201,8 @@ final class MealEstimator {
     /// available; a weak result or a refusal/context overflow retries on PCC.
     /// When on-device is unavailable (ineligible device, Apple Intelligence
     /// off, model still downloading), PCC is the only option, so its own error
-    /// surfaces instead of being swallowed.
+    /// surfaces instead of being swallowed. A context overflow is reported
+    /// here, once nothing produced an estimate, and not by the retries before it.
     func estimateWithFallback(
         onDevice: () async throws -> MealEstimate,
         privateCloud: () async throws -> MealEstimate
@@ -207,7 +211,12 @@ final class MealEstimator {
             guard isPrivateCloudComputeAvailable else {
                 throw MealEstimatorError.generationFailed(L10n.aiMealOsUnsupported)
             }
-            return try await privateCloud()
+            do {
+                return try await privateCloud()
+            } catch {
+                Self.reportOverflowWithoutEstimate(error, source: .privateCloudCompute)
+                throw error
+            }
         }
         do {
             let result = try await onDevice()
@@ -220,8 +229,27 @@ final class MealEstimator {
             if let fallback = await privateCloudFallback(privateCloud, retryableAfter: error) {
                 return fallback
             }
+            Self.reportOverflowWithoutEstimate(error, source: .onDevice)
             throw error
         }
+    }
+
+    private static func reportOverflowWithoutEstimate(_ error: Error, source: MealEstimateSource) {
+        guard let context = overflowReportContext(for: error, source: source) else { return }
+        ErrorReporter.captureWarning("Meal estimate exceeded the context window", context: context)
+    }
+
+    /// Event context for a context overflow that left the user without an
+    /// estimate, or nil for any other error. `source` is the path whose error
+    /// reached the user; `matched_message` appears only when the overflow was
+    /// recognised from the message text rather than a typed error.
+    nonisolated static func overflowReportContext(for error: Error, source: MealEstimateSource) -> [String: String]? {
+        guard case let .contextWindowExceeded(matchedMessage)? = error as? MealEstimatorError else { return nil }
+        var context = ["reason": "context_window_exceeded", "source": source.rawValue]
+        if let matchedMessage {
+            context["matched_message"] = matchedMessage
+        }
+        return context
     }
 
     /// Classifies whatever a model call threw, for the on-device, Private Cloud
@@ -243,7 +271,8 @@ final class MealEstimator {
         }
         #endif
         let message = error.localizedDescription
-        return isContextOverflowMessage(message) ? .contextWindowExceeded : .generationFailed(message)
+        guard isContextOverflowMessage(message) else { return .generationFailed(message) }
+        return .contextWindowExceeded(matchedMessage: message)
     }
 
     /// Whether a framework message describes a prompt that no longer fits the
@@ -283,7 +312,7 @@ final class MealEstimator {
     #if canImport(FoundationModels)
 
     // Not `private`: `MealEstimatorPrivateCloud.swift` reuses `instructions`,
-    // `makeSearchClosure(limit:)` and `estimatorError(for:)` for the Private Cloud
+    // `makeSearchClosure()` and `estimatorError(for:)` for the Private Cloud
     // Compute fallback, and `FoodSearchTool`/`EstimatedMeal`/`MatchedFoodIds`/
     // `FoodMatchDTO` below for the same reason — same tool, same guard, same
     // guided-generation shape, just a different model backing the session.
@@ -344,18 +373,18 @@ final class MealEstimator {
         guard usesTools else {
             return LanguageModelSession(instructions: Self.instructions)
         }
-        let tool = FoodSearchTool(search: makeSearchClosure(limit: toolResultLimit), matchedIds: matchedIds)
+        let tool = FoodSearchTool(search: makeSearchClosure(), matchedIds: matchedIds, resultLimit: toolResultLimit)
         return LanguageModelSession(tools: [tool], instructions: Self.instructions)
     }
 
     /// Not private: `MealEstimator+Photo.swift` builds its own tool from this
     /// closure to add multimodal (photo) support without duplicating the food
-    /// search logic or its hallucination guard. `limit` caps the matches per
-    /// search, lowered by `MealEstimateGeneration` after a context overflow.
+    /// search logic or its hallucination guard. The limit comes from
+    /// `FoodSearchTool.resultLimit`.
     @available(iOS 26.0, *)
-    func makeSearchClosure(limit: Int) -> @Sendable (String) async -> [FoodMatchDTO] {
+    func makeSearchClosure() -> @Sendable (String, Int) async -> [FoodMatchDTO] {
         let foodRepository = foodRepository
-        return { query in
+        return { query, limit in
             // Hops back to the main actor to read SwiftData, then converts to a
             // Sendable DTO before returning across the tool-call boundary.
             await foodRepository.searchLocal(query, limit: limit).map(FoodMatchDTO.init)
@@ -424,7 +453,7 @@ final class MealEstimator {
         case .guardrailViolation:
             .guardrailViolation
         case .exceededContextWindowSize:
-            .contextWindowExceeded
+            .contextWindowExceeded(matchedMessage: nil)
         case .unsupportedLanguageOrLocale:
             .unsupportedLanguage
         case .decodingFailure:
@@ -445,7 +474,7 @@ final class MealEstimator {
         case .guardrailViolation:
             .guardrailViolation
         case .contextSizeExceeded:
-            .contextWindowExceeded
+            .contextWindowExceeded(matchedMessage: nil)
         case .unsupportedLanguageOrLocale:
             .unsupportedLanguage
         default:
@@ -506,14 +535,20 @@ actor MatchedFoodIds {
 @available(iOS 26.0, *)
 struct FoodSearchTool: Tool {
     let name = "searchLocalFoods"
-    let description = """
-    Searches the user's personal food database by name and returns up to 5 candidate \
-    matches with their id and macros per serving. Call this once for each distinct \
-    food or drink item mentioned, using that item's name as the query.
-    """
 
-    let search: @Sendable (String) async -> [FoodMatchDTO]
+    let search: @Sendable (_ query: String, _ limit: Int) async -> [FoodMatchDTO]
     let matchedIds: MatchedFoodIds
+    /// Matches per search, lowered by `MealEstimateGeneration` after a context
+    /// overflow. The description states it, so the model is told the real count.
+    let resultLimit: Int
+
+    var description: String {
+        """
+        Searches the user's personal food database by name and returns up to \(resultLimit) candidate \
+        matches with their id and macros per serving. Call this once for each distinct \
+        food or drink item mentioned, using that item's name as the query.
+        """
+    }
 
     @Generable
     struct Arguments {
@@ -522,7 +557,7 @@ struct FoodSearchTool: Tool {
     }
 
     func call(arguments: Arguments) async throws -> String {
-        let matches = await search(arguments.query)
+        let matches = await search(arguments.query, resultLimit)
         await matchedIds.record(matches.map(\.id))
         guard !matches.isEmpty else {
             return "No matches found in the local food database for \"\(arguments.query)\"."

@@ -52,9 +52,9 @@ struct MealEstimateAttempt: Equatable {
 ///   throws, after reporting it.
 /// - A **context overflow** (`MealEstimatorError.contextWindowExceeded`) is
 ///   retried with less input (`MealEstimateAttempt.afterContextOverflow`)
-///   within the same `maxAttempts`. Giving up throws, after reporting it, so
+///   within the same `maxAttempts`. Giving up throws without reporting, so
 ///   `MealEstimator.estimateWithFallback` can still route it to Private Cloud
-///   Compute.
+///   Compute and reports it only if no estimate came of it.
 /// - An answer with **implausible values** (`MealEstimateValidator`) gets one
 ///   corrective retry that names the problems. The best answer wins; whatever
 ///   is still implausible stays flagged for the review screen.
@@ -129,7 +129,7 @@ enum MealEstimateGeneration {
                     usesTools: nextUsesTools,
                     toolResultLimit: attempt.toolResultLimit
                 )
-            } catch MealEstimatorError.contextWindowExceeded {
+            } catch MealEstimatorError.contextWindowExceeded(let matchedMessage) {
                 // The corrective retry's longer prompt overflowed; keep the
                 // flagged answer it was meant to improve.
                 if let best {
@@ -137,11 +137,15 @@ enum MealEstimateGeneration {
                     return best
                 }
                 guard attempt.number < maxAttempts, let next = attempt.afterContextOverflow() else {
-                    ErrorReporter.captureWarning(
-                        "Meal estimate exceeded the context window, giving up",
-                        context: ["reason": "context_window_exceeded", "attempts": attempt.number]
+                    // Not reported here: a fallback may still produce an
+                    // estimate. `MealEstimator.estimateWithFallback` reports
+                    // the overflow once nothing did.
+                    ErrorReporter.addBreadcrumb(
+                        "Meal estimate exceeded the context window on every attempt",
+                        category: "ai_meal",
+                        data: ["attempts": attempt.number]
                     )
-                    throw MealEstimatorError.contextWindowExceeded
+                    throw MealEstimatorError.contextWindowExceeded(matchedMessage: matchedMessage)
                 }
                 ErrorReporter.addBreadcrumb(
                     "Meal estimate exceeded the context window, retrying with less input",

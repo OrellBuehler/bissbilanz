@@ -195,7 +195,7 @@ struct MealEstimateGenerationTests {
         var attempts: [MealEstimateAttempt] = []
         let result = try await MealEstimateGeneration.run(description: "2 eggs") { attempt in
             attempts.append(attempt)
-            if attempt.number < 3 { throw MealEstimatorError.contextWindowExceeded }
+            if attempt.number < 3 { throw MealEstimatorError.contextWindowExceeded(matchedMessage: nil) }
             return Self.estimate(Fixtures.food("Eggs", grams: 110, protein: 14, carbs: 1, fat: 11))
         }
         #expect(attempts.map(\.number) == [1, 2, 3])
@@ -210,17 +210,21 @@ struct MealEstimateGenerationTests {
         #expect(result.items.count == 1)
     }
 
-    @Test("A context overflow that persists gives up after three attempts for the fallback to handle")
+    @Test("A context overflow that persists gives up after three attempts, keeping the message it was matched from")
     func contextOverflowGivesUp() async {
+        let message = "Provided 4484 tokens, but the maximum allowed is 4096."
         var calls = 0
         do {
             _ = try await MealEstimateGeneration.run(description: "2 eggs") { _ in
                 calls += 1
-                throw MealEstimatorError.contextWindowExceeded
+                throw MealEstimatorError.contextWindowExceeded(matchedMessage: message)
             }
             Issue.record("Expected the context overflow to propagate")
-        } catch MealEstimatorError.contextWindowExceeded {
-            #expect(MealEstimator.isRetryableOnPrivateCloud(MealEstimatorError.contextWindowExceeded))
+        } catch let error as MealEstimatorError {
+            // Propagated unreported for the fallback to handle, with the
+            // message intact for the report `estimateWithFallback` may send.
+            #expect(MealEstimator.isRetryableOnPrivateCloud(error))
+            #expect(MealEstimator.overflowReportContext(for: error, source: .onDevice)?["matched_message"] == message)
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
@@ -234,7 +238,7 @@ struct MealEstimateGenerationTests {
             attempts.append(attempt)
             switch attempt.number {
             case 1: throw MealEstimatorError.decodingFailed
-            case 2: throw MealEstimatorError.contextWindowExceeded
+            case 2: throw MealEstimatorError.contextWindowExceeded(matchedMessage: nil)
             default: return Self.estimate(Fixtures.food("Eggs", grams: 110, protein: 14, carbs: 1, fat: 11))
             }
         }
@@ -247,7 +251,7 @@ struct MealEstimateGenerationTests {
         var calls = 0
         let result = try await MealEstimateGeneration.run(description: "240g 7% ground beef") { _ in
             calls += 1
-            if calls == 2 { throw MealEstimatorError.contextWindowExceeded }
+            if calls == 2 { throw MealEstimatorError.contextWindowExceeded(matchedMessage: nil) }
             return Self.estimate(Fixtures.impossibleBeef)
         }
         #expect(calls == 2)
@@ -259,13 +263,32 @@ struct MealEstimateGenerationTests {
         var attempts: [MealEstimateAttempt] = []
         _ = try await MealEstimateGeneration.run(description: "240g 7% ground beef") { attempt in
             attempts.append(attempt)
-            if attempt.number == 1 { throw MealEstimatorError.contextWindowExceeded }
+            if attempt.number == 1 { throw MealEstimatorError.contextWindowExceeded(matchedMessage: nil) }
             return Self.estimate(attempt.number == 2 ? Fixtures.impossibleBeef : Fixtures.realisticBeef)
         }
         #expect(attempts.map(\.number) == [1, 2, 3])
         #expect(attempts[2].usesTools)
         #expect(attempts[2].toolResultLimit == MealEstimateAttempt.compactToolResultLimit)
     }
+
+    #if canImport(FoundationModels)
+    @Test("The food search tool tells the model the match limit in force")
+    func foodSearchToolStatesItsLimit() {
+        guard #available(iOS 26.0, *) else { return }
+        let full = FoodSearchTool(
+            search: { _, _ in [] },
+            matchedIds: MatchedFoodIds(),
+            resultLimit: MealEstimateAttempt.fullToolResultLimit
+        )
+        let compact = FoodSearchTool(
+            search: { _, _ in [] },
+            matchedIds: MatchedFoodIds(),
+            resultLimit: MealEstimateAttempt.compactToolResultLimit
+        )
+        #expect(full.description.contains("returns up to 5 candidate matches"))
+        #expect(compact.description.contains("returns up to 2 candidate matches"))
+    }
+    #endif
 
     @Test("An attempt without the food search has nothing left to cut after an overflow")
     func toolLessAttemptCannotShrink() {

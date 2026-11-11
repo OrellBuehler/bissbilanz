@@ -43,6 +43,32 @@ struct MealEstimatorErrorTests {
         #expect(classified.localizedMessage == L10n.aiMealContextWindowError)
     }
 
+    @Test("An overflow that left the user without an estimate is reported with its source")
+    func overflowIsReportedWithItsSource() {
+        let typed = MealEstimator.overflowReportContext(
+            for: MealEstimatorError.contextWindowExceeded(matchedMessage: nil),
+            source: .onDevice
+        )
+        #expect(typed == ["reason": "context_window_exceeded", "source": "onDevice"])
+    }
+
+    @Test("An overflow matched from the message text carries that message in the report")
+    func matchedOverflowCarriesItsMessage() {
+        let classified = MealEstimator.estimatorError(for: Self.error(Self.overflowMessage))
+        let context = MealEstimator.overflowReportContext(for: classified, source: .privateCloudCompute)
+        #expect(context?["matched_message"] == Self.overflowMessage)
+        #expect(context?["source"] == "privateCloudCompute")
+    }
+
+    @Test("Other errors are not reported as overflows")
+    func otherErrorsAreNotReportedAsOverflows() {
+        let refusal = MealEstimatorError.guardrailViolation
+        #expect(MealEstimator.overflowReportContext(for: refusal, source: .onDevice) == nil)
+        #expect(MealEstimator.overflowReportContext(for: MealEstimatorError.decodingFailed, source: .onDevice) == nil)
+        // Only the classified error is reported, never the raw framework one.
+        #expect(MealEstimator.overflowReportContext(for: Self.error(Self.overflowMessage), source: .onDevice) == nil)
+    }
+
     @Test("Any other unknown error stays a generic failure with its message")
     func untypedFailureStaysGeneric() {
         let classified = MealEstimator.estimatorError(for: Self.error("boom"))
@@ -57,7 +83,9 @@ struct MealEstimatorErrorTests {
         let error = LanguageModelSession.GenerationError.exceededContextWindowSize(
             .init(debugDescription: "context window exceeded")
         )
-        #expect(MealEstimator.estimatorError(for: error).telemetryReason == "context_window_exceeded")
+        let classified = MealEstimator.estimatorError(for: error)
+        #expect(classified.telemetryReason == "context_window_exceeded")
+        #expect(MealEstimator.overflowReportContext(for: classified, source: .onDevice)?["matched_message"] == nil)
     }
     #endif
 
