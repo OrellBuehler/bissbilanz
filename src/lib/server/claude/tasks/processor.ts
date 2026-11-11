@@ -6,10 +6,11 @@ import { getDB } from '../../db';
 import { listMealTypes } from '../../meal-types';
 import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 import { getUserTimeZone } from '../../preferences';
-import { userPreferences, users } from '../../schema';
+import { claudeAccess, userPreferences, users } from '../../schema';
 import { assertClaudeAllowed } from '../capability';
 import { callClaude } from '../call';
 import { claudeConfig } from '../config';
+import { resolveClaudeModel, webSearchTool } from '../models';
 import { AI_TASK_FEATURE } from '../constants';
 import {
 	ClaudeAbortedError,
@@ -62,6 +63,7 @@ type Loaded = {
 	locale: string | null;
 	content: Anthropic.ContentBlockParam[];
 	imageCount: number;
+	model: string;
 };
 
 function withCacheBreakpoint(messages: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
@@ -100,11 +102,15 @@ async function loadInputs(run: ClaudeRun, locale: string | null): Promise<Loaded
 			: prefs?.autoLog
 				? 'auto_log'
 				: 'review';
-	const [timeZone, customMealTypes, logged, photos] = await Promise.all([
+	const [timeZone, customMealTypes, logged, photos, [access]] = await Promise.all([
 		getUserTimeZone(run.userId),
 		listMealTypes(run.userId),
 		listLoggedLedger(db, run.taskId, run.userId),
-		loadTaskPhotos(run.userId, task.photoUrls)
+		loadTaskPhotos(run.userId, task.photoUrls),
+		db
+			.select({ model: claudeAccess.model })
+			.from(claudeAccess)
+			.where(eq(claudeAccess.userId, run.userId))
 	]);
 	const content = buildTaskUserContent(task, {
 		mode,
@@ -120,7 +126,8 @@ async function loadInputs(run: ClaudeRun, locale: string | null): Promise<Loaded
 		timeZone,
 		locale,
 		content,
-		imageCount: content.filter((block) => block.type === 'image').length
+		imageCount: content.filter((block) => block.type === 'image').length,
+		model: resolveClaudeModel(access?.model)
 	};
 }
 
@@ -177,18 +184,14 @@ async function runLoop(
 
 	const { maxIterations, maxWebSearches } = claudeConfig();
 	const tools: Anthropic.ToolUnion[] =
-		maxWebSearches > 0
-			? [
-					{ type: 'web_search_20260209', name: 'web_search', max_uses: maxWebSearches },
-					...TASK_TOOLS
-				]
-			: TASK_TOOLS;
+		maxWebSearches > 0 ? [webSearchTool(loaded.model, maxWebSearches), ...TASK_TOOLS] : TASK_TOOLS;
 	for (let iteration = 0; iteration < maxIterations; iteration++) {
 		if (!(await regate())) return;
 
 		const response = await callClaude({
 			userId: run.userId,
 			feature: AI_TASK_FEATURE,
+			model: loaded.model,
 			aiTaskId: task.id,
 			params: { system: TASK_SYSTEM, tools, messages: withCacheBreakpoint(messages) },
 			imageCount: loaded.imageCount,

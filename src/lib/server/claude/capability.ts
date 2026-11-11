@@ -5,6 +5,7 @@ import { claudeAccess, userPreferences } from '../schema';
 import { claudeConfig } from './config';
 import { TASK_MAX_TOKENS } from './constants';
 import { ClaudeGateError, ClaudeProcessorChangedError } from './errors';
+import { resolveClaudeModel } from './models';
 import { maxCallCostUsd } from './pricing';
 import { getClaudeEnabled } from './settings';
 import { effectiveUserBudgetUsd, getMonthSpend } from './usage';
@@ -13,8 +14,8 @@ const MIN_TASK_INPUT_TOKENS = 20_000;
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
-export const minTaskCallUsd = () =>
-	maxCallCostUsd(claudeConfig().model, MIN_TASK_INPUT_TOKENS, TASK_MAX_TOKENS);
+export const minTaskCallUsd = (model: string) =>
+	maxCallCostUsd(model, MIN_TASK_INPUT_TOKENS, TASK_MAX_TOKENS);
 
 export type ClaudeCapability = { available: boolean; remainingBudgetUsd?: number };
 
@@ -24,7 +25,11 @@ async function checkAccessGates(userId: string) {
 	const db = getDB();
 	if (!(await getClaudeEnabled(db))) throw new ClaudeGateError('disabled');
 	const [access] = await db
-		.select({ enabled: claudeAccess.enabled, monthlyBudgetUsd: claudeAccess.monthlyBudgetUsd })
+		.select({
+			enabled: claudeAccess.enabled,
+			monthlyBudgetUsd: claudeAccess.monthlyBudgetUsd,
+			model: claudeAccess.model
+		})
 		.from(claudeAccess)
 		.where(eq(claudeAccess.userId, userId));
 	if (!access?.enabled) throw new ClaudeGateError('no_access');
@@ -54,7 +59,7 @@ export async function getClaudeCapability(userId: string): Promise<ClaudeCapabil
 		effectiveUserBudgetUsd(access) - user.spendUsd,
 		config.globalMonthlyBudgetUsd - global.spendUsd
 	);
-	if (remainingUsd < minTaskCallUsd()) return { available: false };
+	if (remainingUsd < minTaskCallUsd(resolveClaudeModel(access.model))) return { available: false };
 	return { available: true, remainingBudgetUsd: round2(Math.max(0, remainingUsd)) };
 }
 

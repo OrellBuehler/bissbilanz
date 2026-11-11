@@ -4772,7 +4772,7 @@
 			"get": {
 				"operationId": "adminGetUser",
 				"tags": ["Admin"],
-				"description": "One user with a zero-filled daily usage series (UTC days), the latest 50 Claude calls (cost of an open reservation is its reserved amount) and the latest 50 audit entries. Admin cookie session only; everyone else gets 404.",
+				"description": "One user with a zero-filled daily usage series (UTC days), the latest 50 Claude calls (cost of an open reservation is its reserved amount) and the latest 50 audit entries, plus the models an admin can assign and the server default model. Admin cookie session only; everyone else gets 404.",
 				"parameters": [
 					{
 						"in": "path",
@@ -4819,7 +4819,7 @@
 			"patch": {
 				"operationId": "adminUpdateClaudeAccess",
 				"tags": ["Admin"],
-				"description": "Grant, revoke or adjust a user's Claude access, monthly budget (null = default) and note. Writes an audit entry and stops that user's in-flight Claude runs on revoke. Admin cookie session only; everyone else gets 404.",
+				"description": "Grant, revoke or adjust a user's Claude access, monthly budget (null = default), model (null = default) and note. A model change applies from the user's next task run. Writes an audit entry and stops that user's in-flight Claude runs on revoke. Admin cookie session only; everyone else gets 404.",
 				"parameters": [
 					{
 						"in": "path",
@@ -9325,6 +9325,10 @@
 								"type": "null"
 							}
 						]
+					},
+					"model": {
+						"description": "An id from the `models` list returned by GET /api/admin/users/{id}; that set can change between releases, and any other id is rejected. null uses the server default.",
+						"type": ["string", "null"]
 					}
 				}
 			},
@@ -15340,6 +15344,12 @@
 					},
 					"note": {
 						"type": ["string", "null"]
+					},
+					"model": {
+						"type": ["string", "null"]
+					},
+					"effectiveModel": {
+						"type": "string"
 					}
 				},
 				"required": [
@@ -15348,7 +15358,9 @@
 					"effectiveBudgetUsd",
 					"monthSpendUsd",
 					"monthCalls",
-					"note"
+					"note",
+					"model",
+					"effectiveModel"
 				],
 				"additionalProperties": false
 			},
@@ -15375,9 +15387,29 @@
 						"items": {
 							"$ref": "#/components/schemas/AdminAuditEntry"
 						}
+					},
+					"models": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/AdminClaudeModel"
+						}
+					},
+					"defaultModel": {
+						"type": "string"
+					},
+					"defaultModelLabel": {
+						"type": "string"
 					}
 				},
-				"required": ["user", "dailyUsage", "recentCalls", "auditLog"],
+				"required": [
+					"user",
+					"dailyUsage",
+					"recentCalls",
+					"auditLog",
+					"models",
+					"defaultModel",
+					"defaultModelLabel"
+				],
 				"additionalProperties": false
 			},
 			"AdminDailyUsage": {
@@ -15526,6 +15558,25 @@
 				"required": ["id", "createdAt", "action", "actorLabel", "before", "after"],
 				"additionalProperties": false
 			},
+			"AdminClaudeModel": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"label": {
+						"type": "string"
+					},
+					"inputUsdPerMtok": {
+						"type": "number"
+					},
+					"outputUsdPerMtok": {
+						"type": "number"
+					}
+				},
+				"required": ["id", "label", "inputUsdPerMtok", "outputUsdPerMtok"],
+				"additionalProperties": false
+			},
 			"AdminClaudeAccessResponse": {
 				"type": "object",
 				"properties": {
@@ -15551,6 +15602,12 @@
 					"note": {
 						"type": ["string", "null"]
 					},
+					"model": {
+						"type": ["string", "null"]
+					},
+					"effectiveModel": {
+						"type": "string"
+					},
 					"grantedAt": {
 						"type": ["string", "null"]
 					},
@@ -15563,6 +15620,8 @@
 					"monthlyBudgetUsd",
 					"effectiveBudgetUsd",
 					"note",
+					"model",
+					"effectiveModel",
 					"grantedAt",
 					"updatedAt"
 				],

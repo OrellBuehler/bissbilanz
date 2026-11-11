@@ -22,9 +22,16 @@ const USER_ROW = {
 		effectiveBudgetUsd: 10,
 		monthSpendUsd: 1.25,
 		monthCalls: 4,
-		note: null
+		note: null,
+		model: 'claude-haiku-5-5',
+		effectiveModel: 'claude-haiku-5-5'
 	}
 };
+
+const MODELS = [
+	{ id: 'claude-opus-5-5', label: 'Claude Opus 5.5', inputUsdPerMtok: 4, outputUsdPerMtok: 20 },
+	{ id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5', inputUsdPerMtok: 0.1, outputUsdPerMtok: 0.5 }
+];
 
 const listAdminUsers = vi.fn();
 const getAdminUserDetail = vi.fn();
@@ -79,16 +86,21 @@ beforeEach(() => {
 				createdAt: '2026-10-12T09:00:00.000Z',
 				action: 'claude_access.grant',
 				actorLabel: 'admin@example.com',
-				before: { enabled: false, monthlyBudgetUsd: null, note: null },
-				after: { enabled: true, monthlyBudgetUsd: null, note: 'friend' }
+				before: { enabled: false, monthlyBudgetUsd: null, note: null, model: null },
+				after: { enabled: true, monthlyBudgetUsd: null, note: 'friend', model: 'claude-haiku-5-5' }
 			}
-		]
+		],
+		models: MODELS,
+		defaultModel: 'claude-sonnet-5-5',
+		defaultModelLabel: 'Claude Sonnet 5.5'
 	});
 	updateClaudeAccess.mockResolvedValue({
 		enabled: true,
 		monthlyBudgetUsd: 5,
 		effectiveBudgetUsd: 5,
 		note: 'friend',
+		model: null,
+		effectiveModel: 'claude-sonnet-5-5',
 		grantedAt: '2026-10-12T09:00:00.000Z',
 		updatedAt: '2026-10-12T09:00:00.000Z'
 	});
@@ -175,6 +187,19 @@ describe('GET /api/admin/users/{id}', () => {
 		expect(getAdminUserDetail).toHaveBeenCalledWith(expect.anything(), USER_ID, 30);
 	});
 
+	test('returns the stored and effective model with the selectable models and the default', async () => {
+		const response = await userModule.GET(adminEvent({ params: { id: USER_ID } }));
+		await expectResponseContract('GET', '/api/admin/users/{id}', response);
+		const body = await response.json();
+		expect(body.user.claude).toMatchObject({
+			model: 'claude-haiku-5-5',
+			effectiveModel: 'claude-haiku-5-5'
+		});
+		expect(body.models).toEqual(MODELS);
+		expect(body.defaultModel).toBe('claude-sonnet-5-5');
+		expect(body.defaultModelLabel).toBe('Claude Sonnet 5.5');
+	});
+
 	test('honours the days window', async () => {
 		await userModule.GET(adminEvent({ params: { id: USER_ID }, searchParams: { days: '90' } }));
 		expect(getAdminUserDetail).toHaveBeenCalledWith(expect.anything(), USER_ID, 90);
@@ -237,6 +262,21 @@ describe('PATCH /api/admin/users/{id}/claude-access', () => {
 		});
 	});
 
+	test.each(['claude-haiku-5-5', 'claude-fable-5-2', null])(
+		'accepts model %s on its own',
+		async (model) => {
+			const response = await accessModule.PATCH(patch({}, { model }));
+			await expectResponseContract('PATCH', '/api/admin/users/{id}/claude-access', response);
+			expect(response.status).toBe(200);
+			expect(updateClaudeAccess).toHaveBeenCalledWith(
+				expect.anything(),
+				expect.anything(),
+				USER_ID,
+				{ model }
+			);
+		}
+	);
+
 	test('falls back to the user id when the admin has no email', async () => {
 		const event = patch();
 		event.locals.user = { ...event.locals.user!, email: null };
@@ -252,7 +292,11 @@ describe('PATCH /api/admin/users/{id}/claude-access', () => {
 		{ monthlyBudgetUsd: 1.234 },
 		{ monthlyBudgetUsd: '5' },
 		{ note: 'x'.repeat(501) },
-		{ enabled: 'yes' }
+		{ enabled: 'yes' },
+		{ model: 'claude-unknown-1' },
+		{ model: 'claude-fable-5-1' },
+		{ model: '' },
+		{ model: 5 }
 	])('rejects body %o with 400', async (body) => {
 		const response = await accessModule.PATCH(patch({}, body));
 		// Not asserted: details is ZodError#format()'s recursive tree, which validationErrorResponseSchema can't describe without oasdiff flagging a breaking change (see shared.ts).

@@ -21,9 +21,17 @@
 		patchClaudeAccess,
 		runOptimistic,
 		type AdminClaudeAccessUpdate,
+		type AdminClaudeModel,
 		type AdminUserDetail
 	} from '$lib/components/admin/admin-api';
-	import { formatDate, formatUsd, initialOf, providerLabel } from '$lib/components/admin/format';
+	import {
+		formatDate,
+		formatUsd,
+		initialOf,
+		modelLabel,
+		modelLabels,
+		providerLabel
+	} from '$lib/components/admin/format';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import CircleAlert from '@lucide/svelte/icons/circle-alert';
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
@@ -32,6 +40,7 @@
 	import * as m from '$lib/paraglide/messages';
 
 	const RANGES = [7, 30, 90];
+	const DEFAULT_MODEL = 'default';
 
 	const id = $derived($page.params.id ?? '');
 
@@ -98,6 +107,8 @@
 			detail.user.claude.monthlyBudgetUsd = access.monthlyBudgetUsd;
 			detail.user.claude.effectiveBudgetUsd = access.effectiveBudgetUsd;
 			detail.user.claude.note = access.note;
+			detail.user.claude.model = access.model;
+			detail.user.claude.effectiveModel = access.effectiveModel;
 			learnDefaultBudget(detail.user.claude);
 			toast.success(m.admin_saved(), { duration: 1500 });
 			void load(id, days);
@@ -132,7 +143,26 @@
 		);
 	}
 
+	async function saveModel(value: string) {
+		if (!detail) return;
+		const claude = detail.user.claude;
+		const model = value === DEFAULT_MODEL ? null : value;
+		if (model === claude.model) return;
+		const previous = claude.model;
+		await save(
+			{ model },
+			() => (claude.model = model),
+			() => (claude.model = previous)
+		);
+	}
+
 	const rangeLabel = (range: number) => m.admin_user_usage_range({ days: range });
+
+	const priceText = (model: AdminClaudeModel) =>
+		m.admin_user_model_price({
+			input: formatUsd(model.inputUsdPerMtok),
+			output: formatUsd(model.outputUsdPerMtok)
+		});
 </script>
 
 <div class="mx-auto max-w-5xl space-y-6">
@@ -159,6 +189,14 @@
 		</div>
 	{:else}
 		{@const user = detail.user}
+		{@const { models, defaultModel } = detail}
+		{@const labels = modelLabels(detail)}
+		{@const selectedModel =
+			models.find((model) => model.id === user.claude.model)?.id ?? DEFAULT_MODEL}
+		{@const defaultOption = models.find((model) => model.id === defaultModel)}
+		{@const defaultModelText = m.admin_user_model_default({
+			model: modelLabel(labels, defaultModel)
+		})}
 		<Card.Root data-testid="admin-user-header">
 			<Card.Content class="space-y-4">
 				<div class="flex items-center gap-3">
@@ -224,6 +262,49 @@
 						</dd>
 					</div>
 					<div class="col-span-2">
+						<dt class="text-muted-foreground text-xs">{m.admin_user_model()}</dt>
+						<dd>
+							<Select.Root
+								type="single"
+								value={selectedModel}
+								disabled={saving}
+								onValueChange={saveModel}
+							>
+								<Select.Trigger
+									size="sm"
+									class="w-full max-w-xs text-sm"
+									aria-label={m.admin_user_model()}
+									data-testid="admin-user-model"
+								>
+									<span class="truncate">
+										{selectedModel === DEFAULT_MODEL
+											? defaultModelText
+											: modelLabel(labels, selectedModel)}
+									</span>
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value={DEFAULT_MODEL} label={defaultModelText}>
+										<div class="flex min-w-0 flex-col">
+											<span>{defaultModelText}</span>
+											{#if defaultOption}
+												<span class="text-muted-foreground text-xs">{priceText(defaultOption)}</span
+												>
+											{/if}
+										</div>
+									</Select.Item>
+									{#each models as model (model.id)}
+										<Select.Item value={model.id} label={model.label}>
+											<div class="flex min-w-0 flex-col">
+												<span>{model.label}</span>
+												<span class="text-muted-foreground text-xs">{priceText(model)}</span>
+											</div>
+										</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</dd>
+					</div>
+					<div class="col-span-2">
 						<dt class="text-muted-foreground text-xs">{m.admin_user_note()}</dt>
 						<dd class="break-words">{user.claude.note || '—'}</dd>
 					</div>
@@ -277,7 +358,7 @@
 
 		<section class="space-y-3">
 			<h2 class="text-base font-semibold">{m.admin_user_history_title()}</h2>
-			<AccessHistory entries={detail.auditLog} {defaultBudget} />
+			<AccessHistory entries={detail.auditLog} {defaultBudget} models={labels} {defaultModel} />
 		</section>
 
 		<AccessDialog

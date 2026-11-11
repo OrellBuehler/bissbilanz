@@ -132,7 +132,9 @@ describe('listAdminUsers', () => {
 				effectiveBudgetUsd: 25,
 				monthSpendUsd: 0.75,
 				monthCalls: 2,
-				note: 'friend'
+				note: 'friend',
+				model: null,
+				effectiveModel: 'claude-sonnet-5-5'
 			}
 		});
 		expect(row.createdAt).toBe(ada.createdAt!.toISOString());
@@ -158,7 +160,9 @@ describe('listAdminUsers', () => {
 			effectiveBudgetUsd: 10,
 			monthSpendUsd: 0,
 			monthCalls: 0,
-			note: null
+			note: null,
+			model: null,
+			effectiveModel: 'claude-sonnet-5-5'
 		});
 	});
 
@@ -402,6 +406,50 @@ describe('getAdminUserDetail', () => {
 			getAdminUserDetail(db(), '10000000-0000-4000-8000-0000000000ff', 30)
 		).rejects.toMatchObject({ status: 404 });
 	});
+
+	it('returns the stored and effective model with the selectable models and the default', async () => {
+		const ada = await insertUser('ada@example.com');
+		await db()
+			.insert(claudeAccess)
+			.values({ userId: ada.id, enabled: true, model: 'claude-opus-5-5' });
+
+		const detail = await getAdminUserDetail(db(), ada.id, 7);
+		expect(detail.user.claude).toMatchObject({
+			model: 'claude-opus-5-5',
+			effectiveModel: 'claude-opus-5-5'
+		});
+		expect(detail.defaultModel).toBe('claude-sonnet-5-5');
+		expect(detail.defaultModelLabel).toBe('Claude Sonnet 5.5');
+		expect(detail.models.map((model) => model.id)).toEqual([
+			'claude-fable-5-2',
+			'claude-opus-5-5',
+			'claude-sonnet-5-5',
+			'claude-haiku-5-5'
+		]);
+		expect(detail.models[0]).toEqual({
+			id: 'claude-fable-5-2',
+			label: 'Claude Fable 5.2',
+			inputUsdPerMtok: 8,
+			outputUsdPerMtok: 40
+		});
+	});
+
+	it('falls back to the default for a stored model that is no longer offered', async () => {
+		const ada = await insertUser('ada@example.com');
+		await db()
+			.insert(claudeAccess)
+			.values({ userId: ada.id, enabled: true, model: 'claude-retired-9' });
+
+		const detail = await getAdminUserDetail(db(), ada.id, 7);
+		expect(detail.user.claude).toMatchObject({
+			model: 'claude-retired-9',
+			effectiveModel: 'claude-sonnet-5-5'
+		});
+		const {
+			users: [row]
+		} = await listAdminUsers(db(), defaults);
+		expect(row.claude.effectiveModel).toBe('claude-sonnet-5-5');
+	});
 });
 
 describe('updateClaudeAccess', () => {
@@ -466,8 +514,18 @@ describe('updateClaudeAccess', () => {
 		]);
 		expect(rows.every((r) => r.actorLabel === 'root@example.com')).toBe(true);
 		expect(rows.every((r) => r.actorUserId === admin.userId)).toBe(true);
-		expect(rows[0].before).toEqual({ enabled: false, monthlyBudgetUsd: null, note: null });
-		expect(rows[0].after).toEqual({ enabled: true, monthlyBudgetUsd: 20, note: 'friend' });
+		expect(rows[0].before).toEqual({
+			enabled: false,
+			monthlyBudgetUsd: null,
+			note: null,
+			model: null
+		});
+		expect(rows[0].after).toEqual({
+			enabled: true,
+			monthlyBudgetUsd: 20,
+			note: 'friend',
+			model: null
+		});
 		expect(rows[1].before).toMatchObject({ monthlyBudgetUsd: 20 });
 		expect(rows[1].after).toMatchObject({ monthlyBudgetUsd: null });
 		expect(rows[2].after).toMatchObject({ enabled: false });
@@ -484,6 +542,35 @@ describe('updateClaudeAccess', () => {
 			'claude_access.update',
 			'claude_access.update'
 		]);
+	});
+
+	it('stores, audits and clears a model, and reports the effective one', async () => {
+		const admin = await actor();
+		const ada = await insertUser('ada@example.com');
+		await updateClaudeAccess(db(), admin, ada.id, { enabled: true });
+
+		const picked = await updateClaudeAccess(db(), admin, ada.id, { model: 'claude-haiku-5-5' });
+		expect(picked).toMatchObject({
+			enabled: true,
+			model: 'claude-haiku-5-5',
+			effectiveModel: 'claude-haiku-5-5'
+		});
+		const same = await updateClaudeAccess(db(), admin, ada.id, { model: 'claude-haiku-5-5' });
+		expect(same.model).toBe('claude-haiku-5-5');
+		const cleared = await updateClaudeAccess(db(), admin, ada.id, { model: null });
+		expect(cleared).toMatchObject({ model: null, effectiveModel: 'claude-sonnet-5-5' });
+
+		const rows = await audit(ada.id);
+		expect(rows.map((r) => r.action)).toEqual([
+			'claude_access.grant',
+			'claude_access.update',
+			'claude_access.update'
+		]);
+		expect(rows[1].before).toMatchObject({ enabled: true, model: null });
+		expect(rows[1].after).toMatchObject({ enabled: true, model: 'claude-haiku-5-5' });
+		expect(rows[2].before).toMatchObject({ model: 'claude-haiku-5-5' });
+		expect(rows[2].after).toMatchObject({ model: null });
+		expect(events).toHaveLength(3);
 	});
 
 	it('is a no-op without audit row or event when nothing changes', async () => {

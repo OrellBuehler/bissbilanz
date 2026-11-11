@@ -1,0 +1,1 @@
+ALTER TABLE "claude_access" ADD COLUMN "model" text;

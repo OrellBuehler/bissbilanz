@@ -2579,7 +2579,7 @@ export const apiPaths = {
 			operationId: 'adminGetUser',
 			tags: ['Admin'],
 			description:
-				'One user with a zero-filled daily usage series (UTC days), the latest 50 Claude calls (cost of an open reservation is its reserved amount) and the latest 50 audit entries. Admin cookie session only; everyone else gets 404.',
+				'One user with a zero-filled daily usage series (UTC days), the latest 50 Claude calls (cost of an open reservation is its reserved amount) and the latest 50 audit entries, plus the models an admin can assign and the server default model. Admin cookie session only; everyone else gets 404.',
 			requestParams: { path: uuidPathId, query: adminUserDetailQuerySchema },
 			responses: {
 				'200': {
@@ -2596,7 +2596,7 @@ export const apiPaths = {
 			operationId: 'adminUpdateClaudeAccess',
 			tags: ['Admin'],
 			description:
-				"Grant, revoke or adjust a user's Claude access, monthly budget (null = default) and note. Writes an audit entry and stops that user's in-flight Claude runs on revoke. Admin cookie session only; everyone else gets 404.",
+				"Grant, revoke or adjust a user's Claude access, monthly budget (null = default), model (null = default) and note. A model change applies from the user's next task run. Writes an audit entry and stops that user's in-flight Claude runs on revoke. Admin cookie session only; everyone else gets 404.",
 			requestParams: { path: uuidPathId },
 			requestBody: {
 				required: true,

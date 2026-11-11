@@ -1,5 +1,5 @@
 {
-  "id": "e37c6d6c-ade9-4412-a8e8-3a948e54c1a5",
+  "id": "016f73d8-50b3-40d4-8214-e2ca02b9d574",
   "prevId": "1d530215-6022-4150-a4e2-406ec6382803",
   "version": "7",
   "dialect": "postgresql",
@@ -1043,6 +1043,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "granted_by": {
           "name": "granted_by",
           "type": "uuid",
@@ -2048,152 +2054,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.food_enrichment_jobs": {
-      "name": "food_enrichment_jobs",
-      "schema": "",
-      "columns": {
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "state": {
-          "name": "state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'queued'"
-        },
-        "total": {
-          "name": "total",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "processed": {
-          "name": "processed",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "updated": {
-          "name": "updated",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "not_found": {
-          "name": "not_found",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "failed": {
-          "name": "failed",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "cursor": {
-          "name": "cursor",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "lease_owner": {
-          "name": "lease_owner",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "lease_expires_at": {
-          "name": "lease_expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "started_at": {
-          "name": "started_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "finished_at": {
-          "name": "finished_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "idx_food_enrichment_jobs_state": {
-          "name": "idx_food_enrichment_jobs_state",
-          "columns": [
-            {
-              "expression": "state",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "lease_expires_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "food_enrichment_jobs_user_id_users_id_fk": {
-          "name": "food_enrichment_jobs_user_id_users_id_fk",
-          "tableFrom": "food_enrichment_jobs",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "food_enrichment_jobs_state_valid": {
-          "name": "food_enrichment_jobs_state_valid",
-          "value": "\"food_enrichment_jobs\".\"state\" IN ('queued', 'running', 'completed', 'cancelled', 'failed')"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.food_entries": {
       "name": "food_entries",
       "schema": "",
@@ -3067,12 +2927,6 @@
         "image_url": {
           "name": "image_url",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "off_checked_at": {
-          "name": "off_checked_at",
-          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },

@@ -6,6 +6,7 @@ export type AdminUserDetail = components['schemas']['AdminUserDetailResponse'];
 export type AdminClaudeOverview = components['schemas']['AdminClaudeOverviewResponse'];
 export type AdminClaudeAccess = components['schemas']['AdminClaudeAccess'];
 export type AdminClaudeAccessUpdate = components['schemas']['AdminClaudeAccessUpdate'];
+export type AdminClaudeModel = components['schemas']['AdminClaudeModel'];
 export type AdminUserSort = NonNullable<
 	paths['/api/admin/users']['get']['parameters']['query']
 >['sort'];

@@ -1,11 +1,21 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
 	import type { AdminUserDetail } from './admin-api';
-	import { formatDateTime, formatUsd } from './format';
+	import { formatDateTime, formatUsd, modelLabel, type ModelLabel } from './format';
 
 	type Entry = AdminUserDetail['auditLog'][number];
 
-	let { entries, defaultBudget }: { entries: Entry[]; defaultBudget: number | null } = $props();
+	let {
+		entries,
+		defaultBudget,
+		models,
+		defaultModel
+	}: {
+		entries: Entry[];
+		defaultBudget: number | null;
+		models: ModelLabel[];
+		defaultModel: string;
+	} = $props();
 
 	const actionLabels: Record<string, () => string> = {
 		'claude_access.grant': () => m.admin_audit_claude_access_grant(),
@@ -23,6 +33,11 @@
 				? '—'
 				: m.admin_users_budget_default({ amount: formatUsd(defaultBudget) });
 
+	const modelText = (value: unknown) =>
+		typeof value === 'string'
+			? modelLabel(models, value)
+			: m.admin_user_model_default({ model: modelLabel(models, defaultModel) });
+
 	function details(entry: Entry): string[] {
 		const before = entry.before ?? {};
 		const after = entry.after ?? {};
@@ -30,6 +45,9 @@
 		if (!('monthlyBudgetUsd' in after)) return lines;
 		if (before.monthlyBudgetUsd !== after.monthlyBudgetUsd) {
 			lines.push(m.admin_audit_budget({ value: budgetText(after.monthlyBudgetUsd) }));
+		}
+		if ('model' in after && before.model !== after.model) {
+			lines.push(m.admin_audit_model({ value: modelText(after.model) }));
 		}
 		if (before.note !== after.note && typeof after.note === 'string' && after.note) {
 			lines.push(m.admin_audit_note({ value: after.note }));

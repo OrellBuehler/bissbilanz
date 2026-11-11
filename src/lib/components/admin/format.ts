@@ -55,6 +55,20 @@ export function providerLabel(provider: string): string {
 	return PROVIDER_LABELS[provider] ?? provider;
 }
 
+export type ModelLabel = { id: string; label: string };
+
+export function modelLabels(detail: {
+	models: ModelLabel[];
+	defaultModel: string;
+	defaultModelLabel: string;
+}): ModelLabel[] {
+	return [...detail.models, { id: detail.defaultModel, label: detail.defaultModelLabel }];
+}
+
+export function modelLabel(models: ModelLabel[], id: string): string {
+	return models.find((model) => model.id === id)?.label ?? id;
+}
+
 export function initialOf(user: { name: string | null; email: string | null }): string {
 	return (user.name || user.email || '?').charAt(0).toUpperCase();
 }

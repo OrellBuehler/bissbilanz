@@ -80,6 +80,7 @@ const call = (userId: string, extra: Record<string, unknown> = {}) =>
 	callModule.callClaude({
 		userId,
 		feature: 'test',
+		model: claudeTestConfig.model,
 		params: params(),
 		imageCount: 0,
 		...extra
@@ -537,8 +538,16 @@ describe('capability', () => {
 
 	it('is unavailable below the minimum task call cost', async () => {
 		const user = await seedUser(db, { budget: 0.4 });
-		expect(capability.minTaskCallUsd()).toBeGreaterThan(0.4);
+		expect(capability.minTaskCallUsd(claudeTestConfig.model)).toBeGreaterThan(0.4);
 		expect(await capability.getClaudeCapability(user.id)).toEqual({ available: false });
+	});
+
+	it('measures the minimum with the model the admin picked for the user', async () => {
+		const user = await seedUser(db, { budget: 0.4, model: 'claude-haiku-5-5' });
+		expect(await capability.getClaudeCapability(user.id)).toEqual({
+			available: true,
+			remainingBudgetUsd: 0.4
+		});
 	});
 
 	it('assertClaudeAllowed checks the gates and the raw processor', async () => {
