@@ -2,9 +2,11 @@ import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockDB } from '../helpers/mock-db';
 import { TEST_USER, TEST_FOOD, TEST_FOOD_2, VALID_FOOD_PAYLOAD } from '../helpers/fixtures';
 import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // Create mock DB
-const { db, setResult, setError, reset, queueResults } = createMockDB();
+const { db, setResult, setError, reset, queueResults, getCalls } = createMockDB();
 
 // Import schema for re-export in mock
 const schema = await import('$lib/server/schema');
@@ -234,6 +236,36 @@ describe('foods-db', () => {
 			if (result.success) {
 				expect(result.data?.isFavorite).toBe(true);
 			}
+		});
+
+		const lastSet = () => getCalls().findLast((call) => call.method === 'set')!.args[0];
+
+		test('leaves the Open Food Facts marker alone without a barcode change', async () => {
+			setResult([TEST_FOOD]);
+			await updateFood(TEST_USER.id, TEST_FOOD.id, { name: 'Oats' });
+			expect(lastSet().offCheckedAt).toBeUndefined();
+		});
+
+		test('clears the marker when the barcode really changes', async () => {
+			setResult([TEST_FOOD]);
+			await updateFood(TEST_USER.id, TEST_FOOD.id, { barcode: '' });
+			const { sql, params } = new PgDialect().sqlToQuery(lastSet().offCheckedAt);
+			expect(sql).toBe(
+				'CASE WHEN "foods"."barcode" IS NOT DISTINCT FROM $1 THEN "foods"."off_checked_at" END'
+			);
+			expect(params).toEqual([null]);
+		});
+
+		test('writes server-owned columns and an extra guard', async () => {
+			setResult([TEST_FOOD]);
+			const checkedAt = new Date('2026-11-11T10:00:00Z');
+			await updateFood(TEST_USER.id, TEST_FOOD.id, { nutriScore: 'b' }, null, {
+				offCheckedAt: checkedAt,
+				where: sql`guard`
+			});
+			expect(lastSet().offCheckedAt).toBe(checkedAt);
+			const where = getCalls().findLast((call) => call.method === 'where')!.args[0];
+			expect(new PgDialect().sqlToQuery(where).sql).toContain('guard');
 		});
 	});
 

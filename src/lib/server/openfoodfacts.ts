@@ -103,26 +103,80 @@ function mapSearchProduct(
 	return result;
 }
 
-export async function fetchProduct(barcode: string): Promise<OFFProduct | null> {
-	const url = `${OFF_API_BASE}/${barcode}?fields=${OFF_FIELDS}`;
-
-	const response = await fetch(url, {
+function requestProduct(barcode: string): Promise<Response> {
+	return fetch(`${OFF_API_BASE}/${barcode}?fields=${OFF_FIELDS}`, {
 		headers: { 'User-Agent': USER_AGENT },
 		signal: AbortSignal.timeout(OFF_TIMEOUT_MS)
 	});
+}
+
+function parseProduct(json: unknown, barcode: string): OFFProduct | null {
+	const parsed = offResponseSchema.safeParse(json);
+	if (!parsed.success || parsed.data.status !== 1 || !parsed.data.product) {
+		return null;
+	}
+	return mapSearchProduct(parsed.data.product, barcode);
+}
+
+export async function fetchProduct(barcode: string): Promise<OFFProduct | null> {
+	const response = await requestProduct(barcode);
 
 	if (!response.ok) {
 		return null;
 	}
 
-	const json = await response.json();
-	const parsed = offResponseSchema.safeParse(json);
+	return parseProduct(await response.json(), barcode);
+}
 
-	if (!parsed.success || parsed.data.status !== 1 || !parsed.data.product) {
-		return null;
+export type OFFLookup =
+	| { status: 'found'; product: OFFProduct }
+	| { status: 'not_found' }
+	| {
+			status: 'unavailable';
+			httpStatus: number | null;
+			retryAfterSeconds: number | null;
+			error: unknown;
+	  };
+
+const MAX_RETRY_AFTER_SECONDS = 3600;
+
+export function parseRetryAfter(value: string | null, now = Date.now()): number | null {
+	if (!value) return null;
+	const trimmed = value.trim();
+	const seconds = /^\d+$/.test(trimmed)
+		? Number(trimmed)
+		: Math.ceil((Date.parse(trimmed) - now) / 1000);
+	if (!Number.isFinite(seconds)) return null;
+	return Math.min(Math.max(seconds, 0), MAX_RETRY_AFTER_SECONDS);
+}
+
+export async function lookupProduct(barcode: string): Promise<OFFLookup> {
+	let response: Response;
+	try {
+		response = await requestProduct(barcode);
+	} catch (error) {
+		return { status: 'unavailable', httpStatus: null, retryAfterSeconds: null, error };
 	}
 
-	return mapSearchProduct(parsed.data.product, barcode);
+	if (response.status === 404) return { status: 'not_found' };
+	if (!response.ok) {
+		return {
+			status: 'unavailable',
+			httpStatus: response.status,
+			retryAfterSeconds: parseRetryAfter(response.headers.get('retry-after')),
+			error: null
+		};
+	}
+
+	let json: unknown;
+	try {
+		json = await response.json();
+	} catch (error) {
+		return { status: 'unavailable', httpStatus: response.status, retryAfterSeconds: null, error };
+	}
+
+	const product = parseProduct(json, barcode);
+	return product ? { status: 'found', product } : { status: 'not_found' };
 }
 
 export async function searchProducts(query: string, limit?: number): Promise<OFFProduct[]> {

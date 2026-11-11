@@ -489,6 +489,74 @@
 				}
 			}
 		},
+		"/api/foods/enrichment": {
+			"get": {
+				"operationId": "getFoodEnrichment",
+				"tags": ["Foods"],
+				"description": "Status of the server-side Open Food Facts enrichment for the user's barcode foods. `candidates` counts regular foods with a barcode that still lack a Nutri-Score, NOVA group or ingredients and were not checked against Open Food Facts in the last 30 days. `job` is the latest run (null if there never was one); poll while its state is queued or running.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodEnrichmentStatusResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					}
+				}
+			},
+			"post": {
+				"operationId": "startFoodEnrichment",
+				"tags": ["Foods"],
+				"description": "Start a background run that looks up every candidate in Open Food Facts (about one request per second) and fills in Nutri-Score, NOVA group, additives, ingredients, missing images and extended nutrients scaled to the food's serving. Name, brand, serving and core macros are never changed. Idempotent: while a run is queued or running it is returned unchanged; otherwise a new run replaces the previous result. Updated foods reach clients through the regular foods delta sync.",
+				"responses": {
+					"202": {
+						"description": "Accepted",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodEnrichmentStatusResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimitedResponse"
+					}
+				}
+			},
+			"delete": {
+				"operationId": "cancelFoodEnrichment",
+				"tags": ["Foods"],
+				"description": "Cancel a queued or running enrichment run; the food being looked up when the cancel arrives may still be finished. A no-op when no run is active.",
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodEnrichmentStatusResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimitedResponse"
+					}
+				}
+			}
+		},
 		"/api/foods/package/summary": {
 			"post": {
 				"operationId": "summarizeFoodPackage",
@@ -1033,6 +1101,71 @@
 					},
 					"404": {
 						"$ref": "#/components/responses/NotFoundResponse"
+					}
+				}
+			}
+		},
+		"/api/foods/{id}/enrich": {
+			"post": {
+				"operationId": "enrichFood",
+				"tags": ["Foods"],
+				"description": "Look up the food's barcode in Open Food Facts now and merge the product in with the same rules as the background run. 404 with `Product not found` means Open Food Facts does not know the barcode (the food's `offCheckedAt` is still set); 503 means Open Food Facts could not be reached, retry later. 409 means the food was edited or deleted during the lookup. Shares the Open Food Facts rate limit (30 lookups per minute) with the barcode lookup.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/FoodResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFoundResponse"
+					},
+					"409": {
+						"$ref": "#/components/responses/ConflictResponse"
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimitedResponse"
+					},
+					"503": {
+						"description": "Open Food Facts is unavailable",
+						"headers": {
+							"Retry-After": {
+								"description": "Seconds Open Food Facts asked to wait, when it said so.",
+								"schema": {
+									"type": "integer",
+									"minimum": 1
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -9557,6 +9690,10 @@
 					"imageUrl": {
 						"type": ["string", "null"]
 					},
+					"offCheckedAt": {
+						"description": "When the server last got a definite answer (found or not found) from Open Food Facts for the barcode; null if never. Server-owned.",
+						"type": ["string", "null"]
+					},
 					"labels": {
 						"anyOf": [
 							{
@@ -9876,6 +10013,80 @@
 					}
 				},
 				"required": ["brand", "count"],
+				"additionalProperties": false
+			},
+			"FoodEnrichmentStatusResponse": {
+				"type": "object",
+				"properties": {
+					"candidates": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"job": {
+						"anyOf": [
+							{
+								"$ref": "#/components/schemas/FoodEnrichmentJob"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["candidates", "job"],
+				"additionalProperties": false
+			},
+			"FoodEnrichmentJob": {
+				"type": "object",
+				"properties": {
+					"state": {
+						"type": "string",
+						"description": "queued and running are active; completed, cancelled and failed are finished. Unknown values should be treated as finished.",
+						"x-extensible-enum": ["queued", "running", "completed", "cancelled", "failed"]
+					},
+					"total": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"processed": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"updated": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"notFound": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"failed": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"startedAt": {
+						"type": ["string", "null"]
+					},
+					"finishedAt": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": [
+					"state",
+					"total",
+					"processed",
+					"updated",
+					"notFound",
+					"failed",
+					"startedAt",
+					"finishedAt"
+				],
 				"additionalProperties": false
 			},
 			"FoodPackageSummaryResponse": {
@@ -13293,6 +13504,10 @@
 					"imageUrl": {
 						"type": ["string", "null"]
 					},
+					"offCheckedAt": {
+						"description": "When the server last got a definite answer (found or not found) from Open Food Facts for the barcode; null if never. Server-owned.",
+						"type": ["string", "null"]
+					},
 					"labels": {
 						"anyOf": [
 							{
@@ -15495,6 +15710,25 @@
 					}
 				}
 			},
+			"RateLimitedResponse": {
+				"description": "Too many requests",
+				"headers": {
+					"Retry-After": {
+						"description": "Seconds until the rate limit window resets; clients should not retry before then.",
+						"schema": {
+							"type": "integer",
+							"minimum": 1
+						}
+					}
+				},
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/ErrorResponse"
+						}
+					}
+				}
+			},
 			"ConflictResponse": {
 				"description": "Conflict",
 				"content": {
@@ -15520,25 +15754,6 @@
 			},
 			"ForbiddenResponse": {
 				"description": "Forbidden. The bearer token lacks the account:manage scope (issued to the first-party mobile apps only).",
-				"content": {
-					"application/json": {
-						"schema": {
-							"$ref": "#/components/schemas/ErrorResponse"
-						}
-					}
-				}
-			},
-			"RateLimitedResponse": {
-				"description": "Too many requests",
-				"headers": {
-					"Retry-After": {
-						"description": "Seconds until the rate limit window resets; clients should not retry before then.",
-						"schema": {
-							"type": "integer",
-							"minimum": 1
-						}
-					}
-				},
 				"content": {
 					"application/json": {
 						"schema": {

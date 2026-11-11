@@ -96,6 +96,14 @@ export const adminAuditActionValues = [
 	'settings.claude_enabled'
 ] as const;
 export type AdminAuditAction = (typeof adminAuditActionValues)[number];
+export const foodEnrichmentJobStateValues = [
+	'queued',
+	'running',
+	'completed',
+	'cancelled',
+	'failed'
+] as const;
+export type FoodEnrichmentJobState = (typeof foodEnrichmentJobStateValues)[number];
 
 const sqlInList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
 
@@ -244,6 +252,7 @@ export const foods = pgTable(
 		additives: text('additives').array(),
 		ingredientsText: text('ingredients_text'),
 		imageUrl: text('image_url'),
+		offCheckedAt: timestamp('off_checked_at', { withTimezone: true }),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 		// Set by the foods_server_modified_at trigger on every insert and update.
@@ -1053,6 +1062,37 @@ export const claudeTaskRuns = pgTable(
 
 export type ClaudeTaskRun = typeof claudeTaskRuns.$inferSelect;
 export type NewClaudeTaskRun = typeof claudeTaskRuns.$inferInsert;
+
+export const foodEnrichmentJobs = pgTable(
+	'food_enrichment_jobs',
+	{
+		userId: uuid('user_id')
+			.primaryKey()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		state: text('state').notNull().default('queued'),
+		total: integer('total').notNull().default(0),
+		processed: integer('processed').notNull().default(0),
+		updated: integer('updated').notNull().default(0),
+		notFound: integer('not_found').notNull().default(0),
+		failed: integer('failed').notNull().default(0),
+		cursor: uuid('cursor'),
+		leaseOwner: text('lease_owner'),
+		leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
+		startedAt: timestamp('started_at', { withTimezone: true }),
+		finishedAt: timestamp('finished_at', { withTimezone: true }),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		index('idx_food_enrichment_jobs_state').on(table.state, table.leaseExpiresAt),
+		check(
+			'food_enrichment_jobs_state_valid',
+			sql`${table.state} IN (${sqlInList(foodEnrichmentJobStateValues)})`
+		)
+	]
+);
+
+export type FoodEnrichmentJob = typeof foodEnrichmentJobs.$inferSelect;
 
 // entryId is pre-generated before the insert and deliberately has no FK (same
 // reasoning as ai_tasks.created_entry_ids). Rows are only removed by cascade.

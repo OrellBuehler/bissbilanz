@@ -1,5 +1,10 @@
 import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
-import { fetchProduct, searchProducts } from '../../src/lib/server/openfoodfacts';
+import {
+	fetchProduct,
+	lookupProduct,
+	parseRetryAfter,
+	searchProducts
+} from '../../src/lib/server/openfoodfacts';
 
 const VALID_BARCODE = '3017620422003';
 
@@ -550,5 +555,109 @@ describe('searchProducts', () => {
 
 		const results = await searchProducts('nothing');
 		expect(results).toEqual([]);
+	});
+});
+
+describe('lookupProduct', () => {
+	test('returns the mapped product when Open Food Facts knows the barcode', async () => {
+		fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(fullOFFResponse)));
+
+		const result = await lookupProduct(VALID_BARCODE);
+		expect(result.status).toBe('found');
+		if (result.status === 'found') {
+			expect(result.product.name).toBe('Nutella');
+			expect(result.product.sugar).toBe(56.3);
+		}
+	});
+
+	test('a 404 is a definite not found', async () => {
+		fetchSpy.mockResolvedValueOnce(
+			new Response(JSON.stringify({ status: 0, status_verbose: 'product not found' }), {
+				status: 404
+			})
+		);
+
+		expect(await lookupProduct(VALID_BARCODE)).toEqual({ status: 'not_found' });
+	});
+
+	test('status 0 on a 200 is a definite not found', async () => {
+		fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ status: 0 })));
+
+		expect(await lookupProduct(VALID_BARCODE)).toEqual({ status: 'not_found' });
+	});
+
+	test('a product that fails validation counts as not found', async () => {
+		fetchSpy.mockResolvedValueOnce(
+			new Response(JSON.stringify({ status: 1, product: { nutriscore_grade: 'z' } }))
+		);
+
+		expect(await lookupProduct(VALID_BARCODE)).toEqual({ status: 'not_found' });
+	});
+
+	test('a 429 is transient and carries Retry-After', async () => {
+		fetchSpy.mockResolvedValueOnce(
+			new Response('slow down', { status: 429, headers: { 'Retry-After': '30' } })
+		);
+
+		expect(await lookupProduct(VALID_BARCODE)).toEqual({
+			status: 'unavailable',
+			httpStatus: 429,
+			retryAfterSeconds: 30,
+			error: null
+		});
+	});
+
+	test('a 5xx is transient', async () => {
+		fetchSpy.mockResolvedValueOnce(new Response('down', { status: 503 }));
+
+		expect(await lookupProduct(VALID_BARCODE)).toMatchObject({
+			status: 'unavailable',
+			httpStatus: 503,
+			retryAfterSeconds: null
+		});
+	});
+
+	test('a network error or timeout is transient', async () => {
+		const timeout = new DOMException('The operation timed out.', 'TimeoutError');
+		fetchSpy.mockRejectedValueOnce(timeout);
+
+		expect(await lookupProduct(VALID_BARCODE)).toEqual({
+			status: 'unavailable',
+			httpStatus: null,
+			retryAfterSeconds: null,
+			error: timeout
+		});
+	});
+
+	test('an unreadable body is transient', async () => {
+		fetchSpy.mockResolvedValueOnce(new Response('<html>maintenance</html>'));
+
+		expect(await lookupProduct(VALID_BARCODE)).toMatchObject({
+			status: 'unavailable',
+			httpStatus: 200,
+			error: expect.any(Error)
+		});
+	});
+});
+
+describe('parseRetryAfter', () => {
+	test('reads delta seconds', () => {
+		expect(parseRetryAfter('120')).toBe(120);
+	});
+
+	test('reads an HTTP date', () => {
+		const now = Date.parse('2026-11-11T12:00:00Z');
+		expect(parseRetryAfter('Wed, 11 Nov 2026 12:00:45 GMT', now)).toBe(45);
+	});
+
+	test('clamps to zero and one hour', () => {
+		const now = Date.parse('2026-11-11T12:00:00Z');
+		expect(parseRetryAfter('Wed, 11 Nov 2026 11:00:00 GMT', now)).toBe(0);
+		expect(parseRetryAfter('86400')).toBe(3600);
+	});
+
+	test('ignores a missing or unreadable header', () => {
+		expect(parseRetryAfter(null)).toBeNull();
+		expect(parseRetryAfter('soon')).toBeNull();
 	});
 });

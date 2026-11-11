@@ -45,7 +45,8 @@ import {
 	recipeLabelsResponseSchema,
 	recipeLabelsSetResponseSchema,
 	recipeLabelsBatchResponseSchema,
-	foodBrandsResponseSchema
+	foodBrandsResponseSchema,
+	foodEnrichmentStatusResponseSchema
 } from './validation/responses/foods';
 import {
 	foodPackageSelectionSchema,
@@ -518,6 +519,49 @@ export const apiPaths = {
 			}
 		}
 	},
+	'/api/foods/enrichment': {
+		get: {
+			operationId: 'getFoodEnrichment',
+			tags: ['Foods'],
+			description:
+				"Status of the server-side Open Food Facts enrichment for the user's barcode foods. `candidates` counts regular foods with a barcode that still lack a Nutri-Score, NOVA group or ingredients and were not checked against Open Food Facts in the last 30 days. `job` is the latest run (null if there never was one); poll while its state is queued or running.",
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodEnrichmentStatusResponseSchema } }
+				},
+				'401': res401
+			}
+		},
+		post: {
+			operationId: 'startFoodEnrichment',
+			tags: ['Foods'],
+			description:
+				"Start a background run that looks up every candidate in Open Food Facts (about one request per second) and fills in Nutri-Score, NOVA group, additives, ingredients, missing images and extended nutrients scaled to the food's serving. Name, brand, serving and core macros are never changed. Idempotent: while a run is queued or running it is returned unchanged; otherwise a new run replaces the previous result. Updated foods reach clients through the regular foods delta sync.",
+			responses: {
+				'202': {
+					description: 'Accepted',
+					content: { 'application/json': { schema: foodEnrichmentStatusResponseSchema } }
+				},
+				'401': res401,
+				'429': res429
+			}
+		},
+		delete: {
+			operationId: 'cancelFoodEnrichment',
+			tags: ['Foods'],
+			description:
+				'Cancel a queued or running enrichment run; the food being looked up when the cancel arrives may still be finished. A no-op when no run is active.',
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodEnrichmentStatusResponseSchema } }
+				},
+				'401': res401,
+				'429': res429
+			}
+		}
+	},
 	'/api/foods/package/summary': {
 		post: {
 			operationId: 'summarizeFoodPackage',
@@ -802,6 +846,36 @@ export const apiPaths = {
 				},
 				'401': res401,
 				'404': res404
+			}
+		}
+	},
+	'/api/foods/{id}/enrich': {
+		post: {
+			operationId: 'enrichFood',
+			tags: ['Foods'],
+			description:
+				"Look up the food's barcode in Open Food Facts now and merge the product in with the same rules as the background run. 404 with `Product not found` means Open Food Facts does not know the barcode (the food's `offCheckedAt` is still set); 503 means Open Food Facts could not be reached, retry later. 409 means the food was edited or deleted during the lookup. Shares the Open Food Facts rate limit (30 lookups per minute) with the barcode lookup.",
+			requestParams: { path: uuidPathId },
+			responses: {
+				'200': {
+					description: 'Success',
+					content: { 'application/json': { schema: foodResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'404': res404,
+				'409': res409,
+				'429': res429,
+				'503': {
+					description: 'Open Food Facts is unavailable',
+					headers: {
+						'Retry-After': {
+							description: 'Seconds Open Food Facts asked to wait, when it said so.',
+							schema: { type: 'integer' as const, minimum: 1 }
+						}
+					},
+					content: { 'application/json': { schema: errorResponseSchema } }
+				}
 			}
 		}
 	},

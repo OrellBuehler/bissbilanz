@@ -83,6 +83,7 @@ import kotlinx.serialization.encoding.*
  * @param alcohol
  * @param water
  * @param salt
+ * @param offCheckedAt When the server last got a definite answer (found or not found) from Open Food Facts for the barcode; null if never. Server-owned.
  * @param labels
  * @param createdAt
  * @param updatedAt
@@ -151,6 +152,8 @@ data class Food(
     @SerialName(value = "alcohol") val alcohol: kotlin.Double? = null,
     @SerialName(value = "water") val water: kotlin.Double? = null,
     @SerialName(value = "salt") val salt: kotlin.Double? = null,
+    // When the server last got a definite answer (found or not found) from Open Food Facts for the barcode; null if never. Server-owned.
+    @SerialName(value = "offCheckedAt") val offCheckedAt: kotlin.String? = null,
     @SerialName(value = "labels") val labels: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "createdAt") val createdAt: kotlin.String? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,

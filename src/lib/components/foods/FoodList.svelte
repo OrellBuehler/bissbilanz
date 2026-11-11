@@ -10,6 +10,9 @@
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import GitMerge from '@lucide/svelte/icons/git-merge';
 	import * as m from '$lib/paraglide/messages';
+	import * as Sentry from '@sentry/sveltekit';
+	import { toast } from 'svelte-sonner';
+	import type { EnrichFromOffResult } from '$lib/services/food-service.svelte';
 	import { MACRO_TEXT_CLASS, MACRO_BAR_CLASS } from '$lib/utils/colors';
 	import { formatKcal, formatGrams } from '$lib/utils/number';
 
@@ -33,7 +36,7 @@
 		foods?: FoodItem[];
 		onEdit: (id: string) => void;
 		onDelete: (id: string) => void;
-		onEnrich?: (id: string, barcode: string) => void;
+		onEnrich?: (id: string) => Promise<EnrichFromOffResult>;
 		onMerge?: (id: string) => void;
 		/** Bulk-edit mode: a tap selects instead of opening the editor. */
 		selecting?: boolean;
@@ -60,7 +63,14 @@
 		if (!food.barcode || !onEnrich) return;
 		enrichingId = food.id;
 		try {
-			await onEnrich(food.id, food.barcode);
+			const result = await onEnrich(food.id);
+			if (result === 'updated') toast.success(m.quality_enrich_success());
+			else if (result === 'not_found') toast.error(m.quality_off_not_found());
+			else if (result === 'offline') toast.error(m.quality_enrich_offline());
+			else toast.error(m.quality_enrich_failed());
+		} catch (err) {
+			Sentry.captureException(err, { extra: { foodId: food.id } });
+			toast.error(m.quality_enrich_failed());
 		} finally {
 			enrichingId = null;
 		}

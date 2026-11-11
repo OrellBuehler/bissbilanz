@@ -193,6 +193,25 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/foods/enrichment': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description Status of the server-side Open Food Facts enrichment for the user's barcode foods. `candidates` counts regular foods with a barcode that still lack a Nutri-Score, NOVA group or ingredients and were not checked against Open Food Facts in the last 30 days. `job` is the latest run (null if there never was one); poll while its state is queued or running. */
+		get: operations['getFoodEnrichment'];
+		put?: never;
+		/** @description Start a background run that looks up every candidate in Open Food Facts (about one request per second) and fills in Nutri-Score, NOVA group, additives, ingredients, missing images and extended nutrients scaled to the food's serving. Name, brand, serving and core macros are never changed. Idempotent: while a run is queued or running it is returned unchanged; otherwise a new run replaces the previous result. Updated foods reach clients through the regular foods delta sync. */
+		post: operations['startFoodEnrichment'];
+		/** @description Cancel a queued or running enrichment run; the food being looked up when the cancel arrives may still be finished. A no-op when no run is active. */
+		delete: operations['cancelFoodEnrichment'];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/foods/package/summary': {
 		parameters: {
 			query?: never;
@@ -361,6 +380,23 @@ export interface paths {
 		get: operations['getFoodUsage'];
 		put?: never;
 		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/foods/{id}/enrich': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Look up the food's barcode in Open Food Facts now and merge the product in with the same rules as the background run. 404 with `Product not found` means Open Food Facts does not know the barcode (the food's `offCheckedAt` is still set); 503 means Open Food Facts could not be reached, retry later. 409 means the food was edited or deleted during the lookup. Shares the Open Food Facts rate limit (30 lookups per minute) with the barcode lookup. */
+		post: operations['enrichFood'];
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -2297,6 +2333,8 @@ export interface components {
 			additives: string[] | null;
 			ingredientsText: string | null;
 			imageUrl: string | null;
+			/** @description When the server last got a definite answer (found or not found) from Open Food Facts for the barcode; null if never. Server-owned. */
+			offCheckedAt?: string | null;
 			labels?: string[] | null;
 			createdAt?: string;
 			updatedAt?: string;
@@ -2373,6 +2411,21 @@ export interface components {
 		FoodBrandStat: {
 			brand: string;
 			count: number;
+		};
+		FoodEnrichmentStatusResponse: {
+			candidates: number;
+			job: components['schemas']['FoodEnrichmentJob'] | null;
+		};
+		FoodEnrichmentJob: {
+			/** @description queued and running are active; completed, cancelled and failed are finished. Unknown values should be treated as finished. */
+			state: string;
+			total: number;
+			processed: number;
+			updated: number;
+			notFound: number;
+			failed: number;
+			startedAt: string | null;
+			finishedAt: string | null;
 		};
 		FoodPackageSummaryResponse: {
 			foods: number;
@@ -3234,6 +3287,8 @@ export interface components {
 			additives: string[] | null;
 			ingredientsText: string | null;
 			imageUrl: string | null;
+			/** @description When the server last got a definite answer (found or not found) from Open Food Facts for the barcode; null if never. Server-owned. */
+			offCheckedAt?: string | null;
 			labels?: string[] | null;
 			createdAt?: string;
 			updatedAt?: string;
@@ -3801,6 +3856,17 @@ export interface components {
 				'application/json': components['schemas']['ValidationErrorResponse'];
 			};
 		};
+		/** @description Too many requests */
+		RateLimitedResponse: {
+			headers: {
+				/** @description Seconds until the rate limit window resets; clients should not retry before then. */
+				'Retry-After'?: number;
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['ErrorResponse'];
+			};
+		};
 		/** @description Conflict */
 		ConflictResponse: {
 			headers: {
@@ -3829,17 +3895,6 @@ export interface components {
 		/** @description Forbidden. The bearer token lacks the account:manage scope (issued to the first-party mobile apps only). */
 		ForbiddenResponse: {
 			headers: {
-				[name: string]: unknown;
-			};
-			content: {
-				'application/json': components['schemas']['ErrorResponse'];
-			};
-		};
-		/** @description Too many requests */
-		RateLimitedResponse: {
-			headers: {
-				/** @description Seconds until the rate limit window resets; clients should not retry before then. */
-				'Retry-After'?: number;
 				[name: string]: unknown;
 			};
 			content: {
@@ -4178,6 +4233,71 @@ export interface operations {
 				};
 			};
 			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	getFoodEnrichment: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodEnrichmentStatusResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+		};
+	};
+	startFoodEnrichment: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Accepted */
+			202: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodEnrichmentStatusResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+			429: components['responses']['RateLimitedResponse'];
+		};
+	};
+	cancelFoodEnrichment: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodEnrichmentStatusResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+			429: components['responses']['RateLimitedResponse'];
 		};
 	};
 	summarizeFoodPackage: {
@@ -4546,6 +4666,44 @@ export interface operations {
 			};
 			401: components['responses']['UnauthorizedResponse'];
 			404: components['responses']['NotFoundResponse'];
+		};
+	};
+	enrichFood: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			404: components['responses']['NotFoundResponse'];
+			409: components['responses']['ConflictResponse'];
+			429: components['responses']['RateLimitedResponse'];
+			/** @description Open Food Facts is unavailable */
+			503: {
+				headers: {
+					/** @description Seconds Open Food Facts asked to wait, when it said so. */
+					'Retry-After'?: number;
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
 		};
 	};
 	listEntries: {

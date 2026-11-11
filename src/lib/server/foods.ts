@@ -280,11 +280,17 @@ export const toFoodUpdate = (input: FoodUpdateInput) => {
 	return update;
 };
 
+const offCheckedAtAfterBarcodeChange = (barcode: string | null) =>
+	sql`CASE WHEN ${foods.barcode} IS NOT DISTINCT FROM ${barcode} THEN ${foods.offCheckedAt} END`;
+
+export type FoodServerWrite = { offCheckedAt?: Date; where?: SQL };
+
 export const updateFood = (
 	userId: string,
 	id: string,
 	payload: unknown,
-	clientEditedAt?: Date | null
+	clientEditedAt?: Date | null,
+	server: FoodServerWrite = {}
 ): Promise<Result<FoodWithLabels | undefined>> =>
 	withValidation(foodUpdateSchema, payload, async (data) => {
 		try {
@@ -296,11 +302,22 @@ export const updateFood = (
 							.from(foods)
 							.where(and(eq(foods.id, id), eq(foods.userId, userId)))
 					: [];
+			const update = toFoodUpdate(data);
+			const offCheckedAt =
+				server.offCheckedAt ??
+				(update.barcode !== undefined
+					? offCheckedAtAfterBarcodeChange(update.barcode ?? null)
+					: undefined);
 			const [updated] = await db
 				.update(foods)
-				.set({ ...toFoodUpdate(data), updatedAt: lwwStamp(clientEditedAt) })
+				.set({ ...update, offCheckedAt, updatedAt: lwwStamp(clientEditedAt) })
 				.where(
-					and(eq(foods.id, id), eq(foods.userId, userId), lwwGuard(foods.updatedAt, clientEditedAt))
+					and(
+						eq(foods.id, id),
+						eq(foods.userId, userId),
+						lwwGuard(foods.updatedAt, clientEditedAt),
+						server.where
+					)
 				)
 				.returning(foodColumnsWithLabels);
 			// Only once the write actually landed, and only when the image really

@@ -163,31 +163,17 @@
 		if (!food?.barcode) return;
 		enriching = true;
 		try {
-			const { data: offData, error: offError } = await api.GET('/api/openfoodfacts/{barcode}', {
-				params: { path: { barcode: food.barcode } }
-			});
-			if (offError || !offData) {
+			const result = await foodService.enrichFromOff(food.id);
+			if (result === 'updated') {
+				initialized = false;
+				toast.success(m.quality_enrich_success());
+			} else if (result === 'not_found') {
+				toast.error(m.quality_off_not_found());
+			} else if (result === 'offline') {
+				toast.error(m.quality_enrich_offline());
+			} else {
 				toast.error(m.quality_enrich_failed());
-				return;
 			}
-			const { product } = offData;
-			const { error: patchError } = await api.PATCH('/api/foods/{id}', {
-				params: { path: { id: food.id } },
-				body: {
-					nutriScore: product.nutriScore,
-					novaGroup: product.novaGroup,
-					additives: product.additives,
-					ingredientsText: product.ingredientsText,
-					imageUrl: product.imageUrl
-				}
-			});
-			if (patchError) {
-				toast.error(m.quality_enrich_failed());
-				return;
-			}
-			initialized = false;
-			foodService.refreshById(food.id);
-			toast.success(m.quality_enrich_success());
 		} catch (err) {
 			Sentry.captureException(err, { extra: { foodId: food.id } });
 			toast.error(m.quality_enrich_failed());
