@@ -4,6 +4,7 @@ import {
 	formatDayLabel,
 	formatUsd,
 	initialOf,
+	modelLabel,
 	parseBudgetInput,
 	providerLabel
 } from '$lib/components/admin/format';
@@ -58,6 +59,12 @@ describe('small helpers', () => {
 		expect(providerLabel('google')).toBe('Google');
 		expect(providerLabel('infomaniak')).toBe('Infomaniak');
 		expect(providerLabel('github')).toBe('github');
+	});
+
+	test('modelLabel uses the listed label and falls back to the raw id', () => {
+		const models = [{ id: 'claude-opus-5-5', label: 'Claude Opus 5.5' }];
+		expect(modelLabel(models, 'claude-opus-5-5')).toBe('Claude Opus 5.5');
+		expect(modelLabel(models, 'claude-opus-4-8')).toBe('claude-opus-4-8');
 	});
 
 	test('initialOf prefers name, then email, then a placeholder', () => {

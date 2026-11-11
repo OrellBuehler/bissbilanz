@@ -15,12 +15,19 @@ const usage = {
 
 describe('priceUsage', () => {
 	test.each([
+		['claude-fable-5-2', 8 + 40 + 10 + 0.2],
 		['claude-opus-5-5', 4 + 20 + 5 + 0.2],
-		['claude-sonnet-5-5', 2 + 10 + 2.5 + 0.2],
+		['claude-sonnet-5-5', 2 + 10 + 2.5 + 0.1],
 		['claude-haiku-5-5', 0.1 + 0.5 + 0.125 + 0.01],
 		['claude-fable-5-1', 10 + 50 + 12.5 + 0.25]
 	])('prices every token class for %s', (model, expected) => {
 		expect(priceUsage(model, usage)).toBeCloseTo(expected, 6);
+	});
+
+	test('every row writes the cache at 1.25x its input rate', () => {
+		for (const row of Object.values(CLAUDE_PRICING_USD_PER_MTOK)) {
+			expect(row.cacheWrite).toBeCloseTo(row.input * 1.25, 9);
+		}
 	});
 
 	test('treats missing cache counts as zero', () => {

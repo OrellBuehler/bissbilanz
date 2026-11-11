@@ -1,5 +1,6 @@
 import 'zod-openapi';
 import { z } from 'zod';
+import { isSelectableModel } from '$lib/server/claude/models';
 
 const emptyToUndefined = (value: unknown) =>
 	value === undefined || value === null || value === '' ? undefined : value;
@@ -37,13 +38,23 @@ export const adminClaudeAccessUpdateSchema = z
 	.object({
 		enabled: z.boolean().optional(),
 		monthlyBudgetUsd: z.number().min(0).max(1000).multipleOf(0.01).nullable().optional(),
-		note: z.string().max(500).nullable().optional()
+		note: z.string().max(500).nullable().optional(),
+		model: z
+			.string()
+			.refine(isSelectableModel, { message: 'Unknown model' })
+			.nullable()
+			.optional()
+			.meta({
+				description:
+					'One of the `models` ids from GET /api/admin/users/{id}; null uses the server default.'
+			})
 	})
 	.refine(
 		(value) =>
 			value.enabled !== undefined ||
 			value.monthlyBudgetUsd !== undefined ||
-			value.note !== undefined,
+			value.note !== undefined ||
+			value.model !== undefined,
 		{ message: 'At least one field is required' }
 	)
 	.meta({ id: 'AdminClaudeAccessUpdate' });

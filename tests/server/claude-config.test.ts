@@ -179,4 +179,14 @@ describe('claude config', () => {
 		const { isClaudeConfigured } = await load({ ANTHROPIC_API_KEY: '   ' });
 		expect(isClaudeConfigured()).toBe(false);
 	});
+
+	test('a CLAUDE_MODEL outside the selectable list stays the default', async () => {
+		expect(validateEnv({ ...validEnv, CLAUDE_MODEL: 'claude-opus-4-8' })).toEqual([]);
+		const { claudeConfig } = await load({ CLAUDE_MODEL: 'claude-opus-4-8' });
+		const { isSelectableModel, resolveClaudeModel } = await import('$lib/server/claude/models');
+		expect(claudeConfig().model).toBe('claude-opus-4-8');
+		expect(isSelectableModel('claude-opus-4-8')).toBe(false);
+		expect(resolveClaudeModel(null)).toBe('claude-opus-4-8');
+		expect(resolveClaudeModel('claude-haiku-5-5')).toBe('claude-haiku-5-5');
+	});
 });

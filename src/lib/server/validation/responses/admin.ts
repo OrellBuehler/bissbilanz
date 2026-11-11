@@ -10,7 +10,9 @@ const adminUserClaudeSchema = z
 		effectiveBudgetUsd: z.number(),
 		monthSpendUsd: z.number(),
 		monthCalls: z.number().int(),
-		note: z.string().nullable()
+		note: z.string().nullable(),
+		model: z.string().nullable(),
+		effectiveModel: z.string()
 	})
 	.meta({ id: 'AdminUserClaude' });
 
@@ -74,12 +76,23 @@ const adminAuditEntrySchema = z
 	})
 	.meta({ id: 'AdminAuditEntry' });
 
+const adminClaudeModelSchema = z
+	.object({
+		id: z.string(),
+		label: z.string(),
+		inputUsdPerMtok: z.number(),
+		outputUsdPerMtok: z.number()
+	})
+	.meta({ id: 'AdminClaudeModel' });
+
 export const adminUserDetailResponseSchema = z
 	.object({
 		user: adminUserRowSchema,
 		dailyUsage: z.array(adminDailyUsageSchema),
 		recentCalls: z.array(adminRecentCallSchema),
-		auditLog: z.array(adminAuditEntrySchema)
+		auditLog: z.array(adminAuditEntrySchema),
+		models: z.array(adminClaudeModelSchema),
+		defaultModel: z.string()
 	})
 	.meta({ id: 'AdminUserDetailResponse' });
 
@@ -89,6 +102,8 @@ const adminClaudeAccessSchema = z
 		monthlyBudgetUsd: z.number().nullable(),
 		effectiveBudgetUsd: z.number(),
 		note: z.string().nullable(),
+		model: z.string().nullable(),
+		effectiveModel: z.string(),
 		grantedAt: z.string().nullable(),
 		updatedAt: z.string()
 	})

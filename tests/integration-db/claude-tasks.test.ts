@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
 	aiTasks,
+	claudeAccess,
 	claudeTaskLedger,
 	claudeTaskRuns,
 	claudeUsage,
@@ -485,11 +486,14 @@ const createdFoodId = (params: Anthropic.MessageCreateParamsNonStreaming): strin
 	return JSON.parse(String(results[0]!.content)).foodId;
 };
 
-const expectedReservation = async (request: Anthropic.MessageCreateParamsNonStreaming) => {
+const expectedReservation = async (
+	request: Anthropic.MessageCreateParamsNonStreaming,
+	model = claudeTestConfig.model
+) => {
 	const pricing = await import('$lib/server/claude/pricing');
 	const constants = await import('$lib/server/claude/constants');
 	return pricing.maxCallCostUsd(
-		claudeTestConfig.model,
+		model,
 		callModule.estimateInputTokens(
 			{
 				system: request.system as Anthropic.TextBlockParam[],
@@ -692,6 +696,55 @@ describe('web search', () => {
 		).toBe(false);
 		const [row] = await db.select().from(claudeUsage);
 		expect(row!.reservedUsd).toBeCloseTo(await expectedReservation(fake.calls[0]!), 6);
+	});
+});
+
+describe('model per user', () => {
+	const haikuStep = (step: Anthropic.Message) => ({ ...step, model: 'claude-haiku-5-5' });
+
+	it('uses the stored model for every call and reservation, even after a mid-run change', async () => {
+		const user = await seedUser(db, { model: 'claude-haiku-5-5' });
+		const task = await seedTask(db, user.id);
+		const fake = startFake([
+			async () => {
+				await db
+					.update(claudeAccess)
+					.set({ model: 'claude-fable-5-2' })
+					.where(eq(claudeAccess.userId, user.id));
+				return haikuStep(quickLog());
+			},
+			haikuStep(completeStep('Logged toast'))
+		]);
+		await execute(user.id, task.id);
+
+		expect((await taskOf(task.id)).status).toBe('completed');
+		expect(fake.calls.map((call) => call.model)).toEqual(['claude-haiku-5-5', 'claude-haiku-5-5']);
+		expect(fake.calls[0]!.tools![0]).toEqual({
+			type: 'web_search_20250305',
+			name: 'web_search',
+			max_uses: 3
+		});
+		const rows = (await db.select().from(claudeUsage)).sort(
+			(a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+		);
+		expect(rows.map((row) => row.model)).toEqual(['claude-haiku-5-5', 'claude-haiku-5-5']);
+		expect(rows[0]!.reservedUsd).toBeCloseTo(
+			await expectedReservation(fake.calls[0]!, 'claude-haiku-5-5'),
+			6
+		);
+
+		const next = await seedTask(db, user.id);
+		const after = startFake([completeStep('nothing to log')]);
+		await execute(user.id, next.id);
+		expect(after.calls[0]!.model).toBe('claude-fable-5-2');
+	});
+
+	it('falls back to the server default for a stored model that is no longer offered', async () => {
+		const user = await seedUser(db, { model: 'claude-retired-9' });
+		const task = await seedTask(db, user.id);
+		const fake = startFake([completeStep('nothing to log')]);
+		await execute(user.id, task.id);
+		expect(fake.calls[0]!.model).toBe(claudeTestConfig.model);
 	});
 });
 

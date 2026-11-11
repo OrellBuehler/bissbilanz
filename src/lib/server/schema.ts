@@ -919,6 +919,7 @@ export const claudeAccess = pgTable(
 		enabled: boolean('enabled').notNull().default(false),
 		// Null falls back to the default user budget from the environment.
 		monthlyBudgetUsd: numeric('monthly_budget_usd', { precision: 10, scale: 2, mode: 'number' }),
+		model: text('model'),
 		grantedBy: uuid('granted_by').references(() => users.id, { onDelete: 'set null' }),
 		grantedAt: timestamp('granted_at', { withTimezone: true }),
 		note: text('note'),

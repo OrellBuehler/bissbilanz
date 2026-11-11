@@ -10,6 +10,7 @@ import {
 	users
 } from '../schema';
 import { claudeConfig } from '../claude/config';
+import { CLAUDE_MODELS, resolveClaudeModel } from '../claude/models';
 import { getClaudeEnabled } from '../claude/settings';
 import {
 	effectiveUserBudgetUsd,
@@ -49,6 +50,8 @@ export type AdminUserRowData = {
 		monthSpendUsd: number;
 		monthCalls: number;
 		note: string | null;
+		model: string | null;
+		effectiveModel: string;
 	};
 };
 
@@ -90,6 +93,7 @@ const rowSelect = {
 	accessEnabled: claudeAccess.enabled,
 	accessBudget: claudeAccess.monthlyBudgetUsd,
 	accessNote: claudeAccess.note,
+	accessModel: claudeAccess.model,
 	monthSpendUsd: monthSpend,
 	monthCalls
 };
@@ -133,6 +137,7 @@ type RowSelection = {
 	accessEnabled: boolean | null;
 	accessBudget: number | null;
 	accessNote: string | null;
+	accessModel: string | null;
 	monthSpendUsd: number;
 	monthCalls: number;
 };
@@ -178,7 +183,9 @@ function toRow(row: RowSelection, providers: Set<string> | undefined): AdminUser
 			effectiveBudgetUsd: effectiveUserBudgetUsd({ monthlyBudgetUsd: row.accessBudget }),
 			monthSpendUsd: row.monthSpendUsd,
 			monthCalls: row.monthCalls,
-			note: row.accessNote
+			note: row.accessNote,
+			model: row.accessModel,
+			effectiveModel: resolveClaudeModel(row.accessModel)
 		}
 	};
 }
@@ -317,7 +324,9 @@ export async function getAdminUserDetail(db: AdminDb, id: string, days: number) 
 			actorLabel: entry.actorLabel,
 			before: asPayload(entry.before),
 			after: asPayload(entry.after)
-		}))
+		})),
+		models: CLAUDE_MODELS,
+		defaultModel: claudeConfig().model
 	};
 }
 

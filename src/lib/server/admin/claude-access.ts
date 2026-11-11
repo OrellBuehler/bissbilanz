@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { claudeAccess, users } from '../schema';
 import { emitClaudeAccessChanged } from '../claude/events';
+import { resolveClaudeModel } from '../claude/models';
 import { effectiveUserBudgetUsd } from '../claude/usage';
 import { requireAdmin } from './guard';
 import { writeAudit, type AdminActor, type AdminDb } from './audit';
@@ -10,6 +11,7 @@ export type ClaudeAccessPatch = {
 	enabled?: boolean;
 	monthlyBudgetUsd?: number | null;
 	note?: string | null;
+	model?: string | null;
 };
 
 export type ClaudeAccessView = {
@@ -17,6 +19,8 @@ export type ClaudeAccessView = {
 	monthlyBudgetUsd: number | null;
 	effectiveBudgetUsd: number;
 	note: string | null;
+	model: string | null;
+	effectiveModel: string;
 	grantedAt: string | null;
 	updatedAt: string;
 };
@@ -30,10 +34,12 @@ const snapshot = (row: {
 	enabled: boolean;
 	monthlyBudgetUsd: number | null;
 	note: string | null;
+	model: string | null;
 }) => ({
 	enabled: row.enabled,
 	monthlyBudgetUsd: row.monthlyBudgetUsd,
-	note: row.note
+	note: row.note,
+	model: row.model
 });
 
 export async function updateClaudeAccess(
@@ -59,13 +65,15 @@ export async function updateClaudeAccess(
 			enabled: patch.enabled ?? current.enabled,
 			monthlyBudgetUsd:
 				patch.monthlyBudgetUsd === undefined ? current.monthlyBudgetUsd : patch.monthlyBudgetUsd,
-			note: patch.note === undefined ? current.note : patch.note?.trim() || null
+			note: patch.note === undefined ? current.note : patch.note?.trim() || null,
+			model: patch.model === undefined ? current.model : patch.model
 		};
 
 		if (
 			before.enabled === after.enabled &&
 			before.monthlyBudgetUsd === after.monthlyBudgetUsd &&
-			before.note === after.note
+			before.note === after.note &&
+			before.model === after.model
 		) {
 			return { view: toView(current), changed: false };
 		}
@@ -107,6 +115,8 @@ function toView(row: typeof claudeAccess.$inferSelect): ClaudeAccessView {
 		monthlyBudgetUsd: row.monthlyBudgetUsd,
 		effectiveBudgetUsd: effectiveUserBudgetUsd(row),
 		note: row.note,
+		model: row.model,
+		effectiveModel: resolveClaudeModel(row.model),
 		grantedAt: row.grantedAt ? row.grantedAt.toISOString() : null,
 		updatedAt: row.updatedAt.toISOString()
 	};

@@ -33,8 +33,7 @@ if (env.PUBLIC_SENTRY_DSN && env.PUBLIC_SENTRY_ENVIRONMENT) {
 	Sentry.init({
 		dsn: env.PUBLIC_SENTRY_DSN,
 		environment: env.PUBLIC_SENTRY_ENVIRONMENT,
-		tracesSampleRate: import.meta.env.DEV ? 1.0 : 0.2,
-		beforeSendLog: (log) => (import.meta.env.DEV ? log : null)
+		tracesSampleRate: import.meta.env.DEV ? 1.0 : 0.2
 	});
 }
 

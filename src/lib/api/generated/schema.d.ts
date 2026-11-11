@@ -1455,7 +1455,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
-		/** @description One user with a zero-filled daily usage series (UTC days), the latest 50 Claude calls (cost of an open reservation is its reserved amount) and the latest 50 audit entries. Admin cookie session only; everyone else gets 404. */
+		/** @description One user with a zero-filled daily usage series (UTC days), the latest 50 Claude calls (cost of an open reservation is its reserved amount) and the latest 50 audit entries, plus the models an admin can assign and the server default model. Admin cookie session only; everyone else gets 404. */
 		get: operations['adminGetUser'];
 		put?: never;
 		post?: never;
@@ -1478,7 +1478,7 @@ export interface paths {
 		delete?: never;
 		options?: never;
 		head?: never;
-		/** @description Grant, revoke or adjust a user's Claude access, monthly budget (null = default) and note. Writes an audit entry and stops that user's in-flight Claude runs on revoke. Admin cookie session only; everyone else gets 404. */
+		/** @description Grant, revoke or adjust a user's Claude access, monthly budget (null = default), model (null = default) and note. A model change applies from the user's next task run. Writes an audit entry and stops that user's in-flight Claude runs on revoke. Admin cookie session only; everyone else gets 404. */
 		patch: operations['adminUpdateClaudeAccess'];
 		trace?: never;
 	};
@@ -2177,6 +2177,8 @@ export interface components {
 			enabled?: boolean;
 			monthlyBudgetUsd?: number | null;
 			note?: string | null;
+			/** @description One of the `models` ids from GET /api/admin/users/{id}; null uses the server default. */
+			model?: string | null;
 		};
 		AdminClaudeSettingsUpdate: {
 			enabled: boolean;
@@ -3660,12 +3662,16 @@ export interface components {
 			monthSpendUsd: number;
 			monthCalls: number;
 			note: string | null;
+			model: string | null;
+			effectiveModel: string;
 		};
 		AdminUserDetailResponse: {
 			user: components['schemas']['AdminUserRow'];
 			dailyUsage: components['schemas']['AdminDailyUsage'][];
 			recentCalls: components['schemas']['AdminRecentCall'][];
 			auditLog: components['schemas']['AdminAuditEntry'][];
+			models: components['schemas']['AdminClaudeModel'][];
+			defaultModel: string;
 		};
 		AdminDailyUsage: {
 			date: string;
@@ -3701,6 +3707,12 @@ export interface components {
 				[key: string]: unknown;
 			} | null;
 		};
+		AdminClaudeModel: {
+			id: string;
+			label: string;
+			inputUsdPerMtok: number;
+			outputUsdPerMtok: number;
+		};
 		AdminClaudeAccessResponse: {
 			access: components['schemas']['AdminClaudeAccess'];
 		};
@@ -3709,6 +3721,8 @@ export interface components {
 			monthlyBudgetUsd: number | null;
 			effectiveBudgetUsd: number;
 			note: string | null;
+			model: string | null;
+			effectiveModel: string;
 			grantedAt: string | null;
 			updatedAt: string;
 		};

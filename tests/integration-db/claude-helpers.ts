@@ -136,6 +136,7 @@ export async function seedUser(
 		autoLog?: boolean;
 		access?: boolean | null;
 		budget?: number | null;
+		model?: string | null;
 		locale?: string;
 		timeZone?: string;
 	} = {}
@@ -158,7 +159,8 @@ export async function seedUser(
 		await db.insert(schema.claudeAccess).values({
 			userId: user!.id,
 			enabled: options.access ?? true,
-			monthlyBudgetUsd: options.budget ?? null
+			monthlyBudgetUsd: options.budget ?? null,
+			model: options.model ?? null
 		});
 	}
 	return user!;
