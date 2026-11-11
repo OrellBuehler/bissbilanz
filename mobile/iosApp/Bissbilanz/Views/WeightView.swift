@@ -99,6 +99,111 @@ extension WeightTrend {
     }
 }
 
+/// What the weight chart draws, derived once per change of its inputs
+/// (`WeightView` rebuilds it in `onChange`) rather than on every read from
+/// `body`, and parsing each charted day once. Re-sorting the whole history
+/// with two `DateFormatter` parses per comparison, several times per `body`,
+/// hung the main thread for seconds (BISSBILANZ-4A).
+struct WeightChartData {
+    struct Inputs: Equatable {
+        var entries: [WeightEntry]
+        /// Only entries dated after this day are charted; nil charts the whole history.
+        var cutoffDay: String?
+        var showProjection: Bool
+        var projectionDays: Int
+    }
+
+    struct Point: Identifiable {
+        let id: String
+        let date: Date
+        let weightKg: Double
+    }
+
+    /// The charted entries, oldest first.
+    private(set) var entries: [WeightEntry] = []
+    private(set) var points: [Point] = []
+    private(set) var movingAverage: [(date: Date, average: Double)] = []
+    private(set) var projection: [(date: Date, weight: Double)] = []
+    private(set) var weightRange: ClosedRange<Double> = 0 ... 100
+
+    init() {}
+
+    init(_ inputs: Inputs) {
+        var days: [String: Date] = [:]
+        let charted = DateFormatting.chronological(inputs.entries, after: inputs.cutoffDay, day: \.entryDate)
+            .compactMap { entry -> (entry: WeightEntry, date: Date)? in
+                guard let date = days[entry.entryDate] ?? DateFormatting.date(from: entry.entryDate) else {
+                    return nil
+                }
+                days[entry.entryDate] = date
+                return (entry: entry, date: date)
+            }
+        entries = charted.map(\.entry)
+        points = charted.map { Point(id: $0.entry.id, date: $0.date, weightKg: $0.entry.weightKg) }
+        movingAverage = Self.movingAverageLine(of: entries, days: days)
+        if inputs.showProjection {
+            projection = Self.projectionLine(from: points, days: inputs.projectionDays)
+        }
+        weightRange = Self.paddedRange(of: entries.map(\.weightKg) + projection.map(\.weight))
+    }
+
+    /// 7-calendar-day trailing average (same-date entries collapse to the
+    /// latest loggedAt) computed by the shared KMP analytics; the chart only
+    /// assembles the dates around it, reusing the days already parsed.
+    private static func movingAverageLine(
+        of entries: [WeightEntry],
+        days: [String: Date]
+    ) -> [(date: Date, average: Double)] {
+        guard entries.count >= 2 else { return [] }
+        let averaged = WeightChartAnalyticsKt.weightMovingAverage(
+            entries: entries.map { entry in
+                WeightChartInput(date: entry.entryDate, weightKg: entry.weightKg, loggedAt: entry.loggedAt)
+            },
+            windowDays: 7
+        )
+        return averaged.compactMap { point in
+            guard let date = days[point.date] ?? DateFormatting.date(from: point.date) else { return nil }
+            return (date: date, average: point.movingAvg)
+        }
+    }
+
+    /// Least-squares fit on real day offsets (not entry index) so unevenly
+    /// spaced weigh-ins project at the correct rate — matching the web chart.
+    /// Starts from the last actual data point's day offset.
+    private static func projectionLine(
+        from points: [Point],
+        days projectionDays: Int
+    ) -> [(date: Date, weight: Double)] {
+        guard points.count >= 3, let firstDate = points.first?.date, let lastDate = points.last?.date else { return [] }
+        let dayOffset = { (date: Date) in date.timeIntervalSince(firstDate) / 86400 }
+        let fit = WeightChartAnalyticsKt.linearRegression(
+            xs: points.map { dayOffset($0.date) }.asKotlin,
+            ys: points.map(\.weightKg).asKotlin
+        )
+        guard let fit else { return [] }
+        let slope = fit.slope
+        let intercept = fit.intercept
+
+        var result: [(Date, Double)] = []
+        let lastX = dayOffset(lastDate)
+        result.append((lastDate, slope * lastX + intercept))
+        for day in 1 ... projectionDays {
+            let futureDate = lastDate.adding(days: day)
+            let futureWeight = slope * (lastX + Double(day)) + intercept
+            result.append((futureDate, futureWeight))
+        }
+        return result
+    }
+
+    private static func paddedRange(of weights: [Double]) -> ClosedRange<Double> {
+        guard let minW = weights.min(), let maxW = weights.max() else {
+            return 0 ... 100
+        }
+        let padding = max((maxW - minW) * 0.15, 0.5)
+        return (minW - padding) ... (maxW + padding)
+    }
+}
+
 struct WeightView: View {
     @Environment(WeightRepository.self) private var weightRepository
     /// Weight stats are server-computed — they stay on the direct API and
@@ -145,93 +250,28 @@ struct WeightView: View {
         }
     }
 
-    private var chartEntries: [WeightEntry] {
-        let sorted = entries.sorted { entryA, entryB in
-            guard let dateA = DateFormatting.date(from: entryA.entryDate),
-                  let dateB = DateFormatting.date(from: entryB.entryDate)
-            else { return false }
-            return dateA < dateB
-        }
-        guard selectedRange > 0 else { return sorted }
-        let cutoff = Date().adding(days: -selectedRange)
-        return sorted.filter { entry in
-            guard let date = DateFormatting.date(from: entry.entryDate) else { return false }
-            return date >= cutoff
-        }
-    }
+    /// Rebuilt by `onChange(of: chartInputs)`, so a body evaluation (every
+    /// frame while scrubbing the chart) only reads it.
+    @State private var chart = WeightChartData()
+    /// Rebuilt by `onChange(of: entries)`: the 7-day delta parses every entry.
+    @State private var trend: WeightTrend = .steady(nil)
 
-    private var movingAverageData: [(date: Date, average: Double)] {
-        let sorted = chartEntries
-        guard sorted.count >= 2 else { return [] }
-
-        // 7-calendar-day trailing average (same-date entries collapse to the
-        // latest loggedAt) computed by the shared KMP analytics; the chart only
-        // assembles the dates around it.
-        let points = WeightChartAnalyticsKt.weightMovingAverage(
-            entries: sorted.map { entry in
-                WeightChartInput(date: entry.entryDate, weightKg: entry.weightKg, loggedAt: entry.loggedAt)
-            },
-            windowDays: 7
+    private var chartInputs: WeightChartData.Inputs {
+        WeightChartData.Inputs(
+            entries: entries,
+            cutoffDay: selectedRange > 0 ? DateFormatting.isoDay(daysBefore: selectedRange) : nil,
+            showProjection: showProjection,
+            projectionDays: projectionDays
         )
-
-        return points.compactMap { point in
-            guard let date = DateFormatting.date(from: point.date) else { return nil }
-            return (date: date, average: point.movingAvg)
-        }
-    }
-
-    private var projectionData: [(date: Date, weight: Double)] {
-        guard showProjection, chartEntries.count >= 3 else { return [] }
-        let sorted = chartEntries.compactMap { entry -> (Date, Double)? in
-            guard let date = DateFormatting.date(from: entry.entryDate) else { return nil }
-            return (date, entry.weightKg)
-        }.sorted { $0.0 < $1.0 }
-        guard let firstDate = sorted.first?.0, let lastDate = sorted.last?.0 else { return [] }
-
-        // Least-squares fit on real day offsets (not entry index) so unevenly
-        // spaced weigh-ins project at the correct rate — matching the web chart.
-        let dayOffset = { (d: Date) in d.timeIntervalSince(firstDate) / 86400 }
-        let fit = WeightChartAnalyticsKt.linearRegression(
-            xs: sorted.map { dayOffset($0.0) }.asKotlin,
-            ys: sorted.map(\.1).asKotlin
-        )
-        guard let fit else { return [] }
-        let slope = fit.slope
-        let intercept = fit.intercept
-
-        var result: [(Date, Double)] = []
-        // Start from the last actual data point's day offset.
-        let lastX = dayOffset(lastDate)
-        result.append((lastDate, slope * lastX + intercept))
-        for day in 1 ... projectionDays {
-            let futureDate = lastDate.adding(days: day)
-            let futureWeight = slope * (lastX + Double(day)) + intercept
-            result.append((futureDate, futureWeight))
-        }
-        return result
-    }
-
-    private var weightRange: ClosedRange<Double> {
-        var weights = chartEntries.map(\.weightKg)
-        weights.append(contentsOf: projectionData.map(\.weight))
-        guard let minW = weights.min(), let maxW = weights.max() else {
-            return 0 ... 100
-        }
-        let padding = max((maxW - minW) * 0.15, 0.5)
-        return (minW - padding) ... (maxW + padding)
     }
 
     /// The charted entry closest to the touched x-position, or nil when the
     /// user isn't scrubbing.
     private var selectedEntry: (date: Date, weightKg: Double)? {
         guard let selectedDate else { return nil }
-        let dated = chartEntries.compactMap { entry -> (Date, Double)? in
-            guard let date = DateFormatting.date(from: entry.entryDate) else { return nil }
-            return (date, entry.weightKg)
-        }
-        return dated
-            .min { abs($0.0.timeIntervalSince(selectedDate)) < abs($1.0.timeIntervalSince(selectedDate)) }
-            .map { (date: $0.0, weightKg: $0.1) }
+        return chart.points
+            .min { abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate)) }
+            .map { (date: $0.date, weightKg: $0.weightKg) }
     }
 
     var body: some View {
@@ -253,7 +293,7 @@ struct WeightView: View {
                         }
                         statsChipsSection
                         if goals.targetWeightKg != nil { targetSection }
-                        if chartEntries.count >= 2 { chartSection }
+                        if chart.entries.count >= 2 { chartSection }
                         historySection
                     }
                     .listStyle(.insetGrouped)
@@ -299,6 +339,12 @@ struct WeightView: View {
                     forKey: HealthKitService.syncEnabledKey
                 )
             }
+            .onChange(of: chartInputs, initial: true) { _, inputs in
+                chart = WeightChartData(inputs)
+            }
+            .onChange(of: entries, initial: true) { _, newEntries in
+                trend = WeightTrend.from(delta: WeightTrend.localDelta7d(entries: newEntries))
+            }
             .alert(
                 L10n.error,
                 isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
@@ -311,10 +357,6 @@ struct WeightView: View {
     }
 
     // MARK: - Summary Cards
-
-    private var trend: WeightTrend {
-        WeightTrend.from(delta: WeightTrend.localDelta7d(entries: entries))
-    }
 
     /// Top row: latest weight and trend direction side by side as floating
     /// cards (no list container). Server projections follow as equal-width
@@ -353,7 +395,7 @@ struct WeightView: View {
 
     /// A single row surfacing the goal-editor's optional weight target (see
     /// `SettingsView`'s goals sheet) and how far the latest entry sits from
-    /// it. No forecast math — that's `projectionData`'s job for the chart.
+    /// it. No forecast math — that's `WeightChartData.projection`'s job for the chart.
     private var targetSection: some View {
         Section {
             HStack {
@@ -431,7 +473,6 @@ struct WeightView: View {
     }
 
     private var trendCard: some View {
-        let trend = trend
         let tint = trend.color.accessibleForeground(colorScheme: colorScheme, contrast: colorSchemeContrast)
         return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
@@ -492,11 +533,11 @@ struct WeightView: View {
 
     /// Read before a VoiceOver user swipes through each weigh-in.
     private var weightChartAccessibilitySummary: String {
-        guard let first = chartEntries.first?.weightKg, let last = chartEntries.last?.weightKg else {
+        guard let first = chart.entries.first?.weightKg, let last = chart.entries.last?.weightKg else {
             return L10n.noEntries
         }
         var summary = MacroFormat.kg(last)
-        if chartEntries.count > 1 {
+        if chart.entries.count > 1 {
             summary += ", " + (last >= first ? L10n.chartTrendingUp : L10n.chartTrendingDown)
         }
         return summary
@@ -518,25 +559,23 @@ struct WeightView: View {
                 .pickerStyle(.segmented)
 
                 Chart {
-                    ForEach(chartEntries) { entry in
-                        if let date = DateFormatting.date(from: entry.entryDate) {
-                            LineMark(
-                                x: .value("Date", date),
-                                y: .value(L10n.weight, entry.weightKg)
-                            )
-                            .foregroundStyle(.blue)
-                            .interpolationMethod(.catmullRom)
+                    ForEach(chart.points) { point in
+                        LineMark(
+                            x: .value("Date", point.date),
+                            y: .value(L10n.weight, point.weightKg)
+                        )
+                        .foregroundStyle(.blue)
+                        .interpolationMethod(.catmullRom)
 
-                            PointMark(
-                                x: .value("Date", date),
-                                y: .value(L10n.weight, entry.weightKg)
-                            )
-                            .foregroundStyle(.blue)
-                            .symbolSize(30)
-                        }
+                        PointMark(
+                            x: .value("Date", point.date),
+                            y: .value(L10n.weight, point.weightKg)
+                        )
+                        .foregroundStyle(.blue)
+                        .symbolSize(30)
                     }
 
-                    ForEach(Array(movingAverageData.enumerated()), id: \.offset) { _, dataPoint in
+                    ForEach(Array(chart.movingAverage.enumerated()), id: \.offset) { _, dataPoint in
                         LineMark(
                             x: .value("Date", dataPoint.date),
                             y: .value("Avg", dataPoint.average),
@@ -548,7 +587,7 @@ struct WeightView: View {
                     }
 
                     if showProjection {
-                        ForEach(Array(projectionData.enumerated()), id: \.offset) { _, dataPoint in
+                        ForEach(Array(chart.projection.enumerated()), id: \.offset) { _, dataPoint in
                             LineMark(
                                 x: .value("Date", dataPoint.date),
                                 y: .value("Proj", dataPoint.weight),
@@ -598,7 +637,7 @@ struct WeightView: View {
                     }
                 }
                 .chartXSelection(value: $selectedDate)
-                .chartYScale(domain: weightRange)
+                .chartYScale(domain: chart.weightRange)
                 .chartYAxis {
                     AxisMarks(position: .leading) { value in
                         AxisValueLabel {
