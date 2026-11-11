@@ -91,7 +91,8 @@ beforeEach(() => {
 			}
 		],
 		models: MODELS,
-		defaultModel: 'claude-sonnet-5-5'
+		defaultModel: 'claude-sonnet-5-5',
+		defaultModelLabel: 'Claude Sonnet 5.5'
 	});
 	updateClaudeAccess.mockResolvedValue({
 		enabled: true,
@@ -196,6 +197,7 @@ describe('GET /api/admin/users/{id}', () => {
 		});
 		expect(body.models).toEqual(MODELS);
 		expect(body.defaultModel).toBe('claude-sonnet-5-5');
+		expect(body.defaultModelLabel).toBe('Claude Sonnet 5.5');
 	});
 
 	test('honours the days window', async () => {

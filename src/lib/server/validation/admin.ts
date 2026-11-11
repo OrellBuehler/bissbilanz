@@ -46,7 +46,7 @@ export const adminClaudeAccessUpdateSchema = z
 			.optional()
 			.meta({
 				description:
-					'One of the `models` ids from GET /api/admin/users/{id}; null uses the server default.'
+					'An id from the `models` list returned by GET /api/admin/users/{id}; that set can change between releases, and any other id is rejected. null uses the server default.'
 			})
 	})
 	.refine(

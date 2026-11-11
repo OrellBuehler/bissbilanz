@@ -21,6 +21,9 @@ export const CLAUDE_MODELS: ClaudeModelOption[] = Object.entries(CLAUDE_PRICING_
 export const isSelectableModel = (id: string): boolean =>
 	CLAUDE_MODELS.some((model) => model.id === id);
 
+export const claudeModelLabel = (id: string): string =>
+	CLAUDE_PRICING_USD_PER_MTOK[id]?.label ?? id;
+
 export const resolveClaudeModel = (stored: string | null | undefined): string =>
 	stored && isSelectableModel(stored) ? stored : claudeConfig().model;
 

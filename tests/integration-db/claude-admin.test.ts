@@ -419,6 +419,7 @@ describe('getAdminUserDetail', () => {
 			effectiveModel: 'claude-opus-5-5'
 		});
 		expect(detail.defaultModel).toBe('claude-sonnet-5-5');
+		expect(detail.defaultModelLabel).toBe('Claude Sonnet 5.5');
 		expect(detail.models.map((model) => model.id)).toEqual([
 			'claude-fable-5-2',
 			'claude-opus-5-5',

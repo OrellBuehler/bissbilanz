@@ -728,6 +728,10 @@ describe('model per user', () => {
 			(a, b) => a.createdAt.getTime() - b.createdAt.getTime()
 		);
 		expect(rows.map((row) => row.model)).toEqual(['claude-haiku-5-5', 'claude-haiku-5-5']);
+		expect(rows.map((row) => [row.status, row.costUsd])).toEqual([
+			['succeeded', (1000 * 0.1 + 200 * 0.5) / 1e6],
+			['succeeded', (1000 * 0.1 + 200 * 0.5) / 1e6]
+		]);
 		expect(rows[0]!.reservedUsd).toBeCloseTo(
 			await expectedReservation(fake.calls[0]!, 'claude-haiku-5-5'),
 			6

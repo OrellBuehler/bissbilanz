@@ -92,7 +92,8 @@ export const adminUserDetailResponseSchema = z
 		recentCalls: z.array(adminRecentCallSchema),
 		auditLog: z.array(adminAuditEntrySchema),
 		models: z.array(adminClaudeModelSchema),
-		defaultModel: z.string()
+		defaultModel: z.string(),
+		defaultModelLabel: z.string()
 	})
 	.meta({ id: 'AdminUserDetailResponse' });
 

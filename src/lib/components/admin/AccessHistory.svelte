@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
-	import type { AdminClaudeModel, AdminUserDetail } from './admin-api';
-	import { formatDateTime, formatUsd, modelLabel } from './format';
+	import type { AdminUserDetail } from './admin-api';
+	import { formatDateTime, formatUsd, modelLabel, type ModelLabel } from './format';
 
 	type Entry = AdminUserDetail['auditLog'][number];
 
@@ -13,7 +13,7 @@
 	}: {
 		entries: Entry[];
 		defaultBudget: number | null;
-		models: AdminClaudeModel[];
+		models: ModelLabel[];
 		defaultModel: string;
 	} = $props();
 

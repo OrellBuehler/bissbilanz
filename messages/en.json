@@ -121,7 +121,7 @@
 	"admin_claude_kill_switch": "Claude processing enabled",
 	"admin_claude_kill_switch_confirm_off": "Stop all Claude processing now? Running tasks are stopped.",
 	"admin_claude_kill_switch_stop": "Stop processing",
-	"admin_claude_model": "Model",
+	"admin_claude_model": "Default model",
 	"admin_claude_month_spend": "{spent} of {budget} this month",
 	"admin_claude_top_users": "Top users this month",
 	"admin_claude_top_users_empty": "No spend yet this month",

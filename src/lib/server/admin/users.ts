@@ -10,7 +10,7 @@ import {
 	users
 } from '../schema';
 import { claudeConfig } from '../claude/config';
-import { CLAUDE_MODELS, resolveClaudeModel } from '../claude/models';
+import { CLAUDE_MODELS, claudeModelLabel, resolveClaudeModel } from '../claude/models';
 import { getClaudeEnabled } from '../claude/settings';
 import {
 	effectiveUserBudgetUsd,
@@ -326,7 +326,8 @@ export async function getAdminUserDetail(db: AdminDb, id: string, days: number) 
 			after: asPayload(entry.after)
 		})),
 		models: CLAUDE_MODELS,
-		defaultModel: claudeConfig().model
+		defaultModel: claudeConfig().model,
+		defaultModelLabel: claudeModelLabel(claudeConfig().model)
 	};
 }
 

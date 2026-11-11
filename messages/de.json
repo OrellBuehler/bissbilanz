@@ -121,7 +121,7 @@
 	"admin_claude_kill_switch": "Claude-Verarbeitung aktiviert",
 	"admin_claude_kill_switch_confirm_off": "Jetzt alle Claude-Verarbeitungen stoppen? Laufende Aufgaben werden abgebrochen.",
 	"admin_claude_kill_switch_stop": "Verarbeitung stoppen",
-	"admin_claude_model": "Modell",
+	"admin_claude_model": "Standardmodell",
 	"admin_claude_month_spend": "{spent} von {budget} diesen Monat",
 	"admin_claude_top_users": "Top-Nutzer diesen Monat",
 	"admin_claude_top_users_empty": "Diesen Monat noch keine Ausgaben",

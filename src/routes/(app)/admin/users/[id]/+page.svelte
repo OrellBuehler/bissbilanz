@@ -29,6 +29,7 @@
 		formatUsd,
 		initialOf,
 		modelLabel,
+		modelLabels,
 		providerLabel
 	} from '$lib/components/admin/format';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -189,11 +190,12 @@
 	{:else}
 		{@const user = detail.user}
 		{@const { models, defaultModel } = detail}
+		{@const labels = modelLabels(detail)}
 		{@const selectedModel =
 			models.find((model) => model.id === user.claude.model)?.id ?? DEFAULT_MODEL}
 		{@const defaultOption = models.find((model) => model.id === defaultModel)}
 		{@const defaultModelText = m.admin_user_model_default({
-			model: modelLabel(models, defaultModel)
+			model: modelLabel(labels, defaultModel)
 		})}
 		<Card.Root data-testid="admin-user-header">
 			<Card.Content class="space-y-4">
@@ -277,7 +279,7 @@
 									<span class="truncate">
 										{selectedModel === DEFAULT_MODEL
 											? defaultModelText
-											: modelLabel(models, selectedModel)}
+											: modelLabel(labels, selectedModel)}
 									</span>
 								</Select.Trigger>
 								<Select.Content>
@@ -356,7 +358,7 @@
 
 		<section class="space-y-3">
 			<h2 class="text-base font-semibold">{m.admin_user_history_title()}</h2>
-			<AccessHistory entries={detail.auditLog} {defaultBudget} {models} {defaultModel} />
+			<AccessHistory entries={detail.auditLog} {defaultBudget} models={labels} {defaultModel} />
 		</section>
 
 		<AccessDialog

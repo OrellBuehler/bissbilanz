@@ -5,6 +5,7 @@ import {
 	formatUsd,
 	initialOf,
 	modelLabel,
+	modelLabels,
 	parseBudgetInput,
 	providerLabel
 } from '$lib/components/admin/format';
@@ -65,6 +66,16 @@ describe('small helpers', () => {
 		const models = [{ id: 'claude-opus-5-5', label: 'Claude Opus 5.5' }];
 		expect(modelLabel(models, 'claude-opus-5-5')).toBe('Claude Opus 5.5');
 		expect(modelLabel(models, 'claude-opus-4-8')).toBe('claude-opus-4-8');
+	});
+
+	test('modelLabels adds the label of a default that is priced but not selectable', () => {
+		const labels = modelLabels({
+			models: [{ id: 'claude-opus-5-5', label: 'Claude Opus 5.5' }],
+			defaultModel: 'claude-fable-5-1',
+			defaultModelLabel: 'Claude Fable 5.1'
+		});
+		expect(modelLabel(labels, 'claude-fable-5-1')).toBe('Claude Fable 5.1');
+		expect(modelLabel(labels, 'claude-opus-5-5')).toBe('Claude Opus 5.5');
 	});
 
 	test('initialOf prefers name, then email, then a placeholder', () => {

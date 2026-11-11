@@ -4,7 +4,7 @@ const config = vi.hoisted(() => ({ model: 'claude-sonnet-5-5' }));
 
 vi.mock('$lib/server/claude/config', () => ({ claudeConfig: () => config }));
 
-const { CLAUDE_MODELS, isSelectableModel, resolveClaudeModel, webSearchTool } =
+const { CLAUDE_MODELS, claudeModelLabel, isSelectableModel, resolveClaudeModel, webSearchTool } =
 	await import('$lib/server/claude/models');
 const { CLAUDE_PRICING_USD_PER_MTOK } = await import('$lib/server/claude/pricing');
 
@@ -51,6 +51,14 @@ describe('CLAUDE_MODELS', () => {
 		expect(isSelectableModel('claude-fable-5-1')).toBe(false);
 		expect(isSelectableModel('claude-haiku-5-5')).toBe(true);
 		expect(isSelectableModel('')).toBe(false);
+	});
+});
+
+describe('claudeModelLabel', () => {
+	test('labels every priced model, selectable or not, and falls back to the id', () => {
+		expect(claudeModelLabel('claude-haiku-5-5')).toBe('Claude Haiku 5.5');
+		expect(claudeModelLabel('claude-fable-5-1')).toBe('Claude Fable 5.1');
+		expect(claudeModelLabel('claude-opus-4-8')).toBe('claude-opus-4-8');
 	});
 });
 

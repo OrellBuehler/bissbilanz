@@ -2177,7 +2177,7 @@ export interface components {
 			enabled?: boolean;
 			monthlyBudgetUsd?: number | null;
 			note?: string | null;
-			/** @description One of the `models` ids from GET /api/admin/users/{id}; null uses the server default. */
+			/** @description An id from the `models` list returned by GET /api/admin/users/{id}; that set can change between releases, and any other id is rejected. null uses the server default. */
 			model?: string | null;
 		};
 		AdminClaudeSettingsUpdate: {
@@ -3672,6 +3672,7 @@ export interface components {
 			auditLog: components['schemas']['AdminAuditEntry'][];
 			models: components['schemas']['AdminClaudeModel'][];
 			defaultModel: string;
+			defaultModelLabel: string;
 		};
 		AdminDailyUsage: {
 			date: string;
