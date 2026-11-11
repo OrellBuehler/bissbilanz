@@ -124,11 +124,9 @@ final class WeightRepository {
         }
         for entry in fetched where !pendingIds.contains(entry.id) {
             if let row = rowsById[entry.id] {
-                // Only dirty rows that actually changed. Rewriting every row
-                // made each `save()` flush the whole table on the main thread,
-                // which is what the SleepRepository.save hang in Sentry
-                // BISSBILANZ-34 was.
-                if row.jsonData != LocalStoreCoding.encode(entry) {
+                // Only dirty rows that actually changed, compared as entries
+                // rather than bytes — see `SleepRepository.refresh`.
+                if row.toWeightEntry() != entry {
                     row.update(from: entry)
                     changedIds.insert(entry.id)
                 }
@@ -250,8 +248,11 @@ final class WeightRepository {
         }
     }
 
+    /// See `SleepRepository.save`: no store write without changes, follow-ups always.
     private func save() {
-        context.saveReportingFailure("WeightRepository.save")
+        if context.hasChanges {
+            context.saveReportingFailure("WeightRepository.save")
+        }
         WidgetSnapshotWriter.scheduleUpdate(context: context)
         syncLatestToHealth()
     }

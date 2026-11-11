@@ -1198,6 +1198,28 @@ struct RepositoryTests {
         #expect(repo.latest()?.id == "w2")
     }
 
+    @Test("Weight refresh leaves rows the server did not change untouched")
+    func weightRefreshSkipsUnchangedRows() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.weightRepository
+        // The same entry the server sends below, stored with another key order
+        // and spacing than `JSONEncoder` writes: only a semantic compare keeps
+        // this row out of the save.
+        let stored = Data(#"{"weightKg": 74.2, "entryDate": "2026-06-01", "userId": "u1", "id": "w1"}"#.utf8)
+        let row = try LocalWeightEntry(entry: harness.weight(id: "w1", date: "2026-06-01", kg: 74.2))
+        row.jsonData = stored
+        harness.context.insert(row)
+        try harness.context.save()
+        harness.stub("GET", "/api/weight", json: """
+        {"entries": [{"id": "w1", "userId": "u1", "weightKg": 74.2, "entryDate": "2026-06-01"}]}
+        """)
+
+        try await repo.refresh()
+
+        #expect(row.jsonData == stored)
+        #expect(repo.entries().map(\.weightKg) == [74.2])
+    }
+
     @Test("Weight pagination returns newest-first pages without overlap")
     func weightPaginationPages() throws {
         let harness = try RepositoryHarness()
@@ -1287,6 +1309,31 @@ struct RepositoryTests {
         #expect(entries.map(\.id) == ["s2", "s1"]) // newest first
         #expect(entries.last?.durationMinutes == 430)
         #expect(repo.latest()?.id == "s2")
+    }
+
+    @Test("Sleep refresh leaves rows the server did not change untouched")
+    func sleepRefreshSkipsUnchangedRows() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.sleepRepository
+        // See `weightRefreshSkipsUnchangedRows`: rewriting every unchanged row
+        // made each refresh save the whole sleep history (BISSBILANZ-4C).
+        let stored = Data(
+            #"{"quality": 8, "durationMinutes": 430, "entryDate": "2026-06-01", "userId": "u1", "id": "s1"}"#.utf8
+        )
+        let row = try LocalSleepEntry(entry: harness.sleepEntry(
+            id: "s1", date: "2026-06-01", durationMinutes: 430, quality: 8
+        ))
+        row.jsonData = stored
+        harness.context.insert(row)
+        try harness.context.save()
+        harness.stub("GET", "/api/sleep", json: """
+        {"entries": [{"id": "s1", "userId": "u1", "entryDate": "2026-06-01", "durationMinutes": 430, "quality": 8}]}
+        """)
+
+        try await repo.refresh()
+
+        #expect(row.jsonData == stored)
+        #expect(repo.entries().map(\.durationMinutes) == [430])
     }
 
     @Test("Sleep closest picks the nearest day, preferring on-or-before on a tie")
