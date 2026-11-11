@@ -26,6 +26,7 @@ export type ClaudeCallParams = {
 export type ClaudeCallOptions = {
 	userId: string;
 	feature: string;
+	model: string;
 	aiTaskId?: string;
 	params: ClaudeCallParams;
 	imageCount: number;
@@ -159,8 +160,8 @@ const kindOf = (error: unknown): string => {
 
 export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.Message> {
 	if (!isClaudeConfigured()) throw new ClaudeGateError('not_configured');
-	const { model, effort } = claudeConfig();
-	const { params, signal } = options;
+	const { effort } = claudeConfig();
+	const { model, params, signal } = options;
 	const request: Anthropic.MessageCreateParamsNonStreaming = {
 		model,
 		max_tokens: TASK_MAX_TOKENS,
@@ -209,6 +210,7 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 		Sentry.logger.info('Claude call finished', {
 			taskId: options.aiTaskId ?? '',
 			model: response.model,
+			requestedModel: model,
 			inputTokens: response.usage.input_tokens,
 			outputTokens: response.usage.output_tokens,
 			cacheReadInputTokens: response.usage.cache_read_input_tokens ?? 0,
@@ -225,6 +227,7 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 			if (mapped.retryable) {
 				Sentry.logger.info('Claude call failed', {
 					taskId: options.aiTaskId ?? '',
+					requestedModel: model,
 					kind: mapped.kind,
 					status: mapped.status ?? 0
 				});
@@ -235,7 +238,8 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 						status: mapped.status,
 						requestId: mapped.requestId,
 						retryable: false
-					})
+					}),
+					{ tags: { model } }
 				);
 			}
 		}

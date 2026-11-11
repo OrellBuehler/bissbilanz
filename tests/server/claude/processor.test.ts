@@ -20,10 +20,10 @@ const h = vi.hoisted(() => ({
 	getUserTimeZone: vi.fn(),
 	loadTaskPhotos: vi.fn(),
 	captureException: vi.fn(),
-	config: { maxIterations: 5, maxWebSearches: 3 }
+	config: { model: 'claude-sonnet-5-5', maxIterations: 5, maxWebSearches: 3 }
 }));
 
-const { db, queueResults, reset } = createMockDB();
+const { db, queueResults, reset, getCalls } = createMockDB();
 
 vi.mock('@sentry/sveltekit', () => ({
 	captureException: h.captureException,
@@ -63,6 +63,8 @@ vi.mock('$lib/server/claude/tasks/photos', () => ({ loadTaskPhotos: h.loadTaskPh
 
 const { processTask } = await import('$lib/server/claude/tasks/processor');
 const errors = await import('$lib/server/claude/errors');
+const { CLAUDE_MODELS } = await import('$lib/server/claude/models');
+const { claudeAccess } = await import('$lib/server/schema');
 
 const TASK_ID = 'task-1';
 const USER_ID = 'user-1';
@@ -164,6 +166,63 @@ describe('web search', () => {
 		await processTask(TASK_ID, options());
 		expect(h.callClaude.mock.calls[0]![0].params.tools).toEqual([{ name: 'tool' }]);
 	});
+
+	test('uses the basic web search for Haiku 5.5', async () => {
+		queueResults([[{ locale: 'de' }], [{ autoLog: true }], [{ model: 'claude-haiku-5-5' }]]);
+		finish();
+		await processTask(TASK_ID, options());
+		expect(h.callClaude.mock.calls[0]![0].params.tools[0]).toEqual({
+			type: 'web_search_20250305',
+			name: 'web_search',
+			max_uses: 3
+		});
+	});
+});
+
+describe('model', () => {
+	const twoCalls = () => {
+		h.callClaude
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_a')]))
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
+		h.runTaskTool
+			.mockResolvedValueOnce({ content: 'one', isError: false })
+			.mockResolvedValueOnce({ content: '{}', isError: false, outcome: 'completed' });
+	};
+	const models = () => h.callClaude.mock.calls.map((call) => call[0].model);
+	const accessReads = () =>
+		getCalls().filter((call) => call.method === 'from' && call.args[0] === claudeAccess);
+
+	test('without a stored model every call uses the server default', async () => {
+		twoCalls();
+		await processTask(TASK_ID, options());
+		expect(models()).toEqual(['claude-sonnet-5-5', 'claude-sonnet-5-5']);
+	});
+
+	test('the stored model is resolved once and used for every call of the run', async () => {
+		queueResults([[{ locale: 'de' }], [{ autoLog: true }], [{ model: 'claude-opus-5-5' }]]);
+		twoCalls();
+		await processTask(TASK_ID, options());
+		expect(models()).toEqual(['claude-opus-5-5', 'claude-opus-5-5']);
+		expect(accessReads()).toHaveLength(1);
+	});
+
+	test('a stored model no longer in the list falls back to the default', async () => {
+		queueResults([[{ locale: 'de' }], [{ autoLog: true }], [{ model: 'claude-fable-5-1' }]]);
+		twoCalls();
+		await processTask(TASK_ID, options());
+		expect(models()).toEqual(['claude-sonnet-5-5', 'claude-sonnet-5-5']);
+	});
+
+	test.each(CLAUDE_MODELS.map((model) => model.id))(
+		'a refusal from %s dismisses the task',
+		async (model) => {
+			queueResults([[{ locale: 'de' }], [{ autoLog: true }], [{ model }]]);
+			h.callClaude.mockResolvedValueOnce(response('refusal'));
+			await processTask(TASK_ID, options());
+			expect(h.callClaude.mock.calls[0]![0].model).toBe(model);
+			expect(h.dismissRun).toHaveBeenCalledWith(expect.anything(), 'claude_refused');
+		}
+	);
 });
 
 describe('the loop', () => {

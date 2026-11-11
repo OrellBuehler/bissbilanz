@@ -263,11 +263,64 @@ describe('callClaude against the SDK boundary', () => {
 		mod.callClaude({
 			userId: 'u1',
 			feature: 'ai_task',
+			model: 'claude-opus-5-5',
 			aiTaskId: 't1',
 			params,
 			imageCount: 0,
 			...extra
 		});
+
+	test('requests and reserves the model it is given, not the env default', async () => {
+		config.model = 'claude-sonnet-5-5';
+		const fetchMock = vi.fn(async () => Response.json(message({ model: 'claude-haiku-5-5' })));
+		vi.stubGlobal('fetch', fetchMock);
+		const mod = await load(true);
+		const pricing = await import('$lib/server/claude/pricing');
+		await call(mod, { model: 'claude-haiku-5-5' });
+		const body = JSON.parse(
+			String((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body)
+		);
+		expect(body.model).toBe('claude-haiku-5-5');
+		const reservation = budget.reserveCall.mock.calls[0]![0];
+		expect(reservation.model).toBe('claude-haiku-5-5');
+		expect(reservation.reservedUsd).toBe(
+			pricing.maxCallCostUsd(
+				'claude-haiku-5-5',
+				mod.estimateInputTokens(params, 0),
+				16000,
+				mod.maxWebSearchesOf(params.tools)
+			)
+		);
+		expect(sentry.logger.info).toHaveBeenCalledWith(
+			'Claude call finished',
+			expect.objectContaining({ model: 'claude-haiku-5-5', requestedModel: 'claude-haiku-5-5' })
+		);
+	});
+
+	test('names the requested model on failures', async () => {
+		const mod = await load(true);
+		const { ClaudeApiError } = await import('$lib/server/claude/errors');
+		const create = vi
+			.fn()
+			.mockRejectedValueOnce(new ClaudeApiError({ kind: 'server', status: 529, retryable: true }))
+			.mockRejectedValueOnce(
+				new ClaudeApiError({ kind: 'invalid_request', status: 400, retryable: false })
+			);
+		mod.setClaudeClientForTests({ messages: { create } });
+		await expect(call(mod, { model: 'claude-fable-5-2' })).rejects.toMatchObject({
+			kind: 'server'
+		});
+		expect(sentry.logger.info).toHaveBeenCalledWith(
+			'Claude call failed',
+			expect.objectContaining({ requestedModel: 'claude-fable-5-2', kind: 'server' })
+		);
+		await expect(call(mod, { model: 'claude-fable-5-2' })).rejects.toMatchObject({
+			kind: 'invalid_request'
+		});
+		expect(sentry.captureException).toHaveBeenCalledWith(expect.any(ClaudeApiError), {
+			tags: { model: 'claude-fable-5-2' }
+		});
+	});
 
 	test('sends the Opus 5.5 request through the real client with no retries', async () => {
 		const fetchMock = vi.fn(async () => Response.json(message()));
