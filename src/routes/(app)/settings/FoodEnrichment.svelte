@@ -8,21 +8,30 @@
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import CircleStop from '@lucide/svelte/icons/circle-stop';
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-	import { foodService, type FoodEnrichmentStatus } from '$lib/services/food-service.svelte';
+	import RotateCw from '@lucide/svelte/icons/rotate-cw';
+	import {
+		FoodEnrichmentRequestError,
+		foodService,
+		type FoodEnrichmentStatus
+	} from '$lib/services/food-service.svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	const POLL_MS = 3000;
+	const MAX_LOAD_FAILURES = 3;
 
 	let status = $state<FoodEnrichmentStatus | null>(null);
 	let busy = $state(false);
-	let loadFailed = $state(false);
+	let loadFailures = $state(0);
+	let polling = $state(false);
 	let timer: ReturnType<typeof setTimeout> | undefined;
+	let destroyed = false;
 
 	const isActive = (value: FoodEnrichmentStatus | null) =>
 		value?.job?.state === 'queued' || value?.job?.state === 'running';
 
 	const job = $derived(status?.job ?? null);
 	const active = $derived(isActive(status));
+	const stalled = $derived(loadFailures > 0 && !polling);
 	const percent = $derived(
 		job && job.total > 0 ? Math.min(100, Math.round((job.processed / job.total) * 100)) : 0
 	);
@@ -36,20 +45,29 @@
 	);
 
 	function report(error: unknown) {
-		if (navigator.onLine) {
-			Sentry.captureException(error, { extra: { context: 'settings.food-enrichment' } });
+		if (error instanceof FoodEnrichmentRequestError) {
+			Sentry.addBreadcrumb({
+				category: 'food-enrichment',
+				level: 'warning',
+				message: error.message,
+				data: { status: error.status }
+			});
+			return;
 		}
+		Sentry.captureException(error, { extra: { context: 'settings.food-enrichment' } });
 	}
 
 	function schedule(delay: number) {
 		clearTimeout(timer);
-		timer = isActive(status) ? setTimeout(() => void load(), delay) : undefined;
+		polling = !destroyed && isActive(status) && loadFailures < MAX_LOAD_FAILURES;
+		timer = polling ? setTimeout(() => void load(), delay) : undefined;
 	}
 
 	function apply(next: FoodEnrichmentStatus) {
+		if (destroyed) return;
 		const finished = isActive(status) && !isActive(next);
 		status = next;
-		loadFailed = false;
+		loadFailures = 0;
 		if (finished && (next.job?.updated ?? 0) > 0) foodService.refresh().catch(report);
 		schedule(POLL_MS);
 	}
@@ -58,10 +76,16 @@
 		try {
 			apply(await foodService.enrichmentStatus());
 		} catch (error) {
+			if (destroyed) return;
 			report(error);
-			loadFailed = true;
+			loadFailures += 1;
 			schedule(POLL_MS * 2);
 		}
+	}
+
+	function retry() {
+		loadFailures = 0;
+		void load();
 	}
 
 	async function run(action: () => Promise<FoodEnrichmentStatus>) {
@@ -73,6 +97,7 @@
 		try {
 			apply(await action());
 		} catch (error) {
+			if (destroyed) return;
 			report(error);
 			toast.error(m.settings_enrich_foods_action_failed());
 		} finally {
@@ -82,7 +107,10 @@
 
 	onMount(() => {
 		void load();
-		return () => clearTimeout(timer);
+		return () => {
+			destroyed = true;
+			clearTimeout(timer);
+		};
 	});
 </script>
 
@@ -92,10 +120,17 @@
 		<Card.Description>{m.settings_enrich_foods_desc()}</Card.Description>
 	</Card.Header>
 	<Card.Content class="space-y-4">
-		{#if !status}
-			{#if loadFailed}
+		{#if stalled}
+			<div class="flex items-center justify-between gap-3">
 				<p class="text-destructive text-sm">{m.settings_enrich_foods_load_failed()}</p>
-			{:else}
+				<Button variant="outline" size="sm" onclick={retry}>
+					<RotateCw class="size-4" />
+					{m.settings_enrich_foods_retry()}
+				</Button>
+			</div>
+		{/if}
+		{#if !status}
+			{#if !stalled}
 				<div class="text-muted-foreground flex items-center gap-2 text-sm">
 					<LoaderCircle class="size-4 animate-spin" />
 					{m.settings_enrich_foods_loading()}

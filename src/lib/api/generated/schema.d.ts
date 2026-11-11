@@ -203,9 +203,9 @@ export interface paths {
 		/** @description Status of the server-side Open Food Facts enrichment for the user's barcode foods. `candidates` counts regular foods with a barcode that still lack a Nutri-Score, NOVA group or ingredients and were not checked against Open Food Facts in the last 30 days. `job` is the latest run (null if there never was one); poll while its state is queued or running. */
 		get: operations['getFoodEnrichment'];
 		put?: never;
-		/** @description Start a background run that looks up every candidate in Open Food Facts (about one request per second) and fills in Nutri-Score, NOVA group, additives, ingredients, missing images and extended nutrients scaled to the food's serving. Name, brand, serving and core macros are never changed. Idempotent: while a run is queued or running it is returned unchanged; otherwise a new run replaces the previous result. Updated foods reach clients through the regular foods delta sync. */
+		/** @description Start a background run that looks up every candidate in Open Food Facts (about one request per second). Nutri-Score and NOVA group are taken from Open Food Facts; ingredients, additives, extended nutrients (scaled to the food's serving) and the image are only filled in where the food has none. Name, brand, serving and core macros are never changed. The writes leave each food's last-write-wins clock (`updatedAt`) alone and only move `serverModifiedAt`, so updated foods reach clients through the regular foods delta sync without making queued offline edits lose. Idempotent: while a run is queued or running it is returned unchanged; otherwise a new run replaces the previous result. Rate limited to 10 start or cancel requests per minute. */
 		post: operations['startFoodEnrichment'];
-		/** @description Cancel a queued or running enrichment run; the food being looked up when the cancel arrives may still be finished. A no-op when no run is active. */
+		/** @description Cancel a queued or running enrichment run; the food being looked up when the cancel arrives may still be finished. A no-op when no run is active. Shares the start rate limit (10 per minute). */
 		delete: operations['cancelFoodEnrichment'];
 		options?: never;
 		head?: never;
@@ -395,7 +395,7 @@ export interface paths {
 		};
 		get?: never;
 		put?: never;
-		/** @description Look up the food's barcode in Open Food Facts now and merge the product in with the same rules as the background run. 404 with `Product not found` means Open Food Facts does not know the barcode (the food's `offCheckedAt` is still set); 503 means Open Food Facts could not be reached, retry later. 409 means the food was edited or deleted during the lookup. Shares the Open Food Facts rate limit (30 lookups per minute) with the barcode lookup. */
+		/** @description Look up the food's barcode in Open Food Facts now and merge the product in with the same rules as the background run: Nutri-Score and NOVA group are taken from Open Food Facts, while ingredients, additives, extended nutrients (scaled to the food's serving) and the image are only filled in where the food has none. Name, brand, serving and core macros never change, and the write does not move the food's last-write-wins clock (`updatedAt`), only `serverModifiedAt`. Failures carry a machine-readable `code`: 400 `no_barcode`, 404 `food_not_found` or `product_not_found` (Open Food Facts does not know the barcode; `offCheckedAt` is still set), 409 `food_changed` (the food was edited or deleted during the lookup), 502 `off_invalid_response` (Open Food Facts answered with a product that could not be read; nothing is recorded), 503 `off_unavailable` (retry later). Shares the Open Food Facts rate limit (30 lookups per minute) with the barcode lookup. */
 		post: operations['enrichFood'];
 		delete?: never;
 		options?: never;
@@ -2680,6 +2680,16 @@ export interface components {
 			id: string;
 			name: string;
 		};
+		FoodEnrichResponse: {
+			food: components['schemas']['Food'];
+			/** @description updated: the lookup changed the food (fields or labels); unchanged: Open Food Facts had nothing new. Unknown values should be treated like unchanged. */
+			outcome: string;
+		};
+		FoodEnrichErrorResponse: {
+			error: string;
+			/** @description Machine-readable reason. Absent on generic failures such as an invalid id. Unknown values should be treated as a generic failure of the given status. */
+			code?: string;
+		};
 		EntriesListResponse: {
 			entries: components['schemas']['EntryListItem'][];
 			total: number;
@@ -4685,14 +4695,47 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': components['schemas']['FoodResponse'];
+					'application/json': components['schemas']['FoodEnrichResponse'];
 				};
 			};
-			400: components['responses']['ValidationErrorResponse'];
+			/** @description Invalid id, or the food has no barcode (`no_barcode`) */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodEnrichErrorResponse'];
+				};
+			};
 			401: components['responses']['UnauthorizedResponse'];
-			404: components['responses']['NotFoundResponse'];
-			409: components['responses']['ConflictResponse'];
+			/** @description Food not found (`food_not_found`) or product not found (`product_not_found`) */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodEnrichErrorResponse'];
+				};
+			};
+			/** @description The food changed during the lookup (`food_changed`) */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodEnrichErrorResponse'];
+				};
+			};
 			429: components['responses']['RateLimitedResponse'];
+			/** @description Open Food Facts answered with a product that could not be read */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FoodEnrichErrorResponse'];
+				};
+			};
 			/** @description Open Food Facts is unavailable */
 			503: {
 				headers: {
@@ -4701,7 +4744,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': components['schemas']['ErrorResponse'];
+					'application/json': components['schemas']['FoodEnrichErrorResponse'];
 				};
 			};
 		};

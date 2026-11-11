@@ -12,12 +12,14 @@ const h = vi.hoisted(() => ({
 	release: vi.fn(),
 	renew: vi.fn(),
 	captureException: vi.fn(),
+	captureMessage: vi.fn(),
 	addBreadcrumb: vi.fn()
 }));
 
 vi.mock('node:timers/promises', () => ({ setTimeout: h.delay }));
 vi.mock('@sentry/sveltekit', () => ({
 	captureException: h.captureException,
+	captureMessage: h.captureMessage,
 	addBreadcrumb: h.addBreadcrumb
 }));
 vi.mock('$lib/server/food-enrichment/candidates', () => ({ nextEnrichmentCandidates: h.next }));
@@ -79,6 +81,8 @@ describe('backoffMs', () => {
 		const { backoffMs } = await load();
 		expect([1, 2, 3].map((attempt) => backoffMs(attempt, null))).toEqual([5000, 15000, 45000]);
 		expect(backoffMs(1, 30)).toBe(30000);
+		expect(backoffMs(1, 0)).toBe(5000);
+		expect(backoffMs(3, 1)).toBe(5000);
 		expect(backoffMs(9, null)).toBe(120000);
 		expect(backoffMs(1, 3600)).toBe(120000);
 	});
@@ -272,9 +276,105 @@ describe('runEnrichmentJob', () => {
 
 		expect(h.record).toHaveBeenCalledTimes(5);
 		expect(h.finish).toHaveBeenCalledWith('user-1', expect.any(String), 'failed');
-		expect(h.addBreadcrumb).toHaveBeenCalledWith(
-			expect.objectContaining({ message: 'Food enrichment stopped after repeated failures' })
+		expect(h.captureMessage).toHaveBeenCalledTimes(1);
+		expect(h.captureMessage).toHaveBeenCalledWith('Food enrichment run failed', {
+			level: 'warning',
+			tags: { job: 'food-enrichment' },
+			extra: {
+				consecutiveFailures: 5,
+				foodId: '05',
+				reason: 'error',
+				error: 'Error: db down'
+			}
+		});
+	});
+
+	test('a run failing on Open Food Facts reports the lookup error', async () => {
+		const worker = await load();
+		h.next.mockReset();
+		h.next.mockResolvedValue(foodsInOrder('01', '02', '03', '04', '05'));
+		const timeout = new DOMException('The operation timed out.', 'TimeoutError');
+		h.lookupBarcode.mockResolvedValue({
+			status: 'unavailable',
+			httpStatus: null,
+			retryAfterSeconds: null,
+			error: timeout
+		});
+
+		await worker.runEnrichmentJob('user-1', signal());
+
+		expect(h.finish).toHaveBeenCalledWith('user-1', expect.any(String), 'failed');
+		expect(h.captureMessage).toHaveBeenCalledWith(
+			'Food enrichment run failed',
+			expect.objectContaining({
+				extra: expect.objectContaining({
+					reason: 'off_unavailable',
+					httpStatus: null,
+					error: 'TimeoutError: The operation timed out.'
+				})
+			})
 		);
+		expect(h.captureException).not.toHaveBeenCalled();
+	});
+
+	test('an unreadable product is counted as failed, not stamped and not retried', async () => {
+		const worker = await load();
+		h.next.mockReset();
+		h.next.mockResolvedValueOnce(foodsInOrder('01')).mockResolvedValue([]);
+		h.lookupBarcode.mockResolvedValue({ status: 'invalid', issues: ['(root): invalid_type'] });
+
+		await worker.runEnrichmentJob('user-1', signal());
+
+		expect(h.lookupBarcode).toHaveBeenCalledTimes(1);
+		expect(h.applyLookup).not.toHaveBeenCalled();
+		expect(h.record).toHaveBeenCalledWith('user-1', expect.any(String), '01', 'failed');
+		expect(h.finish).toHaveBeenCalledWith('user-1', expect.any(String), 'completed');
+	});
+
+	test('the reason of a run stopped by unreadable products is reported', async () => {
+		const worker = await load();
+		h.next.mockReset();
+		h.next.mockResolvedValue(foodsInOrder('01', '02', '03', '04', '05'));
+		h.lookupBarcode.mockResolvedValue({ status: 'invalid', issues: ['(root): invalid_type'] });
+
+		await worker.runEnrichmentJob('user-1', signal());
+
+		expect(h.captureMessage).toHaveBeenCalledWith(
+			'Food enrichment run failed',
+			expect.objectContaining({
+				extra: expect.objectContaining({
+					reason: 'off_invalid_response',
+					issues: ['(root): invalid_type']
+				})
+			})
+		);
+	});
+
+	test('an aborted wait gives its request slot back', async () => {
+		const worker = await load();
+		h.next.mockReset();
+		h.next.mockResolvedValueOnce(foodsInOrder('01', '02')).mockResolvedValue([]);
+		const first = new AbortController();
+		h.delay.mockImplementation(
+			(_ms: number, _value: unknown, options: { signal: AbortSignal }) =>
+				new Promise((_resolve, reject) => {
+					options.signal.addEventListener('abort', () => reject(options.signal.reason));
+				})
+		);
+		const run = worker.runEnrichmentJob('user-1', first.signal);
+		await settle();
+		first.abort();
+		await run;
+
+		h.delay.mockReset();
+		h.delay.mockResolvedValue(undefined);
+		h.next.mockReset();
+		h.next.mockResolvedValueOnce(foodsInOrder('03')).mockResolvedValue([]);
+		await worker.runEnrichmentJob('user-1', signal());
+
+		const waits = sleeps();
+		expect(waits.length).toBeLessThanOrEqual(1);
+		expect(waits[0] ?? 0).toBeLessThanOrEqual(1000);
 	});
 
 	test('a success resets the failure streak', async () => {

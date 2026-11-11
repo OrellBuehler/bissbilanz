@@ -1,4 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
+
+const sentry = vi.hoisted(() => ({ captureMessage: vi.fn(), captureException: vi.fn() }));
+vi.mock('@sentry/sveltekit', () => sentry);
 import {
 	fetchProduct,
 	lookupProduct,
@@ -301,7 +304,7 @@ describe('fetchProduct', () => {
 		expect(result!.cholesterol).toBe(5.5);
 	});
 
-	test('invalid nutriscore_grade causes Zod rejection and returns null', async () => {
+	test('an unknown nutriscore_grade becomes null instead of dropping the product', async () => {
 		const response = {
 			status: 1,
 			product: {
@@ -314,7 +317,8 @@ describe('fetchProduct', () => {
 
 		const result = await fetchProduct(VALID_BARCODE);
 
-		expect(result).toBeNull();
+		expect(result?.name).toBe('Bad Score Food');
+		expect(result?.nutriScore).toBeNull();
 	});
 
 	test('nova_group is coerced from string to number', async () => {
@@ -334,7 +338,7 @@ describe('fetchProduct', () => {
 		expect(result!.novaGroup).toBe(3);
 	});
 
-	test('nova_group out of range (5) causes Zod rejection and returns null', async () => {
+	test('nova_group out of range (5) becomes null instead of dropping the product', async () => {
 		const response = {
 			status: 1,
 			product: {
@@ -347,7 +351,8 @@ describe('fetchProduct', () => {
 
 		const result = await fetchProduct(VALID_BARCODE);
 
-		expect(result).toBeNull();
+		expect(result?.name).toBe('Bad Nova Food');
+		expect(result?.novaGroup).toBeNull();
 	});
 
 	test('returns null when product field is absent despite status 1', async () => {
@@ -586,12 +591,28 @@ describe('lookupProduct', () => {
 		expect(await lookupProduct(VALID_BARCODE)).toEqual({ status: 'not_found' });
 	});
 
-	test('a product that fails validation counts as not found', async () => {
-		fetchSpy.mockResolvedValueOnce(
-			new Response(JSON.stringify({ status: 1, product: { nutriscore_grade: 'z' } }))
-		);
+	test('a product that is not an object at all is invalid, not not-found', async () => {
+		fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ status: 1, product: 'gone' })));
 
-		expect(await lookupProduct(VALID_BARCODE)).toEqual({ status: 'not_found' });
+		expect(await lookupProduct(VALID_BARCODE)).toEqual({
+			status: 'invalid',
+			issues: ['(root): invalid_type']
+		});
+	});
+
+	test('status 1 without a product is invalid', async () => {
+		fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ status: 1 })));
+
+		expect((await lookupProduct(VALID_BARCODE)).status).toBe('invalid');
+	});
+
+	test('a response without a numeric status is invalid', async () => {
+		fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ status: 'ok', product: {} })));
+
+		expect(await lookupProduct(VALID_BARCODE)).toEqual({
+			status: 'invalid',
+			issues: ['status: invalid_type']
+		});
 	});
 
 	test('a 429 is transient and carries Retry-After', async () => {
@@ -659,5 +680,148 @@ describe('parseRetryAfter', () => {
 	test('ignores a missing or unreadable header', () => {
 		expect(parseRetryAfter(null)).toBeNull();
 		expect(parseRetryAfter('soon')).toBeNull();
+	});
+});
+
+describe('real-shaped Open Food Facts products', () => {
+	const respond = (product: Record<string, unknown>) =>
+		fetchSpy.mockResolvedValueOnce(
+			new Response(JSON.stringify({ code: '6111180000231', status: 1, product }))
+		);
+
+	const realProduct = {
+		product_name: 'Lait demi-écrémé',
+		brands: 'Centrale Danone',
+		nova_group: 1,
+		additives_tags: [],
+		ingredients_text: 'Lait demi-écrémé pasteurisé',
+		image_front_url:
+			'https://images.openfoodfacts.org/images/products/611/118/000/0231/front_fr.4.400.jpg',
+		categories_tags: ['en:dairies', 'en:milks', 'en:semi-skimmed-milks'],
+		nutriments: {
+			'energy-kcal_100g': 46,
+			proteins_100g: 3.1,
+			carbohydrates_100g: 4.8,
+			sugars_100g: 4.8,
+			fat_100g: 1.5,
+			'saturated-fat_100g': 1,
+			salt_100g: 0.1,
+			sodium_100g: 0.04,
+			calcium_100g: 0.12
+		}
+	};
+
+	test('nutriscore_grade "not-applicable" keeps everything else', async () => {
+		respond({ ...realProduct, nutriscore_grade: 'not-applicable' });
+
+		const result = await lookupProduct('6111180000231');
+
+		expect(result.status).toBe('found');
+		if (result.status !== 'found') return;
+		expect(result.product).toMatchObject({
+			name: 'Lait demi-écrémé',
+			nutriScore: null,
+			novaGroup: 1,
+			ingredientsText: 'Lait demi-écrémé pasteurisé',
+			imageUrl: realProduct.image_front_url,
+			sugar: 4.8,
+			calcium: 120
+		});
+	});
+
+	test('nutriscore_grade "unknown" becomes null', async () => {
+		respond({ ...realProduct, nutriscore_grade: 'unknown' });
+
+		const result = await lookupProduct('6111180000231');
+
+		expect(result.status === 'found' && result.product.nutriScore).toBeNull();
+	});
+
+	test('an empty nova_group becomes null', async () => {
+		respond({ ...realProduct, nutriscore_grade: 'b', nova_group: '' });
+
+		const result = await lookupProduct('6111180000231');
+
+		expect(result.status).toBe('found');
+		if (result.status !== 'found') return;
+		expect(result.product.novaGroup).toBeNull();
+		expect(result.product.nutriScore).toBe('b');
+	});
+
+	test('a null nutriment is dropped instead of failing the product', async () => {
+		respond({
+			...realProduct,
+			nutriments: { ...realProduct.nutriments, fiber_100g: null, 'trans-fat_100g': null }
+		});
+
+		const result = await lookupProduct('6111180000231');
+
+		expect(result.status).toBe('found');
+		if (result.status !== 'found') return;
+		expect(result.product.fiber).toBe(0);
+		expect(result.product.transFat).toBeNull();
+		expect(result.product.sugar).toBe(4.8);
+	});
+
+	test('bad optional fields become empty instead of failing the product', async () => {
+		respond({
+			...realProduct,
+			product_name: null,
+			brands: 42,
+			ingredients_text: 'x'.repeat(20_000),
+			image_front_url: 'not a url',
+			additives_tags: ['en:e330', 7, 'x'.repeat(200)],
+			categories_tags: 'en:milks',
+			nutriments: 'n/a'
+		});
+
+		const result = await lookupProduct('6111180000231');
+
+		expect(result.status).toBe('found');
+		if (result.status !== 'found') return;
+		expect(result.product).toMatchObject({
+			name: '',
+			brand: '',
+			ingredientsText: null,
+			imageUrl: null,
+			additives: ['en:e330'],
+			categoriesTags: [],
+			calories: 0
+		});
+	});
+
+	test('the scan route gets the same leniency', async () => {
+		respond({ ...realProduct, nutriscore_grade: 'not-applicable', nova_group: '' });
+
+		const product = await fetchProduct('6111180000231');
+
+		expect(product?.name).toBe('Lait demi-écrémé');
+		expect(product?.nutriScore).toBeNull();
+		expect(product?.novaGroup).toBeNull();
+	});
+});
+
+describe('schema drift reporting', () => {
+	beforeEach(() => sentry.captureMessage.mockClear());
+
+	test('reports one warning per kind of drift', async () => {
+		vi.resetModules();
+		const { lookupProduct } = await import('../../src/lib/server/openfoodfacts');
+		for (let i = 0; i < 3; i++) {
+			fetchSpy.mockResolvedValueOnce(
+				new Response(JSON.stringify({ status: 1, product: ['drift'] }))
+			);
+			expect((await lookupProduct(VALID_BARCODE)).status).toBe('invalid');
+		}
+
+		expect(sentry.captureMessage).toHaveBeenCalledTimes(1);
+		expect(sentry.captureMessage).toHaveBeenCalledWith(
+			'Open Food Facts response failed schema validation',
+			expect.objectContaining({ level: 'warning' })
+		);
+
+		fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ status: null })));
+		await lookupProduct(VALID_BARCODE);
+		expect(sentry.captureMessage).toHaveBeenCalledTimes(2);
 	});
 });

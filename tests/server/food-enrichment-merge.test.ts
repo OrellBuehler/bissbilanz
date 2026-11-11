@@ -93,7 +93,7 @@ describe('mergeOffProduct', () => {
 		}
 	});
 
-	test('takes quality data from the product when present', () => {
+	test('takes quality data from the product when the food has none', () => {
 		expect(mergeOffProduct(food(), product())).toMatchObject({
 			nutriScore: 'c',
 			novaGroup: 3,
@@ -102,19 +102,38 @@ describe('mergeOffProduct', () => {
 		});
 	});
 
-	test('keeps stored quality data when the product has none', () => {
-		const stored = food({
-			nutriScore: 'a',
-			novaGroup: 1,
-			additives: ['en:e300'],
-			ingredientsText: 'Oats'
-		});
+	test('Open Food Facts wins for Nutri-Score and NOVA group', () => {
+		const patch = mergeOffProduct(food({ nutriScore: 'a', novaGroup: 1 }), product());
+		expect(patch.nutriScore).toBe('c');
+		expect(patch.novaGroup).toBe(3);
+	});
+
+	test('keeps stored scores when the product has none', () => {
 		const patch = mergeOffProduct(
-			stored,
-			product({ nutriScore: null, novaGroup: null, additives: [], ingredientsText: '  ' })
+			food({ nutriScore: 'a', novaGroup: 1 }),
+			product({ nutriScore: null, novaGroup: null })
 		);
 		expect(patch).not.toHaveProperty('nutriScore');
 		expect(patch).not.toHaveProperty('novaGroup');
+	});
+
+	test('never replaces ingredients or additives the user entered', () => {
+		const patch = mergeOffProduct(
+			food({ additives: ['en:e300'], ingredientsText: 'Oats' }),
+			product()
+		);
+		expect(patch).not.toHaveProperty('additives');
+		expect(patch).not.toHaveProperty('ingredientsText');
+	});
+
+	test('fills blank ingredients and empty additives', () => {
+		const patch = mergeOffProduct(food({ additives: [], ingredientsText: ' \n ' }), product());
+		expect(patch.additives).toEqual(['en:e330']);
+		expect(patch.ingredientsText).toBe('Oats, sugar');
+	});
+
+	test('leaves fields alone when the product has nothing for them', () => {
+		const patch = mergeOffProduct(food(), product({ additives: [], ingredientsText: '  ' }));
 		expect(patch).not.toHaveProperty('additives');
 		expect(patch).not.toHaveProperty('ingredientsText');
 	});
@@ -180,16 +199,20 @@ describe('mergeOffProduct', () => {
 		expect(patch).not.toHaveProperty('potassium');
 	});
 
-	test('overwrites a stored nutrient with the scaled product value', () => {
-		expect(mergeOffProduct(food({ servingSize: 50, sugar: 3 }), product()).sugar).toBe(10);
+	test('never replaces a nutrient the user entered', () => {
+		const patch = mergeOffProduct(food({ servingSize: 50, sugar: 3 }), product());
+		expect(patch).not.toHaveProperty('sugar');
+		expect(patch.sodium).toBe(200);
 	});
 
-	test('treats float noise against the stored value as unchanged', () => {
-		const patch = mergeOffProduct(
-			food({ servingSize: 30, sugar: 6.0000001 }),
-			product({ sodium: null })
-		);
+	test('never writes an Open Food Facts zero over a stored value, and keeps a stored zero', () => {
+		const patch = mergeOffProduct(food({ sugar: 4, sodium: 0 }), product({ sugar: 0 }));
 		expect(patch).not.toHaveProperty('sugar');
+		expect(patch).not.toHaveProperty('sodium');
+	});
+
+	test('fills a missing nutrient with an Open Food Facts zero', () => {
+		expect(mergeOffProduct(food(), product({ sugar: 0 })).sugar).toBe(0);
 	});
 
 	test('skips negative or non-finite product nutrients', () => {

@@ -12,7 +12,8 @@ vi.mock('$lib/api/client', () => ({ api: { GET: h.GET, POST: h.POST, DELETE: h.D
 vi.mock('@sentry/sveltekit', () => ({ addBreadcrumb: h.addBreadcrumb, captureException: vi.fn() }));
 vi.mock('$lib/stores/offline-queue', () => ({ enqueue: vi.fn() }));
 
-const { foodService } = await import('../../src/lib/services/food-service.svelte');
+const { foodService, FoodEnrichmentRequestError } =
+	await import('../../src/lib/services/food-service.svelte');
 
 const FOOD_ID = '10000000-0000-4000-8000-000000000010';
 
@@ -61,14 +62,18 @@ describe('foodService.enrichFromOff', () => {
 	});
 
 	test('tells an unknown product apart from other failures', async () => {
-		h.POST.mockResolvedValueOnce(respond(404, { error: { error: 'Product not found' } }));
+		h.POST.mockResolvedValueOnce(
+			respond(404, { error: { error: 'Product not found', code: 'product_not_found' } })
+		);
 		expect(await foodService.enrichFromOff(FOOD_ID)).toBe('not_found');
 
-		h.POST.mockResolvedValueOnce(respond(404, { error: { error: 'Food not found' } }));
+		h.POST.mockResolvedValueOnce(
+			respond(404, { error: { error: 'Food not found', code: 'food_not_found' } })
+		);
 		expect(await foodService.enrichFromOff(FOOD_ID)).toBe('failed');
 
 		h.POST.mockResolvedValueOnce(
-			respond(503, { error: { error: 'Open Food Facts is unavailable' } })
+			respond(503, { error: { error: 'Open Food Facts is unavailable', code: 'off_unavailable' } })
 		);
 		expect(await foodService.enrichFromOff(FOOD_ID)).toBe('failed');
 		expect(h.addBreadcrumb).toHaveBeenCalledTimes(2);
@@ -102,10 +107,18 @@ describe('foodService enrichment runs', () => {
 		});
 	});
 
-	test('throws on a failed response', async () => {
+	test('a failed response is a request error with its status', async () => {
 		h.GET.mockResolvedValue(respond(500, { error: { error: 'Internal server error' } }));
-		await expect(foodService.enrichmentStatus()).rejects.toThrow(
-			'food enrichment status failed: 500'
-		);
+		const error = await foodService.enrichmentStatus().catch((caught: unknown) => caught);
+		expect(error).toBeInstanceOf(FoodEnrichmentRequestError);
+		expect(error).toMatchObject({ status: 500 });
+	});
+
+	test('a network failure is a request error with status 0 and the cause', async () => {
+		const offline = new TypeError('Failed to fetch');
+		h.POST.mockRejectedValue(offline);
+		const error = await foodService.startEnrichment().catch((caught: unknown) => caught);
+		expect(error).toBeInstanceOf(FoodEnrichmentRequestError);
+		expect(error).toMatchObject({ status: 0, cause: offline });
 	});
 });

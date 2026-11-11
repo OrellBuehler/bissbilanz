@@ -283,7 +283,7 @@ export const toFoodUpdate = (input: FoodUpdateInput) => {
 const offCheckedAtAfterBarcodeChange = (barcode: string | null) =>
 	sql`CASE WHEN ${foods.barcode} IS NOT DISTINCT FROM ${barcode} THEN ${foods.offCheckedAt} END`;
 
-export type FoodServerWrite = { offCheckedAt?: Date; where?: SQL };
+export type FoodServerWrite = { offCheckedAt?: Date; where?: SQL; keepUpdatedAt?: boolean };
 
 export const updateFood = (
 	userId: string,
@@ -310,7 +310,11 @@ export const updateFood = (
 					: undefined);
 			const [updated] = await db
 				.update(foods)
-				.set({ ...update, offCheckedAt, updatedAt: lwwStamp(clientEditedAt) })
+				.set({
+					...update,
+					offCheckedAt,
+					updatedAt: server.keepUpdatedAt ? undefined : lwwStamp(clientEditedAt)
+				})
 				.where(
 					and(
 						eq(foods.id, id),

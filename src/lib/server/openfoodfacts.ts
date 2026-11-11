@@ -20,32 +20,49 @@ const OFF_FIELDS = [
 	'nutriments'
 ].join(',');
 
-const nutriScoreEnum = z.enum(['a', 'b', 'c', 'd', 'e']);
+const MAX_TAGS = 100;
+
+const lenientTags = (maxLength: number) =>
+	z
+		.array(z.unknown())
+		.catch([])
+		.transform((tags) =>
+			tags
+				.filter((tag): tag is string => typeof tag === 'string' && tag.length <= maxLength)
+				.slice(0, MAX_TAGS)
+		);
 
 const offProductSchema = z.object({
-	product_name: z.string().max(500).optional().default(''),
-	brands: z.string().max(500).optional().default(''),
-	nutriscore_grade: nutriScoreEnum.optional().nullable(),
-	nova_group: z.coerce.number().int().min(1).max(4).optional().nullable(),
-	additives_tags: z.array(z.string().max(100)).max(100).optional().default([]),
-	ingredients_text: z.string().max(10000).optional().nullable(),
-	image_front_url: z.string().url().max(2000).optional().nullable(),
-	categories_tags: z.array(z.string().max(200)).max(100).optional().default([]),
+	product_name: z.string().max(500).catch(''),
+	brands: z.string().max(500).catch(''),
+	nutriscore_grade: z.enum(['a', 'b', 'c', 'd', 'e']).nullable().catch(null),
+	nova_group: z.coerce.number().int().min(1).max(4).nullable().catch(null),
+	additives_tags: lenientTags(100),
+	ingredients_text: z.string().max(10000).nullable().catch(null),
+	image_front_url: z.string().url().max(2000).nullable().catch(null),
+	categories_tags: lenientTags(200),
 	nutriments: z
-		.record(z.string(), z.union([z.number(), z.string()]))
-		.optional()
-		.default({})
+		.record(z.string(), z.unknown())
+		.catch({})
+		.transform((values) =>
+			Object.fromEntries(
+				Object.entries(values).filter(
+					(entry): entry is [string, number | string] =>
+						typeof entry[1] === 'number' || typeof entry[1] === 'string'
+				)
+			)
+		)
 });
 
 const offResponseSchema = z.object({
 	status: z.number(),
-	product: offProductSchema.optional()
+	product: z.unknown().optional()
 });
 
 const offSearchResponseSchema = z.object({
 	products: z.array(
 		offProductSchema.extend({
-			code: z.string().optional().default('')
+			code: z.string().catch('')
 		})
 	)
 });
@@ -110,12 +127,34 @@ function requestProduct(barcode: string): Promise<Response> {
 	});
 }
 
-function parseProduct(json: unknown, barcode: string): OFFProduct | null {
-	const parsed = offResponseSchema.safeParse(json);
-	if (!parsed.success || parsed.data.status !== 1 || !parsed.data.product) {
-		return null;
+type ParsedProduct =
+	| { kind: 'found'; product: OFFProduct }
+	| { kind: 'not_found' }
+	| { kind: 'invalid'; issues: string[] };
+
+const reportedDrift = new Set<string>();
+
+function invalidProduct(error: z.ZodError, barcode: string): ParsedProduct {
+	const issues = error.issues.map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.code}`);
+	const signature = [...issues].sort().join('|');
+	if (!reportedDrift.has(signature)) {
+		reportedDrift.add(signature);
+		Sentry.captureMessage('Open Food Facts response failed schema validation', {
+			level: 'warning',
+			fingerprint: ['off-schema-drift', signature],
+			extra: { barcode, issues }
+		});
 	}
-	return mapSearchProduct(parsed.data.product, barcode);
+	return { kind: 'invalid', issues };
+}
+
+function parseProduct(json: unknown, barcode: string): ParsedProduct {
+	const response = offResponseSchema.safeParse(json);
+	if (!response.success) return invalidProduct(response.error, barcode);
+	if (response.data.status !== 1) return { kind: 'not_found' };
+	const product = offProductSchema.safeParse(response.data.product);
+	if (!product.success) return invalidProduct(product.error, barcode);
+	return { kind: 'found', product: mapSearchProduct(product.data, barcode) };
 }
 
 export async function fetchProduct(barcode: string): Promise<OFFProduct | null> {
@@ -125,12 +164,14 @@ export async function fetchProduct(barcode: string): Promise<OFFProduct | null> 
 		return null;
 	}
 
-	return parseProduct(await response.json(), barcode);
+	const parsed = parseProduct(await response.json(), barcode);
+	return parsed.kind === 'found' ? parsed.product : null;
 }
 
 export type OFFLookup =
 	| { status: 'found'; product: OFFProduct }
 	| { status: 'not_found' }
+	| { status: 'invalid'; issues: string[] }
 	| {
 			status: 'unavailable';
 			httpStatus: number | null;
@@ -175,8 +216,10 @@ export async function lookupProduct(barcode: string): Promise<OFFLookup> {
 		return { status: 'unavailable', httpStatus: response.status, retryAfterSeconds: null, error };
 	}
 
-	const product = parseProduct(json, barcode);
-	return product ? { status: 'found', product } : { status: 'not_found' };
+	const parsed = parseProduct(json, barcode);
+	if (parsed.kind === 'found') return { status: 'found', product: parsed.product };
+	if (parsed.kind === 'invalid') return { status: 'invalid', issues: parsed.issues };
+	return { status: 'not_found' };
 }
 
 export async function searchProducts(query: string, limit?: number): Promise<OFFProduct[]> {

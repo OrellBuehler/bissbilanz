@@ -134,6 +134,42 @@ export const foodEnrichmentStatusResponseSchema = z
 	})
 	.meta({ id: 'FoodEnrichmentStatusResponse' });
 
+export const foodEnrichOutcomeValues = ['updated', 'unchanged'] as const;
+
+export const foodEnrichResponseSchema = z
+	.object({
+		food: foodSchema,
+		outcome: z.string().meta({
+			description:
+				'updated: the lookup changed the food (fields or labels); unchanged: Open Food Facts had nothing new. Unknown values should be treated like unchanged.',
+			'x-extensible-enum': [...foodEnrichOutcomeValues]
+		})
+	})
+	.meta({ id: 'FoodEnrichResponse' });
+
+export const foodEnrichErrorCodeValues = [
+	'no_barcode',
+	'food_not_found',
+	'product_not_found',
+	'food_changed',
+	'off_invalid_response',
+	'off_unavailable'
+] as const;
+
+export const foodEnrichErrorResponseSchema = z
+	.object({
+		error: z.string(),
+		code: z
+			.string()
+			.meta({
+				description:
+					'Machine-readable reason. Absent on generic failures such as an invalid id. Unknown values should be treated as a generic failure of the given status.',
+				'x-extensible-enum': [...foodEnrichErrorCodeValues]
+			})
+			.optional()
+	})
+	.meta({ id: 'FoodEnrichErrorResponse' });
+
 export const foodResponseSchema = z
 	.object({
 		food: foodSchema

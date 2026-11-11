@@ -30,21 +30,26 @@ let started = false;
 
 export function backoffMs(attempt: number, retryAfterSeconds: number | null): number {
 	const ms =
-		retryAfterSeconds !== null ? retryAfterSeconds * 1000 : BASE_BACKOFF_MS * 3 ** (attempt - 1);
+		retryAfterSeconds !== null
+			? Math.max(retryAfterSeconds * 1000, BASE_BACKOFF_MS)
+			: BASE_BACKOFF_MS * 3 ** (attempt - 1);
 	return Math.min(ms, MAX_BACKOFF_MS);
 }
 
 async function waitForSlot(signal: AbortSignal): Promise<boolean> {
+	if (signal.aborted) return false;
 	const now = Date.now();
-	const at = Math.max(now, nextRequestAt);
+	const previous = nextRequestAt;
+	const at = Math.max(now, previous);
 	nextRequestAt = at + REQUEST_SPACING_MS;
-	if (at <= now) return !signal.aborted;
+	if (at <= now) return true;
 	try {
 		await delay(at - now, undefined, { signal });
 		return true;
 	} catch (error) {
-		if (signal.aborted) return false;
-		throw error;
+		if (!signal.aborted) throw error;
+		if (nextRequestAt === at + REQUEST_SPACING_MS) nextRequestAt = previous;
+		return false;
 	}
 }
 
@@ -72,22 +77,44 @@ async function lookupWithRetry(
 	}
 }
 
+const describeError = (error: unknown) =>
+	error instanceof Error ? `${error.name}: ${error.message}` : error == null ? null : String(error);
+
+type FailureCause = Record<string, unknown> & { reason: string };
+
+type ProcessedFood = { outcome: ItemOutcome; cause?: FailureCause };
+
 async function processFood(
 	userId: string,
 	food: EnrichmentCandidate,
 	signal: AbortSignal
-): Promise<ItemOutcome | null> {
+): Promise<ProcessedFood | null> {
 	const lookup = await lookupWithRetry(userId, food.barcode, signal);
 	if (!lookup) return null;
-	if (lookup.status === 'unavailable') return 'failed';
+	if (lookup.status === 'unavailable') {
+		return {
+			outcome: 'failed',
+			cause: {
+				reason: 'off_unavailable',
+				httpStatus: lookup.httpStatus,
+				error: describeError(lookup.error)
+			}
+		};
+	}
+	if (lookup.status === 'invalid') {
+		return {
+			outcome: 'failed',
+			cause: { reason: 'off_invalid_response', issues: lookup.issues }
+		};
+	}
 	try {
-		return (await applyLookup(userId, food.id, food.barcode, lookup)).status;
+		return { outcome: (await applyLookup(userId, food.id, food.barcode, lookup)).status };
 	} catch (error) {
 		Sentry.captureException(error, {
 			tags: { job: 'food-enrichment' },
 			extra: { foodId: food.id }
 		});
-		return 'failed';
+		return { outcome: 'failed', cause: { reason: 'error', error: describeError(error) } };
 	}
 }
 
@@ -103,11 +130,12 @@ export async function runEnrichmentJob(userId: string, signal: AbortSignal): Pro
 			return;
 		}
 		for (const food of batch) {
-			const outcome = await processFood(userId, food, signal);
-			if (!outcome) {
+			const processed = await processFood(userId, food, signal);
+			if (!processed) {
 				await releaseEnrichmentLease(userId, instanceId);
 				return;
 			}
+			const { outcome, cause } = processed;
 			const state = await recordEnrichmentProgress(userId, instanceId, food.id, outcome);
 			if (state !== 'running') {
 				if (state) await releaseEnrichmentLease(userId, instanceId);
@@ -116,11 +144,10 @@ export async function runEnrichmentJob(userId: string, signal: AbortSignal): Pro
 			cursor = food.id;
 			consecutiveFailures = outcome === 'failed' ? consecutiveFailures + 1 : 0;
 			if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-				Sentry.addBreadcrumb({
-					category: 'food-enrichment',
+				Sentry.captureMessage('Food enrichment run failed', {
 					level: 'warning',
-					message: 'Food enrichment stopped after repeated failures',
-					data: { consecutiveFailures }
+					tags: { job: 'food-enrichment' },
+					extra: { consecutiveFailures, foodId: food.id, ...cause }
 				});
 				await finishEnrichmentJob(userId, instanceId, 'failed');
 				return;

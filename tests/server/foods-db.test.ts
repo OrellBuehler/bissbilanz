@@ -264,8 +264,18 @@ describe('foods-db', () => {
 				where: sql`guard`
 			});
 			expect(lastSet().offCheckedAt).toBe(checkedAt);
+			expect(lastSet().updatedAt).toBeInstanceOf(Date);
 			const where = getCalls().findLast((call) => call.method === 'where')!.args[0];
 			expect(new PgDialect().sqlToQuery(where).sql).toContain('guard');
+		});
+
+		test('a server write can leave the last-write-wins clock alone', async () => {
+			setResult([TEST_FOOD]);
+			await updateFood(TEST_USER.id, TEST_FOOD.id, { nutriScore: 'b' }, null, {
+				keepUpdatedAt: true
+			});
+			expect(lastSet().updatedAt).toBeUndefined();
+			expect(lastSet().nutriScore).toBe('b');
 		});
 	});
 

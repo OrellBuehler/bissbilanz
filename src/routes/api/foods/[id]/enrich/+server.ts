@@ -1,17 +1,18 @@
 import * as Sentry from '@sentry/sveltekit';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { notFound, withAuthedResource } from '$lib/server/errors';
+import { withAuthedResource } from '$lib/server/errors';
 import { getFood } from '$lib/server/foods';
 import { enrichFood } from '$lib/server/food-enrichment/enrich';
 import { rateLimit } from '$lib/server/rate-limit';
 
+const failure = (status: number, code: string, error: string, headers?: HeadersInit) =>
+	json({ error, code }, { status, headers });
+
 export const POST: RequestHandler = withAuthedResource(async ({ userId, id }) => {
 	const food = await getFood(userId, id);
-	if (!food) return notFound('Food');
-	if (!food.barcode?.trim()) {
-		return json({ error: 'Food has no barcode' }, { status: 400 });
-	}
+	if (!food) return failure(404, 'food_not_found', 'Food not found');
+	if (!food.barcode?.trim()) return failure(400, 'no_barcode', 'Food has no barcode');
 
 	rateLimit(`off:${userId}`, 30, 60_000);
 	const result = await enrichFood(userId, id, food.barcode);
@@ -19,11 +20,17 @@ export const POST: RequestHandler = withAuthedResource(async ({ userId, id }) =>
 	switch (result.status) {
 		case 'updated':
 		case 'unchanged':
-			return json({ food: result.food });
+			return json({ food: result.food, outcome: result.status });
 		case 'not_found':
-			return json({ error: 'Product not found' }, { status: 404 });
+			return failure(404, 'product_not_found', 'Product not found');
 		case 'skipped':
-			return json({ error: 'Food changed during the lookup' }, { status: 409 });
+			return failure(409, 'food_changed', 'Food changed during the lookup');
+		case 'invalid':
+			return failure(
+				502,
+				'off_invalid_response',
+				'Open Food Facts returned a product that could not be read'
+			);
 		case 'unavailable':
 			Sentry.addBreadcrumb({
 				category: 'food-enrichment',
@@ -31,14 +38,11 @@ export const POST: RequestHandler = withAuthedResource(async ({ userId, id }) =>
 				message: 'Open Food Facts unavailable',
 				data: { httpStatus: result.httpStatus, retryAfterSeconds: result.retryAfterSeconds }
 			});
-			return json(
-				{ error: 'Open Food Facts is unavailable' },
-				{
-					status: 503,
-					headers: result.retryAfterSeconds
-						? { 'Retry-After': String(result.retryAfterSeconds) }
-						: undefined
-				}
+			return failure(
+				503,
+				'off_unavailable',
+				'Open Food Facts is unavailable',
+				result.retryAfterSeconds ? { 'Retry-After': String(result.retryAfterSeconds) } : undefined
 			);
 	}
 });

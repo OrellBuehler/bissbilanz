@@ -87,7 +87,7 @@ describe('applyLookup', () => {
 	test('not found stamps the marker without touching updatedAt', async () => {
 		queueResults([[stored({ offCheckedAt: new Date() })]]);
 
-		const outcome = await applyLookup(TEST_USER.id, TEST_FOOD.id, ` ${BARCODE}`, {
+		const outcome = await applyLookup(TEST_USER.id, TEST_FOOD.id, `${BARCODE}\u00a0\t`, {
 			status: 'not_found'
 		});
 
@@ -97,8 +97,8 @@ describe('applyLookup', () => {
 		expect(Object.keys(values)).toEqual(['offCheckedAt']);
 		expect(values.offCheckedAt).toBeInstanceOf(Date);
 		const guard = render(whereCalls()[0].args[0]);
-		expect(guard.sql).toContain('btrim("foods"."barcode")');
-		expect(guard.params).toContain(BARCODE);
+		expect(guard.sql).toContain('"foods"."barcode" = $3');
+		expect(guard.params).toContain(`${BARCODE}\u00a0\t`);
 	});
 
 	test('not found on a food that is gone is skipped', async () => {
@@ -128,6 +128,7 @@ describe('applyLookup', () => {
 			categoriesTags: ['en:cereals']
 		});
 		expect(server.offCheckedAt).toBeInstanceOf(Date);
+		expect(server.keepUpdatedAt).toBe(true);
 		const guard = render(server.where);
 		expect(guard.sql).toBe('"foods"."server_modified_at" = $1::timestamptz');
 		expect(guard.params).toEqual(['2026-11-11 10:00:00.123456+00']);
@@ -160,6 +161,20 @@ describe('applyLookup', () => {
 			})
 		).toEqual({ status: 'skipped' });
 		expect(h.updateFood).toHaveBeenCalledTimes(3);
+	});
+
+	test('matches the stored barcode exactly, whitespace included', async () => {
+		const raw = `${BARCODE}\u00a0`;
+		const updated = stored({ barcode: raw, nutriScore: 'b' });
+		queueResults([[stored({ barcode: raw })]]);
+		h.updateFood.mockResolvedValue({ success: true, data: updated });
+
+		const outcome = await applyLookup(TEST_USER.id, TEST_FOOD.id, raw, {
+			status: 'found',
+			product: product()
+		});
+
+		expect(outcome.status).toBe('updated');
 	});
 
 	test('skips a food that was deleted or got another barcode', async () => {
@@ -236,6 +251,14 @@ describe('enrichFood', () => {
 		h.lookupProduct.mockResolvedValue(unavailable);
 
 		expect(await enrichFood(TEST_USER.id, TEST_FOOD.id, BARCODE)).toEqual(unavailable);
+		expect(getCalls()).toEqual([]);
+	});
+
+	test('returns an unreadable product without writing', async () => {
+		const invalid = { status: 'invalid', issues: ['(root): invalid_type'] };
+		h.lookupProduct.mockResolvedValue(invalid);
+
+		expect(await enrichFood(TEST_USER.id, TEST_FOOD.id, BARCODE)).toEqual(invalid);
 		expect(getCalls()).toEqual([]);
 	});
 

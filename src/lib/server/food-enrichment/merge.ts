@@ -34,11 +34,11 @@ const isWebUrl = (value: string | null | undefined): value is string =>
 
 const round = (value: number) => Math.round(value * 10000) / 10000;
 
-const sameNumber = (a: number, b: number) =>
-	Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(a), Math.abs(b));
-
-const sameList = (a: readonly string[], b: readonly string[] | null) =>
-	b !== null && a.length === b.length && a.every((value, index) => value === b[index]);
+const isEmpty = (value: unknown) =>
+	value === null ||
+	value === undefined ||
+	(typeof value === 'string' && value.trim() === '') ||
+	(Array.isArray(value) && value.length === 0);
 
 export function mergeOffProduct(food: StoredFood, product: OFFProduct): Record<string, unknown> {
 	const patch: Record<string, unknown> = {};
@@ -49,10 +49,10 @@ export function mergeOffProduct(food: StoredFood, product: OFFProduct): Record<s
 	if (product.novaGroup != null && product.novaGroup !== food.novaGroup) {
 		patch.novaGroup = product.novaGroup;
 	}
-	if (product.additives.length > 0 && !sameList(product.additives, food.additives)) {
+	if (product.additives.length > 0 && isEmpty(food.additives)) {
 		patch.additives = product.additives;
 	}
-	if (hasText(product.ingredientsText) && product.ingredientsText !== food.ingredientsText) {
+	if (hasText(product.ingredientsText) && isEmpty(food.ingredientsText)) {
 		patch.ingredientsText = product.ingredientsText;
 	}
 	if (!hasText(food.imageUrl) && isWebUrl(product.imageUrl)) {
@@ -64,11 +64,9 @@ export function mergeOffProduct(food: StoredFood, product: OFFProduct): Record<s
 
 	for (const key of ALL_NUTRIENT_KEYS) {
 		const value = product[key];
+		if (!isEmpty(food[key])) continue;
 		if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) continue;
-		const scaled = round(value * scale);
-		const stored = food[key];
-		if (typeof stored === 'number' && sameNumber(stored, scaled)) continue;
-		patch[key] = scaled;
+		patch[key] = round(value * scale);
 	}
 	return patch;
 }

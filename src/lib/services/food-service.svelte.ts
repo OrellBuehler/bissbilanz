@@ -378,7 +378,7 @@ async function enrichFromOff(id: string): Promise<EnrichFromOffResult> {
 		await db.foods.put(data.food as unknown as DexieFood);
 		return 'updated';
 	}
-	if (response.status === 404 && error?.error === 'Product not found') return 'not_found';
+	if (error && 'code' in error && error.code === 'product_not_found') return 'not_found';
 	Sentry.addBreadcrumb({
 		category: 'food-enrichment',
 		level: 'warning',
@@ -391,27 +391,39 @@ async function enrichFromOff(id: string): Promise<EnrichFromOffResult> {
 export type FoodEnrichmentStatus =
 	paths['/api/foods/enrichment']['get']['responses']['200']['content']['application/json'];
 
-function enrichmentResult(
-	result: { data?: FoodEnrichmentStatus; response: Response },
-	action: string
-): FoodEnrichmentStatus {
-	if (!result.data) throw new Error(`food enrichment ${action} failed: ${result.response.status}`);
+export class FoodEnrichmentRequestError extends Error {
+	constructor(
+		readonly status: number,
+		options?: ErrorOptions
+	) {
+		super(`food enrichment request failed: ${status}`, options);
+		this.name = 'FoodEnrichmentRequestError';
+	}
+}
+
+async function enrichmentRequest(
+	send: () => Promise<{ data?: FoodEnrichmentStatus; response: Response }>
+): Promise<FoodEnrichmentStatus> {
+	let result: { data?: FoodEnrichmentStatus; response: Response };
+	try {
+		result = await send();
+	} catch (error) {
+		throw new FoodEnrichmentRequestError(0, { cause: error });
+	}
+	if (!result.data) throw new FoodEnrichmentRequestError(result.response.status);
 	return result.data;
 }
 
-async function enrichmentStatus(): Promise<FoodEnrichmentStatus> {
-	return enrichmentResult(await api.GET('/api/foods/enrichment'), 'status');
+function enrichmentStatus(): Promise<FoodEnrichmentStatus> {
+	return enrichmentRequest(() => api.GET('/api/foods/enrichment'));
 }
 
-async function startEnrichment(): Promise<FoodEnrichmentStatus> {
-	return enrichmentResult(await api.POST('/api/foods/enrichment', { headers: noQueue }), 'start');
+function startEnrichment(): Promise<FoodEnrichmentStatus> {
+	return enrichmentRequest(() => api.POST('/api/foods/enrichment', { headers: noQueue }));
 }
 
-async function cancelEnrichment(): Promise<FoodEnrichmentStatus> {
-	return enrichmentResult(
-		await api.DELETE('/api/foods/enrichment', { headers: noQueue }),
-		'cancel'
-	);
+function cancelEnrichment(): Promise<FoodEnrichmentStatus> {
+	return enrichmentRequest(() => api.DELETE('/api/foods/enrichment', { headers: noQueue }));
 }
 
 export const foodService = {

@@ -8,8 +8,11 @@ const h = vi.hoisted(() => ({
 	start: vi.fn(),
 	cancel: vi.fn(),
 	wake: vi.fn(),
-	abort: vi.fn()
+	abort: vi.fn(),
+	rateLimit: vi.fn()
 }));
+
+vi.mock('$lib/server/rate-limit', () => ({ rateLimit: h.rateLimit }));
 
 vi.mock('$lib/server/food-enrichment/jobs', () => ({
 	getEnrichmentStatus: h.getStatus,
@@ -22,6 +25,12 @@ vi.mock('$lib/server/food-enrichment/worker', () => ({
 }));
 
 const { GET, POST, DELETE } = await import('../../src/routes/api/foods/enrichment/+server');
+const { RateLimitError } = await import('$lib/server/errors');
+
+const throttle = () =>
+	h.rateLimit.mockImplementation(() => {
+		throw new RateLimitError(30);
+	});
 
 const job = (overrides: Record<string, unknown> = {}) => ({
 	state: 'running',
@@ -85,6 +94,17 @@ describe('POST /api/foods/enrichment', () => {
 		expect(response.status).toBe(202);
 		expect((await response.json()).job.state).toBe('queued');
 		expect(h.wake).toHaveBeenCalledWith(TEST_USER.id);
+		expect(h.rateLimit).toHaveBeenCalledWith(`food-enrichment:${TEST_USER.id}`, 10, 60_000);
+	});
+
+	test('is rate limited', async () => {
+		throttle();
+		const response = await POST(createMockEvent({ user: TEST_USER, method: 'POST' }));
+		await expectResponseContract('POST', '/api/foods/enrichment', response);
+
+		expect(response.status).toBe(429);
+		expect(response.headers.get('Retry-After')).toBe('30');
+		expect(h.start).not.toHaveBeenCalled();
 	});
 
 	test('returns the active run without waking a second one', async () => {
@@ -117,5 +137,15 @@ describe('DELETE /api/foods/enrichment', () => {
 		expect((await response.json()).job.state).toBe('cancelled');
 		expect(h.cancel).toHaveBeenCalledWith(TEST_USER.id);
 		expect(h.abort).toHaveBeenCalledWith(TEST_USER.id);
+	});
+
+	test('is rate limited', async () => {
+		throttle();
+		const response = await DELETE(createMockEvent({ user: TEST_USER, method: 'DELETE' }));
+		await expectResponseContract('DELETE', '/api/foods/enrichment', response);
+
+		expect(response.status).toBe(429);
+		expect(h.cancel).not.toHaveBeenCalled();
+		expect(h.abort).not.toHaveBeenCalled();
 	});
 });

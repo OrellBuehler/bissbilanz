@@ -361,11 +361,6 @@
 				},
 				{
 					"method": "POST",
-					"operationId": "enrichFood",
-					"path": "/api/foods/{id}/enrich"
-				},
-				{
-					"method": "POST",
 					"operationId": "saveCatalogFood",
 					"path": "/api/catalog/{id}/save"
 				},

@@ -8,6 +8,7 @@ import {
 	runTestMigrations
 } from './helpers';
 import { foodEnrichmentJobs, foodLabels, foods, users } from '$lib/server/schema';
+import { CLIENT_EDITED_AT_HEADER } from '$lib/sync/contract';
 
 const DB_NAME = 'test_food_enrichment';
 let dbUrl: string;
@@ -132,7 +133,7 @@ describe('candidate rule', () => {
 });
 
 describe('applyLookup', () => {
-	it('merges a found product through the update path and bumps both clocks', async () => {
+	it('merges a found product but moves only server_modified_at, not the edit clock', async () => {
 		const { applyLookup } = await import('$lib/server/food-enrichment/enrich');
 		const food = await addFood({
 			barcode: '4000000000017',
@@ -163,9 +164,55 @@ describe('applyLookup', () => {
 			sodium: 120
 		});
 		expect(after.food.offCheckedAt).toBeInstanceOf(Date);
-		expect(after.food.updatedAt!.getTime()).toBeGreaterThan(before.food.updatedAt!.getTime());
+		expect(after.food.updatedAt!.getTime()).toBe(before.food.updatedAt!.getTime());
 		expect(after.serverModifiedAt).not.toBe(before.serverModifiedAt);
 		if (outcome.status === 'updated') expect(outcome.food.labels).toContain('breakfast cereal');
+	});
+
+	it('never replaces what the user entered, but takes over the scores', async () => {
+		const { applyLookup } = await import('$lib/server/food-enrichment/enrich');
+		const food = await addFood({
+			barcode: '4000000000017',
+			servingSize: 30,
+			nutriScore: 'a',
+			novaGroup: 1,
+			additives: ['en:e300'],
+			ingredientsText: 'My own list',
+			sugar: 2,
+			sodium: 0
+		});
+
+		await applyLookup(userId, food.id, '4000000000017', {
+			status: 'found',
+			product: product({ sugar: 0, potassium: 500 }) as never
+		});
+
+		expect((await readFood(food.id)).food).toMatchObject({
+			nutriScore: 'b',
+			novaGroup: 2,
+			additives: ['en:e300'],
+			ingredientsText: 'My own list',
+			sugar: 2,
+			sodium: 0,
+			potassium: 150
+		});
+	});
+
+	it('works with whitespace around the stored barcode', async () => {
+		const { applyLookup, enrichFood } = await import('$lib/server/food-enrichment/enrich');
+		const tab = await addFood({ barcode: '4000000000017\t' });
+		const nbsp = await addFood({ barcode: '4000000000024\u00a0' });
+		lookupProduct.mockResolvedValue({ status: 'not_found' });
+
+		expect((await enrichFood(userId, tab.id, '4000000000017\t')).status).toBe('not_found');
+		expect(lookupProduct).toHaveBeenCalledWith('4000000000017');
+		expect((await readFood(tab.id)).food.offCheckedAt).toBeInstanceOf(Date);
+
+		const outcome = await applyLookup(userId, nbsp.id, '4000000000024\u00a0', {
+			status: 'found',
+			product: product() as never
+		});
+		expect(outcome.status).toBe('updated');
 	});
 
 	it('keeps an existing photo', async () => {
@@ -206,6 +253,51 @@ describe('applyLookup', () => {
 			status: 'skipped'
 		});
 		expect((await readFood(theirs.id)).food.offCheckedAt).toBeNull();
+	});
+});
+
+describe('offline replays after an enrichment', () => {
+	const event = (method: 'PATCH' | 'DELETE', id: string, editedAt: Date, body?: unknown) =>
+		({
+			request: new Request(`http://localhost/api/foods/${id}`, {
+				method,
+				headers: {
+					'content-type': 'application/json',
+					[CLIENT_EDITED_AT_HEADER]: editedAt.toISOString()
+				},
+				body: body === undefined ? undefined : JSON.stringify(body)
+			}),
+			url: new URL(`http://localhost/api/foods/${id}`),
+			params: { id },
+			locals: { user: { id: userId } }
+		}) as never;
+
+	it('an edit and a delete queued before the job still land', async () => {
+		const { applyLookup } = await import('$lib/server/food-enrichment/enrich');
+		const { PATCH, DELETE } = await import('../../src/routes/api/foods/[id]/+server');
+		const edited = await addFood({ barcode: '4000000000017', updatedAt: daysAgo(3) });
+		const deleted = await addFood({ barcode: '4000000000024', updatedAt: daysAgo(3) });
+		const queuedAt = daysAgo(2);
+
+		await applyLookup(userId, edited.id, '4000000000017', {
+			status: 'found',
+			product: product() as never
+		});
+		await applyLookup(userId, deleted.id, '4000000000024', {
+			status: 'found',
+			product: product({ barcode: '4000000000024' }) as never
+		});
+
+		const patch = await PATCH(event('PATCH', edited.id, queuedAt, { name: 'Renamed offline' }));
+		expect(patch.status).toBe(200);
+		const after = (await readFood(edited.id)).food;
+		expect(after.name).toBe('Renamed offline');
+		expect(after.nutriScore).toBe('b');
+		expect(after.updatedAt!.getTime()).toBe(queuedAt.getTime());
+
+		const removal = await DELETE(event('DELETE', deleted.id, queuedAt));
+		expect(removal.status).toBe(204);
+		expect(await readFood(deleted.id)).toBeUndefined();
 	});
 });
 
@@ -318,6 +410,69 @@ describe('worker', () => {
 		).toHaveLength(4);
 		const [row] = await getTestDB(dbUrl).select().from(foodEnrichmentJobs);
 		expect(row.leaseOwner).toBeNull();
+	});
+
+	it('enriches a real-shaped product that Open Food Facts gives no Nutri-Score', async () => {
+		const jobs = await import('$lib/server/food-enrichment/jobs');
+		const { runEnrichmentJob } = await import('$lib/server/food-enrichment/worker');
+		const actual = await vi.importActual<typeof import('$lib/server/openfoodfacts')>(
+			'$lib/server/openfoodfacts'
+		);
+		lookupProduct.mockImplementation(actual.lookupProduct);
+		const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					code: '6111180000231',
+					status: 1,
+					product: {
+						product_name: 'Lait demi-écrémé',
+						nutriscore_grade: 'not-applicable',
+						nova_group: '',
+						additives_tags: [],
+						ingredients_text: 'Lait demi-écrémé pasteurisé',
+						image_front_url: 'https://images.openfoodfacts.org/images/products/milk.jpg',
+						categories_tags: ['en:milks'],
+						nutriments: { sugars_100g: 4.8, fiber_100g: null, calcium_100g: 0.12 }
+					}
+				})
+			)
+		);
+		const food = await addFood({ barcode: '6111180000231', servingSize: 250, servingUnit: 'ml' });
+
+		await jobs.startEnrichmentJob(userId);
+		await runEnrichmentJob(userId, new AbortController().signal);
+		fetchSpy.mockRestore();
+
+		expect((await jobs.getEnrichmentStatus(userId)).job).toMatchObject({
+			state: 'completed',
+			updated: 1,
+			notFound: 0
+		});
+		expect((await readFood(food.id)).food).toMatchObject({
+			nutriScore: null,
+			novaGroup: null,
+			ingredientsText: 'Lait demi-écrémé pasteurisé',
+			imageUrl: 'https://images.openfoodfacts.org/images/products/milk.jpg',
+			sugar: 12,
+			calcium: 300
+		});
+	});
+
+	it('does not mark a food checked when the product cannot be read', async () => {
+		const jobs = await import('$lib/server/food-enrichment/jobs');
+		const { runEnrichmentJob } = await import('$lib/server/food-enrichment/worker');
+		lookupProduct.mockResolvedValue({ status: 'invalid', issues: ['(root): invalid_type'] });
+		const food = await addFood({ barcode: '4000000000017' });
+
+		await jobs.startEnrichmentJob(userId);
+		await runEnrichmentJob(userId, new AbortController().signal);
+
+		expect((await jobs.getEnrichmentStatus(userId)).job).toMatchObject({
+			state: 'completed',
+			failed: 1,
+			notFound: 0
+		});
+		expect((await readFood(food.id)).food.offCheckedAt).toBeNull();
 	});
 
 	it('resumes a job whose lease went stale after a restart', async () => {

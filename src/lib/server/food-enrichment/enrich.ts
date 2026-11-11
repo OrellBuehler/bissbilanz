@@ -15,6 +15,8 @@ export type EnrichOutcome =
 	{ status: 'updated' | 'unchanged' | 'not_found'; food: FoodWithLabels } | { status: 'skipped' };
 
 export type UnavailableLookup = Extract<OFFLookup, { status: 'unavailable' }>;
+export type InvalidLookup = Extract<OFFLookup, { status: 'invalid' }>;
+export type DefiniteLookup = Exclude<OFFLookup, UnavailableLookup | InvalidLookup>;
 
 export function lookupBarcode(barcode: string): Promise<OFFLookup> {
 	const normalized = normalizeBarcode(barcode);
@@ -50,16 +52,10 @@ export async function applyLookup(
 	userId: string,
 	foodId: string,
 	barcode: string,
-	lookup: Exclude<OFFLookup, UnavailableLookup>
+	lookup: DefiniteLookup
 ): Promise<EnrichOutcome> {
-	const normalized = normalizeBarcode(barcode);
-
 	if (lookup.status === 'not_found') {
-		const food = await stampOffChecked(
-			userId,
-			foodId,
-			sql`btrim(${foods.barcode}) = ${normalized}`
-		);
+		const food = await stampOffChecked(userId, foodId, eq(foods.barcode, barcode));
 		return food ? { status: 'not_found', food } : { status: 'skipped' };
 	}
 
@@ -67,7 +63,7 @@ export async function applyLookup(
 	let seeded = false;
 	for (let attempt = 0; attempt < MAX_WRITE_ATTEMPTS; attempt++) {
 		const current = await readVersioned(userId, foodId);
-		if (!current || normalizeBarcode(current.barcode ?? '') !== normalized) {
+		if (!current || current.barcode !== barcode) {
 			return { status: 'skipped' };
 		}
 		const unchanged = sql`${foods.serverModifiedAt} = ${current.version}::timestamptz`;
@@ -80,7 +76,8 @@ export async function applyLookup(
 			const updated = unwrapResult(
 				await updateFood(userId, foodId, payload, null, {
 					offCheckedAt: new Date(),
-					where: unchanged
+					where: unchanged,
+					keepUpdatedAt: true
 				})
 			);
 			if (updated) return { status: 'updated', food: updated };
@@ -97,7 +94,7 @@ export async function applyLookup(
 	return { status: 'skipped' };
 }
 
-export type EnrichResult = EnrichOutcome | UnavailableLookup;
+export type EnrichResult = EnrichOutcome | UnavailableLookup | InvalidLookup;
 
 export async function enrichFood(
 	userId: string,
@@ -105,6 +102,6 @@ export async function enrichFood(
 	barcode: string
 ): Promise<EnrichResult> {
 	const lookup = await lookupBarcode(barcode);
-	if (lookup.status === 'unavailable') return lookup;
+	if (lookup.status === 'unavailable' || lookup.status === 'invalid') return lookup;
 	return applyLookup(userId, foodId, barcode, lookup);
 }
