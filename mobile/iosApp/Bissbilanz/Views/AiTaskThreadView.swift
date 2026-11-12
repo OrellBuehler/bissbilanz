@@ -9,8 +9,8 @@ struct AiTaskThreadView: View {
     let task: AiTask
     let thread: AiTaskClaudeThread
 
-    /// Mirrors the store's text for the field, so an over-long paste can be
-    /// cut back reliably; the store's copy is what survives the row.
+    /// The field's own text, so an over-long paste can be cut back reliably.
+    /// Every edit is written to the store, whose copy is what survives the row.
     @State private var text = ""
     /// Closed until the user asks to reply, so a list of finished meals is not
     /// a column of empty text fields.
@@ -46,11 +46,11 @@ struct AiTaskThreadView: View {
             footer
         }
         .onAppear { text = composerState.text }
-        // The store settles a reply a later read shows to have landed.
-        .onChange(of: composerState.text) { _, stored in
-            if stored != text {
-                text = stored
-            }
+        // The store clears the text on its own only when the reply it held
+        // landed; ordinary edits never come back, so they cannot fight typing
+        // or marked-text input.
+        .onChange(of: store.replySettleCount(for: task.id)) { _, _ in
+            text = composerState.text
         }
         .task(id: composerState.blockedUntil) {
             guard let until = composerState.blockedUntil else { return }

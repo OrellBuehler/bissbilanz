@@ -8,6 +8,8 @@ import Testing
 private final class EntriesRefreshRecorder {
     var dates: [String] = []
     var failNext = false
+    /// What the processor hook did, in order.
+    var events: [String] = []
 
     func record(_ date: String) throws {
         dates.append(date)
@@ -487,7 +489,69 @@ struct AiTaskReplyTests {
         #expect(store.tasks.first?.claudeThread?.messages.map(\.id) == ["m1", "m2"])
         #expect(Self.getCount(harness) == 2)
         #expect(store.replyComposer(for: "t1") == AiTaskReplyComposer())
+        await store.followUpTask?.value
         #expect(recorder.dates.isEmpty)
+    }
+
+    @Test("A replayed 201 whose re-read fails falls back to the receipt's task, which starts the poll")
+    func replayWithFailedRereadUsesReceipt() async throws {
+        let harness = try RepositoryHarness()
+        let store = try await Self.loadedStore(harness, tasks: [Self.task()])
+        harness.stubError("GET", "/api/ai-tasks", code: .notConnectedToInternet)
+        harness.stub(
+            "POST", Self.repliesPath, status: 201,
+            json: try Self.taskJSON(Self.sentTask), headers: ["x-idempotent-replay": "true"]
+        )
+
+        #expect(await store.sendReply(taskId: "t1", text: "It was 200 g") == .sent)
+
+        #expect(store.tasks.first?.claudeThread?.messages.map(\.id) == ["m1"])
+        #expect(store.hasActiveClaudeWork)
+    }
+
+    @Test("A replayed 201 whose re-read fails keeps a list that already shows the reply")
+    func replayWithFailedRereadKeepsNewerList() async throws {
+        let harness = try RepositoryHarness()
+        let store = try await Self.loadedStore(harness, tasks: [Self.task()])
+        let current = Self.task(thread: Self.thread([
+            Self.userMessage("m1"), Self.message("m2", text: "Noted, it was 200 g"),
+        ]))
+        harness.stub(
+            "POST", Self.repliesPath, status: 201,
+            json: try Self.taskJSON(Self.sentTask), headers: ["x-idempotent-replay": "true"], delayMs: 300
+        )
+        harness.stub("GET", "/api/ai-tasks", json: try Self.listJSON([current]))
+
+        let send = Task { await store.sendReply(taskId: "t1", text: "It was 200 g") }
+        try await Task.sleep(for: .milliseconds(50))
+        // A read that lands while the send is out already shows the reply and the answer.
+        try await store.refresh()
+        harness.stubError("GET", "/api/ai-tasks", code: .notConnectedToInternet)
+
+        #expect(await send.value == .sent)
+        #expect(store.tasks.first?.claudeThread?.messages.map(\.id) == ["m1", "m2"])
+    }
+
+    @Test("A send's re-read does not wait for the diary pulls or the processor hook")
+    func sendDoesNotWaitForReadFollowUps() async throws {
+        let harness = try RepositoryHarness()
+        let store = try await Self.loadedStore(harness, tasks: [Self.task()])
+        let recorder = EntriesRefreshRecorder()
+        store.onRefreshed = {
+            recorder.events.append("started")
+            try? await Task.sleep(for: .milliseconds(500))
+            recorder.events.append("finished")
+        }
+        harness.stub("POST", Self.repliesPath, status: 502, json: #"{"error": "Bad gateway"}"#)
+
+        let result = await store.sendReply(taskId: "t1", text: "It was 200 g")
+
+        #expect(result == .failed(.failed(status: 502)))
+        #expect(store.sendingReplies.isEmpty)
+        #expect(!recorder.events.contains("finished"))
+        #expect(Self.getCount(harness) == 2)
+        await store.followUpTask?.value
+        #expect(recorder.events == ["started", "finished"])
     }
 
     @Test("A lost answer to a reply that did land is found by re-reading the list")
@@ -515,10 +579,17 @@ struct AiTaskReplyTests {
         #expect(store.replyComposer(for: "t1").text == "It was 200 g")
         #expect(store.replyComposer(for: "t1").failure == .network)
 
+        #expect(store.replySettleCount(for: "t1") == 0)
+        store.setReplyText("It was 200 g!", for: "t1")
+        store.setReplyText("It was 200 g", for: "t1")
+        // Ordinary edits are not something the field has to copy back.
+        #expect(store.replySettleCount(for: "t1") == 0)
+
         harness.stub("GET", "/api/ai-tasks", json: try Self.listJSON([Self.sentTask]))
         try await store.refresh()
 
         #expect(store.replyComposer(for: "t1") == AiTaskReplyComposer())
+        #expect(store.replySettleCount(for: "t1") == 1)
         // The attempt is done, so the same words again are a new reply with a new key.
         harness.stub("POST", Self.repliesPath, status: 201, json: try Self.taskJSON(Self.sentTask))
         #expect(await store.sendReply(taskId: "t1", text: "It was 200 g") == .sent)
@@ -551,7 +622,10 @@ struct AiTaskReplyTests {
             headers: ["Retry-After": "30"]
         )
 
-        #expect(await store.sendReply(taskId: "t1", text: "It was 200 g") == .failed(.tooManyRequests(retryAfter: 30)))
+        let sentAt = Date()
+        let first = await store.sendReply(taskId: "t1", text: "It was 200 g", now: sentAt)
+        #expect(first == .failed(.tooManyRequests(retryAfter: 30)))
+        #expect(store.replyComposer(for: "t1").blockedUntil == sentAt.addingTimeInterval(30))
         #expect(store.replyComposer(for: "t1").isBlocked(at: Date()))
         #expect(await store.sendReply(taskId: "t1", text: "It was 200 g") == .skipped)
         // Editing keeps the reason up while Send is off.
@@ -705,6 +779,66 @@ struct AiTaskReplyTests {
         await store.markRepliesRead(ids: [])?.value
         #expect(!Self.hasUnread(store))
         #expect(try Self.acknowledgedReplyIds(harness) == [["m2"], ["m2"]])
+    }
+
+    @Test("A chunk the server refuses for good is dropped, so the answers behind it still go out")
+    func markRepliesReadDropsPermanentRejection() async throws {
+        let harness = try RepositoryHarness()
+        let messages = (0 ..< 150).map { Self.message("m\($0)", unread: true) }
+        let store = try await Self.loadedStore(harness, tasks: [Self.task(thread: Self.thread(messages))])
+        harness.stubSequence("POST", Self.acknowledgePath, [
+            (status: 400, json: #"{"error": "Invalid"}"#, headers: [:]),
+            (status: 200, json: #"{"acknowledged": 0, "repliesAcknowledged": 50}"#, headers: [:]),
+        ])
+
+        await store.markRepliesRead(ids: messages.map(\.id))?.value
+
+        #expect(try Self.acknowledgedReplyIds(harness).map(\.count) == [100, 50])
+        let unread = store.tasks.first?.claudeThread?.unreadAnswers.map(\.id)
+        #expect(unread == messages.prefix(100).map(\.id))
+        // The refused ones are not queued again in this launch.
+        #expect(store.markRepliesRead(ids: messages.map(\.id)) == nil)
+        #expect(harness.recordedBodies("POST", Self.acknowledgePath).count == 2)
+    }
+
+    @Test("A 4xx other than 401, 408 and 429 is a permanent rejection, everything else is retried")
+    func permanentRejections() {
+        #expect(AiTaskThreadChanges.isPermanentRejection(APIError.badRequest(nil)))
+        #expect(AiTaskThreadChanges.isPermanentRejection(APIError.notFound))
+        #expect(AiTaskThreadChanges.isPermanentRejection(APIError.gone))
+        #expect(AiTaskThreadChanges.isPermanentRejection(APIError.conflict(serverNewer: false, body: nil)))
+        #expect(AiTaskThreadChanges.isPermanentRejection(APIError.serverError(422, nil)))
+        #expect(!AiTaskThreadChanges.isPermanentRejection(APIError.serverError(401, nil)))
+        #expect(!AiTaskThreadChanges.isPermanentRejection(APIError.serverError(408, nil)))
+        #expect(!AiTaskThreadChanges.isPermanentRejection(APIError.serverError(429, nil)))
+        #expect(!AiTaskThreadChanges.isPermanentRejection(APIError.serverError(500, nil)))
+        #expect(!AiTaskThreadChanges.isPermanentRejection(APIError.unauthorized))
+        #expect(!AiTaskThreadChanges.isPermanentRejection(APIError.networkError(URLError(.timedOut))))
+        #expect(!AiTaskThreadChanges.isPermanentRejection(APIError.updateRequired(minVersion: "2.0.0")))
+        #expect(!AiTaskThreadChanges.isPermanentRejection(CancellationError()))
+    }
+
+    @Test("Signing out forgets the account: list, boxes, first read and the refreshed-answers record")
+    func resetAccountStateForgetsTheAccount() async throws {
+        let harness = try RepositoryHarness()
+        let store = try await Self.loadedStore(harness, tasks: [Self.task()])
+        store.setReplyText("Draft", for: "t1")
+        harness.defaults.set(["m0"], forKey: AiTaskStore.entriesRefreshedKey)
+        let recorder = EntriesRefreshRecorder()
+        store.onEntriesChanged = { date in try recorder.record(date) }
+
+        store.resetAccountState()
+
+        #expect(store.tasks.isEmpty)
+        #expect(store.replyComposer(for: "t1") == AiTaskReplyComposer())
+        #expect(harness.defaults.stringArray(forKey: AiTaskStore.entriesRefreshedKey) == nil)
+
+        // The next account's first read is not compared with the last one's
+        // list, so an answer that account already read is not news.
+        let next = Self.task(id: "t9", thread: Self.thread([Self.message("m9", outcome: "changed")]))
+        harness.stub("GET", "/api/ai-tasks", json: try Self.listJSON([next]))
+        try await store.refresh()
+        #expect(recorder.dates.isEmpty)
     }
 
     @Test("Opening the list still acknowledges dismissals with an empty body")

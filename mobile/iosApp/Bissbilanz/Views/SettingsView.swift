@@ -16,6 +16,7 @@ struct SettingsView: View {
     @Environment(FoodImageLoader.self) private var foodImageLoader
     @Environment(FoodRepository.self) private var foodRepository
     @Environment(FoodEnrichmentController.self) private var foodEnrichment
+    @Environment(AiTaskStore.self) private var aiTaskStore
     @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(FoodLabeler.self) private var foodLabeler
     @Environment(MealEstimator.self) private var mealEstimator
@@ -733,6 +734,7 @@ struct SettingsView: View {
                 // account).
                 bulkUploadManager.reset()
                 foodEnrichment.reset()
+                aiTaskStore.resetAccountState()
                 migrator.wipeLocalData()
                 preferencesRepository.clearClaudeCapability()
                 // wipeLocalData clears the files; this also
@@ -1080,6 +1082,7 @@ struct SettingsView: View {
                 // state so nothing leaks into the next session.
                 bulkUploadManager.reset()
                 foodEnrichment.reset()
+                aiTaskStore.resetAccountState()
                 migrator.wipeLocalData()
                 preferencesRepository.clearClaudeCapability()
                 foodImageLoader.clear()

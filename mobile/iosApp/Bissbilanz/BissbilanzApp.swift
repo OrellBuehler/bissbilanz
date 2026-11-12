@@ -531,6 +531,7 @@ struct BissbilanzApp: App {
             }
             .onChange(of: appModeManager.mode) { _, _ in
                 foodEnrichment.reset()
+                aiTaskStore.resetAccountState()
                 defaultModeToSyncedIfNeeded()
             }
             .onChange(of: scenePhase) { _, phase in

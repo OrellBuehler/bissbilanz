@@ -487,9 +487,18 @@ enum AiTaskThreadChanges {
         return news?.status
     }
 
-    static func chunked(_ ids: [String], size: Int) -> [[String]] {
-        stride(from: 0, to: ids.count, by: size).map { start in
-            Array(ids[start ..< min(start + size, ids.count)])
+    /// An acknowledgement the server refused for good: retrying the same ids
+    /// can only fail again, and would hold up every answer queued behind
+    /// them. A dead session (401), a timeout (408) and the rate limit (429)
+    /// pass, and so does the version gate.
+    static func isPermanentRejection(_ error: Error) -> Bool {
+        switch error as? APIError {
+        case .badRequest, .notFound, .gone, .conflict:
+            true
+        case let .serverError(code, _):
+            (400 ..< 500).contains(code) && code != 401 && code != 408 && code != 429
+        case .unauthorized, .networkError, .decodingError, .updateRequired, nil:
+            false
         }
     }
 }
