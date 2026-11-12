@@ -28,8 +28,9 @@ extension L10n {
     static var aiTaskProcessorClaudePrivacy: String {
         localized(
             "settings_ai_task_processor_claude_privacy",
-            en: "Meal descriptions and photos are sent to Anthropic to be processed by Claude.",
-            de: "Mahlzeitbeschreibungen und Fotos werden zur Verarbeitung durch Claude an Anthropic gesendet."
+            en: "Meal descriptions, photos and your replies to Claude are sent to Anthropic to be processed by Claude.",
+            de: "Mahlzeitbeschreibungen, Fotos und deine Antworten an Claude werden zur Verarbeitung durch Claude " +
+                "an Anthropic gesendet."
         )
     }
 

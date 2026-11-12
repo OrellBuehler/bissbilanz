@@ -54,6 +54,15 @@ struct AiTasksView: View {
         store.hasActiveClaudeWork && scenePhase == .active
     }
 
+    /// Claude's answers the list is showing the user right now: only on the
+    /// selected tab, with the scene active and nothing covering the list.
+    private var displayedUnreadReplyIds: [String] {
+        guard scenePhase == .active, !isLoading, error == nil,
+              editingTask == nil, selectedDraftForReview == nil
+        else { return [] }
+        return AiTaskThreadChanges.unreadReplyIds(in: visibleTasks)
+    }
+
     private static let pollInterval = Duration.seconds(10)
 
     private var visibleTasks: [AiTask] {
@@ -142,6 +151,9 @@ struct AiTasksView: View {
                         }
                     }
                     .listStyle(.plain)
+                    // The reply box sits in a row; on a small phone the keyboard
+                    // must be easy to get rid of again.
+                    .keyboardDismissable()
                 }
             }
         }
@@ -151,6 +163,13 @@ struct AiTasksView: View {
         .task(id: shouldPoll) {
             guard shouldPoll else { return }
             await pollWhileClaudeWorks()
+        }
+        // Showing an answer is what reads it; one that arrives while the list
+        // is on screen is marked as soon as it is rendered.
+        .task(id: displayedUnreadReplyIds) {
+            let ids = displayedUnreadReplyIds
+            guard !ids.isEmpty else { return }
+            await store.markRepliesRead(ids: ids)
         }
         .sheet(item: $selectedDraftForReview) { draft in
             NavigationStack {
@@ -226,18 +245,20 @@ struct AiTasksView: View {
         }
     }
 
-    /// While Claude works on a pending task, re-reads the list every
-    /// `pollInterval`. SwiftUI cancels this task when the view disappears and
-    /// restarts it when `shouldPoll` flips (Claude work starts or ends, or the scene
-    /// leaves the active phase).
+    /// While Claude works on a pending task or a correction, re-reads the list
+    /// every `pollInterval`. SwiftUI cancels this task when the view disappears
+    /// and restarts it when `shouldPoll` flips (Claude work starts or ends, or
+    /// the scene leaves the active phase).
     private func pollWhileClaudeWorks() async {
         while !Task.isCancelled, store.hasActiveClaudeWork {
             try? await Task.sleep(for: Self.pollInterval)
             guard !Task.isCancelled else { return }
             do {
-                try await store.refresh()
+                try await store.pollRefresh()
                 readyForReviewDrafts = AiTaskDraftDisk.loadAll()
                 await store.acknowledgeAll(quiet: true)
+                // Also retries answers an earlier acknowledgement failed on.
+                await store.markRepliesRead(ids: displayedUnreadReplyIds)
             } catch {
                 if Task.isCancelled { return }
                 ErrorReporter.addBreadcrumb(
@@ -258,10 +279,13 @@ struct AiTasksView: View {
             try await store.refresh()
             readyForReviewDrafts = AiTaskDraftDisk.loadAll()
             // Show the tab holding what the user came here for. Arriving from a
-            // dismissal notification would otherwise land on Open, which by
-            // definition cannot contain the task they just tapped.
-            if !hasChosenFilter, !store.unreadDismissals.isEmpty {
-                selectedFilter = .dismissed
+            // dismissal or answer notification would otherwise land on Open,
+            // which cannot contain the task they just tapped.
+            if !hasChosenFilter,
+               let status = AiTaskThreadChanges.statusWithNews(in: store.tasks),
+               let filter = Filter.allCases.first(where: { $0.status == status })
+            {
+                selectedFilter = filter
             }
             // Opening the list is what marks the outcomes as read — posting a
             // notification does not, so the user's other devices still get to tell them.
@@ -357,6 +381,9 @@ private struct AiTaskRow: View {
             if let proposal = task.openProposal {
                 ClaudeProposalCard(task: task, proposal: proposal, onNotice: onProposalNotice)
             }
+            if let thread = task.claudeThread {
+                AiTaskThreadView(task: task, thread: thread)
+            }
         }
         .padding(.vertical, 4)
         .fullScreenCover(isPresented: $showGallery) {
@@ -376,13 +403,8 @@ private struct AiTaskRow: View {
                 Text(taskSubtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if task.isUnreadDismissal {
-                    Text(L10n.aiTasksUnread)
-                        .font(.caption2.weight(.semibold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.accentColor.opacity(0.15))
-                        .clipShape(Capsule())
+                if task.isUnreadDismissal || task.hasUnreadReplies {
+                    UnreadChip()
                 }
             }
 

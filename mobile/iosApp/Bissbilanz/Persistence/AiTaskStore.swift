@@ -73,6 +73,11 @@ final class AiTaskStore {
     /// already call `refresh()` themselves.
     @ObservationIgnored var onRefreshed: (() async -> Void)?
 
+    /// Invoked with a task's date when a list read brings an answer of Claude
+    /// that changed that meal's entries — set once by the app to re-pull the
+    /// day. Foods arrive through the normal foods sync.
+    @ObservationIgnored var onEntriesChanged: (@MainActor (String) async throws -> Void)?
+
     init(api: BissbilanzAPI, appMode: AppModeManager, uploadRoot: URL = AiTaskUploadDisk.defaultRoot) {
         self.api = api
         self.appMode = appMode
@@ -397,23 +402,79 @@ final class AiTaskStore {
         tasks.filter(\.isUnreadDismissal)
     }
 
-    /// A pending task Claude has queued, is running or is retrying — the list
-    /// is polled while this holds.
+    /// A pending task Claude has queued, is running or is retrying, or a
+    /// correction of a completed one in those states — the list is polled
+    /// while this holds.
     var hasActiveClaudeWork: Bool {
-        AiTaskClaudeState.hasActiveWork(in: tasks)
+        Self.hasPollableWork(in: tasks)
     }
 
-    /// Bumped whenever a local accept or edit lands, so a list read that started
-    /// earlier (and may predate it) is dropped instead of undoing the change.
+    nonisolated static func hasPollableWork(in tasks: [AiTask]) -> Bool {
+        AiTaskClaudeState.hasActiveWork(in: tasks) || AiTaskCorrectionState.hasPolledWork(in: tasks)
+    }
+
+    /// Bumped whenever a local accept or edit lands, and when a reply starts
+    /// and lands, so a list read that started earlier (and may predate it) is
+    /// dropped instead of undoing the change.
     @ObservationIgnored private var mutationGeneration = 0
+    /// The first read of a launch has no earlier list to compare answers against.
+    @ObservationIgnored private var hasReadList = false
+    @ObservationIgnored private var lastRefreshAt: Date?
+    @ObservationIgnored private var pollInFlight = false
 
     func refresh() async throws {
         guard !appMode.isLocal else { return }
         let generation = mutationGeneration
         let fetched = try await api.listAiTasks(limit: 100).tasks
         guard generation == mutationGeneration else { return }
-        tasks = fetched
+        lastRefreshAt = Date()
+        let changedDates = apply(fetched)
+        await refreshEntries(for: changedDates)
         await onRefreshed?()
+    }
+
+    /// Two lists polling at once (one pushed in Settings, one opened from a
+    /// notification) share one read: a tick is skipped while another is in
+    /// flight or a read landed moments ago.
+    func pollRefresh(now: Date = Date()) async throws {
+        guard !pollInFlight else { return }
+        if let last = lastRefreshAt, now.timeIntervalSince(last) < Self.pollMinimumGap { return }
+        pollInFlight = true
+        defer { pollInFlight = false }
+        try await refresh()
+    }
+
+    nonisolated static let pollMinimumGap: TimeInterval = 5
+
+    /// Swaps in a fresh list and returns the dates whose entries an answer
+    /// that was not in the previous list changed.
+    private func apply(_ fetched: [AiTask]) -> [String] {
+        let previous = tasks
+        let isFirstRead = !hasReadList
+        hasReadList = true
+        if !fetched.isEmpty {
+            readReplyIds.formIntersection(fetched.flatMap { $0.claudeThread?.messages.map(\.id) ?? [] })
+        }
+        tasks = AiTaskThreadChanges.maskingRead(fetched, read: readReplyIds)
+        return isFirstRead ? [] : AiTaskThreadChanges.datesWithNewChanges(previous: previous, next: fetched)
+    }
+
+    private func refreshEntries(for dates: [String]) async {
+        guard let hook = onEntriesChanged else { return }
+        for date in dates {
+            do {
+                try await hook(date)
+            } catch {
+                // The entries request already reported itself; the day is
+                // pulled again whenever it is opened.
+                ErrorReporter.addBreadcrumb(
+                    "AI task entries refresh failed",
+                    category: "ai-task",
+                    level: .warning,
+                    data: ["date": date, "reason": ErrorReporter.reason(for: error)]
+                )
+            }
+        }
     }
 
     /// Clears the unread badge for every resolved task. Called when the user opens the
@@ -438,6 +499,103 @@ final class AiTaskStore {
             } else {
                 ErrorReporter.capture(error, context: ["op": "acknowledgeAiTasks"])
             }
+        }
+    }
+
+    // MARK: - Replies to Claude
+
+    /// Tasks with a reply on its way, so the reply box shows it sending and a
+    /// second tap cannot send it twice.
+    private(set) var sendingReplies: Set<String> = []
+    /// One per task: the key of the reply last attempted, kept until it lands
+    /// or the text changes — see `AiTaskReplyAttempt`.
+    @ObservationIgnored private var replyAttempts: [String: AiTaskReplyAttempt] = [:]
+    /// Answers this device marked read; a list read that started before the
+    /// acknowledgement and lands after it must not show them unread again.
+    @ObservationIgnored private var readReplyIds: Set<String> = []
+    @ObservationIgnored private var replyReadsInFlight: Set<String> = []
+
+    var hasUnreadReplies: Bool {
+        tasks.contains(where: \.hasUnreadReplies)
+    }
+
+    /// Sends a reply straight to the server — online only, never through
+    /// `SyncManager`. A failure keeps the attempt's key, so sending the same
+    /// text again is answered from the first attempt if that one did land.
+    func sendReply(taskId: String, text: String) async -> AiTaskReplySendResult {
+        let reply = AiTaskReplyDraft.trimmed(text)
+        guard !appMode.isLocal, !reply.isEmpty, !sendingReplies.contains(taskId) else { return .skipped }
+        let attempt = AiTaskReplyAttempt.next(for: reply, previous: replyAttempts[taskId])
+        replyAttempts[taskId] = attempt
+        sendingReplies.insert(taskId)
+        defer { sendingReplies.remove(taskId) }
+        // A list read already in flight predates the reply; dropping it keeps
+        // it from landing on top of the reply's own result.
+        mutationGeneration += 1
+        do {
+            let updated = try await api.replyToAiTask(id: taskId, text: reply, idempotencyKey: attempt.key)
+            mutationGeneration += 1
+            replyAttempts[taskId] = nil
+            if let index = tasks.firstIndex(where: { $0.id == taskId }) {
+                tasks[index] = AiTaskThreadChanges.maskingRead([updated], read: readReplyIds)[0]
+            }
+            return .sent
+        } catch let failure as AiTaskReplyFailure {
+            if failure == .keyReused {
+                // The server tied this key to another request; only a new one can go through.
+                replyAttempts[taskId] = nil
+            }
+            if failure.refreshesList {
+                do {
+                    try await refresh()
+                } catch {
+                    ErrorReporter.addBreadcrumb(
+                        "AI task refresh after reply failed",
+                        category: "ai-task",
+                        level: .warning,
+                        data: ["reason": ErrorReporter.reason(for: error)]
+                    )
+                }
+            }
+            return .failed(failure)
+        } catch {
+            // Building the request failed, or the wait for a request still in
+            // progress was cancelled. The API reported nothing for either.
+            ErrorReporter.capture(error, context: ["op": "sendAiTaskReply"])
+            return .failed(.failed(status: 0))
+        }
+    }
+
+    /// Marks the given answers read with `replyIds` only, so no dismissal is
+    /// acknowledged on the side. More than the server takes per request go in
+    /// several; a failure stops there and leaves the rest unread, for the next
+    /// time the list shows them.
+    func markRepliesRead(ids: [String]) async {
+        guard !appMode.isLocal else { return }
+        var seen = Set<String>()
+        let fresh = ids.filter { id in
+            seen.insert(id).inserted && !replyReadsInFlight.contains(id) && !readReplyIds.contains(id)
+        }
+        guard !fresh.isEmpty else { return }
+        replyReadsInFlight.formUnion(fresh)
+        defer { replyReadsInFlight.subtract(fresh) }
+        for chunk in AiTaskThreadChanges.chunked(fresh, size: BissbilanzAPI.aiTaskAcknowledgeMaxIds) {
+            do {
+                try await api.acknowledgeAiTaskReplies(replyIds: chunk)
+            } catch {
+                // The request already reported itself; the answers stay unread
+                // rather than pretending they were read.
+                ErrorReporter.addBreadcrumb(
+                    "AI task reply acknowledge failed",
+                    category: "ai-task",
+                    level: .warning,
+                    data: ["reason": ErrorReporter.reason(for: error), "count": chunk.count]
+                )
+                return
+            }
+            let read = Set(chunk)
+            readReplyIds.formUnion(read)
+            tasks = AiTaskThreadChanges.maskingRead(tasks, read: read)
         }
     }
 

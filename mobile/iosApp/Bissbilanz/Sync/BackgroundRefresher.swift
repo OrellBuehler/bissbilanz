@@ -123,8 +123,10 @@ enum BackgroundRefresher {
         )
         // Not widget data either: a dismissed AI task means a meal the user asked the
         // assistant to log never got logged, and with no push channel a background pull
-        // is the only way they hear about it before opening the app.
+        // is the only way they hear about it before opening the app. The same goes
+        // for Claude's answer to a reply the user sent about a meal.
         try? await deps.aiTaskStore.refresh()
         await AiTaskNotifier.notifyNewDismissals(deps.aiTaskStore.tasks)
+        await AiTaskNotifier.notifyNewReplies(deps.aiTaskStore.tasks)
     }
 }
