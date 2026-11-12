@@ -11,7 +11,14 @@ import { assertClaudeAllowed } from '../capability';
 import { callClaude } from '../call';
 import { claudeConfig } from '../config';
 import { isFdcConfigured } from '../../fooddata-central';
-import { isWebFetchTool, rejectWebFetch, resolveClaudeModel, taskServerTools } from '../models';
+import {
+	acceptWebFetch,
+	isWebFetchAccepted,
+	isWebFetchTool,
+	rejectWebFetch,
+	resolveClaudeModel,
+	taskServerTools
+} from '../models';
 import { AI_TASK_FEATURE } from '../constants';
 import {
 	ClaudeAbortedError,
@@ -53,11 +60,8 @@ const hasUnansweredServerTool = (content: Anthropic.ContentBlock[]): boolean => 
 	return content.some((block) => block.type === 'server_tool_use' && !answered.has(block.id));
 };
 
-const rejectsWebFetch = (error: unknown, tools: Anthropic.ToolUnion[]): boolean =>
-	error instanceof ClaudeApiError &&
-	error.kind === 'invalid_request' &&
-	error.status === 400 &&
-	tools.some(isWebFetchTool);
+const isInvalidRequest = (error: unknown): error is ClaudeApiError =>
+	error instanceof ClaudeApiError && error.kind === 'invalid_request' && error.status === 400;
 
 const NUDGE =
 	'Your reply was cut off. Keep it short: call complete_ai_task or dismiss_ai_task now.';
@@ -205,7 +209,12 @@ async function runLoop(
 		...taskTools(isFdcConfigured())
 	];
 	let container: string | undefined;
-	const call = (requestTools: Anthropic.ToolUnion[], requestContainer: string | undefined) =>
+	let continuation = false;
+	let cutOffRetried = false;
+	const call = (
+		requestTools: Anthropic.ToolUnion[],
+		expectedRejection?: (error: ClaudeApiError) => boolean
+	) =>
 		callClaude({
 			userId: run.userId,
 			feature: AI_TASK_FEATURE,
@@ -215,25 +224,28 @@ async function runLoop(
 				system: TASK_SYSTEM,
 				tools: requestTools,
 				messages: withCacheBreakpoint(messages),
-				...(requestContainer ? { container: requestContainer } : {})
+				...(container ? { container } : {})
 			},
 			imageCount: loaded.imageCount,
-			signal
+			signal,
+			expectedRejection
 		});
 
 	for (let iteration = 0; iteration < maxIterations; iteration++) {
 		if (!(await regate())) return;
 
+		const declaresFetch = tools.some(isWebFetchTool);
+		const mayDropFetch = declaresFetch && !continuation && !isWebFetchAccepted();
 		let response: Anthropic.Message;
 		try {
-			response = await call(tools, container);
+			response = await call(tools, mayDropFetch ? isInvalidRequest : undefined);
+			if (declaresFetch) acceptWebFetch();
 		} catch (error) {
-			if (!rejectsWebFetch(error, tools)) throw error;
+			if (!mayDropFetch || !isInvalidRequest(error)) throw error;
 			const dropped = tools.filter(isWebFetchTool);
 			const withoutFetch = tools.filter((tool) => !isWebFetchTool(tool));
-			response = await call(withoutFetch, undefined);
+			response = await call(withoutFetch);
 			tools = withoutFetch;
-			container = undefined;
 			if (rejectWebFetch()) {
 				Sentry.captureMessage(
 					`The API rejected a request with ${dropped.map((tool) => ('type' in tool ? tool.type : tool.name)).join(', ')}; web fetch is off until the next restart`,
@@ -249,10 +261,12 @@ async function runLoop(
 		}
 
 		if (response.stop_reason === 'max_tokens' && hasUnansweredServerTool(response.content)) {
-			if (nudged) break;
-			nudged = true;
+			if (cutOffRetried) break;
+			cutOffRetried = true;
 			continue;
 		}
+		continuation =
+			response.stop_reason === 'pause_turn' || hasUnansweredServerTool(response.content);
 
 		if (response.content.length > 0) {
 			messages.push({
@@ -359,7 +373,7 @@ async function handleFailure(
 		return;
 	}
 	if (error instanceof ClaudeGateError) {
-		await stopOrBlockRun(ctx, mode, error.code);
+		await stopOrBlockRun(ctx, mode, error.code, error.requiredUsd);
 		return;
 	}
 	if (error instanceof ClaudeAbortedError) {

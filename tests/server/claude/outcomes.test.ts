@@ -181,9 +181,21 @@ describe('completeByModel in review mode', () => {
 
 describe('run state transitions', () => {
 	test('blockRun parks the run with the gate code and drops the partial proposal', async () => {
-		await outcomes.blockRun(ctx(), 'user_budget_exhausted');
+		await outcomes.blockRun(ctx(), 'disabled');
 		expect(transitions()).toEqual([
-			{ state: 'blocked', failureCode: 'user_budget_exhausted', proposal: null }
+			{ state: 'blocked', failureCode: 'disabled', failureDetail: null, proposal: null }
+		]);
+	});
+
+	test('blockRun records the reservation a budget gate refused', async () => {
+		await outcomes.blockRun(ctx(), 'user_budget_exhausted', 1.570523);
+		expect(transitions()).toEqual([
+			{
+				state: 'blocked',
+				failureCode: 'user_budget_exhausted',
+				failureDetail: '1.570523',
+				proposal: null
+			}
 		]);
 	});
 

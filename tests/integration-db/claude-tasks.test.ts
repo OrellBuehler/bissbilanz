@@ -721,6 +721,10 @@ describe('web search', () => {
 });
 
 describe('web fetch', () => {
+	beforeEach(() => {
+		models.resetWebFetchForTests();
+	});
+
 	afterEach(() => {
 		models.resetWebFetchForTests();
 	});
@@ -746,6 +750,7 @@ describe('web fetch', () => {
 		expect(fetchDeclared(2)).toBe(false);
 		expect((await taskOf(task.id)).status).toBe('completed');
 		expect(vi.mocked(Sentry.captureMessage)).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(Sentry.captureException)).not.toHaveBeenCalled();
 		expect(vi.mocked(Sentry.captureMessage)).toHaveBeenCalledWith(
 			expect.stringContaining('web_fetch_20260209'),
 			expect.objectContaining({ level: 'warning' })
@@ -787,6 +792,7 @@ describe('web fetch', () => {
 			failureDetail: 'invalid_request 400'
 		});
 		expect(models.isWebFetchRejected()).toBe(false);
+		expect(vi.mocked(Sentry.captureException)).toHaveBeenCalledTimes(1);
 	});
 
 	it('keeps a fetch that waited on a client tool and bills only its tokens', async () => {
@@ -1566,6 +1572,41 @@ describe('gates during the loop', () => {
 			interval: 100
 		});
 		expect(await taskOf(task.id)).toMatchObject({ status: 'completed', processedBy: 'claude' });
+	});
+
+	it('does not re-claim a run blocked at a larger call until that call fits', async () => {
+		const user = await seedUser(db, { budget: 1.5 });
+		const task = await seedTask(db, user.id);
+		startFake([
+			message(
+				[textBlock('x'.repeat(200_000)), toolUse('search_foods', { query: 'toast', limit: null })],
+				'tool_use'
+			)
+		]);
+		await execute(user.id, task.id);
+		const blocked = await runOf(task.id);
+		expect(blocked).toMatchObject({ state: 'blocked', failureCode: 'user_budget_exhausted' });
+		const needed = Number(blocked.failureDetail);
+		const capabilityModule = await import('$lib/server/claude/capability');
+		const headroom = await capabilityModule.getClaudeHeadroom(user.id);
+		expect(headroom.available).toBe(true);
+		expect(needed).toBeGreaterThan(headroom.remainingUsd);
+
+		const idle = startFake([]);
+		await executor.sweepClaudeTasks();
+		await new Promise((resolve) => setTimeout(resolve, 500));
+		expect(idle.calls).toHaveLength(0);
+		expect(await runOf(task.id)).toMatchObject({ state: 'blocked', attempt: blocked.attempt });
+
+		await db.execute(
+			sql`UPDATE claude_access SET monthly_budget_usd = ${1.5 + needed} WHERE user_id = ${user.id}`
+		);
+		startFake([quickLog(), completeStep('Logged toast')]);
+		await executor.sweepClaudeTasks();
+		await vi.waitFor(async () => expect((await runOf(task.id)).state).toBe('succeeded'), {
+			timeout: 15_000,
+			interval: 100
+		});
 	});
 
 	it('supersedes the run when the processor changes mid-loop', async () => {

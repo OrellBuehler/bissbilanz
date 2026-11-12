@@ -322,6 +322,33 @@ describe('callClaude against the SDK boundary', () => {
 		});
 	});
 
+	test('a rejection the caller expects is a breadcrumb, any other is captured once', async () => {
+		const mod = await load(true);
+		const { ClaudeApiError } = await import('$lib/server/claude/errors');
+		const invalid = () =>
+			new ClaudeApiError({ kind: 'invalid_request', status: 400, retryable: false });
+		const create = vi.fn().mockRejectedValueOnce(invalid()).mockRejectedValueOnce(invalid());
+		mod.setClaudeClientForTests({ messages: { create } });
+		const expectedRejection = vi.fn(
+			(error: InstanceType<typeof ClaudeApiError>) => error.status === 400
+		);
+		await expect(call(mod, { expectedRejection })).rejects.toMatchObject({
+			kind: 'invalid_request'
+		});
+		expect(expectedRejection).toHaveBeenCalledTimes(1);
+		expect(sentry.captureException).not.toHaveBeenCalled();
+		expect(sentry.addBreadcrumb).toHaveBeenCalledWith(
+			expect.objectContaining({
+				category: 'claude',
+				data: expect.objectContaining({ status: 400 })
+			})
+		);
+		await expect(call(mod, { expectedRejection: () => false })).rejects.toMatchObject({
+			kind: 'invalid_request'
+		});
+		expect(sentry.captureException).toHaveBeenCalledTimes(1);
+	});
+
 	test('sends the Opus 5.5 request through the real client with no retries', async () => {
 		const fetchMock = vi.fn(async () => Response.json(message()));
 		vi.stubGlobal('fetch', fetchMock);

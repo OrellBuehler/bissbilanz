@@ -60,8 +60,15 @@ export function serverTools(
 }
 
 let webFetchRejected = false;
+let webFetchAccepted = false;
 
 export const isWebFetchRejected = () => webFetchRejected;
+
+export const isWebFetchAccepted = () => webFetchAccepted;
+
+export function acceptWebFetch() {
+	webFetchAccepted = true;
+}
 
 export function rejectWebFetch(): boolean {
 	if (webFetchRejected) return false;
@@ -71,6 +78,7 @@ export function rejectWebFetch(): boolean {
 
 export function resetWebFetchForTests() {
 	webFetchRejected = false;
+	webFetchAccepted = false;
 }
 
 export function taskServerTools(model: string): Anthropic.ToolUnion[] {

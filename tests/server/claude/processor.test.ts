@@ -68,7 +68,7 @@ vi.mock('$lib/server/fooddata-central', () => ({ isFdcConfigured: () => h.fdc.co
 
 const { processTask } = await import('$lib/server/claude/tasks/processor');
 const errors = await import('$lib/server/claude/errors');
-const { CLAUDE_MODELS, isWebFetchRejected, resetWebFetchForTests } =
+const { CLAUDE_MODELS, isWebFetchAccepted, isWebFetchRejected, resetWebFetchForTests } =
 	await import('$lib/server/claude/models');
 const { claudeAccess } = await import('$lib/server/schema');
 
@@ -298,17 +298,20 @@ describe('when the API rejects web fetch', () => {
 	const finished = () =>
 		h.runTaskTool.mockResolvedValue({ content: '{}', isError: false, outcome: 'completed' });
 
-	test('retries the call once without web fetch or container and keeps it off', async () => {
+	test('retries a rejected first call once without web fetch and keeps it off', async () => {
 		h.callClaude
-			.mockResolvedValueOnce({ ...response('pause_turn'), container: { id: 'container_1' } })
 			.mockRejectedValueOnce(rejected())
 			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
 		finished();
 		await processTask(TASK_ID, options());
-		expect(toolNames(1)).toEqual(['web_search', 'web_fetch', 'tool']);
-		expect(h.callClaude.mock.calls[1]![0].params.container).toBe('container_1');
-		expect(toolNames(2)).toEqual(['web_search', 'tool']);
-		expect(h.callClaude.mock.calls[2]![0].params).not.toHaveProperty('container');
+		expect(toolNames(0)).toEqual(['web_search', 'web_fetch', 'tool']);
+		const expected = h.callClaude.mock.calls[0]![0].expectedRejection;
+		expect(expected(rejected())).toBe(true);
+		expect(
+			expected(new errors.ClaudeApiError({ kind: 'auth', status: 401, retryable: false }))
+		).toBe(false);
+		expect(toolNames(1)).toEqual(['web_search', 'tool']);
+		expect(h.callClaude.mock.calls[1]![0].expectedRejection).toBeUndefined();
 		expect(h.dismissRun).not.toHaveBeenCalled();
 		expect(isWebFetchRejected()).toBe(true);
 		expect(h.captureMessage).toHaveBeenCalledTimes(1);
@@ -323,8 +326,61 @@ describe('when the API rejects web fetch', () => {
 			response('tool_use', [toolUse('toolu_c', 'complete_ai_task')])
 		);
 		await processTask(TASK_ID, options());
-		expect(toolNames(3)).toEqual(['web_search', 'tool']);
+		expect(toolNames(2)).toEqual(['web_search', 'tool']);
 		expect(h.captureMessage).toHaveBeenCalledTimes(1);
+	});
+
+	test('a later 400 does not disable fetch once a request with it was accepted', async () => {
+		h.callClaude
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_a')]))
+			.mockRejectedValueOnce(rejected());
+		h.runTaskTool.mockResolvedValueOnce({ content: 'one', isError: false });
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(2);
+		expect(h.callClaude.mock.calls[0]![0].expectedRejection).toBeTypeOf('function');
+		expect(h.callClaude.mock.calls[1]![0].expectedRejection).toBeUndefined();
+		expect(isWebFetchAccepted()).toBe(true);
+		expect(isWebFetchRejected()).toBe(false);
+		expect(h.dismissRun).toHaveBeenCalledWith(
+			expect.anything(),
+			'claude_error',
+			'invalid_request 400'
+		);
+
+		reset();
+		queueResults([[{ locale: 'de' }], [{ autoLog: true }]]);
+		h.callClaude.mockRejectedValueOnce(rejected());
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(3);
+		expect(toolNames(2)).toEqual(['web_search', 'web_fetch', 'tool']);
+		expect(h.captureMessage).not.toHaveBeenCalled();
+	});
+
+	test.each([
+		['after pause_turn', { ...response('pause_turn'), container: { id: 'container_1' } }],
+		[
+			'with a pending server tool call',
+			response('tool_use', [
+				{
+					type: 'server_tool_use',
+					id: 'srvtoolu_1',
+					name: 'web_fetch',
+					input: { url: 'https://ex' }
+				},
+				toolUse('toolu_a')
+			])
+		]
+	])('a continuation 400 %s is not retried without fetch', async (_label, first) => {
+		h.callClaude.mockResolvedValueOnce(first).mockRejectedValueOnce(rejected());
+		h.runTaskTool.mockResolvedValueOnce({ content: 'one', isError: false });
+		h.assertClaudeAllowed.mockImplementation(async () => {
+			resetWebFetchForTests();
+		});
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(2);
+		expect(toolNames(1)).toEqual(['web_search', 'web_fetch', 'tool']);
+		expect(h.callClaude.mock.calls[1]![0].expectedRejection).toBeUndefined();
+		expect(isWebFetchRejected()).toBe(false);
 	});
 
 	test('behaves as before when the call fails without web fetch too', async () => {
@@ -413,6 +469,23 @@ describe('limits', () => {
 		await processTask(TASK_ID, options());
 		expect(h.callClaude).toHaveBeenCalledTimes(2);
 		expect(h.dismissRun).toHaveBeenCalledWith(expect.anything(), 'claude_incomplete');
+	});
+
+	test('a cut-off retry does not use up the end-of-turn nudge', async () => {
+		const cutOff = [
+			{ type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: { query: 'x' } }
+		];
+		h.callClaude
+			.mockResolvedValueOnce(response('max_tokens', cutOff))
+			.mockResolvedValueOnce(response('end_turn', [{ type: 'text', text: 'done' }]))
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
+		h.runTaskTool.mockResolvedValue({ content: '{}', isError: false, outcome: 'completed' });
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(3);
+		expect(h.callClaude.mock.calls[2]![0].params.messages.at(-1).content[0].text).toContain(
+			'not finished'
+		);
+		expect(h.dismissRun).not.toHaveBeenCalled();
 	});
 
 	test('a cut-off reply whose server tool calls all have results is nudged as before', async () => {
@@ -565,7 +638,21 @@ describe('the loop', () => {
 		expect(h.stopOrBlockRun).toHaveBeenCalledWith(
 			expect.anything(),
 			'auto_log',
-			'user_budget_exhausted'
+			'user_budget_exhausted',
+			null
+		);
+	});
+
+	test('passes the reservation a budget gate refused on to the block', async () => {
+		h.callClaude.mockRejectedValueOnce(
+			new errors.ClaudeGateError('user_budget_exhausted', 1.570523)
+		);
+		await processTask(TASK_ID, options());
+		expect(h.stopOrBlockRun).toHaveBeenCalledWith(
+			expect.anything(),
+			'auto_log',
+			'user_budget_exhausted',
+			1.570523
 		);
 	});
 
@@ -749,7 +836,7 @@ describe('failures', () => {
 
 	test('a closed gate blocks or stops', async () => {
 		await fail(new errors.ClaudeGateError('disabled'));
-		expect(h.stopOrBlockRun).toHaveBeenCalledWith(expect.anything(), 'auto_log', 'disabled');
+		expect(h.stopOrBlockRun).toHaveBeenCalledWith(expect.anything(), 'auto_log', 'disabled', null);
 	});
 
 	test('an abort reports the gate that closed', async () => {

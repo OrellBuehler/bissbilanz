@@ -38,6 +38,7 @@ export type ClaudeCallOptions = {
 	params: ClaudeCallParams;
 	imageCount: number;
 	signal?: AbortSignal;
+	expectedRejection?: (error: ClaudeApiError) => boolean;
 };
 
 export type ClaudeClient = {
@@ -247,6 +248,13 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 					requestedModel: model,
 					kind: mapped.kind,
 					status: mapped.status ?? 0
+				});
+			} else if (options.expectedRejection?.(mapped)) {
+				Sentry.addBreadcrumb({
+					category: 'claude',
+					level: 'info',
+					message: 'Claude call rejected as expected',
+					data: { kind: mapped.kind, status: mapped.status ?? 0, model }
 				});
 			} else {
 				Sentry.captureException(

@@ -51,12 +51,14 @@ export async function assertClaudeAllowed(userId: string): Promise<void> {
 	if (prefs?.processor !== 'claude') throw new ClaudeProcessorChangedError();
 }
 
-export async function getClaudeCapability(userId: string): Promise<ClaudeCapability> {
+export type ClaudeHeadroom = { available: boolean; remainingUsd: number };
+
+export async function getClaudeHeadroom(userId: string): Promise<ClaudeHeadroom> {
 	let gates: Awaited<ReturnType<typeof checkAccessGates>>;
 	try {
 		gates = await checkAccessGates(userId);
 	} catch (error) {
-		if (error instanceof ClaudeGateError) return { available: false };
+		if (error instanceof ClaudeGateError) return { available: false, remainingUsd: 0 };
 		throw error;
 	}
 	const { db, config, access } = gates;
@@ -65,7 +67,15 @@ export async function getClaudeCapability(userId: string): Promise<ClaudeCapabil
 		effectiveUserBudgetUsd(access) - user.spendUsd,
 		config.globalMonthlyBudgetUsd - global.spendUsd
 	);
-	if (remainingUsd < minTaskCallUsd(resolveClaudeModel(access.model))) return { available: false };
+	return {
+		available: remainingUsd >= minTaskCallUsd(resolveClaudeModel(access.model)),
+		remainingUsd
+	};
+}
+
+export async function getClaudeCapability(userId: string): Promise<ClaudeCapability> {
+	const { available, remainingUsd } = await getClaudeHeadroom(userId);
+	if (!available) return { available: false };
 	return { available: true, remainingBudgetUsd: round2(Math.max(0, remainingUsd)) };
 }
 

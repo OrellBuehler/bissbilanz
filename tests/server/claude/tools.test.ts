@@ -915,15 +915,37 @@ describe('create_food with a nutrient database record', () => {
 		expect(h.handleCreateFood.mock.calls[0]![1].vitaminC).toBe(7.6555);
 	});
 
-	test.each(['ml', 'cup'])('fills nothing for a serving in %s and says why', async (unit) => {
-		const result = await parsed(
-			runTaskTool('create_food', pearInput({ servingSize: 1, servingUnit: unit }), makeCtx())
+	test.each([
+		['ml', 'auto_log'],
+		['cup', 'auto_log'],
+		['ml', 'review'],
+		['fl_oz', 'review']
+	] as const)(
+		'refuses a record for a serving in %s in %s mode before anything is created',
+		async (unit, mode) => {
+			const ctx = makeCtx({ mode });
+			const result = await parsed(
+				runTaskTool('create_food', pearInput({ servingSize: 250, servingUnit: unit }), ctx)
+			);
+			expect(result.isError).toBe(true);
+			expect(result.body.error).toContain('only be applied to a serving given in g, kg, oz or lb');
+			expect(result.body.error).toContain('pass fdcId null');
+			expect(h.handleCreateFood).not.toHaveBeenCalled();
+			expect(h.getFdcFood).not.toHaveBeenCalled();
+			expect(ctx.foods.size).toBe(0);
+			expect(ctx.createdFoods.size).toBe(0);
+		}
+	);
+
+	test('the same food in millilitres without a record is created', async () => {
+		const ctx = makeCtx();
+		await runTaskTool(
+			'create_food',
+			pearInput({ servingSize: 250, servingUnit: 'ml', fdcId: null }),
+			ctx
 		);
-		const payload = h.handleCreateFood.mock.calls[0]![1];
-		expect(payload).toMatchObject({ sodium: 5 });
-		expect(payload).not.toHaveProperty('vitaminC');
-		expect(result.body.nutrientSource).toMatchObject({ fdcId: 169118, filled: 0 });
-		expect(result.body.nutrientSource.note).toContain(unit);
+		expect(h.handleCreateFood).toHaveBeenCalledTimes(1);
+		expect(ctx.createdFoods.size).toBe(1);
 	});
 
 	test('review mode carries the filled values in the provisional food and the proposal', async () => {
@@ -951,6 +973,12 @@ describe('create_food with a nutrient database record', () => {
 		);
 		expect(result.isError).toBe(true);
 		expect(result.body.error).toContain('calories, carbs for 178 g do not match record 169118');
+		expect(result.body.error).toContain(
+			'If you took these numbers from the database, use recordPerServing instead.'
+		);
+		expect(result.body.error).toContain(
+			'If they come from a label or Open Food Facts, keep them and pick another record or pass fdcId null.'
+		);
 		expect(result.body.recordPerServing).toEqual({
 			calories: 101,
 			protein: 0.6,

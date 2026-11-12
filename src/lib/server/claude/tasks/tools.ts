@@ -67,7 +67,7 @@ const CREATE_FOOD_DESCRIPTION = createFoodDescription(
 
 const CREATE_FOOD_WITH_DATABASE_DESCRIPTION = createFoodDescription(
 	'a label photo, Open Food Facts, a nutrient database record or a web page',
-	' With fdcId from search_nutrient_database in this task, the server checks your calories and macros against that record scaled to the serving, refuses a mismatch with the record values, and otherwise fills every nutrient you did not list.'
+	' With fdcId from search_nutrient_database in this task and a serving by weight, the server compares your calories and macros with that record scaled to the serving, refuses a large difference, and otherwise fills every nutrient you did not list.'
 );
 
 const NUTRIENT_KEYS = ALL_NUTRIENTS.map((n) => n.key);
@@ -108,7 +108,7 @@ const createFoodTool = (nutrientDatabase: boolean) =>
 				? {
 						fdcId: nullable(
 							'integer',
-							'fdcId of the search_nutrient_database result in this task that describes this food, or null. It fills nutrients only when servingUnit is g, kg, oz or lb.'
+							'fdcId of the search_nutrient_database result in this task that describes this food, or null. Only for a servingUnit of g, kg, oz or lb.'
 						)
 					}
 				: {}),
@@ -119,7 +119,7 @@ const createFoodTool = (nutrientDatabase: boolean) =>
 
 const nutrientDatabaseTool = strictTool(
 	'search_nutrient_database',
-	'Search the USDA FoodData Central nutrient database for generic and whole foods (produce, meat, fish, eggs, grains, plain dairy, common dishes). Returns candidate records with fdcId, energy and macros per 100 g, and how many nutrients each record covers. Pass the fdcId of the record that matches the food to create_food.',
+	'Search the USDA FoodData Central nutrient database for generic and whole foods and plain packaged foods (produce, meat, fish, eggs, grains, nuts, milk, juice), raw or cooked. Returns candidate records with fdcId, energy and macros per 100 g, and how many nutrients each record covers. Pass the fdcId of the record that matches the food, its preparation and any salt or enrichment, to create_food.',
 	{ query: text('Food name in English, for example "pear raw" or "chicken breast roasted"') }
 );
 
@@ -399,31 +399,26 @@ async function fillFromDatabase(
 			`fdcId ${fdcId} did not come from search_nutrient_database in this task. Search first and pass one of its fdcIds, or pass null.`
 		);
 	}
+	const scale = fdcServingScale(data.servingSize, data.servingUnit);
+	if (scale === null) {
+		throw new ToolInputError(
+			`A nutrient database record can only be applied to a serving given in g, kg, oz or lb, not ${data.servingUnit}. Nothing was created. Give the serving by weight, or pass fdcId null.`
+		);
+	}
 	const record = await getFdcFood(ctx.userId, fdcId, ctx.signal);
+	const comparison = compareWithRecord(record, data, scale);
+	if (!comparison.matches) {
+		throw new ToolInputError(
+			`Your ${comparison.mismatched.join(', ')} for ${data.servingSize} ${data.servingUnit} do not match record ${fdcId} "${record.description}" scaled to that serving. Nothing was created. If you took these numbers from the database, use recordPerServing instead. If they come from a label or Open Food Facts, keep them and pick another record or pass fdcId null.`,
+			{ recordPerServing: comparison.recordPerServing }
+		);
+	}
 	const base = {
 		database: FDC_SOURCE_NAME,
 		fdcId,
 		description: record.description,
 		dataType: record.dataType
 	};
-	const scale = fdcServingScale(data.servingSize, data.servingUnit);
-	if (scale === null) {
-		return {
-			data,
-			source: {
-				...base,
-				filled: 0,
-				note: `The record is per 100 g and a serving in ${data.servingUnit} has no reliable weight, so no nutrients were filled. Give the serving in g to fill them.`
-			}
-		};
-	}
-	const comparison = compareWithRecord(record, data, scale);
-	if (!comparison.matches) {
-		throw new ToolInputError(
-			`Your ${comparison.mismatched.join(', ')} for ${data.servingSize} ${data.servingUnit} do not match record ${fdcId} "${record.description}" scaled to that serving. If the record is the right food, take your values from recordPerServing (carbs on European labels exclude fiber, see carbsWithoutFiber); otherwise pass the fdcId of a matching record, or null.`,
-			{ recordPerServing: comparison.recordPerServing }
-		);
-	}
 	const filled = Object.fromEntries(
 		Object.entries(scaleFdcNutrients(record, scale)).filter(([key]) => !explicit.has(key))
 	);

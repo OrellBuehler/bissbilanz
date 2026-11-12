@@ -4,7 +4,7 @@ import { createMockDB } from '../../helpers/mock-db';
 const h = vi.hoisted(() => ({
 	processTask: vi.fn(),
 	ensureRun: vi.fn(),
-	getClaudeCapability: vi.fn(),
+	getClaudeHeadroom: vi.fn(),
 	assertClaudeAllowed: vi.fn(),
 	abandonStaleReservations: vi.fn(),
 	captureException: vi.fn(),
@@ -23,7 +23,7 @@ vi.mock('$lib/server/claude/config', () => ({ isClaudeConfigured: () => h.config
 vi.mock('$lib/server/claude/tasks/processor', () => ({ processTask: h.processTask }));
 vi.mock('$lib/server/claude/tasks/runs', () => ({ ensureRun: h.ensureRun }));
 vi.mock('$lib/server/claude/capability', () => ({
-	getClaudeCapability: h.getClaudeCapability,
+	getClaudeHeadroom: h.getClaudeHeadroom,
 	assertClaudeAllowed: h.assertClaudeAllowed
 }));
 vi.mock('$lib/server/claude/budget', () => ({
@@ -55,7 +55,7 @@ beforeEach(() => {
 	for (const fn of [
 		h.processTask,
 		h.ensureRun,
-		h.getClaudeCapability,
+		h.getClaudeHeadroom,
 		h.assertClaudeAllowed,
 		h.abandonStaleReservations,
 		h.captureException
@@ -66,7 +66,7 @@ beforeEach(() => {
 	h.processTask.mockResolvedValue(undefined);
 	h.ensureRun.mockResolvedValue(undefined);
 	h.abandonStaleReservations.mockResolvedValue(0);
-	h.getClaudeCapability.mockResolvedValue({ available: true, remainingBudgetUsd: 5 });
+	h.getClaudeHeadroom.mockResolvedValue({ available: true, remainingUsd: 5 });
 	h.assertClaudeAllowed.mockResolvedValue(undefined);
 	queueResults([[{ processor: 'claude' }]]);
 });
@@ -271,15 +271,77 @@ describe('sweepClaudeTasks', () => {
 			{ id: 't2', user_id: 'user-ok' },
 			{ id: 't3', user_id: 'user-blocked' }
 		]);
-		h.getClaudeCapability.mockImplementation(async (userId: string) => ({
-			available: userId === 'user-ok'
+		h.getClaudeHeadroom.mockImplementation(async (userId: string) => ({
+			available: userId === 'user-ok',
+			remainingUsd: userId === 'user-ok' ? 5 : 0
 		}));
 		await executor.sweepClaudeTasks();
 		await settle();
 		expect(h.abandonStaleReservations).toHaveBeenCalledTimes(1);
-		expect(h.getClaudeCapability).toHaveBeenCalledTimes(2);
+		expect(h.getClaudeHeadroom).toHaveBeenCalledTimes(2);
 		expect(h.ensureRun.mock.calls.map((call) => call[1])).toEqual(['t1', 't2']);
 		expect(h.processTask.mock.calls.map((call) => call[0]).sort()).toEqual(['t1', 't2']);
+	});
+});
+
+describe('sweeping runs blocked for budget', () => {
+	const blocked = (id: string, code: string, detail: string | null) => ({
+		id,
+		user_id: 'user-1',
+		state: 'blocked',
+		failure_code: code,
+		failure_detail: detail
+	});
+
+	test('waits until the remaining budget covers the reservation that blocked the run', async () => {
+		const { executor } = await load();
+		reset();
+		setResult([
+			blocked('t-user', 'user_budget_exhausted', '1.57'),
+			blocked('t-global', 'global_budget_exhausted', '2.5'),
+			blocked('t-small', 'user_budget_exhausted', '1.2'),
+			blocked('t-exact', 'user_budget_exhausted', '1.5'),
+			{
+				id: 't-queued',
+				user_id: 'user-1',
+				state: 'queued',
+				failure_code: null,
+				failure_detail: null
+			}
+		]);
+		h.getClaudeHeadroom.mockResolvedValue({ available: true, remainingUsd: 1.5 });
+		await executor.sweepClaudeTasks();
+		await settle();
+		expect(h.ensureRun.mock.calls.map((call) => call[1])).toEqual([
+			't-small',
+			't-exact',
+			't-queued'
+		]);
+		expect(h.getClaudeHeadroom).toHaveBeenCalledTimes(1);
+	});
+
+	test('picks a run up again once the budget was raised', async () => {
+		const { executor } = await load();
+		reset();
+		setResult([blocked('t1', 'user_budget_exhausted', '1.57')]);
+		h.getClaudeHeadroom.mockResolvedValue({ available: true, remainingUsd: 1.6 });
+		await executor.sweepClaudeTasks();
+		await settle();
+		expect(h.ensureRun.mock.calls.map((call) => call[1])).toEqual(['t1']);
+	});
+
+	test.each([
+		['another gate', blocked('t1', 'disabled', '9')],
+		['no recorded amount', blocked('t1', 'user_budget_exhausted', null)],
+		['a detail that is not an amount', blocked('t1', 'user_budget_exhausted', 'rate_limited 429')]
+	])('does not hold back a run blocked with %s', async (_label, candidate) => {
+		const { executor } = await load();
+		reset();
+		setResult([candidate]);
+		h.getClaudeHeadroom.mockResolvedValue({ available: true, remainingUsd: 1 });
+		await executor.sweepClaudeTasks();
+		await settle();
+		expect(h.ensureRun).toHaveBeenCalledTimes(1);
 	});
 });
 

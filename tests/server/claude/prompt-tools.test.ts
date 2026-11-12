@@ -152,7 +152,7 @@ describe('prompt and tools are byte-stable', () => {
 
 	test('stay identical to the reviewed text', () => {
 		expect(createHash('sha256').update(serialized).digest('hex')).toMatchInlineSnapshot(
-			`"5ce5dc492ad3f0dcc0a6820356817685fbd6f21593079735c0db0f52880f22e2"`
+			`"9805553e030f0ec24e425820d234a387c0ee0cbf959e2540f2472b0b0e34fcc4"`
 		);
 	});
 });

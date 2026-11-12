@@ -40,11 +40,11 @@ export async function reserveCall(input: ReserveInput): Promise<string> {
 
 		const user = await getMonthSpend(tx, { userId: input.userId });
 		if (user.spendUsd + input.reservedUsd > effectiveUserBudgetUsd(access) + EPSILON) {
-			throw new ClaudeGateError('user_budget_exhausted');
+			throw new ClaudeGateError('user_budget_exhausted', input.reservedUsd);
 		}
 		const global = await getMonthSpend(tx);
 		if (global.spendUsd + input.reservedUsd > claudeConfig().globalMonthlyBudgetUsd + EPSILON) {
-			throw new ClaudeGateError('global_budget_exhausted');
+			throw new ClaudeGateError('global_budget_exhausted', input.reservedUsd);
 		}
 
 		const [row] = await tx

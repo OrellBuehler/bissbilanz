@@ -118,13 +118,15 @@ describe('reserveCall', () => {
 		spend(9.7, 0);
 		gates([{ enabled: true, monthlyBudgetUsd: null }], [{ processor: 'claude' }]);
 		await expect(budget.reserveCall(input)).rejects.toMatchObject({
-			code: 'user_budget_exhausted'
+			code: 'user_budget_exhausted',
+			requiredUsd: 0.4
 		});
 
 		spend(0, 89.7);
 		gates([{ enabled: true, monthlyBudgetUsd: null }], [{ processor: 'claude' }]);
 		await expect(budget.reserveCall(input)).rejects.toMatchObject({
-			code: 'global_budget_exhausted'
+			code: 'global_budget_exhausted',
+			requiredUsd: 0.4
 		});
 	});
 
@@ -231,6 +233,26 @@ describe('capability', () => {
 		expect(await capability.getClaudeCapability('user-1')).toEqual({
 			available: true,
 			remainingBudgetUsd: 1.04
+		});
+	});
+
+	test('reports the exact remaining budget and whether a first call fits', async () => {
+		spend(8.4651, 0);
+		access([{ enabled: true, monthlyBudgetUsd: null }]);
+		expect(await capability.getClaudeHeadroom('user-1')).toEqual({
+			available: true,
+			remainingUsd: 10 - 8.4651
+		});
+		spend(9.5, 0);
+		access([{ enabled: true, monthlyBudgetUsd: null }]);
+		expect(await capability.getClaudeHeadroom('user-1')).toEqual({
+			available: false,
+			remainingUsd: 0.5
+		});
+		access([{ enabled: false, monthlyBudgetUsd: null }]);
+		expect(await capability.getClaudeHeadroom('user-1')).toEqual({
+			available: false,
+			remainingUsd: 0
 		});
 	});
 
