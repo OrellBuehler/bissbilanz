@@ -28,6 +28,13 @@ class SentryErrorReporter : ErrorReporter {
         if (e.isTransientNetworkFailure()) return
         Sentry.captureException(e)
     }
+
+    override fun addBreadcrumb(
+        message: String,
+        category: String,
+    ) {
+        Sentry.addBreadcrumb(message, category)
+    }
 }
 
 internal fun Throwable.isGatewayError(): Boolean = this is ApiException && statusCode in GATEWAY_ERROR_STATUSES

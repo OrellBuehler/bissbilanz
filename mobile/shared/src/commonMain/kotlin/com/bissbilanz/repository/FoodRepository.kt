@@ -38,7 +38,6 @@ import com.bissbilanz.util.normalizeLabels
 import com.bissbilanz.util.openFoodFactsProductToFoodCreate
 import com.bissbilanz.util.runHook
 import com.bissbilanz.util.sameContentAs
-import io.ktor.http.HttpHeaders
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.async
@@ -1009,7 +1008,7 @@ class FoodRepository(
 
     private fun ApiException.toEnrichmentException(): FoodEnrichmentException? {
         if (statusCode == HTTP_TOO_MANY_REQUESTS) {
-            return FoodEnrichmentException(FoodEnrichmentException.Reason.RATE_LIMITED, retryAfterSeconds(), this)
+            return FoodEnrichmentException(FoodEnrichmentException.Reason.RATE_LIMITED, retryAfterSeconds, this)
         }
         val code =
             responseBody
@@ -1024,16 +1023,8 @@ class FoodRepository(
                 statusCode == 503 && code == "off_unavailable" -> FoodEnrichmentException.Reason.OFF_UNAVAILABLE
                 else -> return null
             }
-        return FoodEnrichmentException(reason, retryAfterSeconds(), this)
+        return FoodEnrichmentException(reason, retryAfterSeconds, this)
     }
-
-    private fun ApiException.retryAfterSeconds(): Long? =
-        rawResponse
-            ?.headers
-            ?.get(HttpHeaders.RetryAfter)
-            ?.trim()
-            ?.toLongOrNull()
-            ?.takeIf { it > 0 }
 
     suspend fun findByBarcode(barcode: String): Food? {
         if (appModeManager.isLocal) {

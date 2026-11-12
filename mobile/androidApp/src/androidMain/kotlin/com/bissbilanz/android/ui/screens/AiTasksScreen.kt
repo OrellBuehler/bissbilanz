@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -21,6 +22,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,6 +47,7 @@ import com.bissbilanz.android.aitasks.AiTaskUploadWorker
 import com.bissbilanz.android.aitasks.QueuedAiTaskUpload
 import com.bissbilanz.android.ui.components.AiMealSheet
 import com.bissbilanz.android.ui.components.AiTaskImageViewer
+import com.bissbilanz.android.ui.components.AiTaskThread
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.ClaudeProposalCard
 import com.bissbilanz.android.ui.components.EmptyState
@@ -55,11 +58,14 @@ import com.bissbilanz.android.ui.components.formatTimeOfDay
 import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
+import com.bissbilanz.android.ui.viewmodels.ReplyDraft
 import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.api.generated.model.AiTask
+import com.bissbilanz.repository.isUnreadDismissal
 import com.bissbilanz.util.ClaudeTaskState
 import com.bissbilanz.util.TaskResolver
 import com.bissbilanz.util.claudeTaskState
+import com.bissbilanz.util.hasUnreadReply
 import com.bissbilanz.util.resolver
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
@@ -73,18 +79,23 @@ import kotlin.time.Instant
 fun AiTasksScreen(navController: NavController) {
     val viewModel: AiTasksViewModel = koinViewModel()
     val context = LocalContext.current
-    val tasks by viewModel.visibleTasks.collectAsStateWithLifecycle(emptyList())
+    val tasks by viewModel.visibleTasks.collectAsStateWithLifecycle()
     val queuedUploads by viewModel.queuedUploads.collectAsStateWithLifecycle()
     val selectedFilter by viewModel.filter.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val loadFailed by viewModel.loadFailed.collectAsStateWithLifecycle()
     val busyTaskId by viewModel.busyTaskId.collectAsStateWithLifecycle()
+    val replyDrafts by viewModel.replyDrafts.collectAsStateWithLifecycle()
+    val newReplyIds by viewModel.newReplyIds.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val loadFailedMessage = stringResource(R.string.ai_tasks_load_failed)
     val taskUpdatedMessage = stringResource(R.string.ai_tasks_updated)
     var taskToDelete by remember { mutableStateOf<AiTask?>(null) }
     var taskToEdit by remember { mutableStateOf<AiTask?>(null) }
+    var gallery by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
+    var permissionAsked by rememberSaveable { mutableStateOf(false) }
+    val visibleAnswers = remember { mutableStateMapOf<String, Boolean>() }
 
     val filters =
         listOf(
@@ -108,13 +119,15 @@ fun AiTasksScreen(navController: NavController) {
 
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(lifecycleOwner) {
-        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.pollWhileClaudeWorks() }
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.whileScreenVisible() }
     }
 
     LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        if (!permissionAsked &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             !AiTaskNotifier.hasPermission(context)
         ) {
+            permissionAsked = true
             permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
         // Opening the list is what marks the outcomes as read — posting a
@@ -182,7 +195,19 @@ fun AiTasksScreen(navController: NavController) {
                     } else if (tasks.isEmpty() && queuedUploads.isEmpty()) {
                         EmptyState(stringResource(selectedFilter.emptyMessage), Icons.Default.AutoAwesome)
                     } else {
+                        val listState = rememberLazyListState()
+                        LaunchedEffect(lifecycleOwner) {
+                            lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                                viewModel.markDisplayedRepliesRead(
+                                    snapshotFlow {
+                                        val covered = taskToDelete != null || taskToEdit != null || gallery != null
+                                        if (covered) emptySet() else visibleAnswers.filterValues { it }.keys.toSet()
+                                    },
+                                )
+                            }
+                        }
                         LazyColumn(
+                            state = listState,
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding =
@@ -209,6 +234,15 @@ fun AiTasksScreen(navController: NavController) {
                                     proposalBusy = busyTaskId == task.id,
                                     onAcceptProposal = { viewModel.acceptProposal(task.id, it) },
                                     onDiscardProposal = { viewModel.discardProposal(task.id) },
+                                    replyDraft = replyDrafts[task.id] ?: ReplyDraft(),
+                                    newReplyIds = newReplyIds,
+                                    onReplyTextChange = { viewModel.updateReplyText(task.id, it) },
+                                    onSendReply = { viewModel.sendReply(task.id) },
+                                    onAnswerVisible = { id, visible ->
+                                        if (visibleAnswers[id] != visible) visibleAnswers[id] = visible
+                                    },
+                                    onOpenPhoto = { gallery = task.photoUrls to it },
+                                    viewportHeight = { listState.layoutInfo.viewportSize.height },
                                     modifier = Modifier.animateItem(),
                                 )
                             }
@@ -217,6 +251,14 @@ fun AiTasksScreen(navController: NavController) {
                 }
             }
         }
+    }
+
+    gallery?.let { (urls, index) ->
+        AiTaskImageViewer(
+            imageUrls = urls,
+            initialIndex = index,
+            onDismiss = { gallery = null },
+        )
     }
 
     taskToEdit?.let { task ->
@@ -325,11 +367,20 @@ private fun AiTaskListItem(
     proposalBusy: Boolean,
     onAcceptProposal: (itemIds: List<String>) -> Unit,
     onDiscardProposal: () -> Unit,
+    replyDraft: ReplyDraft,
+    newReplyIds: Set<String>,
+    onReplyTextChange: (String) -> Unit,
+    onSendReply: () -> Unit,
+    onAnswerVisible: (messageId: String, visible: Boolean) -> Unit,
+    onOpenPhoto: (index: Int) -> Unit,
+    viewportHeight: () -> Int,
     modifier: Modifier = Modifier,
 ) {
-    val isUnread = task.status == AiTask.Status.dismissed && task.acknowledgedAt == null
-    var galleryIndex by remember(task.id) { mutableStateOf<Int?>(null) }
-
+    val thread = task.claudeThread
+    val isUnread =
+        task.isUnreadDismissal() ||
+            task.hasUnreadReply() ||
+            thread?.messages.orEmpty().any { it.id in newReplyIds }
     Card(
         modifier = modifier.fillMaxWidth(),
         colors =
@@ -358,7 +409,7 @@ private fun AiTaskListItem(
                                 Modifier
                                     .size(64.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .clickable { galleryIndex = index },
+                                    .clickable { onOpenPhoto(index) },
                             contentScale = ContentScale.Crop,
                         )
                     }
@@ -501,15 +552,20 @@ private fun AiTaskListItem(
                     )
                 }
             }
-        }
-    }
 
-    galleryIndex?.let { index ->
-        AiTaskImageViewer(
-            imageUrls = task.photoUrls,
-            initialIndex = index,
-            onDismiss = { galleryIndex = null },
-        )
+            if (thread != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                AiTaskThread(
+                    thread = thread,
+                    draft = replyDraft,
+                    newReplyIds = newReplyIds,
+                    onTextChange = onReplyTextChange,
+                    onSend = onSendReply,
+                    onAnswerVisible = onAnswerVisible,
+                    viewportHeight = viewportHeight,
+                )
+            }
+        }
     }
 }
 

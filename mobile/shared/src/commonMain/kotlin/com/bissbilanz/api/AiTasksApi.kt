@@ -6,6 +6,8 @@ import com.bissbilanz.api.generated.model.AiTaskAcknowledgeResponse
 import com.bissbilanz.api.generated.model.AiTaskCreate
 import com.bissbilanz.api.generated.model.AiTaskPhotoResponse
 import com.bissbilanz.api.generated.model.AiTaskProposalAccept
+import com.bissbilanz.api.generated.model.AiTaskReplyCreate
+import com.bissbilanz.api.generated.model.AiTaskReplyErrorResponse
 import com.bissbilanz.api.generated.model.AiTaskResponse
 import com.bissbilanz.api.generated.model.AiTaskUpdate
 import com.bissbilanz.api.generated.model.AiTasksResponse
@@ -16,6 +18,7 @@ import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.serialization.json.Json
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -105,6 +108,31 @@ interface AiTasksApi : ApiTransport {
         return response.acknowledged
     }
 
+    suspend fun acknowledgeAiTaskReplies(replyIds: List<String>): Int {
+        val response: AiTaskAcknowledgeResponse =
+            post("/api/ai-tasks/acknowledge", AiTaskAcknowledge(replyIds = replyIds), null, null)
+        return response.repliesAcknowledged ?: 0
+    }
+
+    suspend fun replyToAiTask(
+        id: String,
+        text: String,
+        idempotencyKey: String,
+    ): AiTaskReplyResult {
+        val path = "/api/ai-tasks/$id/replies"
+        val response =
+            client.post(path) {
+                setBody(AiTaskReplyCreate(text = text))
+                applySyncHeaders(idempotencyKey, null)
+            }
+        if (!response.status.isSuccess()) {
+            val body = response.bodyAsText()
+            throw ApiException("POST $path failed: HTTP ${response.status.value} $body", response.status.value, response, body)
+        }
+        val body: AiTaskResponse = response.body()
+        return AiTaskReplyResult(body.task, replayed = response.headers[IDEMPOTENT_REPLAY_HEADER] == "true")
+    }
+
     /**
      * Uploads every photo of one meal in a single request — the route reads
      * repeated `photo` parts and answers with the URLs in the order sent.
@@ -153,3 +181,24 @@ interface AiTasksApi : ApiTransport {
      */
     suspend fun getMcpConnection(): McpConnection = get("/api/mcp/status")
 }
+
+const val IDEMPOTENT_REPLAY_HEADER = "x-idempotent-replay"
+
+data class AiTaskReplyResult(
+    val task: AiTask,
+    val replayed: Boolean,
+)
+
+private val errorJson = Json { ignoreUnknownKeys = true }
+
+fun ApiException.errorCode(): String? {
+    val body = responseBody?.takeIf { it.isNotBlank() } ?: return null
+    return runCatching { errorJson.decodeFromString<AiTaskReplyErrorResponse>(body) }
+        .map { it.code ?: it.error }
+        .getOrNull()
+}
+
+val REPLY_LIMIT_CODES = setOf("rate_limited", "failed_too_often")
+
+fun ApiException.isReplyBlocked(): Boolean =
+    statusCode == 403 || statusCode == 409 || (statusCode == 429 && errorCode() in REPLY_LIMIT_CODES)
