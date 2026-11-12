@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
@@ -34,6 +35,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [31], application = AiTaskThreadTest.TestApp::class)
@@ -249,6 +252,42 @@ class AiTaskThreadTest {
 
         composeTestRule.onAllNodesWithText("Replies are not possible for this task right now.").assertCountEqualsTo(0)
         composeTestRule.onAllNodesWithText("Send reply").assertCountEqualsTo(0)
+    }
+
+    @Test
+    fun anAnswerCountsAsShownWhenHalfOfItOrHalfOfTheListIsCovered() {
+        assertTrue(isAnswerShown(shownHeight = 50f, bubbleHeight = 100, viewportHeight = 1000))
+        assertFalse(isAnswerShown(shownHeight = 49f, bubbleHeight = 100, viewportHeight = 1000))
+        assertTrue(isAnswerShown(shownHeight = 300f, bubbleHeight = 2000, viewportHeight = 600))
+        assertFalse(isAnswerShown(shownHeight = 299f, bubbleHeight = 2000, viewportHeight = 600))
+        assertTrue(isAnswerShown(shownHeight = 50f, bubbleHeight = 100, viewportHeight = 0))
+        assertFalse(isAnswerShown(shownHeight = 0f, bubbleHeight = 100, viewportHeight = 0))
+        assertFalse(isAnswerShown(shownHeight = 0f, bubbleHeight = 0, viewportHeight = 600))
+    }
+
+    @Test
+    fun anAnswerTallerThanTheListCountsAsShownWhenItFillsTheList() {
+        val visible = mutableMapOf<String, Boolean>()
+        val longAnswer = (1..60).joinToString("\n") { "Line $it of a long answer" }
+        composeTestRule.setContent {
+            val viewport = with(LocalDensity.current) { 120.dp.roundToPx() }
+            BissbilanzTheme {
+                Column(modifier = Modifier.height(120.dp).verticalScroll(rememberScrollState(initial = 40))) {
+                    AiTaskThread(
+                        thread(message("a1", longAnswer)),
+                        ReplyDraft(),
+                        emptySet(),
+                        {},
+                        {},
+                        onAnswerVisible = { id, shown -> visible[id] = shown },
+                        viewportHeight = { viewport },
+                    )
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        assertEquals(true, visible["a1"])
     }
 
     @Test

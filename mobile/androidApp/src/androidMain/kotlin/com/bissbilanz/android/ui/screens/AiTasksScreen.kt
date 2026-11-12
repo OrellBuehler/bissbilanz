@@ -242,6 +242,7 @@ fun AiTasksScreen(navController: NavController) {
                                         if (visibleAnswers[id] != visible) visibleAnswers[id] = visible
                                     },
                                     onOpenPhoto = { gallery = task.photoUrls to it },
+                                    viewportHeight = { listState.layoutInfo.viewportSize.height },
                                     modifier = Modifier.animateItem(),
                                 )
                             }
@@ -372,6 +373,7 @@ private fun AiTaskListItem(
     onSendReply: () -> Unit,
     onAnswerVisible: (messageId: String, visible: Boolean) -> Unit,
     onOpenPhoto: (index: Int) -> Unit,
+    viewportHeight: () -> Int,
     modifier: Modifier = Modifier,
 ) {
     val thread = task.claudeThread
@@ -560,6 +562,7 @@ private fun AiTaskListItem(
                     onTextChange = onReplyTextChange,
                     onSend = onSendReply,
                     onAnswerVisible = onAnswerVisible,
+                    viewportHeight = viewportHeight,
                 )
             }
         }

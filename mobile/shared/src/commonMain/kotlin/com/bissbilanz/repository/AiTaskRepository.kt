@@ -10,6 +10,7 @@ import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.util.AI_TASK_ACKNOWLEDGE_MAX_IDS
 import com.bissbilanz.util.TaskReply
 import com.bissbilanz.util.changedReplies
+import com.bissbilanz.util.threadMessageIds
 import com.bissbilanz.util.unreadReplies
 import com.bissbilanz.util.unreadTaskReplies
 import com.bissbilanz.util.withRepliesRead
@@ -97,7 +98,6 @@ class AiTaskRepository(
     }
 
     private suspend fun handleChangedReplies(changed: List<TaskReply>) {
-        if (changed.isEmpty()) return
         try {
             onChangedReplies?.invoke(changed)
         } catch (e: Exception) {
@@ -126,11 +126,23 @@ class AiTaskRepository(
                 throw e
             }
         mutationGeneration++
-        if (result.replayed) {
-            handleChangedReplies(read())
-        } else {
+        if (!result.replayed) {
             _tasks.update { tasks -> tasks.map { if (it.id == id) result.task else it } }
+            return result.task
         }
+        val changed =
+            try {
+                read()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.addBreadcrumb("List read after a replayed reply failed: ${e.message.orEmpty().take(120)}", "ai-task")
+                val snapshotIds = result.task.threadMessageIds()
+                _tasks.update { tasks ->
+                    tasks.map { if (it.id == id && !it.threadMessageIds().containsAll(snapshotIds)) result.task else it }
+                }
+                emptyList()
+            }
+        handleChangedReplies(changed)
         return result.task
     }
 

@@ -335,24 +335,39 @@ class AiTaskRepositoryTest {
         }
 
     @Test
-    fun aFailedReReadAfterAReplayKeepsTheFresherCopyAndFailsTheSend() =
+    fun aReplayWhoseReReadFailsStillSucceedsAndKeepsAFresherCachedCopy() =
         runTest {
             val reporter: ErrorReporter = mockk(relaxed = true)
             val repo = AiTaskRepository(api, reporter, appModeManager())
-            val fresher =
-                answered(
-                    messages = listOf(TestFixtures.threadMessage("u1", role = "user"), TestFixtures.threadMessage("a1", unread = true)),
-                )
+            val user = TestFixtures.threadMessage("u1", role = "user")
+            val fresher = answered(messages = listOf(user, TestFixtures.threadMessage("a1", unread = true)))
             coEvery { api.listAiTasks(limit = 100) } returns list(fresher)
             repo.refresh()
-            coEvery { api.replyToAiTask("1", "x", "key-1") } returns
-                AiTaskReplyResult(answered(correctionState = "queued"), replayed = true)
+            val snapshot = answered(messages = listOf(user), correctionState = "queued")
+            coEvery { api.replyToAiTask("1", "x", "key-1") } returns AiTaskReplyResult(snapshot, replayed = true)
             coEvery { api.listAiTasks(limit = 100) } throws java.io.IOException("offline")
 
-            assertFailsWith<java.io.IOException> { repo.reply("1", "x", "key-1") }
+            val result = repo.reply("1", "x", "key-1")
 
+            assertEquals(snapshot, result)
             assertEquals(listOf(fresher), repo.tasks.value)
             verify(exactly = 0) { reporter.captureException(any()) }
+            verify(exactly = 1) { reporter.addBreadcrumb(any(), "ai-task") }
+        }
+
+    @Test
+    fun aReplayWhoseReReadFailsAppliesTheSnapshotOverAnOlderCachedCopy() =
+        runTest {
+            val older = answered()
+            coEvery { api.listAiTasks(limit = 100) } returns list(older, answered("2"))
+            repository.refresh()
+            val snapshot = answered(messages = listOf(TestFixtures.threadMessage("u1", role = "user")), correctionState = "queued")
+            coEvery { api.replyToAiTask("1", "x", "key-1") } returns AiTaskReplyResult(snapshot, replayed = true)
+            coEvery { api.listAiTasks(limit = 100) } throws java.io.IOException("offline")
+
+            repository.reply("1", "x", "key-1")
+
+            assertEquals(listOf(snapshot, answered("2")), repository.tasks.value)
         }
 
     @Test
@@ -455,7 +470,7 @@ class AiTaskRepositoryTest {
             repository.refresh()
             repository.refresh()
 
-            assertEquals(listOf(listOf("a1" to "2024-01-15")), handed)
+            assertEquals(listOf(emptyList(), listOf("a1" to "2024-01-15"), emptyList()), handed)
         }
 
     @Test

@@ -113,6 +113,18 @@ class AiTaskNotifierTest {
     }
 
     @Test
+    fun theSummaryGoesOnceOnlyAnswersBeingCancelledAreStillListed() {
+        val group = AiTaskNotifier.REPLIES_GROUP_KEY
+        val summary = AiTaskNotifier.REPLIES_SUMMARY_NOTIFICATION_ID to group
+        val a1 = AiTaskNotifier.notificationId("a1")
+        val a2 = AiTaskNotifier.notificationId("a2")
+
+        assertFalse(AiTaskNotifier.replyStillShown(listOf(summary, a1 to group), setOf(a1)))
+        assertTrue(AiTaskNotifier.replyStillShown(listOf(summary, a1 to group, a2 to group), setOf(a1)))
+        assertFalse(AiTaskNotifier.replyStillShown(listOf(summary, a2 to AiTaskNotifier.GROUP_KEY, 4401 to null), setOf(a1)))
+    }
+
+    @Test
     fun repliesAreEnabledWhenTheAppMayNotify() {
         assertTrue(AiTaskNotifier.repliesEnabled(context))
 

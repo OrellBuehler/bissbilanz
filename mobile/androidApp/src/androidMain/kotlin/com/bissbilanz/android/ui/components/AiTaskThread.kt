@@ -80,6 +80,7 @@ fun AiTaskThread(
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
     onAnswerVisible: (messageId: String, visible: Boolean) -> Unit = { _, _ -> },
+    viewportHeight: () -> Int = { 0 },
 ) {
     val correction = thread.correction()
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -89,6 +90,7 @@ fun AiTaskThread(
                 message = message,
                 isNew = message.unread || message.id in newReplyIds,
                 onAnswerVisible = onAnswerVisible,
+                viewportHeight = viewportHeight,
             )
         }
         when {
@@ -108,12 +110,23 @@ fun AiTaskThread(
     }
 }
 
+internal fun isAnswerShown(
+    shownHeight: Float,
+    bubbleHeight: Int,
+    viewportHeight: Int,
+): Boolean {
+    if (bubbleHeight <= 0 || shownHeight <= 0f) return false
+    val needed = if (viewportHeight > 0) minOf(bubbleHeight, viewportHeight) else bubbleHeight
+    return shownHeight * 2 >= needed
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ThreadMessage(
     message: AiTaskThreadMessage,
     isNew: Boolean,
     onAnswerVisible: (messageId: String, visible: Boolean) -> Unit,
+    viewportHeight: () -> Int,
 ) {
     val colors = MaterialTheme.colorScheme
     val fromUser = message.author() == ReplyAuthor.USER
@@ -150,7 +163,7 @@ private fun ThreadMessage(
                     } else {
                         Modifier.onGloballyPositioned { coordinates ->
                             val shown = coordinates.boundsInWindow().height
-                            onAnswerVisible(message.id, coordinates.size.height > 0 && shown * 2 >= coordinates.size.height)
+                            onAnswerVisible(message.id, isAnswerShown(shown, coordinates.size.height, viewportHeight()))
                         }
                     },
                 ).semantics(mergeDescendants = true) {},

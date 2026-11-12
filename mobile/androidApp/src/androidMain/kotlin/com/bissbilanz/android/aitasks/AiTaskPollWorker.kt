@@ -10,7 +10,10 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.api.UnauthorizedException
+import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.repository.AiTaskRepository
 import kotlinx.coroutines.CancellationException
@@ -33,14 +36,16 @@ class AiTaskPollWorker(
         val koin = KoinJavaComponent.getKoin()
         return try {
             if (koin.get<AppModeManager>().isLocal) return Result.success()
+            if (koin.get<AuthManager>().getAccessToken() == null) return Result.success()
             // The repository's onUnreadDismissals and onUnreadReplies hooks, wired in
             // BissbilanzApplication, post the notifications.
             koin.get<AiTaskRepository>().refresh()
             Result.success()
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            runCatching { koin.get<ErrorReporter>().captureException(e) }
-            Result.retry()
+            val result = afterFailure(e, inputData.getBoolean(KEY_REPLY_CHECK, false), runAttemptCount)
+            if (result != Result.success()) runCatching { koin.get<ErrorReporter>().captureException(e) }
+            result
         }
     }
 
@@ -48,6 +53,19 @@ class AiTaskPollWorker(
         private const val WORK_NAME = "ai_task_poll"
         const val REPLY_CHECK_WORK_NAME = "ai_task_reply_check"
         const val REPLY_CHECK_DELAY_SECONDS = 60L
+        const val MAX_REPLY_CHECK_ATTEMPTS = 3
+        private const val KEY_REPLY_CHECK = "reply_check"
+
+        fun afterFailure(
+            e: Exception,
+            replyCheck: Boolean,
+            runAttemptCount: Int,
+        ): Result =
+            when {
+                e is UnauthorizedException -> Result.success()
+                replyCheck && runAttemptCount + 1 >= MAX_REPLY_CHECK_ATTEMPTS -> Result.failure()
+                else -> Result.retry()
+            }
 
         private fun constraints() = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
@@ -56,6 +74,7 @@ class AiTaskPollWorker(
                 OneTimeWorkRequestBuilder<AiTaskPollWorker>()
                     .setInitialDelay(REPLY_CHECK_DELAY_SECONDS, TimeUnit.SECONDS)
                     .setConstraints(constraints())
+                    .setInputData(workDataOf(KEY_REPLY_CHECK to true))
                     .build()
             WorkManager.getInstance(context).enqueueUniqueWork(REPLY_CHECK_WORK_NAME, ExistingWorkPolicy.REPLACE, work)
         }

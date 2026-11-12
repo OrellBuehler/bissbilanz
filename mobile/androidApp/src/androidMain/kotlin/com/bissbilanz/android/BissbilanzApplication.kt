@@ -211,7 +211,7 @@ class BissbilanzApplication :
                 single { ReminderPreferences(androidContext()) }
                 single { AiTaskNotificationPreferences(androidContext()) }
                 single { AiTaskReplyAlerts(androidContext(), get()) }
-                single { AiTaskDiaryRefresher(get(), get()) }
+                single { AiTaskDiaryRefresher(get(), get(), get()) }
                 single { AiTaskUploadQueue(androidContext()) }
                 single { McpConnectionStore(androidContext()) }
                 single { HealthImporter(get(), get(), get(), get(), get(), get()) }

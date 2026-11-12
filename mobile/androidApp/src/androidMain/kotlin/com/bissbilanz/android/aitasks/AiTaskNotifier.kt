@@ -33,7 +33,7 @@ object AiTaskNotifier {
     /** Clear of FastingNotifier's 4201 and the supplement summary's 4300. */
     private const val SUMMARY_NOTIFICATION_ID = 4400
     private const val UPLOAD_FAILED_NOTIFICATION_ID = 4401
-    private const val REPLIES_SUMMARY_NOTIFICATION_ID = 4402
+    const val REPLIES_SUMMARY_NOTIFICATION_ID = 4402
     const val REPLIES_GROUP_KEY = "com.bissbilanz.android.AI_TASK_REPLIES"
 
     /**
@@ -129,12 +129,24 @@ object AiTaskNotifier {
     ) {
         if (messageIds.isEmpty()) return
         val manager = NotificationManagerCompat.from(context)
-        messageIds.forEach { manager.cancel(notificationId(it)) }
-        val active = context.getSystemService(NotificationManager::class.java)?.activeNotifications.orEmpty()
-        val replyStillShown =
-            active.any { it.id != REPLIES_SUMMARY_NOTIFICATION_ID && it.notification.group == REPLIES_GROUP_KEY }
-        if (!replyStillShown) manager.cancel(REPLIES_SUMMARY_NOTIFICATION_ID)
+        val cancelled = messageIds.mapTo(mutableSetOf()) { notificationId(it) }
+        cancelled.forEach { manager.cancel(it) }
+        val active =
+            context
+                .getSystemService(NotificationManager::class.java)
+                ?.activeNotifications
+                .orEmpty()
+                .map { it.id to it.notification.group }
+        if (!replyStillShown(active, cancelled)) manager.cancel(REPLIES_SUMMARY_NOTIFICATION_ID)
     }
+
+    fun replyStillShown(
+        active: List<Pair<Int, String?>>,
+        cancelled: Set<Int>,
+    ): Boolean =
+        active.any { (id, group) ->
+            id != REPLIES_SUMMARY_NOTIFICATION_ID && id !in cancelled && group == REPLIES_GROUP_KEY
+        }
 
     fun repliesEnabled(context: Context): Boolean {
         if (!hasPermission(context) || !NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
