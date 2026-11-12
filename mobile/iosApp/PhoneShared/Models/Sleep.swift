@@ -1,6 +1,6 @@
 import Foundation
 
-struct SleepEntry: Codable, Identifiable {
+struct SleepEntry: Codable, Equatable, Identifiable {
     let id: String
     let userId: String
     let entryDate: String

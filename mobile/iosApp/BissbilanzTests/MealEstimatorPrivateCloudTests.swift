@@ -79,7 +79,7 @@ struct MealEstimatorPrivateCloudTests {
     @Test("Guardrail violation and context overflow are retryable")
     func retryableErrors() {
         #expect(MealEstimator.isRetryableOnPrivateCloud(MealEstimatorError.guardrailViolation))
-        #expect(MealEstimator.isRetryableOnPrivateCloud(MealEstimatorError.contextWindowExceeded))
+        #expect(MealEstimator.isRetryableOnPrivateCloud(MealEstimatorError.contextWindowExceeded(matchedMessage: nil)))
     }
 
     @Test("Unsupported language and generic failures are not retryable")

@@ -119,7 +119,8 @@ extension MealEstimator {
                 hint: attempt.hint,
                 photos: photos,
                 source: source,
-                usesTools: attempt.usesTools
+                usesTools: attempt.usesTools,
+                toolResultLimit: attempt.toolResultLimit
             )
         }
     }
@@ -129,11 +130,12 @@ extension MealEstimator {
         hint: String?,
         photos: [CGImage],
         source: MealEstimateSource,
-        usesTools: Bool
+        usesTools: Bool,
+        toolResultLimit: Int
     ) async throws -> MealEstimate {
         let matchedIds = MatchedFoodIds()
         let tools: [any Tool] = usesTools
-            ? [FoodSearchTool(search: makeSearchClosure(), matchedIds: matchedIds)]
+            ? [FoodSearchTool(search: makeSearchClosure(), matchedIds: matchedIds, resultLimit: toolResultLimit)]
             : []
         let session = switch source {
         case .onDevice:
@@ -153,10 +155,8 @@ extension MealEstimator {
                 }
             }
             return await Self.estimate(from: response.content, matchedIds: matchedIds, source: source)
-        } catch let error as LanguageModelSession.GenerationError {
-            throw Self.mapGenerationError(error)
         } catch {
-            throw MealEstimatorError.generationFailed(error.localizedDescription)
+            throw Self.estimatorError(for: error)
         }
     }
 

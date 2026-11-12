@@ -125,9 +125,12 @@ final class SleepRepository {
             if let row = rowsById[entry.id] {
                 // Only dirty rows that actually changed. Rewriting every row
                 // made each `save()` flush the whole table on the main thread,
-                // which is what the SleepRepository.save hang in Sentry
-                // BISSBILANZ-34 was.
-                if row.jsonData != LocalStoreCoding.encode(entry) {
+                // which is what the SleepRepository.save hangs in Sentry
+                // BISSBILANZ-34 and BISSBILANZ-4C were. The stored entry is
+                // compared, not its bytes: `JSONEncoder` without `.sortedKeys`
+                // promises no key order, so a byte compare could find every
+                // unchanged row different and rewrite the whole history.
+                if row.toSleepEntry() != entry {
                     row.update(from: entry)
                     changedIds.insert(entry.id)
                 }
@@ -252,8 +255,13 @@ final class SleepRepository {
         }
     }
 
+    /// Skips the store write when there is nothing to write, the usual
+    /// outcome of `refresh()`. The widget and Health follow-ups still run on
+    /// every call: the Health write-back retries a failed write each time.
     private func save() {
-        context.saveReportingFailure("SleepRepository.save")
+        if context.hasChanges {
+            context.saveReportingFailure("SleepRepository.save")
+        }
         WidgetSnapshotWriter.scheduleUpdate(context: context)
         syncLatestToHealth()
     }

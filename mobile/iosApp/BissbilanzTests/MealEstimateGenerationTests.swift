@@ -188,6 +188,115 @@ struct MealEstimateGenerationTests {
         #expect(result.items[0].hasBlockingWarning)
     }
 
+    // MARK: - Context overflows
+
+    @Test("A context overflow is retried with fewer food search results, then without the food search")
+    func contextOverflowShrinksTheInput() async throws {
+        var attempts: [MealEstimateAttempt] = []
+        let result = try await MealEstimateGeneration.run(description: "2 eggs") { attempt in
+            attempts.append(attempt)
+            if attempt.number < 3 { throw MealEstimatorError.contextWindowExceeded(matchedMessage: nil) }
+            return Self.estimate(Fixtures.food("Eggs", grams: 110, protein: 14, carbs: 1, fat: 11))
+        }
+        #expect(attempts.map(\.number) == [1, 2, 3])
+        #expect(attempts.map(\.usesTools) == [true, true, false])
+        #expect(attempts.map(\.toolResultLimit) == [
+            MealEstimateAttempt.fullToolResultLimit,
+            MealEstimateAttempt.compactToolResultLimit,
+            MealEstimateAttempt.compactToolResultLimit,
+        ])
+        #expect(attempts[1].hint == MealEstimateGeneration.contextOverflowHint(usesTools: true))
+        #expect(attempts[2].hint == MealEstimateGeneration.contextOverflowHint(usesTools: false))
+        #expect(result.items.count == 1)
+    }
+
+    @Test("A context overflow that persists gives up after three attempts, keeping the message it was matched from")
+    func contextOverflowGivesUp() async {
+        let message = "Provided 4484 tokens, but the maximum allowed is 4096."
+        var calls = 0
+        do {
+            _ = try await MealEstimateGeneration.run(description: "2 eggs") { _ in
+                calls += 1
+                throw MealEstimatorError.contextWindowExceeded(matchedMessage: message)
+            }
+            Issue.record("Expected the context overflow to propagate")
+        } catch let error as MealEstimatorError {
+            // Propagated unreported for the fallback to handle, with the
+            // message intact for the report `estimateWithFallback` may send.
+            #expect(MealEstimator.isRetryableOnPrivateCloud(error))
+            #expect(MealEstimator.overflowReportContext(for: error, source: .onDevice)?["matched_message"] == message)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+        #expect(calls == 3)
+    }
+
+    @Test("A context overflow after a decoding failure drops the food search on the last attempt")
+    func contextOverflowAfterDecodingFailure() async throws {
+        var attempts: [MealEstimateAttempt] = []
+        _ = try await MealEstimateGeneration.run(description: "2 eggs") { attempt in
+            attempts.append(attempt)
+            switch attempt.number {
+            case 1: throw MealEstimatorError.decodingFailed
+            case 2: throw MealEstimatorError.contextWindowExceeded(matchedMessage: nil)
+            default: return Self.estimate(Fixtures.food("Eggs", grams: 110, protein: 14, carbs: 1, fat: 11))
+            }
+        }
+        #expect(attempts.map(\.usesTools) == [true, true, false])
+        #expect(attempts[2].hint?.contains("do not call any tool") == true)
+    }
+
+    @Test("A context overflow on the corrective retry keeps the earlier flagged answer instead of failing")
+    func contextOverflowAfterAnImplausibleAnswer() async throws {
+        var calls = 0
+        let result = try await MealEstimateGeneration.run(description: "240g 7% ground beef") { _ in
+            calls += 1
+            if calls == 2 { throw MealEstimatorError.contextWindowExceeded(matchedMessage: nil) }
+            return Self.estimate(Fixtures.impossibleBeef)
+        }
+        #expect(calls == 2)
+        #expect(result.items[0].hasBlockingWarning)
+    }
+
+    @Test("Retries after a context overflow keep the smaller food search")
+    func correctiveRetryKeepsTheSmallerSearch() async throws {
+        var attempts: [MealEstimateAttempt] = []
+        _ = try await MealEstimateGeneration.run(description: "240g 7% ground beef") { attempt in
+            attempts.append(attempt)
+            if attempt.number == 1 { throw MealEstimatorError.contextWindowExceeded(matchedMessage: nil) }
+            return Self.estimate(attempt.number == 2 ? Fixtures.impossibleBeef : Fixtures.realisticBeef)
+        }
+        #expect(attempts.map(\.number) == [1, 2, 3])
+        #expect(attempts[2].usesTools)
+        #expect(attempts[2].toolResultLimit == MealEstimateAttempt.compactToolResultLimit)
+    }
+
+    #if canImport(FoundationModels)
+    @Test("The food search tool tells the model the match limit in force")
+    func foodSearchToolStatesItsLimit() {
+        guard #available(iOS 26.0, *) else { return }
+        let full = FoodSearchTool(
+            search: { _, _ in [] },
+            matchedIds: MatchedFoodIds(),
+            resultLimit: MealEstimateAttempt.fullToolResultLimit
+        )
+        let compact = FoodSearchTool(
+            search: { _, _ in [] },
+            matchedIds: MatchedFoodIds(),
+            resultLimit: MealEstimateAttempt.compactToolResultLimit
+        )
+        #expect(full.description.contains("returns up to 5 candidate matches"))
+        #expect(compact.description.contains("returns up to 2 candidate matches"))
+    }
+    #endif
+
+    @Test("An attempt without the food search has nothing left to cut after an overflow")
+    func toolLessAttemptCannotShrink() {
+        let toolLess = MealEstimateAttempt(number: 2, hint: nil, usesTools: false)
+        #expect(toolLess.afterContextOverflow() == nil)
+        #expect(MealEstimateAttempt.first.afterContextOverflow()?.usesTools == true)
+    }
+
     @Test("Other errors, such as a guardrail refusal, propagate at once for the fallback to handle")
     func otherErrorsPropagateImmediately() async {
         var calls = 0
@@ -219,5 +328,7 @@ struct MealEstimateGenerationTests {
     func simplificationHintMentionsToolsOnlyWhenDropped() {
         #expect(!MealEstimateGeneration.simplificationHint(usesTools: true).contains("tool"))
         #expect(MealEstimateGeneration.simplificationHint(usesTools: false).contains("do not call any tool"))
+        #expect(!MealEstimateGeneration.contextOverflowHint(usesTools: true).contains("tool"))
+        #expect(MealEstimateGeneration.contextOverflowHint(usesTools: false).contains("do not call any tool"))
     }
 }

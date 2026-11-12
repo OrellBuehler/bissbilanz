@@ -4,17 +4,39 @@ import Foundation
 /// ones carry a hint explaining why the previous answer was rejected, and the
 /// last one after repeated decoding failures runs without the food search
 /// tool so a long tool transcript cannot crowd the answer out of the model's
-/// small context window.
+/// small context window. A context overflow shrinks the input right away:
+/// fewer matches per food search first, then no food search at all.
 struct MealEstimateAttempt: Equatable {
     let number: Int
     let hint: String?
     let usesTools: Bool
+    var toolResultLimit = MealEstimateAttempt.fullToolResultLimit
+
+    static let fullToolResultLimit = 5
+    static let compactToolResultLimit = 2
 
     static let first = MealEstimateAttempt(number: 1, hint: nil, usesTools: true)
 
     func prompt(for description: String) -> String {
         guard let hint else { return description }
         return "\(description)\n\n\(hint)"
+    }
+
+    /// The next try after this one overflowed the model's context window, or
+    /// nil when no food search is left to cut. The tool results are what grows
+    /// with every item, so the retry keeps the search with fewer matches when
+    /// it can and drops it on the last attempt.
+    func afterContextOverflow() -> MealEstimateAttempt? {
+        guard usesTools else { return nil }
+        let nextNumber = number + 1
+        let keepsTools = toolResultLimit > Self.compactToolResultLimit
+            && nextNumber < MealEstimateGeneration.maxAttempts
+        return MealEstimateAttempt(
+            number: nextNumber,
+            hint: MealEstimateGeneration.contextOverflowHint(usesTools: keepsTools),
+            usesTools: keepsTools,
+            toolResultLimit: Self.compactToolResultLimit
+        )
     }
 }
 
@@ -28,11 +50,16 @@ struct MealEstimateAttempt: Equatable {
 ///   a context overflow or a runaway list) is retried, up to `maxAttempts`
 ///   tries in total, with a request to keep the answer compact. Giving up
 ///   throws, after reporting it.
+/// - A **context overflow** (`MealEstimatorError.contextWindowExceeded`) is
+///   retried with less input (`MealEstimateAttempt.afterContextOverflow`)
+///   within the same `maxAttempts`. Giving up throws without reporting, so
+///   `MealEstimator.estimateWithFallback` can still route it to Private Cloud
+///   Compute and reports it only if no estimate came of it.
 /// - An answer with **implausible values** (`MealEstimateValidator`) gets one
 ///   corrective retry that names the problems. The best answer wins; whatever
 ///   is still implausible stays flagged for the review screen.
 /// - Every other error propagates unchanged, so `MealEstimator.estimateWithFallback`
-///   keeps routing refusals and context overflows to Private Cloud Compute.
+///   keeps routing refusals to Private Cloud Compute.
 enum MealEstimateGeneration {
     static let maxAttempts = 3
 
@@ -70,7 +97,12 @@ enum MealEstimateGeneration {
                     category: "ai_meal",
                     data: ["flagged_items": flagged, "attempt": attempt.number]
                 )
-                attempt = MealEstimateAttempt(number: attempt.number + 1, hint: hint, usesTools: attempt.usesTools)
+                attempt = MealEstimateAttempt(
+                    number: attempt.number + 1,
+                    hint: hint,
+                    usesTools: attempt.usesTools,
+                    toolResultLimit: attempt.toolResultLimit
+                )
             } catch MealEstimatorError.decodingFailed {
                 // A previous attempt already produced something usable.
                 if let best {
@@ -94,18 +126,57 @@ enum MealEstimateGeneration {
                 attempt = MealEstimateAttempt(
                     number: nextNumber,
                     hint: simplificationHint(usesTools: nextUsesTools),
-                    usesTools: nextUsesTools
+                    usesTools: nextUsesTools,
+                    toolResultLimit: attempt.toolResultLimit
                 )
+            } catch MealEstimatorError.contextWindowExceeded(let matchedMessage) {
+                // The corrective retry's longer prompt overflowed; keep the
+                // flagged answer it was meant to improve.
+                if let best {
+                    reportImplausible(best, attempts: attempt.number)
+                    return best
+                }
+                guard attempt.number < maxAttempts, let next = attempt.afterContextOverflow() else {
+                    // Not reported here: a fallback may still produce an
+                    // estimate. `MealEstimator.estimateWithFallback` reports
+                    // the overflow once nothing did.
+                    ErrorReporter.addBreadcrumb(
+                        "Meal estimate exceeded the context window on every attempt",
+                        category: "ai_meal",
+                        data: ["attempts": attempt.number]
+                    )
+                    throw MealEstimatorError.contextWindowExceeded(matchedMessage: matchedMessage)
+                }
+                ErrorReporter.addBreadcrumb(
+                    "Meal estimate exceeded the context window, retrying with less input",
+                    category: "ai_meal",
+                    data: ["attempt": attempt.number, "uses_tools": next.usesTools]
+                )
+                attempt = next
             }
         }
     }
+
+    private static let noToolsHint = " The food database is not available this time: do not call any tool and leave "
+        + "matchedFoodId unset."
 
     /// Asked for after a decoding failure: shorter output is the likeliest fix.
     static func simplificationHint(usesTools: Bool) -> String {
         var hint = "Your previous answer could not be read. Answer again with a compact list: short item names "
             + "and at most 8 items, combining minor ingredients such as oil, spices and sauces into the main item."
         if !usesTools {
-            hint += " The food database is not available this time: do not call any tool and leave matchedFoodId unset."
+            hint += noToolsHint
+        }
+        return hint
+    }
+
+    /// Asked for after a context overflow: fewer items mean fewer food searches
+    /// and a shorter answer, both of which have to fit the same window.
+    static func contextOverflowHint(usesTools: Bool) -> String {
+        var hint = "Keep the answer compact: short item names and at most 8 items, combining minor ingredients "
+            + "such as oil, spices and sauces into the main item."
+        if !usesTools {
+            hint += noToolsHint
         }
         return hint
     }
