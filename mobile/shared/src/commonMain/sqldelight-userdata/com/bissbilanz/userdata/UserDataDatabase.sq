@@ -223,6 +223,9 @@ SELECT * FROM CachedFood WHERE id IN :ids;
 countFoods:
 SELECT COUNT(*) FROM CachedFood;
 
+countFoodsWithBarcode:
+SELECT COUNT(*) FROM CachedFood WHERE TRIM(COALESCE(barcode, '')) <> '';
+
 selectAllFoodIds:
 SELECT id FROM CachedFood;
 

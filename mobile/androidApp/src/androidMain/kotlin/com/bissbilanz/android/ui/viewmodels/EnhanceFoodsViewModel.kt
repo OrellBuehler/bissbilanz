@@ -34,6 +34,7 @@ class EnhanceFoodsViewModel(
         val loadFailures: Int = 0,
         val busy: Boolean = false,
         val rateLimited: Boolean = false,
+        val hasBarcodeFoods: Boolean = true,
     ) {
         val job get() = status?.job
         val isActive get() = job?.isActive == true
@@ -50,7 +51,8 @@ class EnhanceFoodsViewModel(
     private val _snackbarMessage = MutableStateFlow<UiMessage?>(null)
     val snackbarMessage: StateFlow<UiMessage?> = _snackbarMessage.asStateFlow()
 
-    private var latestRequest = 0
+    private var latestRead = 0
+    private var actionGeneration = 0
     private var pollRetryAfterMs = 0L
     private var rateLimitJob: Job? = null
 
@@ -97,23 +99,34 @@ class EnhanceFoodsViewModel(
     }
 
     private suspend fun load() {
-        val request = ++latestRequest
+        if (_state.value.busy) return
+        val read = ++latestRead
+        val generation = actionGeneration
+
+        fun current() = read == latestRead && generation == actionGeneration && !_state.value.busy
         try {
             val next = foodRepo.foodEnrichmentStatus()
-            if (request == latestRequest) apply(next)
+            val hasBarcodeFoods = hasBarcodeFoods(next)
+            if (current()) apply(next, hasBarcodeFoods)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            if (request != latestRequest) return
             if (e !is FoodEnrichmentException) errorReporter.captureException(e)
+            if (!current()) return
             pollRetryAfterMs = (e as? FoodEnrichmentException)?.retryAfterSeconds?.times(1000) ?: 0L
             _state.update { it.copy(loadFailures = it.loadFailures + 1) }
         }
     }
 
-    private fun apply(next: FoodEnrichmentStatusResponse) {
+    private suspend fun hasBarcodeFoods(status: FoodEnrichmentStatusResponse) =
+        status.candidates > 0 || status.job?.isActive == true || foodRepo.hasBarcodeFoods()
+
+    private fun apply(
+        next: FoodEnrichmentStatusResponse,
+        hasBarcodeFoods: Boolean,
+    ) {
         val finished = _state.value.isActive && next.job?.isActive != true
         pollRetryAfterMs = 0L
-        _state.update { it.copy(status = next, loadFailures = 0) }
+        _state.update { it.copy(status = next, loadFailures = 0, hasBarcodeFoods = hasBarcodeFoods) }
         if (finished) viewModelScope.launch { refreshFoods() }
     }
 
@@ -133,28 +146,35 @@ class EnhanceFoodsViewModel(
             _snackbarMessage.value = UiMessage(R.string.enhance_foods_offline)
             return
         }
-        val request = ++latestRequest
+        actionGeneration++
         _state.update { it.copy(busy = true) }
         viewModelScope.launch {
+            var outcomeUnknown = false
             try {
                 val next = call()
-                if (request == latestRequest) apply(next)
+                apply(next, hasBarcodeFoods(next))
             } catch (e: FoodEnrichmentException) {
                 when (e.reason) {
-                    FoodEnrichmentException.Reason.OFFLINE -> _snackbarMessage.value = UiMessage(R.string.enhance_foods_offline)
+                    FoodEnrichmentException.Reason.OFFLINE -> {
+                        _snackbarMessage.value = UiMessage(R.string.enhance_foods_offline)
+                        outcomeUnknown = e.cause != null
+                    }
                     FoodEnrichmentException.Reason.RATE_LIMITED -> rateLimit(e.retryAfterSeconds)
                     else -> {
                         errorReporter.captureException(e)
                         _snackbarMessage.value = UiMessage(R.string.enhance_foods_action_failed)
+                        outcomeUnknown = true
                     }
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 errorReporter.captureException(e)
                 _snackbarMessage.value = UiMessage(R.string.enhance_foods_action_failed)
+                outcomeUnknown = true
             } finally {
                 _state.update { it.copy(busy = false) }
             }
+            if (outcomeUnknown && connectivityProvider.isOnline.value) load()
         }
     }
 

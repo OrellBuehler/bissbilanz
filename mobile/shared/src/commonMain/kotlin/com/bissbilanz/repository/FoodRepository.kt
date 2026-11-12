@@ -6,6 +6,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.OpenFoodFactsClient
+import com.bissbilanz.api.OpenFoodFactsLookup
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodBrandStat
 import com.bissbilanz.api.generated.model.FoodCreate
@@ -25,6 +26,7 @@ import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.rewriteQueuedCreate
 import com.bissbilanz.userdata.CachedEntry
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.catalogLabels
 import com.bissbilanz.util.changes
 import com.bissbilanz.util.computeRecipePerServingMacros
 import com.bissbilanz.util.decodeOrNull
@@ -35,6 +37,7 @@ import com.bissbilanz.util.normalizeLabel
 import com.bissbilanz.util.normalizeLabels
 import com.bissbilanz.util.openFoodFactsProductToFoodCreate
 import com.bissbilanz.util.runHook
+import com.bissbilanz.util.sameContentAs
 import io.ktor.http.HttpHeaders
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -48,6 +51,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.jsonObject
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
@@ -877,13 +883,73 @@ class FoodRepository(
         @Suppress("NAME_SHADOWING")
         val id = resolveId(id)
         if (appModeManager.isLocal || isLocalOnly(id)) return enrichOnDevice(id, barcode)
+        if (bulkUploadFailed(id)) throw FoodEnrichmentException(FoodEnrichmentException.Reason.NOT_UPLOADED)
+        val before = getFoodCached(id)
         val response = enrichmentCall { api.enrichFood(id) }
-        val pending = id in pendingFoodIds()
-        if (!pending) withContext(ioDispatcher) { cacheFood(response.food) }
+        val food = storeEnrichedFood(response.food)
         errorReporter.runHook { onFoodChanged?.invoke() }
-        val food = if (pending) getFoodCached(id) ?: response.food else response.food
-        return FoodEnrichResult(food, FoodEnrichOutcome.fromServer(response.outcome))
+        val outcome = FoodEnrichOutcome.fromServer(response.outcome)
+        val nothingVisible = outcome == FoodEnrichOutcome.UPDATED && before != null && food.sameContentAs(before)
+        return FoodEnrichResult(food, if (nothingVisible) FoodEnrichOutcome.UNCHANGED else outcome)
     }
+
+    private suspend fun storeEnrichedFood(server: Food): Food {
+        val ops = pendingFoodOps().filter { it.affectedId == server.id }
+        val cached = getFoodCached(server.id)
+        if (ops.any { it is SyncOperation.DeleteFood }) return cached ?: server
+        val food = if (ops.isEmpty()) newerOf(server, cached) else withQueuedChanges(server, ops) ?: return cached ?: server
+        withContext(ioDispatcher) { cacheFood(food) }
+        return food
+    }
+
+    private fun newerOf(
+        server: Food,
+        cached: Food?,
+    ): Food {
+        if (cached == null) return server
+        val cachedAt = cached.serverModifiedAt?.let { Instant.parseOrNull(it) } ?: return server
+        val serverAt = server.serverModifiedAt?.let { Instant.parseOrNull(it) } ?: return server
+        return if (cachedAt > serverAt) cached else server
+    }
+
+    private fun withQueuedChanges(
+        server: Food,
+        ops: List<SyncOperation>,
+    ): Food? {
+        var food = server
+        for (op in ops) {
+            food =
+                when (op) {
+                    is SyncOperation.ToggleFavorite -> food.copy(isFavorite = op.isFavorite)
+                    is SyncOperation.SetFoodImage -> food.copy(imageUrl = op.imageUrl)
+                    is SyncOperation.SetFoodLabels -> food.copy(labels = normalizeLabels(op.labels).sorted())
+                    is SyncOperation.UpdateFood -> food.withQueuedEdit(op.body) ?: return null
+                    else -> food
+                }
+        }
+        return food
+    }
+
+    private fun Food.withQueuedEdit(body: String): Food? {
+        val edit = json.decodeOrNull<JsonObject>(body) ?: return null
+        val merged = JsonObject(json.encodeToJsonElement(this).jsonObject + edit)
+        return json.decodeOrNull<Food>(merged.toString())
+    }
+
+    private suspend fun bulkUploadFailed(id: String) =
+        withContext(ioDispatcher) {
+            db.userDataDatabaseQueries
+                .selectBulkJob(id)
+                .executeAsOneOrNull()
+                ?.state == "failed"
+        }
+
+    suspend fun hasBarcodeFoods(): Boolean =
+        withContext(ioDispatcher) {
+            db.userDataDatabaseQueries
+                .countFoodsWithBarcode()
+                .executeAsOne() > 0
+        }
 
     private suspend fun enrichOnDevice(
         id: String,
@@ -892,12 +958,35 @@ class FoodRepository(
         if (!connectivityProvider.isOnline.value) throw FoodEnrichmentException(FoodEnrichmentException.Reason.OFFLINE)
         val current = getFoodCached(id) ?: throw IllegalStateException("Food $id not found in local database")
         val product =
-            if (appModeManager.isLocal) lookupOpenFoodFacts(barcode) else enrichmentCall { lookupOpenFoodFacts(barcode) }
+            if (appModeManager.isLocal) lookupOnDevice(barcode) else enrichmentCall { api.lookupOpenFoodFacts(barcode) }
         if (product == null) return FoodEnrichResult(current, FoodEnrichOutcome.NOT_FOUND)
         val enriched = mergeOpenFoodFactsOntoFood(baseline = current, product = product)
         if (!enriched.changes(current)) return FoodEnrichResult(current, FoodEnrichOutcome.UNCHANGED)
+        val labels = enriched.catalogLabels(current)
+        if (labels.isNotEmpty()) withContext(ioDispatcher) { cacheFood(current.copy(labels = labels.sorted())) }
         // updateFood is cache-write + (mode-gated) enqueue and fires onFoodChanged.
         return FoodEnrichResult(updateFood(id, enriched), FoodEnrichOutcome.UPDATED)
+    }
+
+    private suspend fun lookupOnDevice(barcode: String): OpenFoodFactsProduct? {
+        val lookup =
+            try {
+                openFoodFactsClient.lookupProduct(barcode)
+            } catch (e: kotlinx.io.IOException) {
+                val reason =
+                    if (connectivityProvider.isOnline.value) {
+                        FoodEnrichmentException.Reason.OFF_UNAVAILABLE
+                    } else {
+                        FoodEnrichmentException.Reason.OFFLINE
+                    }
+                throw FoodEnrichmentException(reason, cause = e)
+            }
+        return when (lookup) {
+            is OpenFoodFactsLookup.Found -> lookup.product
+            OpenFoodFactsLookup.NotFound -> null
+            is OpenFoodFactsLookup.Unavailable ->
+                throw FoodEnrichmentException(FoodEnrichmentException.Reason.OFF_UNAVAILABLE, lookup.retryAfterSeconds, lookup.cause)
+        }
     }
 
     suspend fun foodEnrichmentStatus(): FoodEnrichmentStatusResponse = enrichmentCall { api.getFoodEnrichmentStatus() }

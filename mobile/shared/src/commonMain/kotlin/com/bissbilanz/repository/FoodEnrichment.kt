@@ -36,6 +36,7 @@ class FoodEnrichmentException(
         FOOD_GONE,
         FOOD_CHANGED,
         OFF_UNAVAILABLE,
+        NOT_UPLOADED,
     }
 }
 

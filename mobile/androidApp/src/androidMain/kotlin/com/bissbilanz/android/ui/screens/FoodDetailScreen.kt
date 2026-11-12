@@ -85,15 +85,25 @@ private fun FoodEnrichOutcome.messageRes() =
         FoodEnrichOutcome.NOT_FOUND -> R.string.food_detail_enrich_not_found
     }
 
-private fun FoodEnrichmentException.Reason.messageRes() =
-    when (this) {
-        FoodEnrichmentException.Reason.OFFLINE -> R.string.food_detail_enrich_offline
-        FoodEnrichmentException.Reason.RATE_LIMITED -> R.string.food_detail_enrich_rate_limited
-        FoodEnrichmentException.Reason.NO_BARCODE -> R.string.food_detail_enrich_no_barcode
-        FoodEnrichmentException.Reason.FOOD_GONE -> R.string.food_detail_enrich_food_gone
-        FoodEnrichmentException.Reason.FOOD_CHANGED -> R.string.food_detail_enrich_food_changed
-        FoodEnrichmentException.Reason.OFF_UNAVAILABLE -> R.string.food_detail_enrich_off_unavailable
+internal fun FoodEnrichmentException.toUiMessage(): UiMessage {
+    val wait = retryAfterSeconds
+    if (reason == FoodEnrichmentException.Reason.OFF_UNAVAILABLE && wait != null) {
+        if (wait < 60) return UiMessage(R.plurals.food_detail_enrich_off_unavailable_seconds, listOf(wait.toInt()), wait.toInt())
+        val minutes = ((wait + 59) / 60).toInt()
+        return UiMessage(R.plurals.food_detail_enrich_off_unavailable_minutes, listOf(minutes), minutes)
     }
+    return UiMessage(
+        when (reason) {
+            FoodEnrichmentException.Reason.OFFLINE -> R.string.food_detail_enrich_offline
+            FoodEnrichmentException.Reason.RATE_LIMITED -> R.string.food_detail_enrich_rate_limited
+            FoodEnrichmentException.Reason.NO_BARCODE -> R.string.food_detail_enrich_no_barcode
+            FoodEnrichmentException.Reason.FOOD_GONE -> R.string.food_detail_enrich_food_gone
+            FoodEnrichmentException.Reason.FOOD_CHANGED -> R.string.food_detail_enrich_food_changed
+            FoodEnrichmentException.Reason.OFF_UNAVAILABLE -> R.string.food_detail_enrich_off_unavailable
+            FoodEnrichmentException.Reason.NOT_UPLOADED -> R.string.food_detail_enrich_not_uploaded
+        },
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -351,7 +361,7 @@ fun FoodDetailScreen(
                                                     food = result.food
                                                     UiMessage(result.outcome.messageRes())
                                                 } catch (e: FoodEnrichmentException) {
-                                                    UiMessage(e.reason.messageRes())
+                                                    e.toUiMessage()
                                                 } catch (e: Exception) {
                                                     if (e is kotlinx.coroutines.CancellationException) throw e
                                                     errorReporter.captureException(e)

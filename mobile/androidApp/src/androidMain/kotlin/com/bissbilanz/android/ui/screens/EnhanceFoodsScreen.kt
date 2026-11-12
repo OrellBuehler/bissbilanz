@@ -135,10 +135,10 @@ internal fun EnhanceFoodsContent(
             }
         } else {
             Text(
-                if (status.candidates > 0) {
-                    stringResource(R.string.enhance_foods_candidates, formatCount(status.candidates))
-                } else {
-                    stringResource(R.string.enhance_foods_none)
+                when {
+                    status.candidates > 0 -> stringResource(R.string.enhance_foods_candidates, formatCount(status.candidates))
+                    state.hasBarcodeFoods -> stringResource(R.string.enhance_foods_none)
+                    else -> stringResource(R.string.enhance_foods_no_barcodes)
                 },
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
@@ -176,12 +176,14 @@ private fun ActiveRunCard(job: FoodEnrichmentJob) {
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.weight(1f),
                 )
-                Text(
-                    NumberFormat.getPercentInstance().format(progress),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                )
+                if (job.state != "queued") {
+                    Text(
+                        NumberFormat.getPercentInstance().format(progress),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
             }
             if (job.state == "queued" || job.total == 0) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())

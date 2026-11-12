@@ -246,6 +246,95 @@ class EnhanceFoodsViewModelTest {
         }
 
     @Test
+    fun aReadStartedWhileAStartIsInFlightNeverSupersedesIt() =
+        runTest {
+            val gate = CompletableDeferred<FoodEnrichmentStatusResponse>()
+            coEvery { foodRepo.foodEnrichmentStatus() } returns idle
+            coEvery { foodRepo.startFoodEnrichment() } coAnswers { gate.await() }
+            showScreen()
+
+            viewModel.start()
+            viewModel.refresh()
+            viewModel.retry()
+            gate.complete(queued)
+
+            assertEquals(queued, viewModel.state.value.status)
+            coVerify(exactly = 1) { foodRepo.foodEnrichmentStatus() }
+            coEvery { foodRepo.foodEnrichmentStatus() } returns running
+            advanceTimeBy(poll + 1)
+            assertEquals(running, viewModel.state.value.status)
+        }
+
+    @Test
+    fun aReadThatAnswersWhileAStartIsInFlightIsDropped() =
+        runTest {
+            val read = CompletableDeferred<FoodEnrichmentStatusResponse>()
+            val action = CompletableDeferred<FoodEnrichmentStatusResponse>()
+            coEvery { foodRepo.foodEnrichmentStatus() } coAnswers { read.await() }
+            coEvery { foodRepo.startFoodEnrichment() } coAnswers { action.await() }
+            showScreen()
+
+            viewModel.start()
+            read.complete(idle)
+            assertNull(viewModel.state.value.status)
+            action.complete(queued)
+
+            assertEquals(queued, viewModel.state.value.status)
+        }
+
+    @Test
+    fun aStartThatLostTheConnectionAfterSendingReloadsTheStatusOnce() =
+        runTest {
+            coEvery { foodRepo.startFoodEnrichment() } throws
+                FoodEnrichmentException(FoodEnrichmentException.Reason.OFFLINE, cause = java.io.IOException("reset"))
+            coEvery { foodRepo.foodEnrichmentStatus() } returns running
+
+            viewModel.start()
+
+            assertEquals(running, viewModel.state.value.status)
+            coVerify(exactly = 1) { foodRepo.foodEnrichmentStatus() }
+        }
+
+    @Test
+    fun aStopThatFailedUnexpectedlyReloadsTheStatusOnce() =
+        runTest {
+            coEvery { foodRepo.cancelFoodEnrichment() } throws RuntimeException("502")
+            coEvery { foodRepo.foodEnrichmentStatus() } returns status(job("cancelled", processed = 2))
+
+            viewModel.stop()
+
+            assertEquals(status(job("cancelled", processed = 2)), viewModel.state.value.status)
+            coVerify(exactly = 1) { foodRepo.foodEnrichmentStatus() }
+        }
+
+    @Test
+    fun anActionThatCertainlyDidNothingDoesNotReload() =
+        runTest {
+            coEvery { foodRepo.startFoodEnrichment() } throws
+                FoodEnrichmentException(FoodEnrichmentException.Reason.RATE_LIMITED, retryAfterSeconds = 5)
+            viewModel.start()
+            advanceTimeBy(5_001)
+
+            coEvery { foodRepo.startFoodEnrichment() } throws FoodEnrichmentException(FoodEnrichmentException.Reason.OFFLINE)
+            viewModel.start()
+
+            coVerify(exactly = 0) { foodRepo.foodEnrichmentStatus() }
+        }
+
+    @Test
+    fun withNothingToCheckTheScreenKnowsWhetherAnyFoodHasABarcode() =
+        runTest {
+            coEvery { foodRepo.foodEnrichmentStatus() } returns status(candidates = 0)
+            coEvery { foodRepo.hasBarcodeFoods() } returns false
+            showScreen()
+            assertFalse(viewModel.state.value.hasBarcodeFoods)
+
+            coEvery { foodRepo.hasBarcodeFoods() } returns true
+            viewModel.refresh()
+            assertTrue(viewModel.state.value.hasBarcodeFoods)
+        }
+
+    @Test
     fun stoppingCancelsTheRunAndRefreshesTheFoods() =
         runTest {
             coEvery { foodRepo.foodEnrichmentStatus() } returns running

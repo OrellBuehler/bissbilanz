@@ -712,14 +712,14 @@
     <string name="food_detail_load_failed">Failed to load food details</string>
     <string name="food_detail_log_failed">Failed to log food</string>
     <string name="food_detail_delete_failed">Failed to delete food</string>
-    <string name="food_detail_enrich_success">Food enriched with Open Food Facts data</string>
-    <string name="food_detail_enrich_failed">Failed to enrich food</string>
+    <string name="food_detail_enrich_success">Food enhanced with Open Food Facts data</string>
+    <string name="food_detail_enrich_failed">Failed to enhance food</string>
     <string name="food_detail_refresh_failed">Failed to refresh food</string>
     <string name="food_detail_logged">Logged %1$s</string>
     <string name="food_detail_delete_title">Delete Food</string>
     <string name="food_detail_delete_text">Are you sure you want to delete \"%1$s\"? This cannot be undone.</string>
     <string name="food_detail_default_title">Food</string>
-    <string name="food_detail_enrich">Enrich</string>
+    <string name="food_detail_enrich">Enhance</string>
     <string name="food_detail_log">Log</string>
     <string name="food_detail_log_this_food">Log this food</string>
     <string name="food_detail_serving_size">Per %1$s %2$s</string>
@@ -737,18 +737,28 @@
     <string name="food_detail_merge">Merge into…</string>
     <string name="food_detail_enrich_nothing_new">Open Food Facts has nothing new for this food</string>
     <string name="food_detail_enrich_not_found">Product not found in Open Food Facts</string>
-    <string name="food_detail_enrich_offline">Enriching needs an internet connection</string>
-    <string name="food_detail_enrich_no_barcode">This food has no barcode. Add one to enrich it.</string>
+    <string name="food_detail_enrich_offline">Enhancing needs an internet connection</string>
+    <string name="food_detail_enrich_no_barcode">This food has no barcode. Add one to enhance it.</string>
     <string name="food_detail_enrich_food_gone">This food no longer exists. It may have been deleted on another device.</string>
     <string name="food_detail_enrich_food_changed">The food changed during the lookup. Please try again.</string>
     <string name="food_detail_enrich_rate_limited">Too many lookups. Please wait a minute and try again.</string>
     <string name="food_detail_enrich_off_unavailable">Open Food Facts is unavailable right now. Please try again later.</string>
+    <plurals name="food_detail_enrich_off_unavailable_seconds">
+        <item quantity="one">Open Food Facts is unavailable right now. Please try again in %1$d second.</item>
+        <item quantity="other">Open Food Facts is unavailable right now. Please try again in %1$d seconds.</item>
+    </plurals>
+    <plurals name="food_detail_enrich_off_unavailable_minutes">
+        <item quantity="one">Open Food Facts is unavailable right now. Please try again in %1$d minute.</item>
+        <item quantity="other">Open Food Facts is unavailable right now. Please try again in %1$d minutes.</item>
+    </plurals>
+    <string name="food_detail_enrich_not_uploaded">This food has not been uploaded to your account yet, so it cannot be enhanced.</string>
 
     <!-- Enhance foods screen (server-side Open Food Facts run) -->
     <string name="enhance_foods_title">Enhance foods</string>
     <string name="enhance_foods_description">Looks up your foods with a barcode on Open Food Facts. The Nutri-Score and NOVA group are replaced by the Open Food Facts values; ingredients, additives, detailed nutrients and a photo are only filled in where missing. Names, servings, calories and macros stay as they are.</string>
     <string name="enhance_foods_candidates">Foods to check: %1$s</string>
     <string name="enhance_foods_none">All foods with a barcode have been checked.</string>
+    <string name="enhance_foods_no_barcodes">None of your foods has a barcode yet. Only foods with a barcode can be enhanced.</string>
     <string name="enhance_foods_start">Start</string>
     <string name="enhance_foods_stop">Stop</string>
     <string name="enhance_foods_queued">Starting…</string>

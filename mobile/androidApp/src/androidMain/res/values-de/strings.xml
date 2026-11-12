@@ -741,12 +741,22 @@
     <string name="food_detail_enrich_food_changed">Das Lebensmittel wurde während der Abfrage geändert. Bitte versuche es erneut.</string>
     <string name="food_detail_enrich_rate_limited">Zu viele Abfragen. Bitte warte eine Minute und versuche es erneut.</string>
     <string name="food_detail_enrich_off_unavailable">Open Food Facts ist gerade nicht erreichbar. Bitte versuche es später erneut.</string>
+    <plurals name="food_detail_enrich_off_unavailable_seconds">
+        <item quantity="one">Open Food Facts ist gerade nicht erreichbar. Bitte versuche es in %1$d Sekunde erneut.</item>
+        <item quantity="other">Open Food Facts ist gerade nicht erreichbar. Bitte versuche es in %1$d Sekunden erneut.</item>
+    </plurals>
+    <plurals name="food_detail_enrich_off_unavailable_minutes">
+        <item quantity="one">Open Food Facts ist gerade nicht erreichbar. Bitte versuche es in %1$d Minute erneut.</item>
+        <item quantity="other">Open Food Facts ist gerade nicht erreichbar. Bitte versuche es in %1$d Minuten erneut.</item>
+    </plurals>
+    <string name="food_detail_enrich_not_uploaded">Dieses Lebensmittel wurde noch nicht in dein Konto hochgeladen und kann deshalb nicht angereichert werden.</string>
 
     <!-- Enhance foods screen (server-side Open Food Facts run) -->
     <string name="enhance_foods_title">Lebensmittel anreichern</string>
     <string name="enhance_foods_description">Sucht deine Lebensmittel mit Barcode bei Open Food Facts. Nutri-Score und NOVA-Gruppe werden durch die Werte von Open Food Facts ersetzt; Zutaten, Zusatzstoffe, detaillierte Nährwerte und ein Foto werden nur ergänzt, wo sie fehlen. Namen, Portionen, Kalorien und Makros bleiben unverändert.</string>
     <string name="enhance_foods_candidates">Zu prüfende Lebensmittel: %1$s</string>
     <string name="enhance_foods_none">Alle Lebensmittel mit Barcode wurden geprüft.</string>
+    <string name="enhance_foods_no_barcodes">Noch keines deiner Lebensmittel hat einen Barcode. Nur Lebensmittel mit Barcode können angereichert werden.</string>
     <string name="enhance_foods_start">Starten</string>
     <string name="enhance_foods_stop">Stoppen</string>
     <string name="enhance_foods_queued">Wird gestartet…</string>

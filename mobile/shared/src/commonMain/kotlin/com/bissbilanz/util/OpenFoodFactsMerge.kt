@@ -4,6 +4,7 @@ import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.api.generated.model.ServingUnit
+import io.ktor.http.parseUrl
 import kotlin.math.floor
 
 /**
@@ -17,7 +18,9 @@ import kotlin.math.floor
  * - Nutri-Score and NOVA group come from [product] when it has them.
  * - Additives, ingredients, the image and every detailed nutrient are only filled in where
  *   [baseline] has none; a value the user entered is never replaced. A photo matters most:
- *   the server unlinks the previous upload whenever imageUrl changes.
+ *   the server unlinks the previous upload whenever imageUrl changes. The product image is
+ *   only taken from an Open Food Facts image host over https.
+ * - The product's categories become labels ([catalogLabels]) only for a food without any.
  * - Open Food Facts gives nutrients per 100 g or 100 ml, so they are scaled to the food's
  *   serving. A serving in a household measure (cup, tbsp, tsp) cannot be scaled, so its
  *   nutrients are left alone.
@@ -38,7 +41,7 @@ fun mergeOpenFoodFactsOntoFood(
                 } else {
                     base.ingredientsText
                 },
-            imageUrl = if (base.imageUrl.isNullOrBlank() && !product.imageUrl.isNullOrBlank()) product.imageUrl else base.imageUrl,
+            imageUrl = if (base.imageUrl.isNullOrBlank()) openFoodFactsImageUrl(product.imageUrl) ?: base.imageUrl else base.imageUrl,
             // Raw OFF categories; the server derives the food's labels from them.
             categoriesTags = product.categoriesTags,
         )
@@ -101,7 +104,54 @@ fun mergeOpenFoodFactsOntoFood(
     )
 }
 
-fun FoodCreate.changes(baseline: Food) = copy(categoriesTags = null) != baseline.toFoodCreate()
+fun FoodCreate.catalogLabels(baseline: Food): List<String> =
+    if (baseline.labels.isNullOrEmpty()) labelsFromCategoriesTags(categoriesTags.orEmpty()) else emptyList()
+
+fun FoodCreate.changes(baseline: Food) = copy(categoriesTags = null) != baseline.toFoodCreate() || catalogLabels(baseline).isNotEmpty()
+
+fun Food.sameContentAs(other: Food) = toFoodCreate() == other.toFoodCreate() && labels.orEmpty().sorted() == other.labels.orEmpty().sorted()
+
+private val OPEN_FOOD_FACTS_IMAGE_HOSTS = setOf("images.openfoodfacts.org", "images.openfoodfacts.net")
+private const val MAX_IMAGE_URL_LENGTH = 2048
+
+fun openFoodFactsImageUrl(value: String?): String? {
+    if (value == null || value.length > MAX_IMAGE_URL_LENGTH || !value.startsWith("https://")) return null
+    val host = parseUrl(value)?.host ?: return null
+    return value.takeIf { host in OPEN_FOOD_FACTS_IMAGE_HOSTS }
+}
+
+private const val MAX_SEEDED_LABELS = 6
+private val CATEGORY_SLUG = Regex("^en:[a-z0-9-]+$")
+private val CATEGORY_STOPLIST =
+    setOf(
+        "plant-based-foods",
+        "plant-based-foods-and-beverages",
+        "beverages-and-beverages-preparations",
+        "groceries",
+        "foods",
+        "meals",
+        "snacks",
+        "desserts",
+        "fermented-foods",
+        "fresh-foods",
+        "frozen-foods",
+        "dried-products",
+        "pasteurised-products",
+        "farming-products",
+        "food-additives",
+    )
+
+fun labelsFromCategoriesTags(tags: List<String>): List<String> {
+    val candidates =
+        tags.mapNotNull { tag ->
+            if (!CATEGORY_SLUG.matches(tag)) return@mapNotNull null
+            val slug = tag.removePrefix("en:")
+            if (slug in CATEGORY_STOPLIST) return@mapNotNull null
+            val words = slug.split('-').filter { it.isNotEmpty() }
+            if (words.isEmpty() || words.size > 2 || "and" in words) null else words.joinToString(" ")
+        }
+    return normalizeLabels(candidates).take(MAX_SEEDED_LABELS)
+}
 
 private val SCALABLE_UNITS = setOf("g", "kg", "oz", "lb", "ml", "cl", "l", "fl_oz")
 

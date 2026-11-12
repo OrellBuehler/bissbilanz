@@ -3,6 +3,7 @@ package com.bissbilanz.repository
 import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.OpenFoodFactsClient
+import com.bissbilanz.api.OpenFoodFactsLookup
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.FoodEnrichResponse
@@ -36,6 +37,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -783,6 +785,17 @@ class FoodRepositoryTest {
         sugar = sugar,
     )
 
+    private fun queued(operation: SyncOperation) =
+        QueuedRequest(
+            id = 1L,
+            operation = operation,
+            createdAt = 0L,
+            retryCount = 0L,
+            idempotencyKey = "k",
+            clientEditedAt = "t",
+            nextAttemptAt = 0L,
+        )
+
     private fun enrichError(
         status: Int,
         body: String,
@@ -835,17 +848,127 @@ class FoodRepositoryTest {
         }
 
     @Test
-    fun serverEnrichKeepsAQueuedEditInTheCache() =
+    fun serverEnrichShowsTheEnrichedFoodWithAQueuedEditOnTop() =
         runTest {
             seedFoodInCache(barcodeFood().copy(name = "Edited offline"))
-            coEvery { syncQueue.all() } returns listOf(pendingUpdate("f1"))
+            coEvery { syncQueue.all() } returns listOf(queued(SyncOperation.UpdateFood("f1", """{"name":"Edited offline"}""")))
             coEvery { api.enrichFood("f1") } returns FoodEnrichResponse(food = barcodeFood(nutriScore = "b"), outcome = "updated")
 
             val result = repository.enrichFood("f1", "4000000000000")
 
-            assertEquals("Edited offline", cachedFood("f1")?.name)
             assertEquals("Edited offline", result.food.name)
+            assertEquals("b", result.food.nutriScore)
+            assertEquals(result.food, cachedFood("f1"))
             assertEquals(FoodEnrichOutcome.UPDATED, result.outcome)
+        }
+
+    @Test
+    fun serverEnrichKeepsAQueuedFavoriteToggleAndStillShowsTheEnrichedFields() =
+        runTest {
+            seedFoodInCache(barcodeFood().copy(isFavorite = true))
+            coEvery { syncQueue.all() } returns listOf(queued(SyncOperation.ToggleFavorite("f1", true)))
+            coEvery { api.enrichFood("f1") } returns
+                FoodEnrichResponse(food = barcodeFood(nutriScore = "b", sugar = 4.5).copy(isFavorite = false), outcome = "updated")
+
+            val result = repository.enrichFood("f1", "4000000000000")
+
+            assertEquals(true, result.food.isFavorite)
+            assertEquals("b", result.food.nutriScore)
+            assertEquals(4.5, result.food.sugar)
+            assertEquals(result.food, cachedFood("f1"))
+            assertEquals(FoodEnrichOutcome.UPDATED, result.outcome)
+        }
+
+    @Test
+    fun serverEnrichAppliesQueuedImageAndLabelChangesInOrder() =
+        runTest {
+            seedFoodInCache(barcodeFood())
+            coEvery { syncQueue.all() } returns
+                listOf(
+                    queued(SyncOperation.SetFoodImage("f1", "/uploads/mine.webp")),
+                    queued(SyncOperation.SetFoodLabels("f1", listOf("Yogurts", "skyr"))),
+                )
+            coEvery { api.enrichFood("f1") } returns
+                FoodEnrichResponse(
+                    food = barcodeFood(nutriScore = "a").copy(imageUrl = "https://images.openfoodfacts.org/skyr.jpg"),
+                    outcome = "updated",
+                )
+
+            val result = repository.enrichFood("f1", "4000000000000")
+
+            assertEquals("/uploads/mine.webp", result.food.imageUrl)
+            assertEquals(listOf("skyr", "yogurt"), result.food.labels)
+            assertEquals("a", result.food.nutriScore)
+        }
+
+    @Test
+    fun serverEnrichLeavesAFoodWithAQueuedDeleteAlone() =
+        runTest {
+            coEvery { syncQueue.all() } returns listOf(queued(SyncOperation.DeleteFood("f1")))
+            coEvery { api.enrichFood("f1") } returns FoodEnrichResponse(food = barcodeFood(nutriScore = "a"), outcome = "updated")
+
+            repository.enrichFood("f1", "4000000000000")
+
+            assertNull(cachedFood("f1"))
+        }
+
+    @Test
+    fun serverEnrichKeepsANewerCopyTheDeltaSyncStoredMeanwhile() =
+        runTest {
+            val newer = barcodeFood(nutriScore = "b").copy(name = "Renamed elsewhere", serverModifiedAt = "2026-11-12T10:05:00Z")
+            seedFoodInCache(newer)
+            val older = barcodeFood(nutriScore = "b").copy(serverModifiedAt = "2026-11-12T10:00:00Z")
+            coEvery { api.enrichFood("f1") } returns FoodEnrichResponse(food = older, outcome = "updated")
+
+            val result = repository.enrichFood("f1", "4000000000000")
+
+            assertEquals("Renamed elsewhere", result.food.name)
+            assertEquals(newer, cachedFood("f1"))
+        }
+
+    @Test
+    fun serverEnrichReplacesAnOlderCachedCopy() =
+        runTest {
+            seedFoodInCache(barcodeFood().copy(serverModifiedAt = "2026-11-12T09:00:00Z"))
+            val enriched = barcodeFood(nutriScore = "c").copy(serverModifiedAt = "2026-11-12T10:00:00Z")
+            coEvery { api.enrichFood("f1") } returns FoodEnrichResponse(food = enriched, outcome = "updated")
+
+            repository.enrichFood("f1", "4000000000000")
+
+            assertEquals(enriched, cachedFood("f1"))
+        }
+
+    @Test
+    fun anUpdateThatChangesNothingShownIsReportedAsUnchanged() =
+        runTest {
+            seedFoodInCache(barcodeFood(nutriScore = "b"))
+            coEvery { api.enrichFood("f1") } returns
+                FoodEnrichResponse(food = barcodeFood(nutriScore = "b").copy(offCheckedAt = "2026-11-12T10:00:00Z"), outcome = "updated")
+
+            assertEquals(FoodEnrichOutcome.UNCHANGED, repository.enrichFood("f1", "4000000000000").outcome)
+        }
+
+    @Test
+    fun aFoodWhoseBulkUploadFailedIsNotSentToTheServer() =
+        runTest {
+            seedFoodInCache(barcodeFood())
+            queueBulkUpload("f1", state = "failed")
+
+            val thrown = assertFailsWith<FoodEnrichmentException> { repository.enrichFood("f1", "4000000000000") }
+
+            assertEquals(FoodEnrichmentException.Reason.NOT_UPLOADED, thrown.reason)
+            coVerify(exactly = 0) { api.enrichFood(any()) }
+        }
+
+    @Test
+    fun barcodeFoodsAreCountedFromTheLocalMirror() =
+        runTest {
+            seedFoodInCache(TestFixtures.food(id = "plain"))
+            seedFoodInCache(barcodeFood(id = "blank").copy(barcode = "  "))
+            assertFalse(repository.hasBarcodeFoods())
+
+            seedFoodInCache(barcodeFood(id = "scanned"))
+            assertTrue(repository.hasBarcodeFoods())
         }
 
     @Test
@@ -928,7 +1051,7 @@ class FoodRepositoryTest {
         runTest {
             val local = repositoryWith(mode = AppMode.LOCAL)
             seedFoodInCache(barcodeFood(servingSize = 30.0, nutriScore = "d"))
-            coEvery { offClient.fetchProduct("4000000000000") } returns product(sugar = 20.0)
+            coEvery { offClient.lookupProduct("4000000000000") } returns OpenFoodFactsLookup.Found(product(sugar = 20.0))
 
             val result = local.enrichFood("f1", "4000000000000")
 
@@ -944,11 +1067,55 @@ class FoodRepositoryTest {
             val local = repositoryWith(mode = AppMode.LOCAL)
             val stored = barcodeFood(sugar = 4.0, nutriScore = "b")
             seedFoodInCache(stored)
-            coEvery { offClient.fetchProduct("4000000000000") } returnsMany listOf(product(sugar = 10.0), null)
+            coEvery { offClient.lookupProduct("4000000000000") } returnsMany
+                listOf(OpenFoodFactsLookup.Found(product(sugar = 10.0)), OpenFoodFactsLookup.NotFound)
 
             assertEquals(FoodEnrichOutcome.UNCHANGED, local.enrichFood("f1", "4000000000000").outcome)
             assertEquals(FoodEnrichOutcome.NOT_FOUND, local.enrichFood("f1", "4000000000000").outcome)
             assertEquals(stored, cachedFood("f1"))
+        }
+
+    @Test
+    fun localModeEnrichSeedsLabelsFromCategoriesOnlyForAnUnlabelledFood() =
+        runTest {
+            val local = repositoryWith(mode = AppMode.LOCAL)
+            seedFoodInCache(barcodeFood(sugar = 4.0, nutriScore = "b"))
+            val categorised = product(sugar = 10.0).copy(categoriesTags = listOf("en:dairies", "en:skyrs", "en:plain-skyrs"))
+            coEvery { offClient.lookupProduct("4000000000000") } returns OpenFoodFactsLookup.Found(categorised)
+
+            val first = local.enrichFood("f1", "4000000000000")
+            val second = local.enrichFood("f1", "4000000000000")
+
+            assertEquals(FoodEnrichOutcome.UPDATED, first.outcome)
+            assertEquals(listOf("dairy", "plain skyr", "skyr"), first.food.labels)
+            assertEquals(listOf("dairy", "plain skyr", "skyr"), cachedFood("f1")?.labels)
+            assertEquals(FoodEnrichOutcome.UNCHANGED, second.outcome)
+        }
+
+    @Test
+    fun localModeEnrichTellsAnOpenFoodFactsOutageApartFromAnUnknownBarcode() =
+        runTest {
+            val local = repositoryWith(mode = AppMode.LOCAL)
+            seedFoodInCache(barcodeFood())
+            val cases =
+                listOf(
+                    OpenFoodFactsLookup.Unavailable(503, 30) to 30L,
+                    OpenFoodFactsLookup.Unavailable(429, null) to null,
+                    OpenFoodFactsLookup.Unavailable(200, null, RuntimeException("unreadable")) to null,
+                )
+            for ((lookup, retryAfter) in cases) {
+                coEvery { offClient.lookupProduct("4000000000000") } returns lookup
+                val thrown = assertFailsWith<FoodEnrichmentException> { local.enrichFood("f1", "4000000000000") }
+                assertEquals(FoodEnrichmentException.Reason.OFF_UNAVAILABLE, thrown.reason)
+                assertEquals(retryAfter, thrown.retryAfterSeconds)
+            }
+
+            coEvery { offClient.lookupProduct("4000000000000") } throws java.io.IOException("timeout")
+            assertEquals(
+                FoodEnrichmentException.Reason.OFF_UNAVAILABLE,
+                assertFailsWith<FoodEnrichmentException> { local.enrichFood("f1", "4000000000000") }.reason,
+            )
+            assertEquals(barcodeFood(), cachedFood("f1"))
         }
 
     @Test
@@ -960,7 +1127,7 @@ class FoodRepositoryTest {
             val thrown = assertFailsWith<FoodEnrichmentException> { local.enrichFood("f1", "4000000000000") }
 
             assertEquals(FoodEnrichmentException.Reason.OFFLINE, thrown.reason)
-            coVerify(exactly = 0) { offClient.fetchProduct(any()) }
+            coVerify(exactly = 0) { offClient.lookupProduct(any()) }
         }
 
     @Test

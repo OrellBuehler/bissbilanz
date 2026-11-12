@@ -55,10 +55,12 @@ class EnhanceFoodsContentTest {
         candidates: Int = 5,
         loadFailures: Int = 0,
         rateLimited: Boolean = false,
+        hasBarcodeFoods: Boolean = true,
     ) = EnhanceFoodsViewModel.UiState(
         status = FoodEnrichmentStatusResponse(candidates = candidates, job = job),
         loadFailures = loadFailures,
         rateLimited = rateLimited,
+        hasBarcodeFoods = hasBarcodeFoods,
     )
 
     @Test
@@ -80,9 +82,19 @@ class EnhanceFoodsContentTest {
     }
 
     @Test
+    fun withoutAnyBarcodeFoodItSaysSoInsteadOfAllChecked() {
+        show(state(candidates = 0, hasBarcodeFoods = false))
+
+        composeTestRule.onNodeWithText("Noch keines deiner Lebensmittel hat einen Barcode", substring = true).assertExists()
+        composeTestRule.onNodeWithText("Alle Lebensmittel mit Barcode wurden geprüft.").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Starten").assertIsNotEnabled()
+    }
+
+    @Test
     fun aRunningJobShowsProgressCountsAndStop() {
         show(state(job("running")))
 
+        composeTestRule.onNodeWithText("40", substring = true).assertExists()
         composeTestRule.onNodeWithText("2 von 5 geprüft").assertExists()
         composeTestRule.onNodeWithText("1 angereichert · 1 nicht gefunden · 0 fehlgeschlagen").assertExists()
         composeTestRule.onNodeWithText("Stoppen").assertIsEnabled().performClick()
@@ -95,6 +107,7 @@ class EnhanceFoodsContentTest {
         show(state(job("queued", processed = 0)))
 
         composeTestRule.onNodeWithText("Wird gestartet…").assertExists()
+        composeTestRule.onNodeWithText("%", substring = true).assertDoesNotExist()
     }
 
     @Test

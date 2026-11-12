@@ -231,9 +231,11 @@ class OpenFoodFactsMergeTest {
                 imageUrl = "/uploads/u/photo.webp",
                 sugar = 20.0,
                 sodium = 400.0,
+                labels = listOf("cereal"),
             )
 
         assertFalse(mergeOpenFoodFactsOntoFood(stored, productFixture()).changes(stored))
+        assertFalse(mergeOpenFoodFactsOntoFood(foodFixture(), emptyProduct()).changes(foodFixture()))
     }
 
     @Test
@@ -246,10 +248,76 @@ class OpenFoodFactsMergeTest {
     }
 
     @Test
-    fun categoriesAloneAreNoChangeOnTheDevice() {
-        val stored = foodFixture()
+    fun categoriesAloneSeedLabelsOnAFoodWithoutAnyLikeTheServer() {
+        val merged = mergeOpenFoodFactsOntoFood(foodFixture(), emptyProduct(categoriesTags = listOf("en:cereals", "en:breakfasts")))
 
-        assertFalse(mergeOpenFoodFactsOntoFood(stored, emptyProduct()).changes(stored))
+        assertTrue(merged.changes(foodFixture()))
+        assertEquals(listOf("cereal", "breakfast"), merged.catalogLabels(foodFixture()))
+    }
+
+    @Test
+    fun categoriesNeverTouchAFoodThatAlreadyHasLabels() {
+        val labelled = foodFixture(labels = listOf("porridge"))
+        val merged = mergeOpenFoodFactsOntoFood(labelled, emptyProduct(categoriesTags = listOf("en:cereals")))
+
+        assertEquals(emptyList(), merged.catalogLabels(labelled))
+        assertFalse(merged.changes(labelled))
+    }
+
+    @Test
+    fun ignoresAnImageOutsideTheOpenFoodFactsHosts() {
+        val rejected =
+            listOf(
+                "ftp://images.openfoodfacts.org/front.jpg",
+                "http://images.openfoodfacts.org/front.jpg",
+                "https://cdn.example.org/front.jpg",
+                "https://images.openfoodfacts.org.example.org/front.jpg",
+                "/uploads/someone-else/photo.webp",
+                "not a url",
+                "https://images.openfoodfacts.org/" + "a".repeat(2048),
+            )
+        for (imageUrl in rejected) {
+            assertNull(mergeOpenFoodFactsOntoFood(foodFixture(), productFixture(imageUrl = imageUrl)).imageUrl, imageUrl)
+        }
+    }
+
+    @Test
+    fun acceptsBothOpenFoodFactsImageHosts() {
+        val accepted =
+            listOf(
+                "https://images.openfoodfacts.org/images/products/1.jpg",
+                "https://images.openfoodfacts.net/images/products/1.jpg",
+            )
+        for (imageUrl in accepted) {
+            assertEquals(imageUrl, mergeOpenFoodFactsOntoFood(foodFixture(), productFixture(imageUrl = imageUrl)).imageUrl)
+        }
+    }
+
+    @Test
+    fun categoryLabelsKeepTheObjectLikeSlugsSingularized() {
+        assertEquals(
+            listOf("breakfast", "spread", "sweet spread", "hazelnut spread", "chocolate spread"),
+            labelsFromCategoriesTags(NUTELLA),
+        )
+        assertEquals(listOf("dairy", "cheese", "italian cheese", "mozzarella"), labelsFromCategoriesTags(MOZZARELLA))
+    }
+
+    @Test
+    fun categoryLabelsDropForeignPrefixesFreeTextPathsAndTheStoplist() {
+        assertTrue(labelsFromCategoriesTags(NUTELLA).none { it.contains("tartiner") })
+        assertEquals(emptyList(), labelsFromCategoriesTags(listOf("fr:colas", "de:limonaden", "en:Cola Getränke")))
+        assertEquals(listOf("bread", "sliced bread", "wholemeal bread"), labelsFromCategoriesTags(SLICED_BREAD))
+        assertEquals(emptyList(), labelsFromCategoriesTags(listOf("en:plant-based-foods", "en:snacks", "en:desserts")))
+    }
+
+    @Test
+    fun categoryLabelsAreCappedDedupedAndEmptyWithoutTags() {
+        assertEquals(
+            listOf("beverage", "carbonated drink", "soft drink", "soda", "cola", "sweetened beverage"),
+            labelsFromCategoriesTags(COCA_COLA),
+        )
+        assertEquals(listOf("cola"), labelsFromCategoriesTags(listOf("en:colas", "en:cola", "en:Colas")))
+        assertEquals(emptyList(), labelsFromCategoriesTags(emptyList()))
     }
 
     private fun foodFixture(
@@ -263,6 +331,7 @@ class OpenFoodFactsMergeTest {
         sugar: Double? = null,
         sodium: Double? = null,
         potassium: Double? = null,
+        labels: List<String>? = null,
     ): Food =
         Food(
             id = "food-1",
@@ -286,6 +355,7 @@ class OpenFoodFactsMergeTest {
             sugar = sugar,
             sodium = sodium,
             potassium = potassium,
+            labels = labels,
         )
 
     private fun productFixture(
@@ -297,6 +367,7 @@ class OpenFoodFactsMergeTest {
         sugar: Double? = 20.0,
         sodium: Double? = 400.0,
         iron: Double? = null,
+        categoriesTags: List<String> = listOf("en:cereals"),
     ): OpenFoodFactsProduct =
         OpenFoodFactsProduct(
             id = "4000000000000",
@@ -315,7 +386,7 @@ class OpenFoodFactsMergeTest {
             fiber = 5.0,
             additives = additives,
             ingredientsText = ingredientsText,
-            categoriesTags = listOf("en:cereals"),
+            categoriesTags = categoriesTags,
             sugar = sugar,
             sodium = sodium,
             iron = iron,
@@ -324,6 +395,7 @@ class OpenFoodFactsMergeTest {
     private fun emptyProduct(
         nutriScore: OpenFoodFactsProduct.NutriScore? = null,
         sugar: Double? = null,
+        categoriesTags: List<String> = emptyList(),
     ) = productFixture(
         nutriScore = nutriScore,
         novaGroup = null,
@@ -332,5 +404,54 @@ class OpenFoodFactsMergeTest {
         imageUrl = null,
         sugar = sugar,
         sodium = null,
+        categoriesTags = categoriesTags,
     )
+
+    private companion object {
+        val NUTELLA =
+            listOf(
+                "en:breakfasts",
+                "en:spreads",
+                "en:sweet-spreads",
+                "fr:pates-a-tartiner",
+                "en:hazelnut-spreads",
+                "en:chocolate-spreads",
+                "en:cocoa-and-hazelnuts-spreads",
+                "en:Pâtes à tartiner",
+            )
+        val COCA_COLA =
+            listOf(
+                "en:beverages-and-beverages-preparations",
+                "en:beverages",
+                "en:non-alcoholic-beverages",
+                "en:carbonated-drinks",
+                "en:soft-drinks",
+                "en:sodas",
+                "en:colas",
+                "en:sweetened-beverages",
+                "pt:bebidas cafeína",
+            )
+        val MOZZARELLA =
+            listOf(
+                "en:dairies",
+                "en:fermented-foods",
+                "en:fermented-milk-products",
+                "en:cheeses",
+                "en:italian-cheeses",
+                "en:stretched-curd-cheeses",
+                "en:mozzarella",
+            )
+        val SLICED_BREAD =
+            listOf(
+                "en:plant-based-foods-and-beverages",
+                "en:plant-based-foods",
+                "en:cereals-and-potatoes",
+                "en:cereals-and-their-products",
+                "en:breads",
+                "en:sliced-breads",
+                "en:sliced-breads-without-crust",
+                "en:wholemeal-breads",
+                "en:wholemeal-sliced-breads",
+            )
+    }
 }
