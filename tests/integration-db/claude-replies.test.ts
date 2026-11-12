@@ -682,7 +682,7 @@ describe('failures leave the diary unchanged and allow another reply', () => {
 				'Schema is too complex for compilation.',
 				new Headers()
 			);
-		for (let attempt = 0; attempt < replies.MAX_REPLIES_PER_TASK + 1; attempt++) {
+		for (let attempt = 0; attempt < replies.MAX_FAILED_CORRECTIONS_PER_DAY; attempt++) {
 			await replies.postTaskReply(user.id, task.id, `attempt ${attempt}`);
 			startFake([tooComplex(), tooComplex()]);
 			await runCorrection(task.id);
@@ -693,7 +693,21 @@ describe('failures leave the diary unchanged and allow another reply', () => {
 		}
 		const [current] = await db.select().from(aiTasks).where(eq(aiTasks.id, task.id));
 		const [view] = await serialize.serializeAiTasksWithRuns([current!]);
-		expect(view!.claudeThread).toMatchObject({ canReply: true, repliesRemaining: 5 });
+		// The failures used up none of the task's replies, but they pause it for a day.
+		expect(view!.claudeThread).toMatchObject({
+			canReply: false,
+			replyBlockedReason: 'failed_too_often',
+			repliesRemaining: 5
+		});
+		const paused = await replies.postTaskReply(user.id, task.id, 'again').catch((error) => error);
+		expect(paused).toMatchObject({ code: 'failed_too_often', status: 429 });
+		expect(paused.retryAfterSeconds).toBeGreaterThan(23 * 3600);
+
+		await db
+			.update(claudeTaskMessages)
+			.set({ createdAt: new Date(Date.now() - 25 * 60 * 60_000) })
+			.where(eq(claudeTaskMessages.outcome, 'failed'));
+		await expect(replies.postTaskReply(user.id, task.id, 'next day')).resolves.toBeTruthy();
 	});
 
 	it('gives up when the model does not finish', async () => {
@@ -779,6 +793,70 @@ describe('failures leave the diary unchanged and allow another reply', () => {
 		expect((await entryOf(skyrEntry.id))!.servings).toBe(1);
 		expect(await db.select().from(claudeTaskMessages)).toHaveLength(0);
 		expect(await db.select().from(claudeTaskCorrections)).toHaveLength(0);
+	});
+});
+
+describe('entries the user deleted while the correction ran', () => {
+	it('counts a removal the user already made as done and saves the rest', async () => {
+		const { user, task, skyrEntry, ownEntry } = await seedCompleted();
+		await replies.postTaskReply(user.id, task.id, 'remove the yogurt, and it was two skyr');
+		startFake([
+			toolStep(
+				toolUse('delete_entry', { entryId: ownEntry.id }),
+				toolUse('update_entry', { entryId: skyrEntry.id, ...updateInput({ servings: 2 }) })
+			),
+			async () => {
+				await db.delete(foodEntries).where(eq(foodEntries.id, ownEntry.id));
+				return reply('Removed the yogurt and set the skyr to two portions.');
+			}
+		]);
+		await runCorrection(task.id);
+		expect((await entryOf(skyrEntry.id))!.servings).toBe(2);
+		expect((await threadOf(task.id)).at(-1)).toMatchObject({ outcome: 'changed' });
+		const [done] = await db.select().from(aiTasks).where(eq(aiTasks.id, task.id));
+		expect(done!.createdEntryIds).toEqual([skyrEntry.id]);
+	});
+
+	it('drops a change to an entry the user deleted and tells the model', async () => {
+		const { user, task, skyrEntry, ownEntry } = await seedCompleted();
+		await replies.postTaskReply(user.id, task.id, 'two skyr and two yogurt');
+		const fake = startFake([
+			toolStep(
+				toolUse('update_entry', { entryId: skyrEntry.id, ...updateInput({ servings: 2 }) }),
+				toolUse('update_entry', { entryId: ownEntry.id, ...updateInput({ servings: 2 }) })
+			),
+			async () => {
+				await db.delete(foodEntries).where(eq(foodEntries.id, ownEntry.id));
+				return reply('Both are two portions now.');
+			},
+			reply('The skyr is two portions now; you had already removed the yogurt.')
+		]);
+		await runCorrection(task.id);
+		expect(resultsOf(fake, 2)[0]!.body.error).toContain('deleted entries you changed');
+		expect((await entryOf(skyrEntry.id))!.servings).toBe(2);
+		expect((await threadOf(task.id)).at(-1)).toMatchObject({
+			outcome: 'changed',
+			text: 'The skyr is two portions now; you had already removed the yogurt.'
+		});
+	});
+});
+
+describe('without a configured processor', () => {
+	it('ends waiting corrections with a notice so the task can take a reply again', async () => {
+		const { user, task } = await seedCompleted({ locale: 'de' });
+		await replies.postTaskReply(user.id, task.id, 'four portions');
+		const corrections = await import('$lib/server/claude/tasks/corrections');
+		expect(await corrections.failCorrectionsWithoutProcessor()).toBe(1);
+		expect(await corrections.failCorrectionsWithoutProcessor()).toBe(0);
+		expect(await correctionOf(task.id)).toMatchObject({
+			state: 'failed',
+			failureCode: 'not_configured'
+		});
+		expect((await threadOf(task.id)).at(-1)).toMatchObject({
+			role: 'assistant',
+			outcome: 'failed',
+			text: corrections.correctionFailureText('not_configured', 'de')
+		});
 	});
 });
 

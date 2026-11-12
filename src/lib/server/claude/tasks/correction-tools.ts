@@ -28,6 +28,7 @@ import {
 	NUTRIENT_KEYS,
 	NUTRIENT_LIST,
 	ToolInputError,
+	createFoodKey,
 	asRecord,
 	failure,
 	inputSchemas,
@@ -190,9 +191,12 @@ export const correctionTools = (nutrientDatabase: boolean): Anthropic.Tool[] =>
 
 const quickNumber = optionalNumber;
 
+// update_entry, log_food and update_food are not strict on the API side, so
+// their input is checked here, unknown keys included: a key that is silently
+// dropped would let the answer claim a change that never happened.
 const schemas = {
 	get_task_entries: z.object({}),
-	update_entry: z.object({
+	update_entry: z.strictObject({
 		entryId: z.string().uuid(),
 		servings: z.number().positive().nullish(),
 		foodId: z.string().uuid().nullish(),
@@ -206,7 +210,7 @@ const schemas = {
 		quickFiber: quickNumber
 	}),
 	delete_entry: z.object({ entryId: z.string().uuid() }),
-	update_food: z.object({
+	update_food: z.strictObject({
 		foodId: z.string().uuid(),
 		name: z.string().nullish(),
 		brand: z.string().nullish(),
@@ -224,10 +228,12 @@ const schemas = {
 					amount: z.number().nullable()
 				})
 			)
-			.default([]),
+			.nullish()
+			.transform((nutrients) => nutrients ?? []),
 		ingredientsText: z.string().nullish()
 	}),
-	reply_to_user: z.object({ message: z.string().trim().min(1).max(2000) })
+	reply_to_user: z.object({ message: z.string().trim().min(1).max(2000) }),
+	log_food: z.strictObject(inputSchemas.log_food.omit({ quantityDescription: true }).shape)
 };
 
 type EntryFields = {
@@ -293,8 +299,10 @@ export type CorrectionToolContext = {
 	usedOutside: Map<string, boolean>;
 	recipes: Map<string, RecipeView | null>;
 	// Per correction, not per plan: a reload after a failed save keeps them.
+	// entryChanges counts staged changes; stagedFoods holds every distinct food
+	// create_food staged, so staging the same food again after a reload is free.
 	entryChanges: number;
-	foodsCreated: number;
+	stagedFoods: Set<string>;
 };
 
 const fieldsOf = (row: typeof foodEntries.$inferSelect): EntryFields => ({
@@ -356,8 +364,14 @@ export function newCorrectionContext(
 		usedOutside: new Map(),
 		recipes: new Map(),
 		entryChanges: 0,
-		foodsCreated: 0
+		stagedFoods: new Set()
 	};
+}
+
+/** Whether a create_food call would stage one food more than the correction may. */
+export function exceedsFoodCap(ctx: CorrectionToolContext, input: unknown, max: number): boolean {
+	const key = createFoodKey(input);
+	return key !== null && !ctx.stagedFoods.has(key) && ctx.stagedFoods.size >= max;
 }
 
 const baseEntryIds = (ctx: CorrectionToolContext) =>
@@ -573,7 +587,7 @@ async function stageEntryUpdate(
 }
 
 async function stageEntryAdd(input: unknown, ctx: CorrectionToolContext) {
-	const { parsed, eatenAt } = await prepareLog(inputSchemas.log_food.parse(input), ctx.shared);
+	const { parsed, eatenAt } = await prepareLog(schemas.log_food.parse(input), ctx.shared);
 	const data = parsed.data;
 	const entry: PlannedEntry = {
 		id: crypto.randomUUID(),
@@ -654,6 +668,13 @@ const entryPatch = (base: EntryFields, next: EntryFields) =>
 /** Something changed between staging and saving; nothing was saved. */
 class ApplyConflict extends Error {}
 
+/** Entries the plan changes were deleted by the user meanwhile; nothing was saved. */
+class EntriesGone extends Error {
+	constructor(readonly entryIds: string[]) {
+		super('Entries were deleted');
+	}
+}
+
 /** The task is no longer one a correction may change (reopened or resolved again). */
 export class CorrectionTaskChangedError extends Error {
 	constructor() {
@@ -699,16 +720,24 @@ async function applyCorrection(
 		const added = live.filter((entry) => !entry.base);
 		const removed = all.filter((entry) => entry.deleted && entry.base);
 
-		// The scope again, under the task lock: an entry moved to another day or
-		// out of the task since it was staged is the user's now.
+		// The scope again, under the task lock. An entry that still exists but is
+		// no longer the task's (moved to another day) is the user's now; one that
+		// no longer exists is already removed, which only matters for a change.
 		const scope = (
 			await listTaskEntries(tx, { ...ctx.task, createdEntryIds: task.createdEntryIds })
 		).map((row) => row.id);
-		if ([...changed, ...removed].some((entry) => !scope.includes(entry.id))) {
-			throw new ApplyConflict(
-				'An entry you changed or removed was moved to another day or removed after the user wrote.'
-			);
+		const vanished = new Set<string>();
+		for (const entry of [...changed, ...removed]) {
+			if (scope.includes(entry.id)) continue;
+			if (await entryExists(tx, userId, entry.id)) {
+				throw new ApplyConflict(
+					'An entry you changed or removed was moved to another day or out of this meal after the user wrote.'
+				);
+			}
+			vanished.add(entry.id);
 		}
+		const vanishedChanges = changed.filter((entry) => vanished.has(entry.id));
+		if (vanishedChanges.length > 0) throw new EntriesGone(vanishedChanges.map((entry) => entry.id));
 
 		const savedIds = new Map<string, string>();
 		for (const [stagedId, data] of ctx.shared.foods) {
@@ -753,6 +782,7 @@ async function applyCorrection(
 
 		const saved = (id: string | null) => (id ? (savedIds.get(id) ?? id) : null);
 		for (const entry of removed) {
+			if (vanished.has(entry.id)) continue;
 			const gone = await deleteEntry(userId, entry.id, { tx, clientEditedAt: ctx.replyAt });
 			if (!gone && (await entryExists(tx, userId, entry.id))) {
 				throw new ApplyConflict(
@@ -771,8 +801,9 @@ async function applyCorrection(
 			);
 			if (!result.success) throw conflictFrom(result.error);
 			if (!result.data) {
+				if (!(await entryExists(tx, userId, entry.id))) throw new EntriesGone([entry.id]);
 				throw new ApplyConflict(
-					'The user edited or removed an entry you changed after they wrote, and their edit stands.'
+					'The user edited an entry you changed after they wrote, and their edit stands.'
 				);
 			}
 		}
@@ -820,15 +851,20 @@ const ok = (value: unknown, limit = 8000): LoopToolResult => {
 	};
 };
 
+const staged = (ctx: CorrectionToolContext, value: unknown): LoopToolResult => {
+	ctx.entryChanges++;
+	return ok(value);
+};
+
 export async function runCorrectionTool(
 	name: string,
 	input: unknown,
 	ctx: CorrectionToolContext
 ): Promise<LoopToolResult> {
 	if (SHARED_TOOLS.includes(name)) {
-		const staged = ctx.shared.createdFoods.size;
 		const result = await runSharedTool(name, input, ctx.shared);
-		if (ctx.shared.createdFoods.size > staged) ctx.foodsCreated++;
+		const key = name === 'create_food' && !result.isError ? createFoodKey(input) : null;
+		if (key) ctx.stagedFoods.add(key);
 		return result;
 	}
 	try {
@@ -837,14 +873,11 @@ export async function runCorrectionTool(
 				schemas.get_task_entries.parse(input);
 				return ok(await renderState(ctx), STATE_MAX_CHARS);
 			case 'update_entry':
-				ctx.entryChanges++;
-				return ok(await stageEntryUpdate(schemas.update_entry.parse(input), ctx));
+				return staged(ctx, await stageEntryUpdate(schemas.update_entry.parse(input), ctx));
 			case 'delete_entry':
-				ctx.entryChanges++;
-				return ok(stageEntryDelete(schemas.delete_entry.parse(input), ctx));
+				return staged(ctx, stageEntryDelete(schemas.delete_entry.parse(input), ctx));
 			case 'log_food':
-				ctx.entryChanges++;
-				return ok(await stageEntryAdd(input, ctx));
+				return staged(ctx, await stageEntryAdd(input, ctx));
 			case 'update_food':
 				return ok(await stageFoodUpdate(schemas.update_food.parse(input), ctx));
 			case 'reply_to_user': {
@@ -852,6 +885,12 @@ export async function runCorrectionTool(
 				try {
 					await applyCorrection(ctx, message);
 				} catch (error) {
+					if (error instanceof EntriesGone) {
+						for (const entryId of error.entryIds) ctx.entries.delete(entryId);
+						return failure(
+							`Nothing was saved yet: the user deleted entries you changed (${error.entryIds.join(', ')}) after they wrote, so those changes were dropped from your plan. Everything else you staged is still staged. Check get_task_entries, then call reply_to_user again with an answer that matches.`
+						);
+					}
 					if (!(error instanceof ApplyConflict)) throw error;
 					await loadCorrectionState(ctx);
 					return failure(

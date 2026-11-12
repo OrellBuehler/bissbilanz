@@ -8,6 +8,7 @@ import { ClaudeGateError, ClaudeProcessorChangedError } from '../errors';
 import { isClaudeConfigured } from '../config';
 import { onClaudeAccessChanged } from '../events';
 import { processCorrection } from './correction';
+import { failCorrectionsWithoutProcessor } from './corrections';
 import { processTask, type ProcessOptions, type ProcessResult } from './processor';
 import { ensureRun } from './runs';
 
@@ -233,8 +234,14 @@ export async function sweepClaudeTasks(): Promise<void> {
 }
 
 export function startClaudeWorker(): void {
-	if (started || !isClaudeConfigured()) return;
+	if (started) return;
 	started = true;
+	if (!isClaudeConfigured()) {
+		failCorrectionsWithoutProcessor().catch((error) => {
+			Sentry.captureException(error, { tags: { job: 'claude-corrections-unconfigured' } });
+		});
+		return;
+	}
 	onClaudeAccessChanged(({ userId }) => abortClaudeRunsWhereGated(userId));
 	const sweep = () => {
 		sweepClaudeTasks().catch((error) => {

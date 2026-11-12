@@ -154,3 +154,50 @@ describe('outcomes', () => {
 		expect(values()).toHaveLength(0);
 	});
 });
+
+describe('failCorrectionsWithoutProcessor', () => {
+	test('ends every waiting correction with a notice in the owner’s language', async () => {
+		queueResults([
+			[
+				{ taskId: 'task-1', userId: 'user-de' },
+				{ taskId: 'task-2', userId: 'user-en' }
+			],
+			[
+				{ id: 'user-de', locale: 'de' },
+				{ id: 'user-en', locale: 'en' }
+			],
+			[]
+		]);
+		expect(await corrections.failCorrectionsWithoutProcessor()).toBe(2);
+		expect(sets()[0]).toMatchObject({
+			state: 'failed',
+			failureCode: 'not_configured',
+			leaseOwner: null,
+			nextAttemptAt: null
+		});
+		const where = getCalls().find((call) => call.method === 'where')!.args[0] as SQL;
+		expect(new PgDialect().sqlToQuery(where).params).toEqual(['queued', 'running', 'retry_wait']);
+		expect(values()[0]).toEqual([
+			{
+				taskId: 'task-1',
+				userId: 'user-de',
+				role: 'assistant',
+				text: corrections.correctionFailureText('not_configured', 'de'),
+				outcome: 'failed'
+			},
+			{
+				taskId: 'task-2',
+				userId: 'user-en',
+				role: 'assistant',
+				text: corrections.correctionFailureText('not_configured', 'en'),
+				outcome: 'failed'
+			}
+		]);
+	});
+
+	test('writes nothing more when nothing waits', async () => {
+		queueResults([[]]);
+		expect(await corrections.failCorrectionsWithoutProcessor()).toBe(0);
+		expect(values()).toHaveLength(0);
+	});
+});

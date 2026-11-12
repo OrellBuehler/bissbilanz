@@ -195,7 +195,6 @@ const logInput = (overrides: Record<string, unknown>) => ({
 	quickCarbs: null,
 	quickFat: null,
 	quickFiber: null,
-	quantityDescription: null,
 	...overrides
 });
 
@@ -697,22 +696,74 @@ describe('reply_to_user', () => {
 		expect(h.recordTaskFoods.mock.calls[0]!.slice(1)).toEqual([TASK, []]);
 	});
 
-	test('accepts a removed entry that is gone already', async () => {
-		h.deleteEntry.mockResolvedValue(null);
-		queueResults([[{ status: 'completed', createdEntryIds: [E_SKYR] }], []]);
+	test('accepts a removed entry the user already deleted, and saves the rest', async () => {
 		const ctx = await makeCtx();
 		await run('delete_entry', { entryId: E_QUICK }, ctx);
+		await run('update_entry', { entryId: E_RECIPE, ...updateInput({ servings: 3 }) }, ctx);
+		// The user deleted the toast in the diary meanwhile: it is no longer listed, nor found.
+		h.listTaskEntries.mockResolvedValue([
+			row(E_SKYR),
+			row(E_RECIPE, { recipeId: RECIPE, servings: 2 })
+		]);
+		queueResults([[{ status: 'completed', createdEntryIds: [E_SKYR, E_QUICK, E_RECIPE] }], []]);
 		const result = await tools.runCorrectionTool('reply_to_user', { message: 'Removed.' }, ctx);
 		expect(result.done).toBe(true);
+		expect(h.deleteEntry).not.toHaveBeenCalled();
+		expect(h.updateEntry.mock.calls.map((call) => call[1])).toEqual([E_RECIPE]);
+		const update = getCalls().find((call) => call.method === 'set');
+		expect(update!.args[0]).toEqual({ createdEntryIds: [E_SKYR, E_RECIPE] });
+	});
+
+	test('drops a change to an entry the user deleted, keeps the rest staged and tells the model', async () => {
+		const ctx = await makeCtx();
+		await run('update_entry', { entryId: E_SKYR, ...updateInput({ servings: 2 }) }, ctx);
+		await run('update_entry', { entryId: E_RECIPE, ...updateInput({ servings: 3 }) }, ctx);
+		h.listTaskEntries.mockResolvedValue([
+			row(E_QUICK),
+			row(E_RECIPE, { recipeId: RECIPE, servings: 2 })
+		]);
+		queueResults([[{ status: 'completed', createdEntryIds: [E_SKYR, E_QUICK, E_RECIPE] }], []]);
+		const dropped = await tools.runCorrectionTool('reply_to_user', { message: 'Done.' }, ctx);
+		expect(dropped.isError).toBe(true);
+		expect(JSON.parse(dropped.content).error).toContain(`deleted entries you changed (${E_SKYR})`);
+		expect(h.updateEntry).not.toHaveBeenCalled();
+		expect(h.addAssistantMessage).not.toHaveBeenCalled();
+		expect(ctx.entries.has(E_SKYR)).toBe(false);
+		expect(ctx.entries.get(E_RECIPE)!.fields.servings).toBe(3);
+
+		queueResults([[{ status: 'completed', createdEntryIds: [E_SKYR, E_QUICK, E_RECIPE] }]]);
+		const saved = await tools.runCorrectionTool(
+			'reply_to_user',
+			{ message: 'Three portions.' },
+			ctx
+		);
+		expect(saved.done).toBe(true);
+		expect(h.updateEntry.mock.calls.map((call) => call[1])).toEqual([E_RECIPE]);
+	});
+
+	test('drops a change when the entry disappears between the scope check and the update', async () => {
+		const ctx = await makeCtx();
+		await run('update_entry', { entryId: E_SKYR, ...updateInput({ servings: 2 }) }, ctx);
+		h.updateEntry.mockResolvedValue({ success: true, data: undefined });
+		queueResults([[{ status: 'completed', createdEntryIds: [E_SKYR, E_QUICK, E_RECIPE] }], []]);
+		const result = await tools.runCorrectionTool('reply_to_user', { message: 'Done.' }, ctx);
+		expect(JSON.parse(result.content).error).toContain('deleted entries you changed');
+		expect(ctx.entries.has(E_SKYR)).toBe(false);
 	});
 
 	test.each([
 		[
 			'an entry the user edited after writing',
-			() => h.updateEntry.mockResolvedValue({ success: true, data: undefined }),
+			() => {
+				h.updateEntry.mockResolvedValue({ success: true, data: undefined });
+				queueResults([
+					[{ status: 'completed', createdEntryIds: [E_SKYR, E_QUICK, E_RECIPE] }],
+					[{ id: E_SKYR }]
+				]);
+			},
 			(ctx: Awaited<ReturnType<typeof makeCtx>>) =>
 				run('update_entry', { entryId: E_SKYR, ...updateInput({ servings: 2 }) }, ctx),
-			'edited or removed an entry you changed'
+			'edited an entry you changed'
 		],
 		[
 			'a refused entry change',
@@ -796,10 +847,13 @@ describe('reply_to_user', () => {
 	);
 
 	test('re-checks the scope under the lock and refuses an entry moved away meanwhile', async () => {
-		completedTask();
 		const ctx = await makeCtx();
 		await run('update_entry', { entryId: E_RECIPE, ...updateInput({ servings: 3 }) }, ctx);
 		h.listTaskEntries.mockResolvedValue([row(E_SKYR), row(E_QUICK)]);
+		queueResults([
+			[{ status: 'completed', createdEntryIds: [E_SKYR, E_QUICK, E_RECIPE] }],
+			[{ id: E_RECIPE }]
+		]);
 		const result = await tools.runCorrectionTool('reply_to_user', { message: 'Done.' }, ctx);
 		expect(JSON.parse(result.content).error).toContain('moved to another day');
 		expect(h.updateEntry).not.toHaveBeenCalled();
@@ -820,18 +874,63 @@ describe('reply_to_user', () => {
 		expect([foodId, scope]).toEqual([SKYR, [E_SKYR, E_QUICK, E_RECIPE]]);
 	});
 
-	test('keeps the per-correction caps across a reload after a failed save', async () => {
-		completedTask();
+	test('counts staged changes and distinct foods, also across a reload', async () => {
 		const ctx = await makeCtx();
 		await run('update_entry', { entryId: E_SKYR, ...updateInput({ servings: 2 }) }, ctx);
+		await run('update_entry', { entryId: OTHER, ...updateInput({ servings: 2 }) }, ctx);
+		await run('update_entry', { entryId: E_SKYR, servings: 3, date: '2026-10-13' }, ctx);
+		await run('delete_entry', { entryId: 'nope' }, ctx);
 		await run('create_food', createInput(), ctx);
 		await run('create_food', createInput(), ctx);
-		expect([ctx.entryChanges, ctx.foodsCreated]).toEqual([1, 1]);
+		await run('create_food', createInput({ servingUnit: 'bucket' }), ctx);
+		expect([ctx.entryChanges, ctx.stagedFoods.size]).toEqual([1, 1]);
+
 		h.updateEntry.mockResolvedValue({ success: true, data: undefined });
-		await tools.runCorrectionTool('reply_to_user', { message: 'Done.' }, ctx);
-		expect([ctx.entryChanges, ctx.foodsCreated]).toEqual([1, 1]);
+		queueResults([
+			[{ status: 'completed', createdEntryIds: [E_SKYR, E_QUICK, E_RECIPE] }],
+			[{ id: E_SKYR }]
+		]);
+		const conflict = await tools.runCorrectionTool('reply_to_user', { message: 'Done.' }, ctx);
+		expect(JSON.parse(conflict.content).error).toContain('Nothing was saved');
+		expect(ctx.shared.foods.size).toBe(0);
 		await run('create_food', createInput(), ctx);
-		expect(ctx.foodsCreated).toBe(2);
+		expect([ctx.entryChanges, ctx.stagedFoods.size]).toEqual([1, 1]);
+		await run('create_food', createInput({ name: 'Other' }), ctx);
+		expect(ctx.stagedFoods.size).toBe(2);
+
+		expect(tools.exceedsFoodCap(ctx, createInput(), 2)).toBe(false);
+		expect(tools.exceedsFoodCap(ctx, createInput({ name: 'Third' }), 2)).toBe(true);
+		expect(tools.exceedsFoodCap(ctx, createInput({ name: 'Third' }), 3)).toBe(false);
+		expect(tools.exceedsFoodCap(ctx, { name: 1 }, 2)).toBe(false);
+	});
+
+	test('refuses keys the non-strict tools do not know, naming them', async () => {
+		const ctx = await makeCtx();
+		const cases: [string, Record<string, unknown>][] = [
+			['update_entry', { entryId: E_SKYR, ...updateInput({ servings: 2 }), date: '2026-10-13' }],
+			['update_food', { foodId: SKYR, ...foodPatch({ calories: 95 }), unit: 'g' }],
+			['log_food', logInput({ foodId: BREAD, quantityDescription: '1 slice' })]
+		];
+		for (const [name, input] of cases) {
+			const { body, isError } = await run(name, input, ctx);
+			expect(isError, name).toBe(true);
+			expect(body.error, name).toBe('validation_failed');
+			expect(JSON.stringify(body.issues), name).toMatch(/date|unit|quantityDescription/);
+		}
+		expect(ctx.entryChanges).toBe(0);
+		expect(ctx.foodPatches.size).toBe(0);
+		expect(ctx.entries.get(E_SKYR)!.fields.servings).toBe(1);
+	});
+
+	test('reads a null nutrient list as no nutrient changes', async () => {
+		const ctx = await makeCtx();
+		const { isError } = await run(
+			'update_food',
+			{ foodId: SKYR, ...foodPatch({ calories: 95 }), nutrients: null },
+			ctx
+		);
+		expect(isError).toBe(false);
+		expect(ctx.foodPatches.get(SKYR)).toEqual({ calories: 95 });
 	});
 
 	test('stops the run when the task is no longer completed', async () => {

@@ -440,8 +440,10 @@ async function fillFromDatabase(
 	};
 }
 
-async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<FoodToolResult> {
-	const { nutrients, fdcId, ...fields } = inputSchemas.create_food.parse(input);
+function parseCreateFood(input: unknown) {
+	const args = inputSchemas.create_food.safeParse(input);
+	if (!args.success) return args;
+	const { nutrients, fdcId, ...fields } = args.data;
 	const explicit = Object.fromEntries(nutrients.map(({ nutrient, amount }) => [nutrient, amount]));
 	const parsed = foodCreateSchema.safeParse({
 		...Object.fromEntries(
@@ -449,9 +451,26 @@ async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<
 		),
 		...explicit
 	});
-	if (!parsed.success) throw parsed.error;
+	if (!parsed.success) return parsed;
+	return {
+		success: true as const,
+		data: parsed.data,
+		explicit,
+		fdcId,
+		hash: hashPayload({ ...parsed.data, fdcId: fdcId || null })
+	};
+}
 
-	const hash = hashPayload({ ...parsed.data, fdcId: fdcId || null });
+/** The food a create_food call names, the same for repeated calls; null for invalid input. */
+export function createFoodKey(input: unknown): string | null {
+	const parsed = parseCreateFood(input);
+	return parsed.success ? parsed.hash : null;
+}
+
+async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<FoodToolResult> {
+	const parsed = parseCreateFood(input);
+	if (!parsed.success) throw parsed.error;
+	const { explicit, fdcId, hash } = parsed;
 	const known = ctx.createdFoods.get(hash);
 	if (known) return known;
 

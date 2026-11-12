@@ -359,10 +359,19 @@ async function acknowledgeAll(options: { quiet?: boolean } = {}): Promise<void> 
 	if (!browser || !tasks.some(needsAttention)) return;
 	const ids = tasks.filter(isUnread).map((t) => t.id);
 	const replyIds = tasks.flatMap((t) => unreadReplies(t).map((message) => message.id));
+	const replyChunks: string[][] = [];
+	for (let start = 0; start < replyIds.length; start += ACKNOWLEDGE_MAX_IDS) {
+		replyChunks.push(replyIds.slice(start, start + ACKNOWLEDGE_MAX_IDS));
+	}
 	try {
+		const [first, ...rest] = replyChunks;
 		await api.POST('/api/ai-tasks/acknowledge', {
-			body: { ids, ...(replyIds.length > 0 ? { replyIds } : {}) }
+			body: { ids, ...(first ? { replyIds: first } : {}) }
 		});
+		// Without ids a request acknowledges no task, so only the first one carries them.
+		for (const chunk of rest) {
+			await api.POST('/api/ai-tasks/acknowledge', { body: { replyIds: chunk } });
+		}
 		const seenAt = new Date().toISOString();
 		tasks = tasks.map((t) => {
 			const seen = isUnread(t) ? { ...t, acknowledgedAt: seenAt } : t;
@@ -394,6 +403,9 @@ async function acknowledgeAll(options: { quiet?: boolean } = {}): Promise<void> 
 }
 
 const REJECTION_STATUSES = new Set([403, 404, 409, 429]);
+
+// The acknowledge request takes at most this many ids per list.
+const ACKNOWLEDGE_MAX_IDS = 100;
 
 /**
  * Sends a reply to Claude about a task it processed. Online only: a reply is a

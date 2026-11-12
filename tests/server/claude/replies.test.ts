@@ -42,6 +42,7 @@ describe('replyBlockedReason', () => {
 		status: 'completed',
 		correctionState: null,
 		answeredReplies: 0,
+		failures: { count: 0, oldest: null },
 		gate: null,
 		window: { count: 0, oldest: null },
 		...overrides
@@ -69,8 +70,16 @@ describe('replyBlockedReason', () => {
 			).toBe('correction_in_flight');
 		}
 		expect(
-			replies.replyBlockedReason(facts({ answeredReplies: 5, gate: 'budget_exhausted' }))
+			replies.replyBlockedReason(
+				facts({ answeredReplies: 5, failures: { count: 3, oldest: null } })
+			)
 		).toBe('reply_limit_reached');
+		expect(
+			replies.replyBlockedReason(
+				facts({ failures: { count: 3, oldest: null }, gate: 'budget_exhausted' })
+			)
+		).toBe('failed_too_often');
+		expect(replies.replyBlockedReason(facts({ failures: { count: 2, oldest: null } }))).toBeNull();
 		expect(
 			replies.replyBlockedReason(
 				facts({ gate: 'processor_unavailable', window: { count: 99, oldest: null } })
@@ -89,6 +98,7 @@ describe('ReplyRejectedError', () => {
 		['not_completed', 409],
 		['correction_in_flight', 409],
 		['reply_limit_reached', 409],
+		['failed_too_often', 429],
 		['processor_unavailable', 403],
 		['budget_exhausted', 403],
 		['rate_limited', 429]
@@ -106,6 +116,7 @@ describe('postTaskReply', () => {
 			correction?: unknown[];
 			replies?: number;
 			window?: unknown[];
+			failures?: unknown[];
 		} = {}
 	) =>
 		queueResults([
@@ -113,6 +124,7 @@ describe('postTaskReply', () => {
 			options.correction ?? [],
 			[{ count: options.replies ?? 0 }],
 			options.window ?? window(),
+			options.failures ?? window(),
 			[{ id: 'message-1' }],
 			[]
 		]);
@@ -193,6 +205,21 @@ describe('postTaskReply', () => {
 			status: 429,
 			retryAfterSeconds: 14 * 3600
 		});
+	});
+
+	test('pauses a task whose corrections failed too often, until the oldest failure ages out', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-10-12T12:00:00Z'));
+		posting({ failures: window(3, new Date('2026-10-12T06:00:00Z')) });
+		await expect(replies.postTaskReply('user-1', 'task-1', 'hi')).rejects.toMatchObject({
+			code: 'failed_too_often',
+			status: 429,
+			retryAfterSeconds: 18 * 3600
+		});
+		const where = getCalls().filter((call) => call.method === 'where')[4]!.args[0] as SQL;
+		const { sql, params } = new PgDialect().sqlToQuery(where);
+		expect(sql).toContain('"claude_task_messages"."outcome" =');
+		expect(params.slice(0, 3)).toEqual(['task-1', 'assistant', 'failed']);
 	});
 
 	test('lets a failing gate check through', async () => {
@@ -314,6 +341,40 @@ describe('loadClaudeThreads', () => {
 		]);
 		const threads = await replies.loadClaudeThreads([task()]);
 		expect(threads.get('task-1')).toMatchObject({ canReply: true, repliesRemaining: 4 });
+	});
+
+	test('blocks a task with three recent failed corrections, not older ones', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-10-12T12:00:00Z'));
+		const failure = (id: string, createdAt: Date) => ({
+			id,
+			taskId: 'task-1',
+			role: 'assistant',
+			text: id,
+			outcome: 'failed',
+			readAt: createdAt,
+			createdAt
+		});
+		const recent = new Date('2026-10-12T10:00:00Z');
+		const old = new Date('2026-10-10T10:00:00Z');
+		queueResults([
+			[failure('f0', old), failure('f1', recent), failure('f2', recent)],
+			[{ taskId: 'task-1', state: 'failed' }],
+			window()
+		]);
+		expect((await replies.loadClaudeThreads([task()])).get('task-1')).toMatchObject({
+			canReply: true
+		});
+		queueResults([
+			[failure('f1', recent), failure('f2', recent), failure('f3', recent)],
+			[{ taskId: 'task-1', state: 'failed' }],
+			window()
+		]);
+		expect((await replies.loadClaudeThreads([task()])).get('task-1')).toMatchObject({
+			canReply: false,
+			replyBlockedReason: 'failed_too_often',
+			repliesRemaining: 5
+		});
 	});
 
 	test('treats a failing gate check as unavailable and reports it', async () => {

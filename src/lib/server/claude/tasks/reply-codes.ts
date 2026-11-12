@@ -6,6 +6,7 @@ export const replyBlockedReasonValues = [
 	'not_completed',
 	'correction_in_flight',
 	'reply_limit_reached',
+	'failed_too_often',
 	'processor_unavailable',
 	'budget_exhausted',
 	'rate_limited'

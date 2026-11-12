@@ -1,4 +1,4 @@
-import { and, eq, lt, lte, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, lt, lte, or, sql } from 'drizzle-orm';
 import * as m from '$lib/paraglide/messages';
 import { isLocale } from '$lib/paraglide/runtime';
 import { getDB } from '../../db';
@@ -8,7 +8,8 @@ import {
 	claudeTaskMessages,
 	type ClaudeCorrectionState,
 	type ClaudeTaskCorrection,
-	type ClaudeTaskMessageOutcome
+	type ClaudeTaskMessageOutcome,
+	users
 } from '../../schema';
 import { LeaseLostError } from '../errors';
 import { MAX_FAILURES, correctionFenceWhere, leaseUntil, withFence, type RunTx } from './runs';
@@ -186,6 +187,45 @@ export async function retryOrFailCorrection(
 		})
 	);
 	return 'retry_wait';
+}
+
+/**
+ * Without a configured processor no worker runs, so a correction still waiting
+ * would wait forever. Each one ends the way a closed gate ends it: failed, with
+ * a notice in the thread, and a new reply is possible once it is back.
+ */
+export async function failCorrectionsWithoutProcessor(): Promise<number> {
+	return getDB().transaction(async (tx) => {
+		const stranded = await tx
+			.update(claudeTaskCorrections)
+			.set({
+				state: 'failed',
+				failureCode: 'not_configured',
+				failureDetail: null,
+				leaseOwner: null,
+				leaseExpiresAt: null,
+				nextAttemptAt: null,
+				updatedAt: sql`now()`
+			})
+			.where(inArray(claudeTaskCorrections.state, [...IN_FLIGHT_CORRECTION_STATES]))
+			.returning({ taskId: claudeTaskCorrections.taskId, userId: claudeTaskCorrections.userId });
+		if (stranded.length === 0) return 0;
+		const owners = await tx
+			.select({ id: users.id, locale: users.locale })
+			.from(users)
+			.where(inArray(users.id, [...new Set(stranded.map((row) => row.userId))]));
+		const locales = new Map(owners.map((owner) => [owner.id, owner.locale]));
+		await tx.insert(claudeTaskMessages).values(
+			stranded.map((row) => ({
+				taskId: row.taskId,
+				userId: row.userId,
+				role: 'assistant',
+				text: correctionFailureText('not_configured', locales.get(row.userId) ?? null),
+				outcome: 'failed'
+			}))
+		);
+		return stranded.length;
+	});
 }
 
 export async function requeueCorrection(ctx: CorrectionContext): Promise<void> {

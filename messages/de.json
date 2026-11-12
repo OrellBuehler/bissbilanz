@@ -1832,5 +1832,6 @@
 	"ai_tasks_reply_error": "Deine Antwort konnte nicht gesendet werden.",
 	"ai_tasks_reply_offline": "Du bist offline. Antworten brauchen eine Verbindung.",
 	"ai_tasks_reply_too_long": "Halte deine Antwort unter {max} Zeichen.",
-	"ai_tasks_reply_notification_title": "Claude hat geantwortet"
+	"ai_tasks_reply_notification_title": "Claude hat geantwortet",
+	"ai_tasks_reply_blocked_failing": "Claude konnte die letzten Antworten zu dieser Mahlzeit nicht verarbeiten. Versuche es morgen erneut."
 }

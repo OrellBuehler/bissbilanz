@@ -173,6 +173,19 @@ describe('unread replies', () => {
 		expect(aiTaskService.tasks[0]!.acknowledgedAt).toBe('2026-10-12T08:00:00.000Z');
 	});
 
+	test('are acknowledged in chunks the endpoint accepts, tasks only with the first', async () => {
+		const many = Array.from({ length: 150 }, (_, index) =>
+			message({ id: `m${index}`, outcome: 'answered' })
+		);
+		await load([task(many)]);
+		mockApi.POST.mockResolvedValue({ data: {}, response: new Response(null, { status: 200 }) });
+		await aiTaskService.acknowledgeAll();
+		const bodies = mockApi.POST.mock.calls.map((call) => call[1].body);
+		expect(bodies).toHaveLength(2);
+		expect(bodies[0]).toEqual({ ids: [], replyIds: many.slice(0, 100).map((m) => m.id) });
+		expect(bodies[1]).toEqual({ replyIds: many.slice(100).map((m) => m.id) });
+	});
+
 	test('are announced once per browser', async () => {
 		await load([
 			task([message({ role: 'user', outcome: null, unread: false, id: 'u' }), message()])

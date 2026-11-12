@@ -101,7 +101,7 @@ const aiTaskClaudeThreadSchema = z
 			.nullable()
 			.meta({
 				description:
-					"Why canReply is false, null when it is true: not_completed, correction_in_flight, reply_limit_reached, processor_unavailable, budget_exhausted, rate_limited. Matches the code POST /api/ai-tasks/{id}/replies would answer with. Unknown values should be shown as a generic 'replies are not possible right now'.",
+					"Why canReply is false, null when it is true: not_completed, correction_in_flight, reply_limit_reached, failed_too_often (3 corrections of this task failed in the last 24 hours), processor_unavailable, budget_exhausted, rate_limited. Matches the code POST /api/ai-tasks/{id}/replies would answer with. Unknown values should be shown as a generic 'replies are not possible right now'.",
 				'x-extensible-enum': [...replyBlockedReasonValues]
 			}),
 		repliesRemaining: z.number().int().meta({

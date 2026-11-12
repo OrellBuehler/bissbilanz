@@ -21,7 +21,7 @@ const rejected = (error: ReplyRejectedError) => {
 		data: { code: error.code }
 	});
 	const body = { error: error.message, code: error.code };
-	if (error.code === 'rate_limited') {
+	if (error.code === 'rate_limited' || error.code === 'failed_too_often') {
 		return rateLimitedResponse(new RateLimitError(error.retryAfterSeconds ?? 60), body);
 	}
 	return json(body, { status: error.status });

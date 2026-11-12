@@ -16,6 +16,9 @@ import type { CorrectionPublicState, ReplyBlockedReason } from './reply-codes';
 
 export const MAX_REPLIES_PER_TASK = 5;
 export const MAX_REPLIES_PER_DAY = 20;
+// Failed corrections do not use up a task's replies, so a task that keeps
+// failing is paused for the rest of the window instead.
+export const MAX_FAILED_CORRECTIONS_PER_DAY = 3;
 export const REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const PUBLIC_STATES: Record<ClaudeCorrectionState, CorrectionPublicState> = {
@@ -31,6 +34,7 @@ const REASON_STATUS: Record<ReplyBlockedReason, number> = {
 	not_completed: 409,
 	correction_in_flight: 409,
 	reply_limit_reached: 409,
+	failed_too_often: 429,
 	processor_unavailable: 403,
 	budget_exhausted: 403,
 	rate_limited: 429
@@ -41,6 +45,7 @@ const REASON_MESSAGE: Record<ReplyBlockedReason, string> = {
 	not_completed: 'Only completed tasks take replies',
 	correction_in_flight: 'Claude is still working on the previous reply',
 	reply_limit_reached: `A task takes at most ${MAX_REPLIES_PER_TASK} replies`,
+	failed_too_often: `Corrections of this task failed ${MAX_FAILED_CORRECTIONS_PER_DAY} times in the last 24 hours`,
 	processor_unavailable: 'Claude is not available for this account right now',
 	budget_exhausted: "Claude's budget is used up for this month",
 	rate_limited: `At most ${MAX_REPLIES_PER_DAY} replies per day`
@@ -68,6 +73,8 @@ const gateReason = (gate: ClaudeGateState): ReplyBlockedReason | null => {
 
 type ReplyWindow = { count: number; oldest: Date | null };
 
+const windowStart = () => new Date(Date.now() - REPLY_WINDOW_MS);
+
 async function replyWindow(db: TxOrDb, userId: string): Promise<ReplyWindow> {
 	const [row] = await db
 		.select({ count: count(), oldest: min(claudeTaskMessages.createdAt) })
@@ -76,7 +83,22 @@ async function replyWindow(db: TxOrDb, userId: string): Promise<ReplyWindow> {
 			and(
 				eq(claudeTaskMessages.userId, userId),
 				eq(claudeTaskMessages.role, 'user'),
-				gt(claudeTaskMessages.createdAt, new Date(Date.now() - REPLY_WINDOW_MS))
+				gt(claudeTaskMessages.createdAt, windowStart())
+			)
+		);
+	return { count: Number(row?.count ?? 0), oldest: row?.oldest ?? null };
+}
+
+async function failureWindow(db: TxOrDb, taskId: string): Promise<ReplyWindow> {
+	const [row] = await db
+		.select({ count: count(), oldest: min(claudeTaskMessages.createdAt) })
+		.from(claudeTaskMessages)
+		.where(
+			and(
+				eq(claudeTaskMessages.taskId, taskId),
+				eq(claudeTaskMessages.role, 'assistant'),
+				eq(claudeTaskMessages.outcome, 'failed'),
+				gt(claudeTaskMessages.createdAt, windowStart())
 			)
 		);
 	return { count: Number(row?.count ?? 0), oldest: row?.oldest ?? null };
@@ -93,6 +115,8 @@ type ReplyFacts = {
 	correctionState: ClaudeCorrectionState | null;
 	// Replies Claude answered; a reply whose correction failed does not count.
 	answeredReplies: number;
+	// The task's failed corrections within the window.
+	failures: ReplyWindow;
 	gate: ReplyBlockedReason | null;
 	window: ReplyWindow;
 };
@@ -105,6 +129,7 @@ export function replyBlockedReason(facts: ReplyFacts): ReplyBlockedReason | null
 		return 'correction_in_flight';
 	}
 	if (facts.answeredReplies >= MAX_REPLIES_PER_TASK) return 'reply_limit_reached';
+	if (facts.failures.count >= MAX_FAILED_CORRECTIONS_PER_DAY) return 'failed_too_often';
 	if (facts.gate) return facts.gate;
 	if (facts.window.count >= MAX_REPLIES_PER_DAY) return 'rate_limited';
 	return null;
@@ -149,16 +174,25 @@ export async function postTaskReply(userId: string, taskId: string, text: string
 				)
 			);
 		const window = await replyWindow(tx, userId);
+		const failures = await failureWindow(tx, taskId);
 		const reason = replyBlockedReason({
 			processedBy: task.processedBy,
 			status: task.status,
 			correctionState: (correction?.state as ClaudeCorrectionState | undefined) ?? null,
 			answeredReplies: Number(answered?.count ?? 0),
+			failures,
 			gate,
 			window
 		});
 		if (reason) {
-			throw new ReplyRejectedError(reason, reason === 'rate_limited' ? retryAfter(window) : null);
+			throw new ReplyRejectedError(
+				reason,
+				reason === 'rate_limited'
+					? retryAfter(window)
+					: reason === 'failed_too_often'
+						? retryAfter(failures)
+						: null
+			);
 		}
 
 		const [message] = await tx
@@ -250,11 +284,19 @@ export async function loadClaudeThreads(tasks: ThreadTask[]): Promise<Map<string
 			(message) => message.role === 'assistant' && message.outcome !== 'failed'
 		).length;
 		const inFlight = state !== null && IN_FLIGHT_CORRECTION_STATES.includes(state) ? 1 : 0;
+		const since = windowStart();
+		const recentFailures = own.filter(
+			(message) => message.outcome === 'failed' && message.createdAt > since
+		);
 		const reason = replyBlockedReason({
 			processedBy: task.processedBy,
 			status: task.status,
 			correctionState: state,
 			answeredReplies,
+			failures: {
+				count: recentFailures.length,
+				oldest: recentFailures[0]?.createdAt ?? null
+			},
 			gate: facts.gate,
 			window: facts.window
 		});

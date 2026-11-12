@@ -15,9 +15,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			return validationError(result.error);
 		}
 
-		const acknowledged = await acknowledgeAiTasks(userId, result.data.ids);
-		if (!result.data.replyIds) return json({ acknowledged });
-		const repliesAcknowledged = await markRepliesRead(userId, result.data.replyIds);
+		const { ids, replyIds } = result.data;
+		if (!replyIds) return json({ acknowledged: await acknowledgeAiTasks(userId, ids) });
+		// With replyIds the client names what it showed, so tasks are only
+		// acknowledged when it names those too; an empty body keeps meaning "all".
+		const acknowledged = ids ? await acknowledgeAiTasks(userId, ids) : 0;
+		const repliesAcknowledged = await markRepliesRead(userId, replyIds);
 		return json({ acknowledged, repliesAcknowledged });
 	} catch (error) {
 		return handleApiError(error);

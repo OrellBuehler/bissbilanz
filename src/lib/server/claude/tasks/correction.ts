@@ -18,6 +18,7 @@ import {
 	MAX_ENTRY_CHANGES_PER_CORRECTION,
 	CorrectionTaskChangedError,
 	correctionTools,
+	exceedsFoodCap,
 	isCorrectionTerminal,
 	loadCorrectionState,
 	newCorrectionContext,
@@ -163,7 +164,8 @@ async function runCorrection(
 		reject: (block) =>
 			ENTRY_TOOLS.has(block.name) && tools.entryChanges >= MAX_ENTRY_CHANGES_PER_CORRECTION
 				? 'Too many entry changes for one reply. Save what you have with reply_to_user.'
-				: block.name === 'create_food' && tools.foodsCreated >= MAX_FOODS_CREATED_PER_RUN
+				: block.name === 'create_food' &&
+					  exceedsFoodCap(tools, block.input, MAX_FOODS_CREATED_PER_RUN)
 					? 'Too many new foods for one reply.'
 					: null,
 		runTool: (block) => runCorrectionTool(block.name, block.input, tools),

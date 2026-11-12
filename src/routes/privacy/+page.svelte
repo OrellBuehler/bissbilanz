@@ -50,9 +50,9 @@
 		</li>
 		<li>
 			<strong>Meal photos for AI estimation:</strong> If you use the AI meal estimation feature, the photo
-			you submit is stored with the task while it is pending, and for up to 30 days after you log or dismiss
-			it, before it is automatically deleted. If you reply to Claude about the meal, the 30 days count
-			from the latest message of that conversation instead.
+			you submit is stored with the task while it is pending. It is deleted automatically 30 days after
+			you log or dismiss the meal, or 30 days after the latest message of a conversation with Claude about
+			it, whichever is later.
 		</li>
 		<li>
 			<strong>Replies to Claude:</strong> If you reply to a meal Claude logged for you, your messages

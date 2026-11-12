@@ -32,6 +32,8 @@
 		switch (reason) {
 			case 'reply_limit_reached':
 				return m.ai_tasks_reply_blocked_limit();
+			case 'failed_too_often':
+				return m.ai_tasks_reply_blocked_failing();
 			case 'rate_limited':
 				return m.ai_tasks_reply_blocked_rate();
 			case 'processor_unavailable':

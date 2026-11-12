@@ -46,6 +46,8 @@ vi.mock('$lib/server/claude/tasks/correction-tools', () => ({
 	MAX_ENTRY_CHANGES_PER_CORRECTION: 30,
 	CorrectionTaskChangedError: TaskChanged,
 	correctionTools: () => [{ name: 'reply_to_user' }],
+	exceedsFoodCap: (tools: { stagedFoods: Set<string> }, _input: unknown, max: number) =>
+		tools.stagedFoods.size >= max,
 	isCorrectionTerminal: (name: string) => name === 'reply_to_user',
 	loadCorrectionState: h.loadCorrectionState,
 	newCorrectionContext: (task: unknown, shared: Record<string, unknown>, replyAt: Date) => ({
@@ -53,7 +55,7 @@ vi.mock('$lib/server/claude/tasks/correction-tools', () => ({
 		shared,
 		replyAt,
 		entryChanges: 0,
-		foodsCreated: 0
+		stagedFoods: new Set()
 	}),
 	renderState: async () => ({ entries: [{ entryId: 'e1' }] }),
 	runCorrectionTool: h.runTool
@@ -218,7 +220,7 @@ describe('processCorrection', () => {
 	test('limits entry changes and new foods per reply', async () => {
 		h.loadCorrectionState.mockImplementation(async (tools: Record<string, unknown>) => {
 			tools.entryChanges = 30;
-			tools.foodsCreated = 5;
+			tools.stagedFoods = new Set(['a', 'b', 'c', 'd', 'e']);
 		});
 		h.callClaude
 			.mockResolvedValueOnce(

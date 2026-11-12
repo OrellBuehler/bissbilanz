@@ -157,6 +157,15 @@ describe('POST /api/ai-tasks/{id}/replies', () => {
 		expect(h.addBreadcrumb).toHaveBeenCalledWith(expect.objectContaining({ data: { code } }));
 	});
 
+	test('answers a task whose corrections keep failing with 429 and Retry-After', async () => {
+		h.post.mockRejectedValue(new ReplyRejectedError('failed_too_often', 7200));
+		const response = await post({ body: { text: 'hi' } });
+		await expectResponseContract('POST', '/api/ai-tasks/{id}/replies', response);
+		expect(response.status).toBe(429);
+		expect(response.headers.get('Retry-After')).toBe('7200');
+		expect(await response.json()).toMatchObject({ code: 'failed_too_often' });
+	});
+
 	test('answers a rate-limited reply with 429 and Retry-After', async () => {
 		h.post.mockRejectedValue(new ReplyRejectedError('rate_limited', 3600));
 		const response = await post({ body: { text: 'hi' } });

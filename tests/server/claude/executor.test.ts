@@ -4,6 +4,7 @@ import { createMockDB } from '../../helpers/mock-db';
 const h = vi.hoisted(() => ({
 	processTask: vi.fn(),
 	processCorrection: vi.fn(),
+	failStranded: vi.fn(),
 	ensureRun: vi.fn(),
 	getClaudeHeadroom: vi.fn(),
 	assertClaudeAllowed: vi.fn(),
@@ -23,6 +24,9 @@ vi.mock('$lib/server/db', () => ({ getDB: () => db }));
 vi.mock('$lib/server/claude/config', () => ({ isClaudeConfigured: () => h.configured.value }));
 vi.mock('$lib/server/claude/tasks/processor', () => ({ processTask: h.processTask }));
 vi.mock('$lib/server/claude/tasks/correction', () => ({ processCorrection: h.processCorrection }));
+vi.mock('$lib/server/claude/tasks/corrections', () => ({
+	failCorrectionsWithoutProcessor: h.failStranded
+}));
 vi.mock('$lib/server/claude/tasks/runs', () => ({ ensureRun: h.ensureRun }));
 vi.mock('$lib/server/claude/capability', () => ({
 	getClaudeHeadroom: h.getClaudeHeadroom,
@@ -57,6 +61,7 @@ beforeEach(() => {
 	for (const fn of [
 		h.processTask,
 		h.processCorrection,
+		h.failStranded,
 		h.ensureRun,
 		h.getClaudeHeadroom,
 		h.assertClaudeAllowed,
@@ -68,6 +73,7 @@ beforeEach(() => {
 	h.configured.value = true;
 	h.processTask.mockResolvedValue(undefined);
 	h.processCorrection.mockResolvedValue(undefined);
+	h.failStranded.mockResolvedValue(0);
 	h.ensureRun.mockResolvedValue(undefined);
 	h.abandonStaleReservations.mockResolvedValue(0);
 	h.getClaudeHeadroom.mockResolvedValue({ available: true, remainingUsd: 5 });
@@ -409,11 +415,25 @@ describe('sweeping runs blocked for budget', () => {
 });
 
 describe('startClaudeWorker', () => {
-	test('does nothing without a key', async () => {
+	test('without a key only ends the corrections nothing will ever run', async () => {
 		const { executor } = await load();
 		h.configured.value = false;
 		executor.startClaudeWorker();
+		executor.startClaudeWorker();
+		await settle();
 		expect(h.abandonStaleReservations).not.toHaveBeenCalled();
+		expect(h.failStranded).toHaveBeenCalledTimes(1);
+	});
+
+	test('reports a failure to end those corrections', async () => {
+		const { executor } = await load();
+		h.configured.value = false;
+		h.failStranded.mockRejectedValue(new Error('db down'));
+		executor.startClaudeWorker();
+		await settle();
+		expect(h.captureException).toHaveBeenCalledWith(expect.any(Error), {
+			tags: { job: 'claude-corrections-unconfigured' }
+		});
 	});
 
 	test('sweeps immediately and then on an interval, once', async () => {

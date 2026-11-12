@@ -1832,5 +1832,6 @@
 	"ai_tasks_reply_error": "Your reply could not be sent.",
 	"ai_tasks_reply_offline": "You're offline. Replies need a connection.",
 	"ai_tasks_reply_too_long": "Keep your reply under {max} characters.",
-	"ai_tasks_reply_notification_title": "Claude replied"
+	"ai_tasks_reply_notification_title": "Claude replied",
+	"ai_tasks_reply_blocked_failing": "Claude could not handle the last replies on this meal. Try again tomorrow."
 }

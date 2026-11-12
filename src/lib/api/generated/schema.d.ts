@@ -1133,7 +1133,7 @@ export interface paths {
 		};
 		get?: never;
 		put?: never;
-		/** @description Mark resolved AI tasks as seen, clearing their unread state. Omit `ids` to acknowledge every unacknowledged task. `replyIds` marks exactly those answers of Claude in `claudeThread` as read (send the ids of the unread answers the client has shown) and reports how many in `repliesAcknowledged`; answers not named stay unread. `acknowledgedAt` keeps its meaning either way: it only tracks dismissals. */
+		/** @description Mark resolved AI tasks and answers of Claude as seen. `ids` acknowledges those tasks (their dismissals). `replyIds` marks exactly those answers in `claudeThread` as read (send the ids of the unread answers the client has shown) and reports how many in `repliesAcknowledged`; answers not named stay unread. A body with neither acknowledges every unacknowledged task, as before; a body with `replyIds` but no `ids` acknowledges no task. `acknowledgedAt` keeps its meaning: it only tracks dismissals. */
 		post: operations['acknowledgeAiTasks'];
 		delete?: never;
 		options?: never;
@@ -1167,7 +1167,7 @@ export interface paths {
 		};
 		get?: never;
 		put?: never;
-		/** @description Reply to Claude about a task it completed on the server (`processedByKind` claude), usually to say something is wrong. The reply joins `claudeThread` and starts a correction: Claude may change, remove or add the task's diary entries and change foods it created for the task that nothing else uses, then answers in the thread. The task stays completed throughout. Online only: never queue it offline. Send an `Idempotency-Key` (one UUID per reply, reused for retries of the same reply): a retry after a 201 returns that first 201 instead of adding the reply twice, while a rejection is never stored, so a retry with the same key is decided again. Answers 201 with the task, whose `claudeThread.correctionState` is `queued`; poll the task list while it is queued, running or retrying. Rejections carry a machine-readable `code`: 404 `task_not_found`; 409 `not_processed_by_server` (MCP or device tasks), `not_completed`, `correction_in_flight`, `reply_limit_reached` (5 answered replies per task; a reply whose correction failed does not count); 403 `processor_unavailable` (Claude is off, not configured or not granted), `budget_exhausted`; 429 `rate_limited` (20 replies per user in 24 hours) with `Retry-After`. */
+		/** @description Reply to Claude about a task it completed on the server (`processedByKind` claude), usually to say something is wrong. The reply joins `claudeThread` and starts a correction: Claude may change, remove or add the task's diary entries and change foods it created for the task that nothing else uses, then answers in the thread. The task stays completed throughout. Online only: never queue it offline. Send an `Idempotency-Key` (one UUID per reply, reused for retries of the same reply): a retry after a 201 returns that first 201 instead of adding the reply twice, while a rejection is never stored, so a retry with the same key is decided again. Answers 201 with the task, whose `claudeThread.correctionState` is `queued`, or already `running` if a worker picked the correction up at once; poll the task list while it is queued, running or retrying. Rejections carry a machine-readable `code`: 404 `task_not_found`; 409 `not_processed_by_server` (MCP or device tasks), `not_completed`, `correction_in_flight`, `reply_limit_reached` (5 answered replies per task; a reply whose correction failed does not count); 403 `processor_unavailable` (Claude is off, not configured or not granted), `budget_exhausted`; 429 `rate_limited` (20 replies per user in 24 hours) or `failed_too_often` (3 corrections of this task failed in the last 24 hours), both with `Retry-After`. The idempotency layer can also answer 422 `{ error: "idempotency_key_reused" }` (the key was used for another request) and 503 `{ error: "request_in_progress" }` with `Retry-After` (a request with the same key is still running). */
 		post: operations['replyToAiTask'];
 		delete?: never;
 		options?: never;
@@ -2190,7 +2190,7 @@ export interface components {
 		};
 		AiTaskAcknowledge: {
 			ids?: string[];
-			/** @description Ids of Claude's answers (claudeThread messages) the client has shown, to mark as read. Only the named messages change, so an answer that arrived after the client's last read stays unread. Independent of `ids`. */
+			/** @description Ids of Claude's answers (claudeThread messages) the client has shown, to mark as read. Only the named messages change, so an answer that arrived after the client's last read stays unread. Sent without `ids`, no task is acknowledged. */
 			replyIds?: string[];
 		};
 		AiTaskProposalAccept: {
@@ -3480,7 +3480,7 @@ export interface components {
 			/** @description Where the correction for the latest reply stands: 'idle' (nothing running), 'queued', 'running', 'retrying' (waiting to try again after an error) or 'failed' (the last correction did not work; the thread says so and a new reply is possible). Unknown values should be treated as in progress. */
 			correctionState: string;
 			canReply: boolean;
-			/** @description Why canReply is false, null when it is true: not_completed, correction_in_flight, reply_limit_reached, processor_unavailable, budget_exhausted, rate_limited. Matches the code POST /api/ai-tasks/{id}/replies would answer with. Unknown values should be shown as a generic 'replies are not possible right now'. */
+			/** @description Why canReply is false, null when it is true: not_completed, correction_in_flight, reply_limit_reached, failed_too_often (3 corrections of this task failed in the last 24 hours), processor_unavailable, budget_exhausted, rate_limited. Matches the code POST /api/ai-tasks/{id}/replies would answer with. Unknown values should be shown as a generic 'replies are not possible right now'. */
 			replyBlockedReason: string | null;
 			/** @description How many more replies this task takes before the per-task limit. A reply whose correction failed does not count; one in progress does. */
 			repliesRemaining: number;
@@ -6486,7 +6486,16 @@ export interface operations {
 					'application/json': components['schemas']['AiTaskReplyErrorResponse'];
 				};
 			};
-			/** @description Too many replies in the last 24 hours (`rate_limited`) */
+			/** @description The Idempotency-Key was already used for a different request (`{ error: "idempotency_key_reused" }`) */
+			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Too many replies by this user in the last 24 hours (`rate_limited`), or too many failed corrections of this task (`failed_too_often`) */
 			429: {
 				headers: {
 					/** @description Seconds until the rate limit window resets; clients should not retry before then. */
@@ -6495,6 +6504,17 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['AiTaskReplyErrorResponse'];
+				};
+			};
+			/** @description A request with the same Idempotency-Key is still running (`{ error: "request_in_progress" }`); retry after `Retry-After` seconds */
+			503: {
+				headers: {
+					/** @description Seconds until the rate limit window resets; clients should not retry before then. */
+					'Retry-After'?: number;
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
 				};
 			};
 		};

@@ -30,6 +30,7 @@ let mockUpdateResult: any = undefined;
 let mockAcknowledgedCount = 0;
 let mockRuns: any[] = [];
 let mockThreads = new Map<string, any>();
+const acknowledgeCalls: unknown[][] = [];
 const markRepliesRead = vi.fn();
 const requeue = vi.fn();
 const captureException = vi.hoisted(() => vi.fn());
@@ -52,7 +53,10 @@ vi.mock('$lib/server/ai-tasks', async (importOriginal) => {
 			mockUpdateResult !== undefined
 				? { success: true, data: mockUpdateResult }
 				: { success: false, error: mockValidationError },
-		acknowledgeAiTasks: async () => mockAcknowledgedCount,
+		acknowledgeAiTasks: async (...args: unknown[]) => {
+			acknowledgeCalls.push(args);
+			return mockAcknowledgedCount;
+		},
 		deleteAiTask: async () => {}
 	};
 });
@@ -93,6 +97,7 @@ describe('api/ai-tasks', () => {
 		mockAcknowledgedCount = 0;
 		mockRuns = [];
 		mockThreads = new Map();
+		acknowledgeCalls.length = 0;
 		markRepliesRead.mockReset().mockResolvedValue(0);
 		requeue.mockReset();
 		captureException.mockReset();
@@ -424,6 +429,26 @@ describe('api/ai-tasks', () => {
 			await expectResponseContract('POST', '/api/ai-tasks/acknowledge', response);
 			expect(await response.json()).toEqual({ acknowledged: 1 });
 			expect(markRepliesRead).not.toHaveBeenCalled();
+		});
+
+		test('acknowledges every task for an empty body, as shipped builds send it', async () => {
+			mockAcknowledgedCount = 2;
+			const response = await aiTaskAckModule.POST(createMockEvent({ user: TEST_USER, body: {} }));
+			expect(await response.json()).toEqual({ acknowledged: 2 });
+			expect(acknowledgeCalls).toEqual([[TEST_USER.id, undefined]]);
+		});
+
+		test('acknowledges no task when only replyIds are sent', async () => {
+			const replyIds = ['10000000-0000-4000-8000-0000000000e2'];
+			mockAcknowledgedCount = 5;
+			markRepliesRead.mockResolvedValue(1);
+			const response = await aiTaskAckModule.POST(
+				createMockEvent({ user: TEST_USER, body: { replyIds } })
+			);
+			await expectResponseContract('POST', '/api/ai-tasks/acknowledge', response);
+			expect(await response.json()).toEqual({ acknowledged: 0, repliesAcknowledged: 1 });
+			expect(acknowledgeCalls).toEqual([]);
+			expect(markRepliesRead).toHaveBeenCalledWith(TEST_USER.id, replyIds);
 		});
 
 		test('marks the named replies read and reports their count', async () => {
