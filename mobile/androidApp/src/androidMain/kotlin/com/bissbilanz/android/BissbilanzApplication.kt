@@ -43,6 +43,7 @@ import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.android.ui.viewmodels.DashboardWidgetsViewModel
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
+import com.bissbilanz.android.ui.viewmodels.EnhanceFoodsViewModel
 import com.bissbilanz.android.ui.viewmodels.FavoritesViewModel
 import com.bissbilanz.android.ui.viewmodels.FoodDuplicatesViewModel
 import com.bissbilanz.android.ui.viewmodels.FoodPackageViewModel
@@ -222,6 +223,7 @@ class BissbilanzApplication :
                 viewModelOf(::FoodSearchViewModel)
                 viewModelOf(::FavoritesViewModel)
                 viewModelOf(::FoodDuplicatesViewModel)
+                viewModelOf(::EnhanceFoodsViewModel)
                 viewModelOf(::FoodPackageViewModel)
                 viewModelOf(::RecipeSuggestionsViewModel)
                 viewModelOf(::WeightViewModel)

@@ -9,7 +9,13 @@ import {
 	TASK_SYSTEM_PROMPT,
 	buildTaskUserContent
 } from '$lib/server/claude/tasks/prompt';
-import { TASK_TOOLS } from '$lib/server/claude/tasks/tools';
+import { taskTools } from '$lib/server/claude/tasks/tools';
+
+const TOOL_LISTS = [
+	['with the nutrient database', taskTools(true)],
+	['without the nutrient database', taskTools(false)]
+] as const;
+const ALL_TOOLS = TOOL_LISTS.flatMap(([, tools]) => tools);
 
 const ALLOWED_SCHEMA_KEYS = new Set([
 	'type',
@@ -22,9 +28,9 @@ const ALLOWED_SCHEMA_KEYS = new Set([
 	'items'
 ]);
 
-describe('TASK_TOOLS', () => {
-	test('exposes exactly the task tools', () => {
-		expect(TASK_TOOLS.map((tool) => tool.name)).toEqual([
+describe('task tools', () => {
+	test('exposes exactly the task tools, with the database search only when configured', () => {
+		const names = [
 			'search_foods',
 			'list_recipes',
 			'get_recipe',
@@ -34,10 +40,16 @@ describe('TASK_TOOLS', () => {
 			'log_food',
 			'complete_ai_task',
 			'dismiss_ai_task'
+		];
+		expect(taskTools(false).map((tool) => tool.name)).toEqual(names);
+		expect(taskTools(true).map((tool) => tool.name)).toEqual([
+			...names.slice(0, 5),
+			'search_nutrient_database',
+			...names.slice(5)
 		]);
 	});
 
-	test.each(TASK_TOOLS.map((tool) => [tool.name, tool] as const))(
+	test.each(ALL_TOOLS.map((tool) => [tool.name, tool] as const))(
 		'%s is a strict tool with a closed schema listing every property as required',
 		(_name, tool) => {
 			expect(tool.strict).toBe(true);
@@ -56,16 +68,19 @@ describe('TASK_TOOLS', () => {
 		}
 	);
 
-	test('only the last tool and the system block carry a cache breakpoint', () => {
-		expect(TASK_TOOLS.at(-1)?.cache_control).toEqual({ type: 'ephemeral' });
-		expect(TASK_TOOLS.slice(0, -1).some((tool) => tool.cache_control)).toBe(false);
-		expect(TASK_SYSTEM).toHaveLength(1);
-		expect(TASK_SYSTEM[0]).toMatchObject({ type: 'text', cache_control: { type: 'ephemeral' } });
-		expect(TASK_SYSTEM[0]!.text).toBe(TASK_SYSTEM_PROMPT);
-	});
+	test.each(TOOL_LISTS)(
+		'only the last tool %s and the system block carry a cache breakpoint',
+		(_label, tools) => {
+			expect(tools.at(-1)?.cache_control).toEqual({ type: 'ephemeral' });
+			expect(tools.slice(0, -1).some((tool) => tool.cache_control)).toBe(false);
+			expect(TASK_SYSTEM).toHaveLength(1);
+			expect(TASK_SYSTEM[0]).toMatchObject({ type: 'text', cache_control: { type: 'ephemeral' } });
+			expect(TASK_SYSTEM[0]!.text).toBe(TASK_SYSTEM_PROMPT);
+		}
+	);
 
 	test('optional inputs are nullable through anyOf instead of omitted', () => {
-		const log = TASK_TOOLS.find((tool) => tool.name === 'log_food')!;
+		const log = taskTools(true).find((tool) => tool.name === 'log_food')!;
 		const properties = log.input_schema.properties as Record<string, Record<string, unknown>>;
 		expect(properties.foodId!.anyOf).toEqual([{ type: 'string' }, { type: 'null' }]);
 		expect(properties.quickCalories!.anyOf).toEqual([{ type: 'number' }, { type: 'null' }]);
@@ -81,12 +96,16 @@ describe('TASK_TOOLS', () => {
 							([key, inner]) => (key === 'type' && Array.isArray(inner)) || hasTypeArray(inner)
 						)
 					: false;
-		expect(TASK_TOOLS.some((tool) => hasTypeArray(tool.input_schema))).toBe(false);
+		expect(ALL_TOOLS.some((tool) => hasTypeArray(tool.input_schema))).toBe(false);
 	});
 });
 
 describe('prompt and tools are byte-stable', () => {
-	const serialized = JSON.stringify({ system: TASK_SYSTEM, tools: TASK_TOOLS });
+	const serialized = JSON.stringify({
+		system: TASK_SYSTEM,
+		withDatabase: taskTools(true),
+		withoutDatabase: taskTools(false)
+	});
 
 	test('contain no dates, ids or user data', () => {
 		expect(serialized).not.toMatch(/\d{4}-\d{2}-\d{2}/);
@@ -115,15 +134,25 @@ describe('prompt and tools are byte-stable', () => {
 			'AUTO_LOG',
 			'REVIEW',
 			'cookedWeight',
-			'servings'
+			'servings',
+			'search_nutrient_database',
+			'fdcId',
+			'never from memory',
+			'Open Food Facts',
+			'where its nutrition came from'
 		]) {
 			expect(TASK_SYSTEM_PROMPT).toContain(needle);
 		}
 	});
 
+	test('the tool lists are built once, so the cached prefix never changes', () => {
+		expect(taskTools(true)).toBe(taskTools(true));
+		expect(taskTools(false)).toBe(taskTools(false));
+	});
+
 	test('stay identical to the reviewed text', () => {
 		expect(createHash('sha256').update(serialized).digest('hex')).toMatchInlineSnapshot(
-			`"53bce423fe492277325e441c912fa275b4466fd23fa252926c2a6ba284994446"`
+			`"9805553e030f0ec24e425820d234a387c0ee0cbf959e2540f2472b0b0e34fcc4"`
 		);
 	});
 });

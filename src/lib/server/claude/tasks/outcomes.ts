@@ -139,9 +139,18 @@ export function completeByModel(
 	});
 }
 
-export async function blockRun(ctx: OutcomeContext, code: ClaudeGateCode): Promise<void> {
+export async function blockRun(
+	ctx: OutcomeContext,
+	code: ClaudeGateCode,
+	requiredUsd: number | null = null
+): Promise<void> {
 	await withFence(ctx.fence, (tx) =>
-		transitionFenced(tx, ctx.fence, { state: 'blocked', failureCode: code, proposal: null })
+		transitionFenced(tx, ctx.fence, {
+			state: 'blocked',
+			failureCode: code,
+			failureDetail: requiredUsd === null ? null : String(requiredUsd),
+			proposal: null
+		})
 	);
 }
 
@@ -182,13 +191,14 @@ async function hasLoggedEntries(ctx: OutcomeContext, mode: TaskMode): Promise<bo
 export async function stopOrBlockRun(
 	ctx: OutcomeContext,
 	mode: TaskMode,
-	code: ClaudeGateCode
+	code: ClaudeGateCode,
+	requiredUsd: number | null = null
 ): Promise<'blocked' | TaskOutcome> {
 	if (await hasLoggedEntries(ctx, mode)) {
 		await dismissRun(ctx, 'claude_stopped', code);
 		return 'dismissed';
 	}
-	await blockRun(ctx, code);
+	await blockRun(ctx, code, requiredUsd);
 	return 'blocked';
 }
 

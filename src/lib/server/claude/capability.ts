@@ -2,20 +2,26 @@ import * as Sentry from '@sentry/sveltekit';
 import { eq } from 'drizzle-orm';
 import { getDB } from '../db';
 import { claudeAccess, userPreferences } from '../schema';
+import { serverToolAllowanceOf } from './call';
 import { claudeConfig } from './config';
 import { TASK_MAX_TOKENS } from './constants';
 import { ClaudeGateError, ClaudeProcessorChangedError } from './errors';
-import { resolveClaudeModel } from './models';
+import { resolveClaudeModel, taskServerTools } from './models';
 import { maxCallCostUsd } from './pricing';
 import { getClaudeEnabled } from './settings';
 import { effectiveUserBudgetUsd, getMonthSpend } from './usage';
 
-const MIN_TASK_INPUT_TOKENS = 20_000;
+export const FIRST_CALL_INPUT_TOKENS = 21_000;
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
 export const minTaskCallUsd = (model: string) =>
-	maxCallCostUsd(model, MIN_TASK_INPUT_TOKENS, TASK_MAX_TOKENS);
+	maxCallCostUsd(
+		model,
+		FIRST_CALL_INPUT_TOKENS,
+		TASK_MAX_TOKENS,
+		serverToolAllowanceOf(taskServerTools(model))
+	);
 
 export type ClaudeCapability = { available: boolean; remainingBudgetUsd?: number };
 
@@ -45,12 +51,14 @@ export async function assertClaudeAllowed(userId: string): Promise<void> {
 	if (prefs?.processor !== 'claude') throw new ClaudeProcessorChangedError();
 }
 
-export async function getClaudeCapability(userId: string): Promise<ClaudeCapability> {
+export type ClaudeHeadroom = { available: boolean; remainingUsd: number };
+
+export async function getClaudeHeadroom(userId: string): Promise<ClaudeHeadroom> {
 	let gates: Awaited<ReturnType<typeof checkAccessGates>>;
 	try {
 		gates = await checkAccessGates(userId);
 	} catch (error) {
-		if (error instanceof ClaudeGateError) return { available: false };
+		if (error instanceof ClaudeGateError) return { available: false, remainingUsd: 0 };
 		throw error;
 	}
 	const { db, config, access } = gates;
@@ -59,7 +67,15 @@ export async function getClaudeCapability(userId: string): Promise<ClaudeCapabil
 		effectiveUserBudgetUsd(access) - user.spendUsd,
 		config.globalMonthlyBudgetUsd - global.spendUsd
 	);
-	if (remainingUsd < minTaskCallUsd(resolveClaudeModel(access.model))) return { available: false };
+	return {
+		available: remainingUsd >= minTaskCallUsd(resolveClaudeModel(access.model)),
+		remainingUsd
+	};
+}
+
+export async function getClaudeCapability(userId: string): Promise<ClaudeCapability> {
+	const { available, remainingUsd } = await getClaudeHeadroom(userId);
+	if (!available) return { available: false };
 	return { available: true, remainingBudgetUsd: round2(Math.max(0, remainingUsd)) };
 }
 

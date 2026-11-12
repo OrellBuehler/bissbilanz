@@ -7,10 +7,12 @@ export type ClaudeGateCode = Extract<
 
 export class ClaudeGateError extends Error {
 	readonly code: ClaudeGateCode;
-	constructor(code: ClaudeGateCode) {
+	readonly requiredUsd: number | null;
+	constructor(code: ClaudeGateCode, requiredUsd: number | null = null) {
 		super(`Claude is not available: ${code}`);
 		this.name = 'ClaudeGateError';
 		this.code = code;
+		this.requiredUsd = requiredUsd;
 	}
 }
 

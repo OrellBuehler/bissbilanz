@@ -6,6 +6,15 @@ import { getDB } from '../../db';
 import { createEntry, eatenAtOnDate, validateMealType } from '../../entries';
 import { ApiError, isZodError, McpUserError } from '../../errors';
 import { findFoodByBarcode, getFood } from '../../foods';
+import {
+	FDC_SOURCE_NAME,
+	NutrientDatabaseError,
+	compareWithRecord,
+	fdcServingScale,
+	getFdcFood,
+	scaleFdcNutrients,
+	searchFdcFoods
+} from '../../fooddata-central';
 import { getRecipe } from '../../recipes';
 import {
 	handleCreateFood,
@@ -18,7 +27,7 @@ import {
 import { ALL_NUTRIENTS } from '$lib/nutrients';
 import { servingUnitValues } from '$lib/units';
 import { entryCreateSchema, foodCreateSchema } from '../../validation';
-import { LeaseLostError } from '../errors';
+import { ClaudeAbortedError, LeaseLostError } from '../errors';
 import { completeByModel, dismissByModel, type OutcomeContext } from './outcomes';
 import { ledgerGetOrCreate, loadRun, transitionFenced, withFence } from './runs';
 import type { Fence, Proposal, ProposalItem, TaskMode, TaskOutcome } from './types';
@@ -48,44 +57,73 @@ const strictTool = (
 	}
 });
 
-const CREATE_FOOD_DESCRIPTION =
-	"Create a new food in the user's food database, with nutrition per serving. Use it only after search_foods, find_food_by_barcode and search_openfoodfacts found nothing that fits, the user will likely eat the item again, and you have real nutrition data (label photo, Open Food Facts, or web research). Fill in every nutrient you know; use null or omit the rest. Pass barcode whenever one is visible. Returns foodId, which log_food accepts. In REVIEW mode the food is created only if the user accepts the logged item.";
+const createFoodDescription = (sources: string, extra: string) =>
+	`Create a new food in the user's food database, with nutrition per serving. Use it when nothing in the user's own foods fits, the user will likely eat the item again, and you have real nutrition data: ${sources}. Pass barcode whenever one is visible. Returns foodId, which log_food accepts. In REVIEW mode the food is created only if the user accepts the logged item.${extra}`;
+
+const CREATE_FOOD_DESCRIPTION = createFoodDescription(
+	'a label photo, Open Food Facts or a web page',
+	''
+);
+
+const CREATE_FOOD_WITH_DATABASE_DESCRIPTION = createFoodDescription(
+	'a label photo, Open Food Facts, a nutrient database record or a web page',
+	' With fdcId from search_nutrient_database in this task and a serving by weight, the server compares your calories and macros with that record scaled to the serving, refuses a large difference, and otherwise fills every nutrient you did not list.'
+);
 
 const NUTRIENT_KEYS = ALL_NUTRIENTS.map((n) => n.key);
 const NUTRIENT_LIST = ALL_NUTRIENTS.map((n) => `${n.key} (${n.unit})`).join(', ');
 
-const createFoodTool = strictTool('create_food', CREATE_FOOD_DESCRIPTION, {
-	name: text('Food name'),
-	brand: nullable('string', 'Brand name'),
-	servingSize: { type: 'number', description: 'Serving size amount, greater than 0' },
-	servingUnit: {
-		type: 'string',
-		enum: [...servingUnitValues],
-		description: 'Unit of the serving size'
-	},
-	calories: { type: 'number', description: 'Calories per serving' },
-	protein: { type: 'number', description: 'Protein in grams per serving' },
-	carbs: { type: 'number', description: 'Carbohydrates in grams per serving' },
-	fat: { type: 'number', description: 'Fat in grams per serving' },
-	fiber: { type: 'number', description: 'Fiber in grams per serving' },
-	nutrients: {
-		type: 'array',
-		items: {
-			type: 'object',
-			properties: {
-				nutrient: { type: 'string', enum: NUTRIENT_KEYS },
-				amount: { type: 'number' }
+const createFoodTool = (nutrientDatabase: boolean) =>
+	strictTool(
+		'create_food',
+		nutrientDatabase ? CREATE_FOOD_WITH_DATABASE_DESCRIPTION : CREATE_FOOD_DESCRIPTION,
+		{
+			name: text('Food name'),
+			brand: nullable('string', 'Brand name'),
+			servingSize: { type: 'number', description: 'Serving size amount, greater than 0' },
+			servingUnit: {
+				type: 'string',
+				enum: [...servingUnitValues],
+				description: 'Unit of the serving size'
 			},
-			required: ['nutrient', 'amount'],
-			additionalProperties: false
-		},
-		description: `Every other nutrient you know, per serving, in the unit shown: ${NUTRIENT_LIST}. Empty array when none are known.`
-	},
-	barcode: nullable('string', 'Barcode digits, when visible'),
-	ingredientsText: text('Full ingredients text, or an empty string when unknown')
-});
+			calories: { type: 'number', description: 'Calories per serving' },
+			protein: { type: 'number', description: 'Protein in grams per serving' },
+			carbs: { type: 'number', description: 'Carbohydrates in grams per serving' },
+			fat: { type: 'number', description: 'Fat in grams per serving' },
+			fiber: { type: 'number', description: 'Fiber in grams per serving' },
+			nutrients: {
+				type: 'array',
+				items: {
+					type: 'object',
+					properties: {
+						nutrient: { type: 'string', enum: NUTRIENT_KEYS },
+						amount: { type: 'number' }
+					},
+					required: ['nutrient', 'amount'],
+					additionalProperties: false
+				},
+				description: `Nutrients read from a label, Open Food Facts or a web page, per serving, in the unit shown: ${NUTRIENT_LIST}. Never from memory.${nutrientDatabase ? ' They win over the fdcId record.' : ''} Empty array when none.`
+			},
+			...(nutrientDatabase
+				? {
+						fdcId: nullable(
+							'integer',
+							'fdcId of the search_nutrient_database result in this task that describes this food, or null. Only for a servingUnit of g, kg, oz or lb.'
+						)
+					}
+				: {}),
+			barcode: nullable('string', 'Barcode digits, when visible'),
+			ingredientsText: text('Full ingredients text, or an empty string when unknown')
+		}
+	);
 
-const TOOL_DEFINITIONS: Anthropic.Tool[] = [
+const nutrientDatabaseTool = strictTool(
+	'search_nutrient_database',
+	'Search the USDA FoodData Central nutrient database for generic and whole foods and plain packaged foods (produce, meat, fish, eggs, grains, nuts, milk, juice), raw or cooked. Returns candidate records with fdcId, energy and macros per 100 g, and how many nutrients each record covers. Pass the fdcId of the record that matches the food, its preparation and any salt or enrichment, to create_food.',
+	{ query: text('Food name in English, for example "pear raw" or "chicken breast roasted"') }
+);
+
+const toolDefinitions = (nutrientDatabase: boolean): Anthropic.Tool[] => [
 	strictTool(
 		'search_foods',
 		"Search the user's saved foods by name. Foods the user logged recently come first. Returns serving size and per-serving macros.",
@@ -115,7 +153,8 @@ const TOOL_DEFINITIONS: Anthropic.Tool[] = [
 			limit: nullable('integer', 'Maximum number of results, at most 5. Default 5.')
 		}
 	),
-	createFoodTool,
+	...(nutrientDatabase ? [nutrientDatabaseTool] : []),
+	createFoodTool(nutrientDatabase),
 	strictTool(
 		'log_food',
 		"Log one food, recipe or quick entry for the meal. Give foodId or recipeId, or the quick values for a one-off estimate. servings is the number of servings of the food's own serving size. Quick values are per serving. Use null for anything that does not apply.",
@@ -155,9 +194,16 @@ const TOOL_DEFINITIONS: Anthropic.Tool[] = [
 	)
 ];
 
-export const TASK_TOOLS: Anthropic.Tool[] = TOOL_DEFINITIONS.map((tool, index) =>
-	index === TOOL_DEFINITIONS.length - 1 ? { ...tool, cache_control: { type: 'ephemeral' } } : tool
-);
+const withCacheBreakpoint = (tools: Anthropic.Tool[]): Anthropic.Tool[] =>
+	tools.map((tool, index) =>
+		index === tools.length - 1 ? { ...tool, cache_control: { type: 'ephemeral' } } : tool
+	);
+
+const TOOLS_WITH_DATABASE = withCacheBreakpoint(toolDefinitions(true));
+const TOOLS_WITHOUT_DATABASE = withCacheBreakpoint(toolDefinitions(false));
+
+export const taskTools = (nutrientDatabase: boolean): Anthropic.Tool[] =>
+	nutrientDatabase ? TOOLS_WITH_DATABASE : TOOLS_WITHOUT_DATABASE;
 
 const optionalNumber = z.number().nonnegative().nullish();
 
@@ -173,6 +219,7 @@ const inputSchemas = {
 		query: z.string().min(1).max(200),
 		limit: z.number().int().min(1).nullish()
 	}),
+	search_nutrient_database: z.object({ query: z.string().trim().min(1).max(200) }),
 	create_food: z.object({
 		name: z.string(),
 		brand: z.string().nullish(),
@@ -188,6 +235,7 @@ const inputSchemas = {
 				z.object({ nutrient: z.enum(NUTRIENT_KEYS as [string, ...string[]]), amount: z.number() })
 			)
 			.default([]),
+		fdcId: z.number().int().positive().nullish(),
 		barcode: z.string().nullish(),
 		ingredientsText: z.string().default('')
 	}),
@@ -219,6 +267,8 @@ export type TaskToolContext = {
 	seen: Map<string, number>;
 	foods: Map<string, ProvisionalFood>;
 	createdFoods: Map<string, FoodToolResult>;
+	nutrientRecords: Set<number>;
+	signal?: AbortSignal;
 };
 
 type ProvisionalFood = Record<string, unknown>;
@@ -229,7 +279,14 @@ export type ToolResult = { content: string; isError: boolean; outcome?: TaskOutc
 export const isTerminalTool = (name: string) =>
 	name === 'complete_ai_task' || name === 'dismiss_ai_task';
 
-class ToolInputError extends Error {}
+class ToolInputError extends Error {
+	constructor(
+		message: string,
+		readonly details: Record<string, unknown> = {}
+	) {
+		super(message);
+	}
+}
 
 const FOOD_FIELDS = [
 	'id',
@@ -329,29 +386,81 @@ const FOOD_RESULT_FIELDS = [
 	'fiber'
 ] as const;
 
+type FoodCreateInput = z.infer<typeof foodCreateSchema>;
+
+async function fillFromDatabase(
+	data: FoodCreateInput,
+	fdcId: number,
+	explicit: Set<string>,
+	ctx: TaskToolContext
+): Promise<{ data: FoodCreateInput; source: Record<string, unknown> }> {
+	if (!ctx.nutrientRecords.has(fdcId)) {
+		throw new ToolInputError(
+			`fdcId ${fdcId} did not come from search_nutrient_database in this task. Search first and pass one of its fdcIds, or pass null.`
+		);
+	}
+	const scale = fdcServingScale(data.servingSize, data.servingUnit);
+	if (scale === null) {
+		throw new ToolInputError(
+			`A nutrient database record can only be applied to a serving given in g, kg, oz or lb, not ${data.servingUnit}. Nothing was created. Give the serving by weight, or pass fdcId null.`
+		);
+	}
+	const record = await getFdcFood(ctx.userId, fdcId, ctx.signal);
+	const comparison = compareWithRecord(record, data, scale);
+	if (!comparison.matches) {
+		throw new ToolInputError(
+			`Your ${comparison.mismatched.join(', ')} for ${data.servingSize} ${data.servingUnit} do not match record ${fdcId} "${record.description}" scaled to that serving. Nothing was created. If you took these numbers from the database, use recordPerServing instead. If they come from a label or Open Food Facts, keep them and pick another record or pass fdcId null.`,
+			{ recordPerServing: comparison.recordPerServing }
+		);
+	}
+	const base = {
+		database: FDC_SOURCE_NAME,
+		fdcId,
+		description: record.description,
+		dataType: record.dataType
+	};
+	const filled = Object.fromEntries(
+		Object.entries(scaleFdcNutrients(record, scale)).filter(([key]) => !explicit.has(key))
+	);
+	return {
+		data: foodCreateSchema.parse({ ...data, ...filled }),
+		source: {
+			...base,
+			filled: Object.keys(filled).length,
+			...(explicit.size > 0 ? { keptYourValues: explicit.size } : {})
+		}
+	};
+}
+
 async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<FoodToolResult> {
-	const { nutrients, ...fields } = inputSchemas.create_food.parse(input);
+	const { nutrients, fdcId, ...fields } = inputSchemas.create_food.parse(input);
+	const explicit = Object.fromEntries(nutrients.map(({ nutrient, amount }) => [nutrient, amount]));
 	const parsed = foodCreateSchema.safeParse({
 		...Object.fromEntries(
 			Object.entries(fields).filter(([, value]) => value !== null && value !== '')
 		),
-		...Object.fromEntries(nutrients.map(({ nutrient, amount }) => [nutrient, amount]))
+		...explicit
 	});
 	if (!parsed.success) throw parsed.error;
-	const data = parsed.data;
 
-	const hash = hashPayload(data);
+	const hash = hashPayload({ ...parsed.data, fdcId: fdcId ?? null });
 	const known = ctx.createdFoods.get(hash);
 	if (known) return known;
 
-	if (data.barcode) {
-		const existing = await findFoodByBarcode(ctx.userId, data.barcode);
+	if (parsed.data.barcode) {
+		const existing = await findFoodByBarcode(ctx.userId, parsed.data.barcode);
 		if (existing) {
 			throw new ToolInputError(
-				`A food with barcode ${data.barcode} already exists: "${existing.name}" (foodId ${existing.id}). Log that foodId instead.`
+				`A food with barcode ${parsed.data.barcode} already exists: "${existing.name}" (foodId ${existing.id}). Log that foodId instead.`
 			);
 		}
 	}
+
+	const filled = fdcId
+		? await fillFromDatabase(parsed.data, fdcId, new Set(Object.keys(explicit)), ctx)
+		: null;
+	const data = filled?.data ?? parsed.data;
+	const nutrientSource = filled ? { nutrientSource: filled.source } : {};
 
 	let result: FoodToolResult;
 	if (ctx.mode === 'review') {
@@ -360,6 +469,7 @@ async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<
 		result = {
 			foodId,
 			...pick(data, FOOD_RESULT_FIELDS),
+			...nutrientSource,
 			note: 'Not saved yet: the food is created only if the user accepts the logged item. Pass this foodId to log_food.'
 		};
 	} else {
@@ -368,7 +478,11 @@ async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<
 		if (!created.success) {
 			throw new ToolInputError(String(created.error ?? 'Could not create the food'));
 		}
-		result = { foodId: created.foodId, ...pick(asRecord(created.food), FOOD_RESULT_FIELDS) };
+		result = {
+			foodId: created.foodId,
+			...pick(asRecord(created.food), FOOD_RESULT_FIELDS),
+			...nutrientSource
+		};
 	}
 	ctx.createdFoods.set(hash, result);
 	return result;
@@ -524,6 +638,23 @@ async function execute(name: string, input: unknown, ctx: TaskToolContext): Prom
 			const products = (result.products as Record<string, unknown>[] | undefined) ?? [];
 			return { products: products.map(trimBarcodeResult) };
 		}
+		case 'search_nutrient_database': {
+			const args = inputSchemas.search_nutrient_database.parse(input);
+			const foods = await searchFdcFoods(ctx.userId, args.query, ctx.signal);
+			for (const food of foods) ctx.nutrientRecords.add(food.fdcId);
+			return {
+				foods: foods.map((food) => ({
+					fdcId: food.fdcId,
+					description: food.description,
+					dataType: food.dataType,
+					per100g: food.per100g,
+					nutrientCount: Object.keys(food.nutrients).length
+				})),
+				...(foods.length === 0
+					? { note: 'No records. Try a shorter English name, or use another source.' }
+					: {})
+			};
+		}
 		case 'create_food':
 			return createFoodForTask(input, ctx);
 		case 'log_food':
@@ -536,8 +667,8 @@ async function execute(name: string, input: unknown, ctx: TaskToolContext): Prom
 const truncate = (value: string) =>
 	value.length > TOOL_RESULT_MAX_CHARS ? value.slice(0, TOOL_RESULT_MAX_CHARS) : value;
 
-const failure = (message: string): ToolResult => ({
-	content: truncate(JSON.stringify({ error: message })),
+const failure = (message: string, details: Record<string, unknown> = {}): ToolResult => ({
+	content: truncate(JSON.stringify({ error: message, ...details })),
 	isError: true
 });
 
@@ -567,6 +698,7 @@ export async function runTaskTool(
 		return { content: truncate(JSON.stringify(await execute(name, input, ctx))), isError: false };
 	} catch (error) {
 		if (error instanceof LeaseLostError) throw error;
+		if (ctx.signal?.aborted) throw new ClaudeAbortedError();
 		if (isZodError(error)) {
 			return {
 				content: truncate(
@@ -581,7 +713,8 @@ export async function runTaskTool(
 				isError: true
 			};
 		}
-		if (error instanceof ToolInputError || error instanceof McpUserError) {
+		if (error instanceof ToolInputError) return failure(error.message, error.details);
+		if (error instanceof McpUserError || error instanceof NutrientDatabaseError) {
 			return failure(error.message);
 		}
 		if (error instanceof ApiError && error.status < 500) return failure(error.message);

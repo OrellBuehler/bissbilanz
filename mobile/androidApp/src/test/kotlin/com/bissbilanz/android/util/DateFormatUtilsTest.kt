@@ -2,6 +2,7 @@ package com.bissbilanz.android.util
 
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Month
+import kotlinx.datetime.TimeZone
 import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -46,5 +47,14 @@ class DateFormatUtilsTest {
     @Test
     fun nonDateStringsAreShownUnchanged() {
         assertEquals("someday", formatIsoDate("someday"))
+        assertEquals("someday", formatIsoDateTime("someday"))
+    }
+
+    @Test
+    fun instantsShowTheNumericDateAndShortTimeInTheGivenZone() {
+        val zurich = TimeZone.of("Europe/Zurich")
+        assertEquals("12.11.2026 14:03", formatIsoDateTime("2026-11-12T13:03:00.000Z", zurich, Locale.GERMANY))
+        assertEquals("13.11.2026 00:30", formatIsoDateTime("2026-11-12T23:30:00Z", zurich, Locale.GERMANY))
+        assertEquals("11/12/2026", formatIsoDateTime("2026-11-12T13:03:00Z", zurich, Locale.US).substringBefore(' '))
     }
 }

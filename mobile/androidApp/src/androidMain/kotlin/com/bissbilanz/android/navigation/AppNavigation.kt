@@ -129,6 +129,7 @@ fun AppNavigation() {
                         "reminders",
                         "food-duplicates",
                         "food-package-import",
+                        "enhance-foods",
                         "dashboard-layout",
                     ) ||
                     (currentRoute in pushableTabRoutes && currentRoute !in selectedTabRoutes) ||
@@ -371,5 +372,9 @@ internal fun NavGraphBuilder.bissbilanzDestinations(
     composable("food-package-import") {
         com.bissbilanz.android.ui.screens
             .FoodPackageImportScreen(navController)
+    }
+    composable("enhance-foods") {
+        com.bissbilanz.android.ui.screens
+            .EnhanceFoodsScreen(navController)
     }
 }

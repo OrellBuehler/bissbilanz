@@ -6,6 +6,7 @@ export function claudeConfig() {
 		effort,
 		maxIterations,
 		maxWebSearches,
+		maxWebFetches,
 		globalMonthlyBudgetUsd,
 		defaultUserBudgetUsd,
 		configured
@@ -15,6 +16,7 @@ export function claudeConfig() {
 		effort,
 		maxIterations,
 		maxWebSearches,
+		maxWebFetches,
 		globalMonthlyBudgetUsd,
 		defaultUserBudgetUsd,
 		configured

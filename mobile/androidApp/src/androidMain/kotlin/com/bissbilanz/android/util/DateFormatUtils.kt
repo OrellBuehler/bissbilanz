@@ -13,6 +13,7 @@ import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.minus
 import kotlinx.datetime.number
 import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.todayIn
 import java.time.chrono.IsoChronology
 import java.time.format.DateTimeFormatter
@@ -21,6 +22,7 @@ import java.time.format.FormatStyle
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.time.Clock
+import kotlin.time.Instant
 
 /** Locale-aware month name (e.g. "January" / "Januar"), replacing the raw enum constant name. */
 fun Month.displayName(style: TextStyle = TextStyle.FULL): String =
@@ -82,6 +84,20 @@ fun millisUntilNextDay(
  * that is not an ISO date is shown unchanged rather than hidden.
  */
 fun formatIsoDate(iso: String): String = runCatching { LocalDate.parse(iso.take(10)) }.getOrNull()?.let { formatShortDate(it) } ?: iso
+
+fun formatIsoDateTime(
+    iso: String,
+    timeZone: TimeZone = TimeZone.currentSystemDefault(),
+    locale: Locale = Locale.getDefault(),
+): String {
+    val local = Instant.parseOrNull(iso)?.toLocalDateTime(timeZone) ?: return iso
+    val time =
+        DateTimeFormatter
+            .ofLocalizedTime(FormatStyle.SHORT)
+            .withLocale(locale)
+            .format(java.time.LocalTime.of(local.hour, local.minute))
+    return "${formatShortDate(local.date, locale)} $time"
+}
 
 /**
  * How a day is named in the UI: "Today" / "Yesterday" / "Tomorrow", otherwise the
