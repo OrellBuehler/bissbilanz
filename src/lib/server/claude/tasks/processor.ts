@@ -10,7 +10,8 @@ import { claudeAccess, userPreferences, users } from '../../schema';
 import { assertClaudeAllowed } from '../capability';
 import { callClaude } from '../call';
 import { claudeConfig } from '../config';
-import { resolveClaudeModel, webSearchTool } from '../models';
+import { isFdcConfigured } from '../../fooddata-central';
+import { resolveClaudeModel, serverTools } from '../models';
 import { AI_TASK_FEATURE } from '../constants';
 import {
 	ClaudeAbortedError,
@@ -37,7 +38,7 @@ import {
 	listLoggedLedger,
 	supersedeIfProcessorChanged
 } from './runs';
-import { TASK_TOOLS, isTerminalTool, runTaskTool, type TaskToolContext } from './tools';
+import { isTerminalTool, runTaskTool, taskTools, type TaskToolContext } from './tools';
 import type { ClaudeRun, Fence, TaskMode } from './types';
 
 export const HEARTBEAT_INTERVAL_MS = 60_000;
@@ -182,9 +183,12 @@ async function runLoop(
 		return false;
 	};
 
-	const { maxIterations, maxWebSearches } = claudeConfig();
-	const tools: Anthropic.ToolUnion[] =
-		maxWebSearches > 0 ? [webSearchTool(loaded.model, maxWebSearches), ...TASK_TOOLS] : TASK_TOOLS;
+	const { maxIterations, maxWebSearches, maxWebFetches } = claudeConfig();
+	const tools: Anthropic.ToolUnion[] = [
+		...serverTools(loaded.model, { webSearches: maxWebSearches, webFetches: maxWebFetches }),
+		...taskTools(isFdcConfigured())
+	];
+	let container: string | undefined;
 	for (let iteration = 0; iteration < maxIterations; iteration++) {
 		if (!(await regate())) return;
 
@@ -193,10 +197,16 @@ async function runLoop(
 			feature: AI_TASK_FEATURE,
 			model: loaded.model,
 			aiTaskId: task.id,
-			params: { system: TASK_SYSTEM, tools, messages: withCacheBreakpoint(messages) },
+			params: {
+				system: TASK_SYSTEM,
+				tools,
+				messages: withCacheBreakpoint(messages),
+				...(container ? { container } : {})
+			},
 			imageCount: loaded.imageCount,
 			signal
 		});
+		container = response.container?.id ?? container;
 
 		if (response.stop_reason === 'refusal') {
 			await dismissRun(ctx, 'claude_refused');

@@ -288,7 +288,7 @@ describe('callClaude against the SDK boundary', () => {
 				'claude-haiku-5-5',
 				mod.estimateInputTokens(params, 0),
 				16000,
-				mod.maxWebSearchesOf(params.tools)
+				mod.serverToolAllowanceOf(params.tools)
 			)
 		);
 		expect(sentry.logger.info).toHaveBeenCalledWith(
@@ -391,16 +391,69 @@ describe('callClaude against the SDK boundary', () => {
 		);
 	});
 
-	test('counts only web search tools in the allowance', async () => {
-		const { maxWebSearchesOf } = await load();
+	test('counts the web search and web fetch allowance of the declared tools', async () => {
+		const { serverToolAllowanceOf } = await load();
 		expect(
-			maxWebSearchesOf([
+			serverToolAllowanceOf([
 				{ type: 'web_search_20260209', name: 'web_search', max_uses: 4 },
+				{ type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 2, max_content_tokens: 5000 },
 				{ name: 'x', input_schema: { type: 'object' } }
 			])
-		).toBe(4);
-		expect(maxWebSearchesOf([{ type: 'web_search_20260209', name: 'web_search' }])).toBe(0);
-		expect(maxWebSearchesOf([])).toBe(0);
+		).toEqual({ webSearches: 4, webFetches: 2, webFetchTokens: 12_000 });
+		expect(
+			serverToolAllowanceOf([{ type: 'web_fetch_20250910', name: 'web_fetch', max_uses: 1 }])
+		).toEqual({ webSearches: 0, webFetches: 1, webFetchTokens: 12_000 });
+		expect(serverToolAllowanceOf([{ type: 'web_search_20260209', name: 'web_search' }])).toEqual({
+			webSearches: 0,
+			webFetches: 0,
+			webFetchTokens: 0
+		});
+		expect(serverToolAllowanceOf([])).toEqual({ webSearches: 0, webFetches: 0, webFetchTokens: 0 });
+	});
+
+	test('reserves more with web fetch, logs the server tool use and passes the container on', async () => {
+		const webSearch = { type: 'web_search_20260209', name: 'web_search', max_uses: 3 };
+		const webFetch = {
+			type: 'web_fetch_20260209',
+			name: 'web_fetch',
+			max_uses: 3,
+			max_content_tokens: 10_000
+		};
+		const fetchMock = vi.fn(async () =>
+			Response.json(
+				message({
+					usage: {
+						input_tokens: 1000,
+						output_tokens: 200,
+						server_tool_use: { web_search_requests: 1, web_fetch_requests: 2 }
+					}
+				})
+			)
+		);
+		vi.stubGlobal('fetch', fetchMock);
+		const mod = await load(true);
+		const pricing = await import('$lib/server/claude/pricing');
+		await call(mod, { params: { ...params, tools: [webSearch] } });
+		await call(mod, {
+			params: { ...params, tools: [webSearch, webFetch], container: 'container_1' }
+		});
+		const [searchOnly, withFetch] = budget.reserveCall.mock.calls.map(
+			(entry) => entry[0].reservedUsd
+		);
+		expect(withFetch).toBeGreaterThan(searchOnly);
+		const bodies = fetchMock.mock.calls.map((entry) =>
+			JSON.parse(String((entry as unknown as [string, RequestInit])[1].body))
+		);
+		expect(bodies[0]).not.toHaveProperty('container');
+		expect(bodies[1]).toMatchObject({ container: 'container_1', tools: [webSearch, webFetch] });
+		expect(budget.settleCall.mock.calls[1]![1].costUsd).toBeCloseTo(
+			pricing.priceUsage('claude-opus-5-5', { input_tokens: 1000, output_tokens: 200 }) + 0.01,
+			6
+		);
+		expect(sentry.logger.info).toHaveBeenLastCalledWith(
+			'Claude call finished',
+			expect.objectContaining({ webSearchRequests: 1, webFetchRequests: 2, reservedUsd: withFetch })
+		);
 	});
 
 	test('does not retry server errors inside the SDK and settles them as free', async () => {

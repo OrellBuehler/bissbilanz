@@ -15,12 +15,19 @@ import {
 	ClaudeProcessorChangedError,
 	type ClaudeApiErrorKind
 } from './errors';
-import { maxCallCostUsd, priceUsage } from './pricing';
+import {
+	WEB_FETCH_MAX_CONTENT_TOKENS,
+	maxCallCostUsd,
+	priceUsage,
+	webFetchResultTokenBound,
+	type ServerToolAllowance
+} from './pricing';
 
 export type ClaudeCallParams = {
 	system: Anthropic.TextBlockParam[];
 	tools: Anthropic.ToolUnion[];
 	messages: Anthropic.MessageParam[];
+	container?: string;
 };
 
 export type ClaudeCallOptions = {
@@ -71,14 +78,20 @@ export function estimateInputTokens(params: ClaudeCallParams, imageCount: number
 	);
 }
 
-export function maxWebSearchesOf(tools: Anthropic.ToolUnion[]): number {
-	return tools.reduce(
-		(sum, tool) =>
-			'type' in tool && tool.type?.startsWith('web_search') && 'max_uses' in tool
-				? sum + (tool.max_uses ?? 0)
-				: sum,
-		0
-	);
+export function serverToolAllowanceOf(tools: Anthropic.ToolUnion[]): ServerToolAllowance {
+	const allowance: ServerToolAllowance = { webSearches: 0, webFetches: 0, webFetchTokens: 0 };
+	for (const tool of tools) {
+		if (!('type' in tool) || !tool.type || !('max_uses' in tool)) continue;
+		const uses = tool.max_uses ?? 0;
+		if (tool.type.startsWith('web_search')) allowance.webSearches += uses;
+		if (tool.type.startsWith('web_fetch')) {
+			const cap = 'max_content_tokens' in tool ? tool.max_content_tokens : null;
+			allowance.webFetches += uses;
+			allowance.webFetchTokens +=
+				uses * webFetchResultTokenBound(cap ?? WEB_FETCH_MAX_CONTENT_TOKENS);
+		}
+	}
+	return allowance;
 }
 
 export function mapSdkError(error: unknown): ClaudeApiError | ClaudeAbortedError | null {
@@ -168,13 +181,14 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 		output_config: { effort },
 		system: params.system,
 		tools: params.tools,
-		messages: params.messages
+		messages: params.messages,
+		...(params.container ? { container: params.container } : {})
 	};
 	const reservedUsd = maxCallCostUsd(
 		model,
 		estimateInputTokens(params, options.imageCount),
 		TASK_MAX_TOKENS,
-		maxWebSearchesOf(params.tools)
+		serverToolAllowanceOf(params.tools)
 	);
 
 	let usageId: string;
@@ -215,7 +229,10 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 			outputTokens: response.usage.output_tokens,
 			cacheReadInputTokens: response.usage.cache_read_input_tokens ?? 0,
 			cacheCreationInputTokens: response.usage.cache_creation_input_tokens ?? 0,
+			webSearchRequests: response.usage.server_tool_use?.web_search_requests ?? 0,
+			webFetchRequests: response.usage.server_tool_use?.web_fetch_requests ?? 0,
 			costUsd: priceUsage(response.model, response.usage),
+			reservedUsd,
 			stopReason: response.stop_reason ?? ''
 		});
 		return response;

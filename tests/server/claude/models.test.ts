@@ -4,8 +4,15 @@ const config = vi.hoisted(() => ({ model: 'claude-sonnet-5-5' }));
 
 vi.mock('$lib/server/claude/config', () => ({ claudeConfig: () => config }));
 
-const { CLAUDE_MODELS, claudeModelLabel, isSelectableModel, resolveClaudeModel, webSearchTool } =
-	await import('$lib/server/claude/models');
+const {
+	CLAUDE_MODELS,
+	claudeModelLabel,
+	isSelectableModel,
+	resolveClaudeModel,
+	serverTools,
+	webFetchTool,
+	webSearchTool
+} = await import('$lib/server/claude/models');
 const { CLAUDE_PRICING_USD_PER_MTOK } = await import('$lib/server/claude/pricing');
 
 beforeEach(() => {
@@ -97,5 +104,42 @@ describe('webSearchTool', () => {
 		['claude-opus-4-8', 'web_search_20260209']
 	])('%s gets %s', (model, type) => {
 		expect(webSearchTool(model, 3)).toEqual({ type, name: 'web_search', max_uses: 3 });
+	});
+});
+
+describe('webFetchTool', () => {
+	test.each([
+		['claude-fable-5-2', 'web_fetch_20260209'],
+		['claude-opus-5-5', 'web_fetch_20260209'],
+		['claude-sonnet-5-5', 'web_fetch_20260209'],
+		['claude-haiku-5-5', 'web_fetch_20250910'],
+		['claude-fable-5-1', 'web_fetch_20260209'],
+		['claude-opus-4-8', 'web_fetch_20260209']
+	])('%s gets %s with capped content', (model, type) => {
+		expect(webFetchTool(model, 2)).toEqual({
+			type,
+			name: 'web_fetch',
+			max_uses: 2,
+			max_content_tokens: 10_000
+		});
+	});
+
+	test('pairs the basic fetch with the basic search', () => {
+		for (const row of Object.values(CLAUDE_PRICING_USD_PER_MTOK)) {
+			expect(row.webFetch === 'web_fetch_20250910').toBe(row.webSearch === 'web_search_20250305');
+		}
+	});
+});
+
+describe('serverTools', () => {
+	test('declares search before fetch and leaves out what is disabled', () => {
+		const names = (webSearches: number, webFetches: number) =>
+			serverTools('claude-sonnet-5-5', { webSearches, webFetches }).map((tool) =>
+				'name' in tool ? tool.name : null
+			);
+		expect(names(3, 3)).toEqual(['web_search', 'web_fetch']);
+		expect(names(0, 3)).toEqual(['web_fetch']);
+		expect(names(3, 0)).toEqual(['web_search']);
+		expect(names(0, 0)).toEqual([]);
 	});
 });

@@ -1,6 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { claudeConfig } from './config';
-import { CLAUDE_PRICING_USD_PER_MTOK } from './pricing';
+import { CLAUDE_PRICING_USD_PER_MTOK, WEB_FETCH_MAX_CONTENT_TOKENS } from './pricing';
 
 export type ClaudeModelOption = {
 	id: string;
@@ -30,4 +30,24 @@ export const resolveClaudeModel = (stored: string | null | undefined): string =>
 export function webSearchTool(model: string, maxUses: number): Anthropic.ToolUnion {
 	const type = CLAUDE_PRICING_USD_PER_MTOK[model]?.webSearch ?? 'web_search_20260209';
 	return { type, name: 'web_search', max_uses: maxUses };
+}
+
+export function webFetchTool(model: string, maxUses: number): Anthropic.ToolUnion {
+	const type = CLAUDE_PRICING_USD_PER_MTOK[model]?.webFetch ?? 'web_fetch_20260209';
+	return {
+		type,
+		name: 'web_fetch',
+		max_uses: maxUses,
+		max_content_tokens: WEB_FETCH_MAX_CONTENT_TOKENS
+	};
+}
+
+export function serverTools(
+	model: string,
+	limits: { webSearches: number; webFetches: number }
+): Anthropic.ToolUnion[] {
+	return [
+		...(limits.webSearches > 0 ? [webSearchTool(model, limits.webSearches)] : []),
+		...(limits.webFetches > 0 ? [webFetchTool(model, limits.webFetches)] : [])
+	];
 }

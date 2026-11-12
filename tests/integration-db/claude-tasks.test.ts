@@ -1,8 +1,9 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import Anthropic from '@anthropic-ai/sdk';
 import * as Sentry from '@sentry/sveltekit';
 import { and, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -58,6 +59,8 @@ let proposal: typeof import('$lib/server/claude/tasks/proposal');
 let executor: typeof import('$lib/server/claude/tasks/executor');
 let tools: typeof import('$lib/server/claude/tasks/tools');
 let events: typeof import('$lib/server/claude/events');
+let fooddataCentral: typeof import('$lib/server/fooddata-central');
+const fdcConfig: { apiKey: string | undefined } = { apiKey: undefined };
 
 beforeAll(async () => {
 	dbUrl = await createTestDatabase(DB_NAME);
@@ -71,6 +74,10 @@ beforeAll(async () => {
 	vi.stubEnv('UPLOAD_DIR', uploadDir);
 	vi.doMock('$lib/server/db', () => ({ getDB: () => db }));
 	vi.doMock('$lib/server/claude/config', claudeConfigMock);
+	vi.doMock('$lib/server/env', async (importOriginal) => {
+		const actual = await importOriginal<typeof import('$lib/server/env')>();
+		return { ...actual, config: { ...actual.config, fdc: fdcConfig } };
+	});
 	callModule = await import('$lib/server/claude/call');
 	processor = await import('$lib/server/claude/tasks/processor');
 	runs = await import('$lib/server/claude/tasks/runs');
@@ -78,6 +85,7 @@ beforeAll(async () => {
 	executor = await import('$lib/server/claude/tasks/executor');
 	tools = await import('$lib/server/claude/tasks/tools');
 	events = await import('$lib/server/claude/events');
+	fooddataCentral = await import('$lib/server/fooddata-central');
 });
 
 afterAll(async () => {
@@ -234,12 +242,16 @@ describe('auto mode', () => {
 		expect(firstCall).not.toHaveProperty('thinking');
 		expect(firstCall).not.toHaveProperty('tool_choice');
 		expect(firstCall).not.toHaveProperty('temperature');
-		expect(firstCall!.tools![0]).toEqual({
-			type: 'web_search_20260209',
-			name: 'web_search',
-			max_uses: 3
-		});
-		for (const tool of firstCall!.tools!.slice(1)) {
+		expect(firstCall!.tools!.slice(0, 2)).toEqual([
+			{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 },
+			{ type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 3, max_content_tokens: 10_000 }
+		]);
+		expect(
+			(firstCall!.tools as Anthropic.Tool[]).some(
+				(tool) => tool.name === 'search_nutrient_database'
+			)
+		).toBe(false);
+		for (const tool of firstCall!.tools!.slice(2)) {
 			const definition = tool as Anthropic.Tool;
 			expect(definition.strict).toBe(true);
 			expect(definition.input_schema.additionalProperties).toBe(false);
@@ -503,7 +515,7 @@ const expectedReservation = async (
 			0
 		),
 		constants.TASK_MAX_TOKENS,
-		callModule.maxWebSearchesOf(request.tools!)
+		callModule.serverToolAllowanceOf(request.tools!)
 	);
 };
 
@@ -699,6 +711,207 @@ describe('web search', () => {
 	});
 });
 
+describe('web fetch', () => {
+	it('keeps a fetch that waited on a client tool and bills only its tokens', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		const pending = {
+			type: 'server_tool_use',
+			id: 'srvtoolu_fetch',
+			name: 'web_fetch',
+			input: { url: 'https://example.com/pear' }
+		};
+		const fetched = {
+			type: 'web_fetch_tool_result',
+			tool_use_id: 'srvtoolu_fetch',
+			content: {
+				type: 'web_fetch_result',
+				url: 'https://example.com/pear',
+				content: {
+					type: 'document',
+					source: { type: 'text', media_type: 'text/plain', data: 'Vitamin C 4 mg per 100 g' }
+				},
+				retrieved_at: '2026-11-12T10:00:00Z'
+			}
+		};
+		const second = message(
+			[fetched, toolUse('dismiss_ai_task', { reason: 'nothing' })],
+			'tool_use',
+			{
+				usage: { server_tool_use: { web_search_requests: 0, web_fetch_requests: 1 } }
+			}
+		);
+		const fake = startFake([
+			toolStep(pending, toolUse('search_foods', { query: 'pear', limit: null }, 'toolu_s')),
+			second
+		]);
+		await execute(user.id, task.id);
+		const results = fake.calls[1]!.messages.at(-1)!.content as Anthropic.ToolResultBlockParam[];
+		expect(results.map((block) => block.tool_use_id)).toEqual(['toolu_s']);
+		expect(fake.calls[1]!.messages[1]).toEqual({
+			role: 'assistant',
+			content: [pending, expect.objectContaining({ id: 'toolu_s' })]
+		});
+		const rows = (await db.select().from(claudeUsage)).sort(
+			(a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+		);
+		expect(rows[1]!.costUsd).toBeCloseTo((1000 * 4 + 200 * 20) / 1e6, 6);
+		expect(rows[0]!.reservedUsd).toBeCloseTo(await expectedReservation(fake.calls[0]!), 6);
+		expect((await taskOf(task.id)).status).toBe('dismissed');
+	});
+});
+
+const pearToolInput = (overrides: Record<string, unknown> = {}) =>
+	foodToolInput({
+		name: 'Pear',
+		brand: null,
+		servingSize: 178,
+		calories: 101,
+		protein: 0.6,
+		carbs: 27,
+		fat: 0.2,
+		fiber: 5.5,
+		nutrients: [{ nutrient: 'sodium', amount: 5 }],
+		fdcId: 169118,
+		barcode: null,
+		ingredientsText: '',
+		...overrides
+	});
+
+const lastToolResult = (params: Anthropic.MessageCreateParamsNonStreaming) =>
+	JSON.parse(
+		String((params.messages.at(-1)!.content as Anthropic.ToolResultBlockParam[])[0]!.content)
+	);
+
+describe('nutrient database', () => {
+	const fixture = (name: string) => readFileSync(join(__dirname, '../fixtures/fdc', name), 'utf8');
+	const fdcFetch = vi.fn(async (input: string | URL | Request, _init?: RequestInit) => {
+		const url = String(input);
+		if (url === 'https://api.nal.usda.gov/fdc/v1/foods/search') {
+			return new Response(fixture('search-pear-raw.json'));
+		}
+		if (url === 'https://api.nal.usda.gov/fdc/v1/food/169118') {
+			return new Response(fixture('food-169118-sr-legacy.json'));
+		}
+		throw new Error(`Unexpected request to ${url}`);
+	});
+
+	beforeEach(() => {
+		fdcConfig.apiKey = 'fdc-test-key';
+		fooddataCentral.resetFdcCacheForTests();
+		fdcFetch.mockClear();
+		vi.stubGlobal('fetch', fdcFetch);
+	});
+
+	afterEach(() => {
+		fdcConfig.apiKey = undefined;
+		vi.unstubAllGlobals();
+	});
+
+	it('looks a food up, saves it with the record nutrients and keeps the label value', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id, { description: 'A pear' });
+		let foodId = '';
+		const fake = startFake([
+			toolStep(toolUse('search_nutrient_database', { query: 'pear raw' }, 'toolu_fdc')),
+			toolStep(toolUse('create_food', pearToolInput(), 'toolu_create')),
+			(params) => {
+				foodId = createdFoodId(params);
+				return logStep({ foodId, servings: 1, quantityDescription: '1 pear' });
+			},
+			completeStep('Logged a pear, nutrients from USDA FoodData Central')
+		]);
+		await execute(user.id, task.id);
+
+		const declared = fake.calls[0]!.tools as Anthropic.Tool[];
+		expect(declared.map((tool) => tool.name)).toContain('search_nutrient_database');
+		expect(
+			declared.find((tool) => tool.name === 'create_food')!.input_schema.properties
+		).toHaveProperty('fdcId');
+		expect(lastToolResult(fake.calls[1]!).foods[0]).toMatchObject({
+			fdcId: 169118,
+			description: 'Pears, raw',
+			dataType: 'SR Legacy',
+			nutrientCount: 32
+		});
+		expect(lastToolResult(fake.calls[2]!).nutrientSource).toEqual({
+			database: 'USDA FoodData Central',
+			fdcId: 169118,
+			description: 'Pears, raw',
+			dataType: 'SR Legacy',
+			filled: 31,
+			keptYourValues: 1
+		});
+
+		const [food] = await userFoods(user.id);
+		expect(food).toMatchObject({
+			id: foodId,
+			name: 'Pear',
+			servingSize: 178,
+			servingUnit: 'g',
+			calories: 101,
+			sodium: 5,
+			vitaminC: expect.closeTo(7.654, 3),
+			potassium: expect.closeTo(206.48, 2),
+			iron: expect.closeTo(0.3204, 4),
+			omega3: null
+		});
+		expect(await entriesOf(user.id)).toHaveLength(1);
+		expect((await taskOf(task.id)).status).toBe('completed');
+		expect(fdcFetch).toHaveBeenCalledTimes(1);
+	});
+
+	it('carries the filled nutrients in the proposal and creates them on accept', async () => {
+		const user = await seedUser(db, { autoLog: false });
+		const task = await seedTask(db, user.id, { description: 'A pear' });
+		startFake([
+			toolStep(toolUse('create_food', pearToolInput(), 'toolu_create')),
+			(params) => logStep({ foodId: createdFoodId(params), servings: 1 }),
+			completeStep('Suggested a pear')
+		]);
+		await execute(user.id, task.id);
+
+		const [url, init] = fdcFetch.mock.calls[0]!;
+		expect(String(url)).toBe('https://api.nal.usda.gov/fdc/v1/food/169118');
+		expect(String(url)).not.toContain('fdc-test-key');
+		expect(new Headers(init!.headers).get('x-api-key')).toBe('fdc-test-key');
+		expect(await userFoods(user.id)).toHaveLength(0);
+		const stored = (await runOf(task.id)).proposal as {
+			items: { food: Record<string, unknown> }[];
+		};
+		expect(stored.items[0]!.food).toMatchObject({ sodium: 5, vitaminC: 7.654, potassium: 206.48 });
+
+		await proposal.acceptProposal(user.id, task.id);
+		const [food] = await userFoods(user.id);
+		expect(food).toMatchObject({
+			name: 'Pear',
+			sodium: 5,
+			vitaminC: expect.closeTo(7.654, 3),
+			potassium: expect.closeTo(206.48, 2)
+		});
+		expect((await entriesOf(user.id))[0]!.foodId).toBe(food!.id);
+	});
+
+	it('declares no database tool without a key and still creates foods', async () => {
+		fdcConfig.apiKey = undefined;
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		const fake = startFake([
+			createFoodStep({}, 'toolu_create'),
+			(params) => logStep({ foodId: createdFoodId(params), servings: 1 }),
+			completeStep()
+		]);
+		await execute(user.id, task.id);
+		const declared = fake.calls[0]!.tools as Anthropic.Tool[];
+		expect(declared.map((tool) => tool.name)).not.toContain('search_nutrient_database');
+		expect(
+			declared.find((tool) => tool.name === 'create_food')!.input_schema.properties
+		).not.toHaveProperty('fdcId');
+		expect(await userFoods(user.id)).toHaveLength(1);
+		expect(fdcFetch).not.toHaveBeenCalled();
+	});
+});
+
 describe('model per user', () => {
 	const haikuStep = (step: Anthropic.Message) => ({ ...step, model: 'claude-haiku-5-5' });
 
@@ -719,11 +932,10 @@ describe('model per user', () => {
 
 		expect((await taskOf(task.id)).status).toBe('completed');
 		expect(fake.calls.map((call) => call.model)).toEqual(['claude-haiku-5-5', 'claude-haiku-5-5']);
-		expect(fake.calls[0]!.tools![0]).toEqual({
-			type: 'web_search_20250305',
-			name: 'web_search',
-			max_uses: 3
-		});
+		expect(fake.calls[0]!.tools!.slice(0, 2)).toEqual([
+			{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 },
+			{ type: 'web_fetch_20250910', name: 'web_fetch', max_uses: 3, max_content_tokens: 10_000 }
+		]);
 		const rows = (await db.select().from(claudeUsage)).sort(
 			(a, b) => a.createdAt.getTime() - b.createdAt.getTime()
 		);

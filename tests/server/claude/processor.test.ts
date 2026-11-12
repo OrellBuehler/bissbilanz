@@ -20,7 +20,8 @@ const h = vi.hoisted(() => ({
 	getUserTimeZone: vi.fn(),
 	loadTaskPhotos: vi.fn(),
 	captureException: vi.fn(),
-	config: { model: 'claude-sonnet-5-5', maxIterations: 5, maxWebSearches: 3 }
+	config: { model: 'claude-sonnet-5-5', maxIterations: 5, maxWebSearches: 3, maxWebFetches: 3 },
+	fdc: { configured: false }
 }));
 
 const { db, queueResults, reset, getCalls } = createMockDB();
@@ -47,7 +48,8 @@ vi.mock('$lib/server/claude/tasks/outcomes', () => ({
 	requeueRun: h.requeueRun
 }));
 vi.mock('$lib/server/claude/tasks/tools', () => ({
-	TASK_TOOLS: [{ name: 'tool' }],
+	taskTools: (database: boolean) =>
+		database ? [{ name: 'search_nutrient_database' }, { name: 'tool' }] : [{ name: 'tool' }],
 	isTerminalTool: (name: string) => name === 'complete_ai_task' || name === 'dismiss_ai_task',
 	runTaskTool: h.runTaskTool
 }));
@@ -60,6 +62,7 @@ vi.mock('$lib/server/ai-tasks', () => ({ getAiTask: h.getAiTask }));
 vi.mock('$lib/server/meal-types', () => ({ listMealTypes: h.listMealTypes }));
 vi.mock('$lib/server/preferences', () => ({ getUserTimeZone: h.getUserTimeZone }));
 vi.mock('$lib/server/claude/tasks/photos', () => ({ loadTaskPhotos: h.loadTaskPhotos }));
+vi.mock('$lib/server/fooddata-central', () => ({ isFdcConfigured: () => h.fdc.configured }));
 
 const { processTask } = await import('$lib/server/claude/tasks/processor');
 const errors = await import('$lib/server/claude/errors');
@@ -103,6 +106,8 @@ const fence = { taskId: TASK_ID, instance: 'inst', attempt: 1 };
 beforeEach(() => {
 	reset();
 	h.config.maxWebSearches = 3;
+	h.config.maxWebFetches = 3;
+	h.fdc.configured = false;
 	for (const fn of Object.values(h)) if (typeof fn === 'function') fn.mockReset();
 	queueResults([[{ locale: 'de' }], [{ autoLog: true }]]);
 	h.claimRun.mockResolvedValue(run());
@@ -143,39 +148,127 @@ describe('claiming', () => {
 	});
 });
 
-describe('web search', () => {
+describe('server tools', () => {
 	const finish = () => {
 		h.callClaude.mockResolvedValueOnce(
 			response('tool_use', [toolUse('toolu_c', 'complete_ai_task')])
 		);
 		h.runTaskTool.mockResolvedValue({ content: '{}', isError: false, outcome: 'completed' });
 	};
+	const toolsOfFirstCall = () => h.callClaude.mock.calls[0]![0].params.tools;
+	const webFetch = (type: string) => ({
+		type,
+		name: 'web_fetch',
+		max_uses: 3,
+		max_content_tokens: 10_000
+	});
 
-	test('puts the capped server web search tool in front of the task tools', async () => {
+	test('puts the capped web search and web fetch in front of the task tools', async () => {
 		finish();
 		await processTask(TASK_ID, options());
-		expect(h.callClaude.mock.calls[0]![0].params.tools).toEqual([
+		expect(toolsOfFirstCall()).toEqual([
 			{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 },
+			webFetch('web_fetch_20260209'),
 			{ name: 'tool' }
 		]);
 	});
 
-	test('leaves it out when disabled', async () => {
-		h.config.maxWebSearches = 0;
+	test.each([
+		[0, 0, []],
+		[0, 3, ['web_fetch']],
+		[3, 0, ['web_search']]
+	])('with %s searches and %s fetches declares %j', async (searches, fetches, names) => {
+		h.config.maxWebSearches = searches;
+		h.config.maxWebFetches = fetches;
 		finish();
 		await processTask(TASK_ID, options());
-		expect(h.callClaude.mock.calls[0]![0].params.tools).toEqual([{ name: 'tool' }]);
+		expect(toolsOfFirstCall().map((tool: { name: string }) => tool.name)).toEqual([
+			...names,
+			'tool'
+		]);
 	});
 
-	test('uses the basic web search for Haiku 5.5', async () => {
+	test('uses the basic web search and web fetch for Haiku 5.5', async () => {
 		queueResults([[{ locale: 'de' }], [{ autoLog: true }], [{ model: 'claude-haiku-5-5' }]]);
 		finish();
 		await processTask(TASK_ID, options());
-		expect(h.callClaude.mock.calls[0]![0].params.tools[0]).toEqual({
-			type: 'web_search_20250305',
-			name: 'web_search',
-			max_uses: 3
-		});
+		expect(toolsOfFirstCall().slice(0, 2)).toEqual([
+			{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 },
+			webFetch('web_fetch_20250910')
+		]);
+	});
+
+	test('declares the nutrient database tools only when FoodData Central is configured', async () => {
+		finish();
+		await processTask(TASK_ID, options());
+		expect(toolsOfFirstCall().at(-2).name).toBe('web_fetch');
+		reset();
+		queueResults([[{ locale: 'de' }], [{ autoLog: true }]]);
+		h.fdc.configured = true;
+		finish();
+		await processTask(TASK_ID, options());
+		expect(h.callClaude.mock.calls[1]![0].params.tools.slice(-2)).toEqual([
+			{ name: 'search_nutrient_database' },
+			{ name: 'tool' }
+		]);
+	});
+
+	test('passes the container of a response on to the following calls', async () => {
+		h.callClaude
+			.mockResolvedValueOnce({ ...response('pause_turn'), container: { id: 'container_1' } })
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_a')]))
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
+		h.runTaskTool
+			.mockResolvedValueOnce({ content: 'one', isError: false })
+			.mockResolvedValueOnce({ content: '{}', isError: false, outcome: 'completed' });
+		await processTask(TASK_ID, options());
+		const containers = h.callClaude.mock.calls.map((call) => call[0].params.container);
+		expect(containers).toEqual([undefined, 'container_1', 'container_1']);
+	});
+
+	test('answers only the client tools when a fetch waits on them and keeps its late result', async () => {
+		const pending = {
+			type: 'server_tool_use',
+			id: 'srvtoolu_1',
+			name: 'web_fetch',
+			input: { url: 'https://example.com/pear' }
+		};
+		const fetched = [
+			{
+				type: 'web_fetch_tool_result',
+				tool_use_id: 'srvtoolu_1',
+				content: {
+					type: 'web_fetch_result',
+					url: 'https://example.com/pear',
+					content: {
+						type: 'document',
+						source: { type: 'text', media_type: 'text/plain', data: 'Vitamin C 4 mg' }
+					},
+					retrieved_at: '2026-11-12T10:00:00Z'
+				}
+			},
+			toolUse('toolu_c', 'complete_ai_task')
+		];
+		h.callClaude
+			.mockResolvedValueOnce(response('tool_use', [pending, toolUse('toolu_a')]))
+			.mockResolvedValueOnce(response('tool_use', fetched))
+			.mockResolvedValueOnce(response('refusal'));
+		h.runTaskTool
+			.mockResolvedValueOnce({ content: 'one', isError: false })
+			.mockResolvedValueOnce({ content: '{"error":"bad"}', isError: true });
+		await processTask(TASK_ID, options());
+		const second = h.callClaude.mock.calls[1]![0].params.messages;
+		expect(second[1]).toEqual({ role: 'assistant', content: [pending, toolUse('toolu_a')] });
+		expect(second[2].content).toEqual([
+			{
+				type: 'tool_result',
+				tool_use_id: 'toolu_a',
+				content: 'one',
+				cache_control: { type: 'ephemeral' }
+			}
+		]);
+		const third = h.callClaude.mock.calls[2]![0].params.messages;
+		expect(third[3]).toEqual({ role: 'assistant', content: fetched });
 	});
 });
 
