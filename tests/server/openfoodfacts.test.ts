@@ -782,11 +782,62 @@ describe('real-shaped Open Food Facts products', () => {
 		expect(result.product).toMatchObject({
 			name: '',
 			brand: '',
-			ingredientsText: null,
 			imageUrl: null,
 			additives: ['en:e330'],
 			categoriesTags: [],
 			calories: 0
+		});
+		expect(result.product.ingredientsText).toBe('x'.repeat(10_000));
+	});
+
+	test('NUL bytes are stripped so the database accepts the text', async () => {
+		respond({
+			...realProduct,
+			product_name: 'Lait\u0000 demi',
+			ingredients_text: 'Lait\u0000 pasteurisé\u0000',
+			additives_tags: ['en:e330\u0000', '\u0000']
+		});
+
+		const result = await lookupProduct('6111180000231');
+
+		expect(result.status).toBe('found');
+		if (result.status !== 'found') return;
+		expect(result.product.name).toBe('Lait demi');
+		expect(result.product.ingredientsText).toBe('Lait pasteurisé');
+		expect(result.product.additives).toEqual(['en:e330']);
+	});
+
+	test('values no food can have per 100 g are dropped', async () => {
+		respond({
+			...realProduct,
+			nutriments: {
+				'energy-kcal_100g': 5000,
+				proteins_100g: -3,
+				carbohydrates_100g: 4.8,
+				fat_100g: 101,
+				sugars_100g: 1e39,
+				'vitamin-c_100g': 1e39,
+				salt_100g: -0.1,
+				sodium_100g: 100,
+				calcium_100g: 100.5,
+				'vitamin-b12_100g': 0.0000004
+			}
+		});
+
+		const result = await lookupProduct('6111180000231');
+
+		expect(result.status).toBe('found');
+		if (result.status !== 'found') return;
+		expect(result.product).toMatchObject({
+			calories: 0,
+			protein: 0,
+			carbs: 4.8,
+			fat: 0,
+			sugar: null,
+			vitaminC: null,
+			salt: null,
+			sodium: 100_000,
+			calcium: null
 		});
 	});
 

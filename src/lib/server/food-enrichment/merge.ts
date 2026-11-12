@@ -1,6 +1,7 @@
 import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
 import { unitConversionFactor, unitDimension, type ServingUnit } from '$lib/units';
 import type { OFFProduct } from '$lib/server/openfoodfacts';
+import { allowedImageUrl } from '$lib/server/catalog/image-hosts';
 import type { foods } from '$lib/server/schema';
 
 type StoredFood = Pick<
@@ -29,8 +30,10 @@ export function offNutrientScale(servingSize: number, servingUnit: ServingUnit):
 const hasText = (value: string | null | undefined): value is string =>
 	typeof value === 'string' && value.trim() !== '';
 
-const isWebUrl = (value: string | null | undefined): value is string =>
-	hasText(value) && /^https?:\/\//.test(value) && value.length <= 2048;
+const productImageUrl = (value: string | null) => {
+	const url = allowedImageUrl(value);
+	return url?.startsWith('https://') && url.length <= 2048 ? url : null;
+};
 
 const round = (value: number) => Math.round(value * 10000) / 10000;
 
@@ -55,8 +58,9 @@ export function mergeOffProduct(food: StoredFood, product: OFFProduct): Record<s
 	if (hasText(product.ingredientsText) && isEmpty(food.ingredientsText)) {
 		patch.ingredientsText = product.ingredientsText;
 	}
-	if (!hasText(food.imageUrl) && isWebUrl(product.imageUrl)) {
-		patch.imageUrl = product.imageUrl;
+	const imageUrl = productImageUrl(product.imageUrl);
+	if (!hasText(food.imageUrl) && imageUrl) {
+		patch.imageUrl = imageUrl;
 	}
 
 	const scale = offNutrientScale(food.servingSize, food.servingUnit);

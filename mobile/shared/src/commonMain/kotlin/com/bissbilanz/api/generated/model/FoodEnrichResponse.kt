@@ -24,11 +24,11 @@ import kotlinx.serialization.encoding.*
  *
  *
  * @param food
- * @param outcome updated: the lookup changed the food (fields or labels); unchanged: Open Food Facts had nothing new. Unknown values should be treated like unchanged.
+ * @param outcome updated: the lookup changed the food (fields or labels); unchanged: Open Food Facts had nothing new; not_found: Open Food Facts does not know the barcode (offCheckedAt is still set). Unknown values should be treated like unchanged.
  */
 @Serializable
 data class FoodEnrichResponse(
     @SerialName(value = "food") @Required val food: Food,
-    // updated: the lookup changed the food (fields or labels); unchanged: Open Food Facts had nothing new. Unknown values should be treated like unchanged.
+    // updated: the lookup changed the food (fields or labels); unchanged: Open Food Facts had nothing new; not_found: Open Food Facts does not know the barcode (offCheckedAt is still set). Unknown values should be treated like unchanged.
     @SerialName(value = "outcome") @Required val outcome: kotlin.String,
 )

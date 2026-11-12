@@ -101,8 +101,15 @@ describe('applyLookup', () => {
 		expect(guard.params).toContain(`${BARCODE}\u00a0\t`);
 	});
 
-	test('not found on a food that is gone is skipped', async () => {
-		queueResults([[]]);
+	test('not found on a food that was deleted is gone', async () => {
+		queueResults([[], []]);
+		expect(await applyLookup(TEST_USER.id, TEST_FOOD.id, BARCODE, { status: 'not_found' })).toEqual(
+			{ status: 'gone' }
+		);
+	});
+
+	test('not found on a food whose barcode changed is skipped', async () => {
+		queueResults([[], [stored({ barcode: '5000000000000' })]]);
 		expect(await applyLookup(TEST_USER.id, TEST_FOOD.id, BARCODE, { status: 'not_found' })).toEqual(
 			{ status: 'skipped' }
 		);
@@ -177,14 +184,14 @@ describe('applyLookup', () => {
 		expect(outcome.status).toBe('updated');
 	});
 
-	test('skips a food that was deleted or got another barcode', async () => {
+	test('a deleted food is gone, one with another barcode is skipped', async () => {
 		queueResults([[]]);
 		expect(
 			await applyLookup(TEST_USER.id, TEST_FOOD.id, BARCODE, {
 				status: 'found',
 				product: product()
 			})
-		).toEqual({ status: 'skipped' });
+		).toEqual({ status: 'gone' });
 
 		queueResults([[stored({ barcode: '5000000000000' })]]);
 		expect(

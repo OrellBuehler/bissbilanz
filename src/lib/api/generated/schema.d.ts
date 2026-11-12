@@ -395,7 +395,7 @@ export interface paths {
 		};
 		get?: never;
 		put?: never;
-		/** @description Look up the food's barcode in Open Food Facts now and merge the product in with the same rules as the background run: Nutri-Score and NOVA group are taken from Open Food Facts, while ingredients, additives, extended nutrients (scaled to the food's serving) and the image are only filled in where the food has none. Name, brand, serving and core macros never change, and the write does not move the food's last-write-wins clock (`updatedAt`), only `serverModifiedAt`. Failures carry a machine-readable `code`: 400 `no_barcode`, 404 `food_not_found` or `product_not_found` (Open Food Facts does not know the barcode; `offCheckedAt` is still set), 409 `food_changed` (the food was edited or deleted during the lookup), 502 `off_invalid_response` (Open Food Facts answered with a product that could not be read; nothing is recorded), 503 `off_unavailable` (retry later). Shares the Open Food Facts rate limit (30 lookups per minute) with the barcode lookup. */
+		/** @description Look up the food's barcode in Open Food Facts now and merge the product in with the same rules as the background run: Nutri-Score and NOVA group are taken from Open Food Facts, while ingredients, additives, extended nutrients (scaled to the food's serving) and the image are only filled in where the food has none. Name, brand, serving and core macros never change, and the write does not move the food's last-write-wins clock (`updatedAt`), only `serverModifiedAt`. A definite answer is a 200 with the food and an `outcome`: `updated`, `unchanged`, or `not_found` (Open Food Facts does not know the barcode; `offCheckedAt` is still set). Failures carry a machine-readable `code`: 400 `no_barcode`, 404 `food_not_found` (also when the food was deleted during the lookup), 409 `food_changed` (the food was edited during the lookup), 502 `off_invalid_response` (Open Food Facts answered with a product that could not be read; nothing is recorded), 503 `off_unavailable` (retry later). Shares the Open Food Facts rate limit (30 lookups per minute) with the barcode lookup. */
 		post: operations['enrichFood'];
 		delete?: never;
 		options?: never;
@@ -2684,7 +2684,7 @@ export interface components {
 		};
 		FoodEnrichResponse: {
 			food: components['schemas']['Food'];
-			/** @description updated: the lookup changed the food (fields or labels); unchanged: Open Food Facts had nothing new. Unknown values should be treated like unchanged. */
+			/** @description updated: the lookup changed the food (fields or labels); unchanged: Open Food Facts had nothing new; not_found: Open Food Facts does not know the barcode (offCheckedAt is still set). Unknown values should be treated like unchanged. */
 			outcome: string;
 		};
 		FoodEnrichErrorResponse: {
@@ -4723,7 +4723,7 @@ export interface operations {
 				};
 			};
 			401: components['responses']['UnauthorizedResponse'];
-			/** @description Food not found (`food_not_found`) or product not found (`product_not_found`) */
+			/** @description Food not found, or deleted during the lookup (`food_not_found`) */
 			404: {
 				headers: {
 					[name: string]: unknown;
@@ -4732,7 +4732,7 @@ export interface operations {
 					'application/json': components['schemas']['FoodEnrichErrorResponse'];
 				};
 			};
-			/** @description The food changed during the lookup (`food_changed`) */
+			/** @description The food was edited during the lookup (`food_changed`) */
 			409: {
 				headers: {
 					[name: string]: unknown;

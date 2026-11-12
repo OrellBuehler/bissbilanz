@@ -250,7 +250,7 @@ describe('applyLookup', () => {
 			.returning();
 
 		expect(await applyLookup(userId, theirs.id, '4000000000017', { status: 'not_found' })).toEqual({
-			status: 'skipped'
+			status: 'gone'
 		});
 		expect((await readFood(theirs.id)).food.offCheckedAt).toBeNull();
 	});
@@ -456,6 +456,49 @@ describe('worker', () => {
 			sugar: 12,
 			calcium: 300
 		});
+	});
+
+	it('writes products with NUL bytes and absurd nutrient values instead of failing', async () => {
+		const jobs = await import('$lib/server/food-enrichment/jobs');
+		const { runEnrichmentJob } = await import('$lib/server/food-enrichment/worker');
+		const actual = await vi.importActual<typeof import('$lib/server/openfoodfacts')>(
+			'$lib/server/openfoodfacts'
+		);
+		lookupProduct.mockImplementation(actual.lookupProduct);
+		const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					status: 1,
+					product: {
+						product_name: 'Juice',
+						nutriscore_grade: 'c',
+						nova_group: 1,
+						ingredients_text: 'Orange\u0000 juice',
+						image_front_url: 'https://cdn.example.org/juice.jpg',
+						nutriments: { sugars_100g: 9, 'vitamin-c_100g': 1e39, potassium_100g: -1 }
+					}
+				})
+			)
+		);
+		const food = await addFood({ barcode: '4000000000017' });
+
+		await jobs.startEnrichmentJob(userId);
+		await runEnrichmentJob(userId, new AbortController().signal);
+		fetchSpy.mockRestore();
+
+		expect((await jobs.getEnrichmentStatus(userId)).job).toMatchObject({
+			state: 'completed',
+			updated: 1,
+			failed: 0
+		});
+		expect((await readFood(food.id)).food).toMatchObject({
+			ingredientsText: 'Orange juice',
+			imageUrl: null,
+			sugar: 9,
+			vitaminC: null,
+			potassium: null
+		});
+		expect((await readFood(food.id)).food.offCheckedAt).toBeInstanceOf(Date);
 	});
 
 	it('does not mark a food checked when the product cannot be read', async () => {

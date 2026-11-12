@@ -69,11 +69,11 @@ async function lookupWithRetry(
 			message: 'Open Food Facts unavailable',
 			data: { attempt, httpStatus: lookup.httpStatus, retryAfterSeconds: lookup.retryAfterSeconds }
 		});
-		if (attempt >= MAX_ATTEMPTS) return lookup;
 		nextRequestAt = Math.max(
 			nextRequestAt,
 			Date.now() + backoffMs(attempt, lookup.retryAfterSeconds)
 		);
+		if (attempt >= MAX_ATTEMPTS) return lookup;
 	}
 }
 
@@ -108,7 +108,8 @@ async function processFood(
 		};
 	}
 	try {
-		return { outcome: (await applyLookup(userId, food.id, food.barcode, lookup)).status };
+		const { status } = await applyLookup(userId, food.id, food.barcode, lookup);
+		return { outcome: status === 'gone' ? 'skipped' : status };
 	} catch (error) {
 		Sentry.captureException(error, {
 			tags: { job: 'food-enrichment' },

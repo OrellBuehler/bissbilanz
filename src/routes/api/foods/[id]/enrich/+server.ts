@@ -20,9 +20,10 @@ export const POST: RequestHandler = withAuthedResource(async ({ userId, id }) =>
 	switch (result.status) {
 		case 'updated':
 		case 'unchanged':
-			return json({ food: result.food, outcome: result.status });
 		case 'not_found':
-			return failure(404, 'product_not_found', 'Product not found');
+			return json({ food: result.food, outcome: result.status });
+		case 'gone':
+			return failure(404, 'food_not_found', 'Food not found');
 		case 'skipped':
 			return failure(409, 'food_changed', 'Food changed during the lookup');
 		case 'invalid':

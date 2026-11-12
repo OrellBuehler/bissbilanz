@@ -167,8 +167,10 @@
 			if (result === 'updated') {
 				initialized = false;
 				toast.success(m.quality_enrich_success());
+			} else if (result === 'unchanged') {
+				toast(m.quality_enrich_nothing_new());
 			} else if (result === 'not_found') {
-				toast.error(m.quality_off_not_found());
+				toast(m.quality_off_not_found());
 			} else if (result === 'offline') {
 				toast.error(m.quality_enrich_offline());
 			} else {

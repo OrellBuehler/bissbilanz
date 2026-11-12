@@ -366,7 +366,7 @@ function searchOff(q: string) {
 
 const noQueue = { [NO_QUEUE_HEADER]: '1' };
 
-export type EnrichFromOffResult = 'updated' | 'not_found' | 'offline' | 'failed';
+export type EnrichFromOffResult = 'updated' | 'unchanged' | 'not_found' | 'offline' | 'failed';
 
 async function enrichFromOff(id: string): Promise<EnrichFromOffResult> {
 	if (browser && !navigator.onLine) return 'offline';
@@ -376,14 +376,14 @@ async function enrichFromOff(id: string): Promise<EnrichFromOffResult> {
 	});
 	if (data) {
 		await db.foods.put(data.food as unknown as DexieFood);
-		return 'updated';
+		if (data.outcome === 'updated' || data.outcome === 'not_found') return data.outcome;
+		return 'unchanged';
 	}
-	if (error && 'code' in error && error.code === 'product_not_found') return 'not_found';
 	Sentry.addBreadcrumb({
 		category: 'food-enrichment',
 		level: 'warning',
 		message: 'enrich food rejected',
-		data: { status: response.status }
+		data: { status: response.status, code: error && 'code' in error ? error.code : undefined }
 	});
 	return 'failed';
 }

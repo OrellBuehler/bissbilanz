@@ -25,6 +25,7 @@
 	let polling = $state(false);
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let destroyed = false;
+	let latestRequest = 0;
 
 	const isActive = (value: FoodEnrichmentStatus | null) =>
 		value?.job?.state === 'queued' || value?.job?.state === 'running';
@@ -73,10 +74,12 @@
 	}
 
 	async function load() {
+		const request = ++latestRequest;
 		try {
-			apply(await foodService.enrichmentStatus());
+			const next = await foodService.enrichmentStatus();
+			if (request === latestRequest) apply(next);
 		} catch (error) {
-			if (destroyed) return;
+			if (destroyed || request !== latestRequest) return;
 			report(error);
 			loadFailures += 1;
 			schedule(POLL_MS * 2);
@@ -94,10 +97,13 @@
 			return;
 		}
 		busy = true;
+		clearTimeout(timer);
+		const request = ++latestRequest;
 		try {
-			apply(await action());
+			const next = await action();
+			if (request === latestRequest) apply(next);
 		} catch (error) {
-			if (destroyed) return;
+			if (destroyed || request !== latestRequest) return;
 			report(error);
 			toast.error(m.settings_enrich_foods_action_failed());
 		} finally {

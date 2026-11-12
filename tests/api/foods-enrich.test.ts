@@ -92,15 +92,22 @@ describe('POST /api/foods/{id}/enrich', () => {
 		expect((await response.json()).outcome).toBe('unchanged');
 	});
 
-	test('returns 404 when Open Food Facts does not know the barcode', async () => {
+	test('returns 200 with outcome not_found when Open Food Facts does not know the barcode', async () => {
 		h.enrichFood.mockResolvedValue({ status: 'not_found', food: enriched });
 		const response = await call();
 		await expectResponseContract('POST', '/api/foods/{id}/enrich', response);
+		expect(response.status).toBe(200);
+		const data = await response.json();
+		expect(data.outcome).toBe('not_found');
+		expect(data.food.offCheckedAt).toBe('2026-11-11T10:00:00.000Z');
+	});
+
+	test('returns 404 food_not_found when the food was deleted during the lookup', async () => {
+		h.enrichFood.mockResolvedValue({ status: 'gone' });
+		const response = await call();
+		await expectResponseContract('POST', '/api/foods/{id}/enrich', response);
 		expect(response.status).toBe(404);
-		expect(await response.json()).toEqual({
-			error: 'Product not found',
-			code: 'product_not_found'
-		});
+		expect(await response.json()).toEqual({ error: 'Food not found', code: 'food_not_found' });
 	});
 
 	test('returns 409 when the food changed during the lookup', async () => {

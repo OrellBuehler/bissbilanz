@@ -134,14 +134,14 @@ export const foodEnrichmentStatusResponseSchema = z
 	})
 	.meta({ id: 'FoodEnrichmentStatusResponse' });
 
-export const foodEnrichOutcomeValues = ['updated', 'unchanged'] as const;
+export const foodEnrichOutcomeValues = ['updated', 'unchanged', 'not_found'] as const;
 
 export const foodEnrichResponseSchema = z
 	.object({
 		food: foodSchema,
 		outcome: z.string().meta({
 			description:
-				'updated: the lookup changed the food (fields or labels); unchanged: Open Food Facts had nothing new. Unknown values should be treated like unchanged.',
+				'updated: the lookup changed the food (fields or labels); unchanged: Open Food Facts had nothing new; not_found: Open Food Facts does not know the barcode (offCheckedAt is still set). Unknown values should be treated like unchanged.',
 			'x-extensible-enum': [...foodEnrichOutcomeValues]
 		})
 	})
@@ -150,7 +150,6 @@ export const foodEnrichResponseSchema = z
 export const foodEnrichErrorCodeValues = [
 	'no_barcode',
 	'food_not_found',
-	'product_not_found',
 	'food_changed',
 	'off_invalid_response',
 	'off_unavailable'

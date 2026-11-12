@@ -50,7 +50,9 @@ afterEach(() => setOnline(true));
 describe('foodService.enrichFromOff', () => {
 	test('puts the enriched food into the mirror', async () => {
 		h.POST.mockResolvedValue(
-			respond(200, { data: { food: { id: FOOD_ID, name: 'Oats', nutriScore: 'b' } } })
+			respond(200, {
+				data: { food: { id: FOOD_ID, name: 'Oats', nutriScore: 'b' }, outcome: 'updated' }
+			})
 		);
 
 		expect(await foodService.enrichFromOff(FOOD_ID)).toBe('updated');
@@ -61,12 +63,28 @@ describe('foodService.enrichFromOff', () => {
 		expect(options.headers).toEqual({ 'x-no-queue': '1' });
 	});
 
-	test('tells an unknown product apart from other failures', async () => {
+	test('passes on the outcome and keeps the returned food either way', async () => {
+		const checkedAt = '2026-11-11T10:00:00.000Z';
 		h.POST.mockResolvedValueOnce(
-			respond(404, { error: { error: 'Product not found', code: 'product_not_found' } })
+			respond(200, {
+				data: { food: { id: FOOD_ID, name: 'Oats', offCheckedAt: checkedAt }, outcome: 'not_found' }
+			})
 		);
 		expect(await foodService.enrichFromOff(FOOD_ID)).toBe('not_found');
+		expect((await db.foods.get(FOOD_ID)) as unknown).toMatchObject({ offCheckedAt: checkedAt });
 
+		h.POST.mockResolvedValueOnce(
+			respond(200, { data: { food: { id: FOOD_ID, name: 'Oats' }, outcome: 'unchanged' } })
+		);
+		expect(await foodService.enrichFromOff(FOOD_ID)).toBe('unchanged');
+
+		h.POST.mockResolvedValueOnce(
+			respond(200, { data: { food: { id: FOOD_ID, name: 'Oats' }, outcome: 'something_new' } })
+		);
+		expect(await foodService.enrichFromOff(FOOD_ID)).toBe('unchanged');
+	});
+
+	test('any error response is a failure', async () => {
 		h.POST.mockResolvedValueOnce(
 			respond(404, { error: { error: 'Food not found', code: 'food_not_found' } })
 		);
@@ -77,6 +95,9 @@ describe('foodService.enrichFromOff', () => {
 		);
 		expect(await foodService.enrichFromOff(FOOD_ID)).toBe('failed');
 		expect(h.addBreadcrumb).toHaveBeenCalledTimes(2);
+		expect(h.addBreadcrumb).toHaveBeenLastCalledWith(
+			expect.objectContaining({ data: { status: 503, code: 'off_unavailable' } })
+		);
 	});
 
 	test('does not try while offline', async () => {

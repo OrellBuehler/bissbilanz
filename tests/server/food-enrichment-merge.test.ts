@@ -163,10 +163,23 @@ describe('mergeOffProduct', () => {
 		).not.toHaveProperty('imageUrl');
 	});
 
-	test('ignores an image that is not a web URL', () => {
-		expect(
-			mergeOffProduct(food(), product({ imageUrl: 'ftp://example.org/front.jpg' }))
-		).not.toHaveProperty('imageUrl');
+	test.each([
+		'ftp://images.openfoodfacts.org/front.jpg',
+		'http://images.openfoodfacts.org/front.jpg',
+		'https://cdn.example.org/front.jpg',
+		'/uploads/someone-else/photo.webp',
+		'not a url'
+	])('ignores an image outside the allowed hosts: %s', (imageUrl) => {
+		expect(mergeOffProduct(food(), product({ imageUrl }))).not.toHaveProperty('imageUrl');
+	});
+
+	test('accepts both Open Food Facts image hosts', () => {
+		for (const imageUrl of [
+			'https://images.openfoodfacts.org/images/products/1.jpg',
+			'https://images.openfoodfacts.net/images/products/1.jpg'
+		]) {
+			expect(mergeOffProduct(food(), product({ imageUrl })).imageUrl).toBe(imageUrl);
+		}
 	});
 
 	test('scales per-100 g nutrients to the serving', () => {

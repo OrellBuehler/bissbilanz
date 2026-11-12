@@ -164,6 +164,35 @@ describe('runEnrichmentJob', () => {
 		expect(h.record).toHaveBeenCalledWith('user-1', expect.any(String), '01', 'updated');
 	});
 
+	test('a 429 on the last attempt still pushes back the next request', async () => {
+		const worker = await load();
+		h.next.mockReset();
+		h.next.mockResolvedValueOnce(foodsInOrder('01', '02')).mockResolvedValue([]);
+		h.lookupBarcode
+			.mockResolvedValueOnce(unavailable())
+			.mockResolvedValueOnce(unavailable())
+			.mockResolvedValueOnce(unavailable())
+			.mockResolvedValueOnce(unavailable(90))
+			.mockResolvedValueOnce({ status: 'not_found' });
+		h.applyLookup.mockResolvedValue({ status: 'not_found', food: {} });
+
+		await worker.runEnrichmentJob('user-1', signal());
+
+		const waits = sleeps();
+		expect(waits).toHaveLength(4);
+		expect(waits[3]).toBeGreaterThan(89_900);
+		expect(h.record.mock.calls.map((call) => call[3])).toEqual(['failed', 'not_found']);
+	});
+
+	test('a food deleted during the lookup counts as skipped', async () => {
+		const worker = await load();
+		h.applyLookup.mockResolvedValue({ status: 'gone' });
+
+		await worker.runEnrichmentJob('user-1', signal());
+
+		expect(h.record.mock.calls.map((call) => call[3])).toEqual(['skipped', 'skipped']);
+	});
+
 	test('resumes from the stored cursor', async () => {
 		const worker = await load();
 		h.claim.mockResolvedValue({ userId: 'user-1', cursor: '07' });

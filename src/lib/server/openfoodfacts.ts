@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/sveltekit';
 import { z } from 'zod';
 import { extractAllNutrients } from '$lib/server/nutrient-extract';
+import { ALL_NUTRIENTS, type NutrientDef } from '$lib/nutrients';
 
 const OFF_API_BASE = 'https://world.openfoodfacts.org/api/v2/product';
 const OFF_SEARCH_BASE = 'https://world.openfoodfacts.org/cgi/search.pl';
@@ -22,23 +23,30 @@ const OFF_FIELDS = [
 
 const MAX_TAGS = 100;
 
+const stripNul = (value: string) => value.replaceAll('\u0000', '');
+
+const cleanText = (maxLength: number) =>
+	z.string().transform((value) => stripNul(value).slice(0, maxLength));
+
 const lenientTags = (maxLength: number) =>
 	z
 		.array(z.unknown())
 		.catch([])
 		.transform((tags) =>
 			tags
-				.filter((tag): tag is string => typeof tag === 'string' && tag.length <= maxLength)
+				.filter((tag): tag is string => typeof tag === 'string')
+				.map(stripNul)
+				.filter((tag) => tag.length > 0 && tag.length <= maxLength)
 				.slice(0, MAX_TAGS)
 		);
 
 const offProductSchema = z.object({
-	product_name: z.string().max(500).catch(''),
-	brands: z.string().max(500).catch(''),
+	product_name: cleanText(500).catch(''),
+	brands: cleanText(500).catch(''),
 	nutriscore_grade: z.enum(['a', 'b', 'c', 'd', 'e']).nullable().catch(null),
 	nova_group: z.coerce.number().int().min(1).max(4).nullable().catch(null),
 	additives_tags: lenientTags(100),
-	ingredients_text: z.string().max(10000).nullable().catch(null),
+	ingredients_text: cleanText(10000).nullable().catch(null),
 	image_front_url: z.string().url().max(2000).nullable().catch(null),
 	categories_tags: lenientTags(200),
 	nutriments: z
@@ -88,20 +96,30 @@ export type OFFProduct = {
 	[key: string]: unknown;
 };
 
+const MAX_PER_100G: Record<NutrientDef['unit'], number> = {
+	g: 100,
+	mg: 100_000,
+	µg: 100_000_000
+};
+const MAX_KCAL_PER_100G = 1000;
+
+const saneAmount = (value: number | null | undefined, max: number): number | null =>
+	typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= max ? value : null;
+
 function mapSearchProduct(
 	p: z.infer<typeof offProductSchema> & { code?: string },
 	barcode: string
 ): OFFProduct {
 	const n = p.nutriments as Record<string, number | string | undefined>;
-	const num = (v: number | string | undefined): number =>
-		typeof v === 'string' ? parseFloat(v) || 0 : (v ?? 0);
+	const num = (v: number | string | undefined, max = MAX_PER_100G.g): number =>
+		saneAmount(typeof v === 'string' ? parseFloat(v) : (v ?? 0), max) ?? 0;
 
 	const result: OFFProduct = {
 		name: p.product_name,
 		brand: p.brands,
 		servingSize: 100,
 		servingUnit: 'g',
-		calories: num(n['energy-kcal_100g']),
+		calories: num(n['energy-kcal_100g'], MAX_KCAL_PER_100G),
 		protein: num(n['proteins_100g']),
 		carbs: num(n['carbohydrates_100g']),
 		fat: num(n['fat_100g']),
@@ -115,7 +133,10 @@ function mapSearchProduct(
 		barcode
 	};
 
-	Object.assign(result, extractAllNutrients(n));
+	const extended = extractAllNutrients(n);
+	for (const nutrient of ALL_NUTRIENTS) {
+		result[nutrient.key] = saneAmount(extended[nutrient.key], MAX_PER_100G[nutrient.unit]);
+	}
 
 	return result;
 }

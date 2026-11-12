@@ -12,7 +12,8 @@ import { mergeOffProduct } from './merge';
 const MAX_WRITE_ATTEMPTS = 3;
 
 export type EnrichOutcome =
-	{ status: 'updated' | 'unchanged' | 'not_found'; food: FoodWithLabels } | { status: 'skipped' };
+	| { status: 'updated' | 'unchanged' | 'not_found'; food: FoodWithLabels }
+	| { status: 'skipped' | 'gone' };
 
 export type UnavailableLookup = Extract<OFFLookup, { status: 'unavailable' }>;
 export type InvalidLookup = Extract<OFFLookup, { status: 'invalid' }>;
@@ -56,16 +57,16 @@ export async function applyLookup(
 ): Promise<EnrichOutcome> {
 	if (lookup.status === 'not_found') {
 		const food = await stampOffChecked(userId, foodId, eq(foods.barcode, barcode));
-		return food ? { status: 'not_found', food } : { status: 'skipped' };
+		if (food) return { status: 'not_found', food };
+		return (await readVersioned(userId, foodId)) ? { status: 'skipped' } : { status: 'gone' };
 	}
 
 	const { product } = lookup;
 	let seeded = false;
 	for (let attempt = 0; attempt < MAX_WRITE_ATTEMPTS; attempt++) {
 		const current = await readVersioned(userId, foodId);
-		if (!current || current.barcode !== barcode) {
-			return { status: 'skipped' };
-		}
+		if (!current) return { status: 'gone' };
+		if (current.barcode !== barcode) return { status: 'skipped' };
 		const unchanged = sql`${foods.serverModifiedAt} = ${current.version}::timestamptz`;
 		const patch = mergeOffProduct(current, product);
 
