@@ -11,6 +11,10 @@ struct AiTaskThreadView: View {
 
     @State private var text = ""
     @State private var sendError: String?
+    /// Closed until the user asks to reply, so a list of finished meals is not
+    /// a column of empty text fields.
+    @State private var isComposing = false
+    @State private var focusOnAppear = false
     @FocusState private var isFocused: Bool
 
     private var isSending: Bool {
@@ -44,7 +48,18 @@ struct AiTaskThreadView: View {
         if correction.isInFlight {
             working(correction)
         } else if thread.canReply {
-            composer
+            if isComposing || !text.isEmpty || sendError != nil {
+                composer
+            } else {
+                Button {
+                    focusOnAppear = true
+                    isComposing = true
+                } label: {
+                    Label(L10n.aiTasksReplyLabel, systemImage: "arrowshape.turn.up.left")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
         } else if let reason = thread.blockedReason {
             Label(L10n.aiTasksReplyBlocked(reason), systemImage: "info.circle")
                 .font(.footnote)
@@ -74,12 +89,23 @@ struct AiTaskThreadView: View {
                 .background(Color.secondary.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .accessibilityLabel(L10n.aiTasksReplyLabel)
+                .onAppear {
+                    guard focusOnAppear else { return }
+                    focusOnAppear = false
+                    isFocused = true
+                }
                 .onChange(of: text) { _, newValue in
                     let clamped = AiTaskReplyDraft.clamped(newValue)
                     if clamped != newValue {
                         text = clamped
                     }
                     sendError = nil
+                }
+                .onChange(of: isFocused) { _, focused in
+                    // Left empty, the box folds back into the Reply button.
+                    if !focused, AiTaskReplyDraft.trimmed(text).isEmpty, !isSending {
+                        isComposing = false
+                    }
                 }
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(hint)
@@ -124,6 +150,7 @@ struct AiTaskThreadView: View {
         case .sent:
             text = ""
             isFocused = false
+            isComposing = false
         case let .failed(failure):
             sendError = L10n.aiTasksReplyFailure(failure)
         case .skipped:
