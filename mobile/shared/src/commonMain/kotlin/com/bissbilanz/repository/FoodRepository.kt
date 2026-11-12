@@ -10,6 +10,8 @@ import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodBrandStat
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.FoodDuplicateGroup
+import com.bissbilanz.api.generated.model.FoodEnrichErrorResponse
+import com.bissbilanz.api.generated.model.FoodEnrichmentStatusResponse
 import com.bissbilanz.api.generated.model.FoodLabelStat
 import com.bissbilanz.api.generated.model.FoodsListResponse
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
@@ -23,6 +25,7 @@ import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.sync.rewriteQueuedCreate
 import com.bissbilanz.userdata.CachedEntry
 import com.bissbilanz.userdata.UserDataDatabase
+import com.bissbilanz.util.changes
 import com.bissbilanz.util.computeRecipePerServingMacros
 import com.bissbilanz.util.decodeOrNull
 import com.bissbilanz.util.isTempId
@@ -32,6 +35,7 @@ import com.bissbilanz.util.normalizeLabel
 import com.bissbilanz.util.normalizeLabels
 import com.bissbilanz.util.openFoodFactsProductToFoodCreate
 import com.bissbilanz.util.runHook
+import io.ktor.http.HttpHeaders
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.async
@@ -869,23 +873,78 @@ class FoodRepository(
     suspend fun enrichFood(
         id: String,
         barcode: String,
-    ): Food {
-        val product =
-            lookupOpenFoodFacts(barcode)
-                ?: throw IllegalStateException("Product not found in Open Food Facts")
-        if (appModeManager.isLocal) {
-            val current = getFoodCached(id) ?: throw IllegalStateException("Food $id not found in local database")
-            val enriched = mergeOpenFoodFactsOntoFood(baseline = current, product = product)
-            // updateFood is cache-write + (mode-gated) enqueue and fires onFoodChanged.
-            return updateFood(id, enriched)
-        }
-        val current = api.getFood(id)
-        val enriched = mergeOpenFoodFactsOntoFood(baseline = current, product = product)
-        val updated = api.updateFood(id, enriched)
-        withContext(ioDispatcher) { cacheFood(updated) }
+    ): FoodEnrichResult {
+        @Suppress("NAME_SHADOWING")
+        val id = resolveId(id)
+        if (appModeManager.isLocal || isLocalOnly(id)) return enrichOnDevice(id, barcode)
+        val response = enrichmentCall { api.enrichFood(id) }
+        val pending = id in pendingFoodIds()
+        if (!pending) withContext(ioDispatcher) { cacheFood(response.food) }
         errorReporter.runHook { onFoodChanged?.invoke() }
-        return updated
+        val food = if (pending) getFoodCached(id) ?: response.food else response.food
+        return FoodEnrichResult(food, FoodEnrichOutcome.fromServer(response.outcome))
     }
+
+    private suspend fun enrichOnDevice(
+        id: String,
+        barcode: String,
+    ): FoodEnrichResult {
+        if (!connectivityProvider.isOnline.value) throw FoodEnrichmentException(FoodEnrichmentException.Reason.OFFLINE)
+        val current = getFoodCached(id) ?: throw IllegalStateException("Food $id not found in local database")
+        val product =
+            if (appModeManager.isLocal) lookupOpenFoodFacts(barcode) else enrichmentCall { lookupOpenFoodFacts(barcode) }
+        if (product == null) return FoodEnrichResult(current, FoodEnrichOutcome.NOT_FOUND)
+        val enriched = mergeOpenFoodFactsOntoFood(baseline = current, product = product)
+        if (!enriched.changes(current)) return FoodEnrichResult(current, FoodEnrichOutcome.UNCHANGED)
+        // updateFood is cache-write + (mode-gated) enqueue and fires onFoodChanged.
+        return FoodEnrichResult(updateFood(id, enriched), FoodEnrichOutcome.UPDATED)
+    }
+
+    suspend fun foodEnrichmentStatus(): FoodEnrichmentStatusResponse = enrichmentCall { api.getFoodEnrichmentStatus() }
+
+    suspend fun startFoodEnrichment(): FoodEnrichmentStatusResponse = enrichmentCall { api.startFoodEnrichment() }
+
+    suspend fun cancelFoodEnrichment(): FoodEnrichmentStatusResponse = enrichmentCall { api.cancelFoodEnrichment() }
+
+    private suspend fun <T> enrichmentCall(call: suspend () -> T): T {
+        check(!appModeManager.isLocal) { "Food enrichment needs the server" }
+        if (!connectivityProvider.isOnline.value) throw FoodEnrichmentException(FoodEnrichmentException.Reason.OFFLINE)
+        return try {
+            call()
+        } catch (e: ApiException) {
+            throw e.toEnrichmentException() ?: e
+        } catch (e: kotlinx.io.IOException) {
+            throw FoodEnrichmentException(FoodEnrichmentException.Reason.OFFLINE, cause = e)
+        }
+    }
+
+    private fun ApiException.toEnrichmentException(): FoodEnrichmentException? {
+        if (statusCode == HTTP_TOO_MANY_REQUESTS) {
+            return FoodEnrichmentException(FoodEnrichmentException.Reason.RATE_LIMITED, retryAfterSeconds(), this)
+        }
+        val code =
+            responseBody
+                ?.takeIf { it.trimStart().startsWith("{") }
+                ?.let { json.decodeOrNull<FoodEnrichErrorResponse>(it) }
+                ?.code
+        val reason =
+            when {
+                statusCode == 400 && code == "no_barcode" -> FoodEnrichmentException.Reason.NO_BARCODE
+                statusCode == 404 && code == "food_not_found" -> FoodEnrichmentException.Reason.FOOD_GONE
+                statusCode == 409 && code == "food_changed" -> FoodEnrichmentException.Reason.FOOD_CHANGED
+                statusCode == 503 && code == "off_unavailable" -> FoodEnrichmentException.Reason.OFF_UNAVAILABLE
+                else -> return null
+            }
+        return FoodEnrichmentException(reason, retryAfterSeconds(), this)
+    }
+
+    private fun ApiException.retryAfterSeconds(): Long? =
+        rawResponse
+            ?.headers
+            ?.get(HttpHeaders.RetryAfter)
+            ?.trim()
+            ?.toLongOrNull()
+            ?.takeIf { it > 0 }
 
     suspend fun findByBarcode(barcode: String): Food? {
         if (appModeManager.isLocal) {
@@ -1079,5 +1138,7 @@ class FoodRepository(
 
         /** A proxy's "server unreachable" answers (a deploy restart, an upstream outage). */
         private val UNREACHABLE_STATUSES = setOf(502, 503, 504)
+
+        private const val HTTP_TOO_MANY_REQUESTS = 429
     }
 }

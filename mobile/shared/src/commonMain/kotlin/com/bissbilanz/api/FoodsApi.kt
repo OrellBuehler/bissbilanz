@@ -8,6 +8,8 @@ import com.bissbilanz.api.generated.model.FoodBulkResponse
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.FoodDuplicateGroup
 import com.bissbilanz.api.generated.model.FoodDuplicatesResponse
+import com.bissbilanz.api.generated.model.FoodEnrichResponse
+import com.bissbilanz.api.generated.model.FoodEnrichmentStatusResponse
 import com.bissbilanz.api.generated.model.FoodIdsResponse
 import com.bissbilanz.api.generated.model.FoodLabelStat
 import com.bissbilanz.api.generated.model.FoodLabelStatsResponse
@@ -285,6 +287,14 @@ interface FoodsApi : ApiTransport {
         } catch (e: ApiException) {
             if (e.statusCode == 404) null else throw e
         }
+
+    suspend fun enrichFood(id: String): FoodEnrichResponse = post("/api/foods/$id/enrich", mapOf<String, String>())
+
+    suspend fun getFoodEnrichmentStatus(): FoodEnrichmentStatusResponse = get("/api/foods/enrichment")
+
+    suspend fun startFoodEnrichment(): FoodEnrichmentStatusResponse = post("/api/foods/enrichment", mapOf<String, String>())
+
+    suspend fun cancelFoodEnrichment(): FoodEnrichmentStatusResponse = deleteForBody("/api/foods/enrichment")
 
     suspend fun searchOpenFoodFacts(
         query: String,

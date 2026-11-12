@@ -49,10 +49,14 @@ import com.bissbilanz.android.ui.components.MergeConfirmDialog
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.WhereUsedSheet
 import com.bissbilanz.android.ui.theme.*
+import com.bissbilanz.android.ui.viewmodels.UiMessage
+import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.Food
 import com.bissbilanz.repository.DeleteOutcome
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.repository.FoodEnrichOutcome
+import com.bissbilanz.repository.FoodEnrichmentException
 import com.bissbilanz.repository.FoodMergeUnavailableException
 import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.PreferencesRepository
@@ -73,6 +77,23 @@ private val NovaOrange = Color(0xFFEE8100)
 private val NovaRed = Color(0xFFE63E11)
 
 private fun onBadgeColor(background: Color): Color = if (background.luminance() > 0.3f) Color(0xFF1B2329) else Color.White
+
+private fun FoodEnrichOutcome.messageRes() =
+    when (this) {
+        FoodEnrichOutcome.UPDATED -> R.string.food_detail_enrich_success
+        FoodEnrichOutcome.UNCHANGED -> R.string.food_detail_enrich_nothing_new
+        FoodEnrichOutcome.NOT_FOUND -> R.string.food_detail_enrich_not_found
+    }
+
+private fun FoodEnrichmentException.Reason.messageRes() =
+    when (this) {
+        FoodEnrichmentException.Reason.OFFLINE -> R.string.food_detail_enrich_offline
+        FoodEnrichmentException.Reason.RATE_LIMITED -> R.string.food_detail_enrich_rate_limited
+        FoodEnrichmentException.Reason.NO_BARCODE -> R.string.food_detail_enrich_no_barcode
+        FoodEnrichmentException.Reason.FOOD_GONE -> R.string.food_detail_enrich_food_gone
+        FoodEnrichmentException.Reason.FOOD_CHANGED -> R.string.food_detail_enrich_food_changed
+        FoodEnrichmentException.Reason.OFF_UNAVAILABLE -> R.string.food_detail_enrich_off_unavailable
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,6 +118,7 @@ fun FoodDetailScreen(
     var showUsage by rememberSaveable { mutableStateOf(false) }
     var showEditSheet by rememberSaveable { mutableStateOf(false) }
     var isEnriching by remember { mutableStateOf(false) }
+    var enrichMessage by remember { mutableStateOf<UiMessage?>(null) }
     var showMergeTargetPicker by rememberSaveable { mutableStateOf(false) }
     var mergeTarget by remember { mutableStateOf<Food?>(null) }
     var isMerging by remember { mutableStateOf(false) }
@@ -106,12 +128,12 @@ fun FoodDetailScreen(
     val loadFailedMessage = stringResource(R.string.food_detail_load_failed)
     val logFailedMessage = stringResource(R.string.food_detail_log_failed)
     val deleteFailedMessage = stringResource(R.string.food_detail_delete_failed)
-    val enrichSuccessMessage = stringResource(R.string.food_detail_enrich_success)
-    val enrichFailedMessage = stringResource(R.string.food_detail_enrich_failed)
     val refreshFailedMessage = stringResource(R.string.food_detail_refresh_failed)
     val loggedMessageTemplate = stringResource(R.string.food_detail_logged)
     val mergeFailedMessage = stringResource(R.string.food_merge_failed)
     val mergeOfflineMessage = stringResource(R.string.food_merge_unavailable_offline)
+
+    UiMessageSnackbar(enrichMessage, snackbarHostState) { enrichMessage = null }
 
     LaunchedEffect(foodId, loadAttempt) {
         isLoading = true
@@ -323,14 +345,18 @@ fun FoodDetailScreen(
                                     if (!isEnriching) {
                                         isEnriching = true
                                         scope.launch {
-                                            try {
-                                                food = foodRepo.enrichFood(foodId, food!!.barcode!!)
-                                                snackbarHostState.showSnackbar(enrichSuccessMessage)
-                                            } catch (e: Exception) {
-                                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                                errorReporter.captureException(e)
-                                                snackbarHostState.showSnackbar(enrichFailedMessage)
-                                            }
+                                            enrichMessage =
+                                                try {
+                                                    val result = foodRepo.enrichFood(foodId, food!!.barcode!!)
+                                                    food = result.food
+                                                    UiMessage(result.outcome.messageRes())
+                                                } catch (e: FoodEnrichmentException) {
+                                                    UiMessage(e.reason.messageRes())
+                                                } catch (e: Exception) {
+                                                    if (e is kotlinx.coroutines.CancellationException) throw e
+                                                    errorReporter.captureException(e)
+                                                    UiMessage(R.string.food_detail_enrich_failed)
+                                                }
                                             isEnriching = false
                                         }
                                     }

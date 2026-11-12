@@ -199,6 +199,23 @@ internal suspend inline fun <reified T> ApiTransport.patchRawJson(
     return response.body()
 }
 
+internal suspend inline fun <reified T> ApiTransport.deleteForBody(path: String): T {
+    val response =
+        client.delete(path) {
+            applyClientVersionHeaders(clientPlatform, clientVersion)
+        }
+    if (!response.status.isSuccess()) {
+        val body = response.bodyAsText()
+        throw ApiException(
+            "DELETE $path failed: HTTP ${response.status.value} $body",
+            response.status.value,
+            response,
+            body,
+        )
+    }
+    return response.body()
+}
+
 internal suspend fun ApiTransport.delete(
     path: String,
     idempotencyKey: String? = null,

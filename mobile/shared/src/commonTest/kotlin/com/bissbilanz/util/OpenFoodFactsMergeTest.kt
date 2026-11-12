@@ -4,164 +4,333 @@ import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.FoodCreate
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.api.generated.model.ServingUnit
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class OpenFoodFactsMergeTest {
     @Test
-    fun keepsBaselineNameAndServingWhileLayeringOnProductNutrition() {
-        val baseline = foodFixture(name = "Haferflocken", saturatedFat = 1.0)
-        val product =
-            productFixture(
-                calories = 380.0,
-                saturatedFat = 1.5,
-                vitaminC = 12.0,
-                nutriScore = OpenFoodFactsProduct.NutriScore.b,
-                novaGroup = 1.0,
-                additives = listOf("E330"),
-                ingredientsText = "Oats",
+    fun scalesPerHundredToTheServingForMassAndVolumeUnits() {
+        val cases =
+            listOf(
+                Triple(100.0, "g", 1.0),
+                Triple(30.0, "g", 0.3),
+                Triple(0.25, "kg", 2.5),
+                Triple(250.0, "ml", 2.5),
+                Triple(33.0, "cl", 3.3),
+                Triple(0.5, "l", 5.0),
+                Triple(1.0, "oz", 0.28349523125),
+                Triple(1.0, "lb", 4.5359237),
+                Triple(8.0, "fl_oz", 2.365882365),
             )
+        for ((size, unit, expected) in cases) {
+            val scale = openFoodFactsNutrientScale(size, unit)
+            assertTrue(scale != null && abs(scale - expected) < 1e-9, "$size $unit scales by $expected, got $scale")
+        }
+    }
 
-        val result = mergeOpenFoodFactsOntoFood(baseline, product)
+    @Test
+    fun householdMeasuresAndEmptyServingsAreNotScaled() {
+        for (unit in listOf("cup", "tbsp", "tsp")) assertNull(openFoodFactsNutrientScale(1.0, unit), unit)
+        assertNull(openFoodFactsNutrientScale(0.0, "g"))
+        assertNull(openFoodFactsNutrientScale(-5.0, "g"))
+        assertNull(openFoodFactsNutrientScale(Double.NaN, "g"))
+    }
 
-        assertEquals("Haferflocken", result.name)
+    @Test
+    fun neverTouchesIdentityServingOrCoreMacros() {
+        val baseline = foodFixture()
+        val result = mergeOpenFoodFactsOntoFood(baseline, productFixture())
+
+        assertEquals("My Oats", result.name)
+        assertEquals("Mine", result.brand)
         assertEquals(100.0, result.servingSize)
         assertEquals(ServingUnit.g, result.servingUnit)
-        assertEquals(1.5, result.saturatedFat, "OFF saturated-fat overrides baseline")
-        assertEquals(12.0, result.vitaminC, "OFF fills previously-null vitamin")
-        assertEquals(FoodCreate.NutriScore.b, result.nutriScore)
-        assertEquals(1, result.novaGroup, "nova group converted from Double to Int")
-        assertEquals(listOf("E330"), result.additives)
+        assertEquals(380.0, result.calories)
+        assertEquals(13.0, result.protein)
+        assertEquals(60.0, result.carbs)
+        assertEquals(7.0, result.fat)
+        assertEquals(10.0, result.fiber)
+        assertEquals("4000000000000", result.barcode)
+        assertEquals(true, result.isFavorite)
+    }
+
+    @Test
+    fun takesQualityDataFromTheProductWhenTheFoodHasNone() {
+        val result = mergeOpenFoodFactsOntoFood(foodFixture(), productFixture())
+
+        assertEquals(FoodCreate.NutriScore.c, result.nutriScore)
+        assertEquals(3, result.novaGroup)
+        assertEquals(listOf("en:e330"), result.additives)
+        assertEquals("Oats, sugar", result.ingredientsText)
+        assertEquals(listOf("en:cereals"), result.categoriesTags)
+    }
+
+    @Test
+    fun openFoodFactsWinsForNutriScoreAndNovaGroup() {
+        val result = mergeOpenFoodFactsOntoFood(foodFixture(nutriScore = "a", novaGroup = 1), productFixture())
+
+        assertEquals(FoodCreate.NutriScore.c, result.nutriScore)
+        assertEquals(3, result.novaGroup)
+    }
+
+    @Test
+    fun keepsStoredScoresWhenTheProductHasNone() {
+        val result =
+            mergeOpenFoodFactsOntoFood(
+                foodFixture(nutriScore = "a", novaGroup = 1),
+                productFixture(nutriScore = null, novaGroup = null),
+            )
+
+        assertEquals(FoodCreate.NutriScore.a, result.nutriScore)
+        assertEquals(1, result.novaGroup)
+    }
+
+    @Test
+    fun neverReplacesIngredientsOrAdditivesTheUserEntered() {
+        val result =
+            mergeOpenFoodFactsOntoFood(
+                foodFixture(additives = listOf("en:e300"), ingredientsText = "Oats"),
+                productFixture(),
+            )
+
+        assertEquals(listOf("en:e300"), result.additives)
         assertEquals("Oats", result.ingredientsText)
     }
 
     @Test
-    fun keepsTheUsersOwnPhotoOverTheProductShot() {
-        val baseline = foodFixture(imageUrl = "/uploads/mine.jpg")
-        val product = productFixture(imageUrl = "https://off.example/product.jpg")
+    fun fillsBlankIngredientsAndEmptyAdditives() {
+        val result =
+            mergeOpenFoodFactsOntoFood(
+                foodFixture(additives = emptyList(), ingredientsText = " \n "),
+                productFixture(),
+            )
 
-        val result = mergeOpenFoodFactsOntoFood(baseline, product)
+        assertEquals(listOf("en:e330"), result.additives)
+        assertEquals("Oats, sugar", result.ingredientsText)
+    }
 
+    @Test
+    fun leavesFieldsAloneWhenTheProductHasNothingForThem() {
+        val result = mergeOpenFoodFactsOntoFood(foodFixture(), productFixture(additives = emptyList(), ingredientsText = "  "))
+
+        assertNull(result.additives)
+        assertNull(result.ingredientsText)
+    }
+
+    @Test
+    fun takesTheProductImageOnlyWhenTheFoodHasNone() {
+        val shot = "https://images.openfoodfacts.org/front.jpg"
+        assertEquals(shot, mergeOpenFoodFactsOntoFood(foodFixture(imageUrl = null), productFixture()).imageUrl)
+        assertEquals(shot, mergeOpenFoodFactsOntoFood(foodFixture(imageUrl = ""), productFixture()).imageUrl)
         assertEquals(
-            "/uploads/mine.jpg",
-            result.imageUrl,
+            "/uploads/u/photo.webp",
+            mergeOpenFoodFactsOntoFood(foodFixture(imageUrl = "/uploads/u/photo.webp"), productFixture()).imageUrl,
             "the server unlinks the previous upload when imageUrl changes, so enriching must not replace a user photo",
+        )
+        assertEquals(
+            "file:///data/photo.webp",
+            mergeOpenFoodFactsOntoFood(foodFixture(imageUrl = "file:///data/photo.webp"), productFixture(imageUrl = null)).imageUrl,
         )
     }
 
     @Test
-    fun takesTheProductPhotoWhenTheFoodHasNone() {
-        val baseline = foodFixture(imageUrl = null)
-        val product = productFixture(imageUrl = "https://off.example/product.jpg")
+    fun scalesPerHundredGramNutrientsToTheServing() {
+        val result = mergeOpenFoodFactsOntoFood(foodFixture(servingSize = 30.0), productFixture())
 
-        val result = mergeOpenFoodFactsOntoFood(baseline, product)
-
-        assertEquals("https://off.example/product.jpg", result.imageUrl)
+        assertEquals(6.0, result.sugar)
+        assertEquals(120.0, result.sodium)
     }
 
     @Test
-    fun fallsBackToBaselineWhenProductFieldIsNull() {
-        val baseline = foodFixture(saturatedFat = 2.0, vitaminC = 8.0, imageUrl = "local.jpg")
-        val product = productFixture(saturatedFat = null, vitaminC = null, imageUrl = null)
+    fun scalesPerHundredMillilitreNutrientsToAVolumeServing() {
+        val result =
+            mergeOpenFoodFactsOntoFood(
+                foodFixture(servingSize = 33.0, servingUnit = Food.ServingUnit.cl),
+                productFixture(sugar = 10.6),
+            )
 
-        val result = mergeOpenFoodFactsOntoFood(baseline, product)
-
-        assertEquals(2.0, result.saturatedFat)
-        assertEquals(8.0, result.vitaminC)
-        assertEquals("local.jpg", result.imageUrl)
+        assertEquals(34.98, result.sugar)
     }
 
     @Test
-    fun preservesCoreMacrosFromBaselineNotProduct() {
-        val baseline = foodFixture(calories = 400.0, protein = 12.0, carbs = 60.0, fat = 8.0, fiber = 10.0)
-        val product = productFixture(calories = 999.0, protein = 0.0, carbs = 0.0, fat = 0.0, fiber = 0.0)
+    fun scalesAKilogramServingThroughGrams() {
+        val result = mergeOpenFoodFactsOntoFood(foodFixture(servingSize = 1.0, servingUnit = Food.ServingUnit.kg), productFixture())
 
-        val result = mergeOpenFoodFactsOntoFood(baseline, product)
-
-        assertEquals(400.0, result.calories)
-        assertEquals(12.0, result.protein)
-        assertEquals(60.0, result.carbs)
-        assertEquals(8.0, result.fat)
-        assertEquals(10.0, result.fiber)
+        assertEquals(200.0, result.sugar)
     }
 
     @Test
-    fun dropsInvalidNutriScore() {
-        val baseline = foodFixture()
-        val product = productFixture(nutriScore = null)
+    fun leavesExtendedNutrientsAloneForHouseholdMeasures() {
+        val result = mergeOpenFoodFactsOntoFood(foodFixture(servingSize = 1.0, servingUnit = Food.ServingUnit.cup), productFixture())
 
-        val result = mergeOpenFoodFactsOntoFood(baseline, product)
+        assertNull(result.sugar)
+        assertNull(result.sodium)
+        assertEquals(FoodCreate.NutriScore.c, result.nutriScore)
+    }
 
-        assertNull(result.nutriScore)
+    @Test
+    fun keepsAStoredNutrientTheProductLacks() {
+        val result = mergeOpenFoodFactsOntoFood(foodFixture(potassium = 300.0), productFixture())
+
+        assertEquals(300.0, result.potassium)
+    }
+
+    @Test
+    fun neverReplacesANutrientTheUserEntered() {
+        val result = mergeOpenFoodFactsOntoFood(foodFixture(servingSize = 50.0, sugar = 3.0), productFixture())
+
+        assertEquals(3.0, result.sugar)
+        assertEquals(200.0, result.sodium)
+    }
+
+    @Test
+    fun neverWritesAnOpenFoodFactsZeroOverAStoredValueAndKeepsAStoredZero() {
+        val result = mergeOpenFoodFactsOntoFood(foodFixture(sugar = 4.0, sodium = 0.0), productFixture(sugar = 0.0))
+
+        assertEquals(4.0, result.sugar)
+        assertEquals(0.0, result.sodium)
+    }
+
+    @Test
+    fun fillsAMissingNutrientWithAnOpenFoodFactsZero() {
+        assertEquals(0.0, mergeOpenFoodFactsOntoFood(foodFixture(), productFixture(sugar = 0.0)).sugar)
+    }
+
+    @Test
+    fun skipsNegativeOrNonFiniteProductNutrients() {
+        val result =
+            mergeOpenFoodFactsOntoFood(
+                foodFixture(),
+                productFixture(sugar = -1.0, sodium = Double.NaN, iron = Double.POSITIVE_INFINITY),
+            )
+
+        assertNull(result.sugar)
+        assertNull(result.sodium)
+        assertNull(result.iron)
+    }
+
+    @Test
+    fun roundsScaledValuesToFourDecimals() {
+        val result = mergeOpenFoodFactsOntoFood(foodFixture(servingSize = 1.0, servingUnit = Food.ServingUnit.oz), productFixture())
+
+        assertEquals(5.6699, result.sugar)
+    }
+
+    @Test
+    fun aProductThatOnlyRepeatsTheFoodChangesNothing() {
+        val stored =
+            foodFixture(
+                nutriScore = "c",
+                novaGroup = 3,
+                additives = listOf("en:e330"),
+                ingredientsText = "Oats, sugar",
+                imageUrl = "/uploads/u/photo.webp",
+                sugar = 20.0,
+                sodium = 400.0,
+            )
+
+        assertFalse(mergeOpenFoodFactsOntoFood(stored, productFixture()).changes(stored))
+    }
+
+    @Test
+    fun aFilledInFieldIsAChange() {
+        val stored = foodFixture()
+
+        assertTrue(mergeOpenFoodFactsOntoFood(stored, productFixture()).changes(stored))
+        assertTrue(mergeOpenFoodFactsOntoFood(stored, emptyProduct(sugar = 1.0)).changes(stored))
+        assertTrue(mergeOpenFoodFactsOntoFood(stored, emptyProduct(nutriScore = OpenFoodFactsProduct.NutriScore.a)).changes(stored))
+    }
+
+    @Test
+    fun categoriesAloneAreNoChangeOnTheDevice() {
+        val stored = foodFixture()
+
+        assertFalse(mergeOpenFoodFactsOntoFood(stored, emptyProduct()).changes(stored))
     }
 
     private fun foodFixture(
-        name: String = "Food",
-        calories: Double = 100.0,
-        protein: Double = 5.0,
-        carbs: Double = 15.0,
-        fat: Double = 2.0,
-        fiber: Double = 3.0,
-        saturatedFat: Double? = null,
-        vitaminC: Double? = null,
+        servingSize: Double = 100.0,
+        servingUnit: Food.ServingUnit = Food.ServingUnit.g,
+        nutriScore: String? = null,
+        novaGroup: Int? = null,
+        additives: List<String>? = null,
+        ingredientsText: String? = null,
         imageUrl: String? = null,
+        sugar: Double? = null,
+        sodium: Double? = null,
+        potassium: Double? = null,
     ): Food =
         Food(
             id = "food-1",
             userId = "user-1",
-            name = name,
-            brand = null,
-            servingSize = 100.0,
-            servingUnit = Food.ServingUnit.g,
-            calories = calories,
-            protein = protein,
-            carbs = carbs,
-            fat = fat,
-            fiber = fiber,
-            barcode = "4000000000001",
-            isFavorite = false,
-            nutriScore = null,
-            novaGroup = null,
-            additives = null,
-            ingredientsText = null,
+            name = "My Oats",
+            brand = "Mine",
+            servingSize = servingSize,
+            servingUnit = servingUnit,
+            calories = 380.0,
+            protein = 13.0,
+            carbs = 60.0,
+            fat = 7.0,
+            fiber = 10.0,
+            barcode = "4000000000000",
+            isFavorite = true,
+            nutriScore = nutriScore,
+            novaGroup = novaGroup,
+            additives = additives,
+            ingredientsText = ingredientsText,
             imageUrl = imageUrl,
-            saturatedFat = saturatedFat,
-            vitaminC = vitaminC,
+            sugar = sugar,
+            sodium = sodium,
+            potassium = potassium,
         )
 
     private fun productFixture(
-        calories: Double = 380.0,
-        protein: Double = 12.0,
-        carbs: Double = 60.0,
-        fat: Double = 8.0,
-        fiber: Double = 10.0,
-        saturatedFat: Double? = null,
-        vitaminC: Double? = null,
-        nutriScore: OpenFoodFactsProduct.NutriScore? = null,
-        novaGroup: Double? = null,
-        additives: List<String>? = null,
-        ingredientsText: String? = null,
-        imageUrl: String? = null,
+        nutriScore: OpenFoodFactsProduct.NutriScore? = OpenFoodFactsProduct.NutriScore.c,
+        novaGroup: Double? = 3.0,
+        additives: List<String>? = listOf("en:e330"),
+        ingredientsText: String? = "Oats, sugar",
+        imageUrl: String? = "https://images.openfoodfacts.org/front.jpg",
+        sugar: Double? = 20.0,
+        sodium: Double? = 400.0,
+        iron: Double? = null,
     ): OpenFoodFactsProduct =
         OpenFoodFactsProduct(
-            id = "off-1",
-            name = "OFF name",
-            brand = "OFF brand",
-            barcode = "4000000000001",
+            id = "4000000000000",
+            name = "Product Name",
+            brand = "Product Brand",
+            barcode = "4000000000000",
             imageUrl = imageUrl,
             nutriScore = nutriScore,
             novaGroup = novaGroup,
             servingSize = 100.0,
             servingUnit = "g",
-            calories = calories,
-            protein = protein,
-            carbs = carbs,
-            fat = fat,
-            fiber = fiber,
+            calories = 500.0,
+            protein = 10.0,
+            carbs = 60.0,
+            fat = 20.0,
+            fiber = 5.0,
             additives = additives,
             ingredientsText = ingredientsText,
-            saturatedFat = saturatedFat,
-            vitaminC = vitaminC,
+            categoriesTags = listOf("en:cereals"),
+            sugar = sugar,
+            sodium = sodium,
+            iron = iron,
         )
+
+    private fun emptyProduct(
+        nutriScore: OpenFoodFactsProduct.NutriScore? = null,
+        sugar: Double? = null,
+    ) = productFixture(
+        nutriScore = nutriScore,
+        novaGroup = null,
+        additives = null,
+        ingredientsText = null,
+        imageUrl = null,
+        sugar = sugar,
+        sodium = null,
+    )
 }
