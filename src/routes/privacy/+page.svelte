@@ -8,7 +8,7 @@
 <div class="mx-auto max-w-2xl px-6 py-12">
 	<h1 class="mb-2 text-3xl font-bold">{m.privacy_page_title()}</h1>
 	<p class="mb-8 text-sm text-muted-foreground">
-		{m.privacy_effective_date({ date: 'September 28, 2026' })}
+		{m.privacy_effective_date({ date: 'November 12, 2026' })}
 	</p>
 
 	<p class="mb-6">
@@ -221,6 +221,18 @@
 			policy is available at
 			<a href="https://world.openfoodfacts.org/privacy" class="underline">world.openfoodfacts.org</a
 			>.
+		</li>
+		<li>
+			<strong>USDA FoodData Central (nutrient lookups):</strong> When a meal you queued for AI
+			logging is processed on the Bissbilanz server, the AI can look foods up in this nutrient
+			database. Every lookup sends a food name (for example "pear, raw") to the FoodData Central API
+			of the U.S. Department of Agriculture. No personal data or account identifier is sent.
+			FoodData Central is a public nutrient database whose data is in the public domain. Their
+			privacy policy is available at
+			<a href="https://www.usda.gov/privacy-policy" class="underline">usda.gov</a>. While
+			researching nutrition facts for such a meal, the AI provider may also search the web and fetch
+			third-party pages, such as a manufacturer's product page; those sites see a request from the
+			AI provider, not from you.
 		</li>
 		<li>
 			<strong>Sentry (crash reporting):</strong> The web, Android, Wear OS and iOS apps use Sentry

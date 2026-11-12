@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { PgDialect } from 'drizzle-orm/pg-core';
 
@@ -19,7 +21,9 @@ const h = vi.hoisted(() => ({
 	loadRun: vi.fn(),
 	transitionFenced: vi.fn(),
 	completeByModel: vi.fn(),
-	dismissByModel: vi.fn()
+	dismissByModel: vi.fn(),
+	searchFdcFoods: vi.fn(),
+	getFdcFood: vi.fn()
 }));
 
 const TX = { tx: true };
@@ -53,10 +57,16 @@ vi.mock('$lib/server/claude/tasks/outcomes', () => ({
 	completeByModel: h.completeByModel,
 	dismissByModel: h.dismissByModel
 }));
+vi.mock('$lib/server/fooddata-central', async (importOriginal) => ({
+	...(await importOriginal<typeof import('$lib/server/fooddata-central')>()),
+	searchFdcFoods: h.searchFdcFoods,
+	getFdcFood: h.getFdcFood
+}));
 
-const { runTaskTool, TASK_TOOLS } = await import('$lib/server/claude/tasks/tools');
+const { runTaskTool, taskTools } = await import('$lib/server/claude/tasks/tools');
+const { NutrientDatabaseError, toFdcFood } = await import('$lib/server/fooddata-central');
 const { ApiError, McpUserError } = await import('$lib/server/errors');
-const { LeaseLostError } = await import('$lib/server/claude/errors');
+const { ClaudeAbortedError, LeaseLostError } = await import('$lib/server/claude/errors');
 
 const FOOD_ID = '11111111-1111-4111-8111-111111111111';
 const RECIPE_ID = '22222222-2222-4222-8222-222222222222';
@@ -72,6 +82,7 @@ const makeCtx = (overrides: Record<string, unknown> = {}) => ({
 	seen: new Map<string, number>(),
 	foods: new Map<string, Record<string, unknown>>(),
 	createdFoods: new Map<string, Record<string, unknown>>(),
+	nutrientRecords: new Set<number>([169118, 1]),
 	...overrides
 });
 
@@ -748,7 +759,7 @@ describe('create_food', () => {
 	});
 
 	test('offers the whole nutrient catalog through the nutrients list', () => {
-		const tool = TASK_TOOLS.find((candidate) => candidate.name === 'create_food')!;
+		const tool = taskTools(false).find((candidate) => candidate.name === 'create_food')!;
 		const schema = tool.input_schema as {
 			properties: Record<string, { items?: { properties: { nutrient: { enum: string[] } } } }>;
 		};
@@ -772,8 +783,287 @@ describe('create_food', () => {
 	});
 });
 
-describe('TASK_TOOLS', () => {
+const SR_PEAR = toFdcFood(
+	JSON.parse(readFileSync(join(__dirname, '../../fixtures/fdc/food-169118-sr-legacy.json'), 'utf8'))
+);
+
+const pearInput = (overrides: Record<string, unknown> = {}) =>
+	foodInput({
+		name: 'Pear',
+		brand: null,
+		servingSize: 178,
+		servingUnit: 'g',
+		calories: 101,
+		protein: 0.6,
+		carbs: 27,
+		fat: 0.2,
+		fiber: 5.5,
+		nutrients: [{ nutrient: 'sodium', amount: 5 }],
+		fdcId: 169118,
+		...overrides
+	});
+
+describe('search_nutrient_database', () => {
+	test('returns compact candidates with macros per 100 g and the nutrient coverage', async () => {
+		h.searchFdcFoods.mockResolvedValue([SR_PEAR]);
+		const result = await parsed(
+			runTaskTool('search_nutrient_database', { query: 'pear raw' }, makeCtx())
+		);
+		expect(h.searchFdcFoods).toHaveBeenCalledWith('user-1', 'pear raw', undefined);
+		expect(result.isError).toBe(false);
+		expect(result.body).toEqual({
+			foods: [
+				{
+					fdcId: 169118,
+					description: 'Pears, raw',
+					dataType: 'SR Legacy',
+					per100g: { calories: 57, protein: 0.36, carbs: 15.23, fat: 0.14, fiber: 3.1 },
+					nutrientCount: 32
+				}
+			]
+		});
+	});
+
+	test('six candidates stay far below the result cap', async () => {
+		h.searchFdcFoods.mockResolvedValue(Array.from({ length: 6 }, () => SR_PEAR));
+		const result = await runTaskTool('search_nutrient_database', { query: 'pear' }, makeCtx());
+		expect(result.content.length).toBeLessThan(2000);
+	});
+
+	test('says so when nothing matches', async () => {
+		h.searchFdcFoods.mockResolvedValue([]);
+		const { body } = await parsed(
+			runTaskTool('search_nutrient_database', { query: 'zzz' }, makeCtx())
+		);
+		expect(body.foods).toEqual([]);
+		expect(body.note).toContain('English');
+	});
+
+	test('returns database failures and blank queries to the model', async () => {
+		h.searchFdcFoods.mockRejectedValue(new NutrientDatabaseError('busy'));
+		expect(
+			await parsed(runTaskTool('search_nutrient_database', { query: 'pear' }, makeCtx()))
+		).toMatchObject({ isError: true, body: { error: 'busy' } });
+		const blank = await parsed(runTaskTool('search_nutrient_database', { query: '  ' }, makeCtx()));
+		expect(blank.body.error).toBe('validation_failed');
+	});
+});
+
+describe('create_food with a nutrient database record', () => {
+	beforeEach(() => {
+		h.findFoodByBarcode.mockResolvedValue(null);
+		h.getFdcFood.mockResolvedValue(SR_PEAR);
+		h.handleCreateFood.mockImplementation(async (_userId: string, payload: unknown) => ({
+			success: true,
+			foodId: FOOD_ID,
+			food: { id: FOOD_ID, ...(payload as Record<string, unknown>) }
+		}));
+	});
+
+	test('auto log stores every nutrient the model did not pass, scaled to the serving', async () => {
+		const result = await parsed(runTaskTool('create_food', pearInput(), makeCtx()));
+		expect(h.getFdcFood).toHaveBeenCalledWith('user-1', 169118, undefined);
+		const payload = h.handleCreateFood.mock.calls[0]![1];
+		expect(payload).toMatchObject({
+			calories: 101,
+			protein: 0.6,
+			sodium: 5,
+			vitaminC: 7.654,
+			potassium: 206.48,
+			vitaminK: 7.832,
+			fluoride: 0.0039
+		});
+		expect(payload).not.toHaveProperty('fdcId');
+		expect(payload).not.toHaveProperty('omega3');
+		expect(result.body).toMatchObject({
+			foodId: FOOD_ID,
+			nutrientSource: {
+				database: 'USDA FoodData Central',
+				fdcId: 169118,
+				description: 'Pears, raw',
+				dataType: 'SR Legacy',
+				filled: 31,
+				keptYourValues: 1
+			}
+		});
+	});
+
+	test('label values win over the record for every nutrient the model lists', async () => {
+		await runTaskTool(
+			'create_food',
+			pearInput({
+				nutrients: [
+					{ nutrient: 'vitaminC', amount: 9 },
+					{ nutrient: 'potassium', amount: 200 }
+				]
+			}),
+			makeCtx()
+		);
+		expect(h.handleCreateFood.mock.calls[0]![1]).toMatchObject({
+			vitaminC: 9,
+			potassium: 200,
+			sodium: 1.78
+		});
+	});
+
+	test('scales a serving in ounces through grams', async () => {
+		await runTaskTool(
+			'create_food',
+			pearInput({ servingSize: 6.28, servingUnit: 'oz' }),
+			makeCtx()
+		);
+		expect(h.handleCreateFood.mock.calls[0]![1].vitaminC).toBe(7.6555);
+	});
+
+	test.each([
+		['ml', 'auto_log'],
+		['cup', 'auto_log'],
+		['ml', 'review'],
+		['fl_oz', 'review']
+	] as const)(
+		'refuses a record for a serving in %s in %s mode before anything is created',
+		async (unit, mode) => {
+			const ctx = makeCtx({ mode });
+			const result = await parsed(
+				runTaskTool('create_food', pearInput({ servingSize: 250, servingUnit: unit }), ctx)
+			);
+			expect(result.isError).toBe(true);
+			expect(result.body.error).toContain('only be applied to a serving given in g, kg, oz or lb');
+			expect(result.body.error).toContain('pass fdcId null');
+			expect(h.handleCreateFood).not.toHaveBeenCalled();
+			expect(h.getFdcFood).not.toHaveBeenCalled();
+			expect(ctx.foods.size).toBe(0);
+			expect(ctx.createdFoods.size).toBe(0);
+		}
+	);
+
+	test('the same food in millilitres without a record is created', async () => {
+		const ctx = makeCtx();
+		await runTaskTool(
+			'create_food',
+			pearInput({ servingSize: 250, servingUnit: 'ml', fdcId: null }),
+			ctx
+		);
+		expect(h.handleCreateFood).toHaveBeenCalledTimes(1);
+		expect(ctx.createdFoods.size).toBe(1);
+	});
+
+	test('review mode carries the filled values in the provisional food and the proposal', async () => {
+		const ctx = makeCtx({ mode: 'review' });
+		const created = await parsed(runTaskTool('create_food', pearInput(), ctx));
+		expect(h.handleCreateFood).not.toHaveBeenCalled();
+		expect(created.body.nutrientSource).toMatchObject({ filled: 31 });
+		expect(ctx.foods.get(created.body.foodId)).toMatchObject({
+			sodium: 5,
+			vitaminC: 7.654,
+			potassium: 206.48
+		});
+		await runTaskTool('log_food', logInput({ foodId: created.body.foodId }), ctx);
+		const item = h.transitionFenced.mock.calls.at(-1)![2].proposal.items.at(-1);
+		expect(item.food).toMatchObject({ name: 'Pear', vitaminC: 7.654, sodium: 5 });
+	});
+
+	test('refuses a serving that carries per-100 g values and returns the record values', async () => {
+		const result = await parsed(
+			runTaskTool(
+				'create_food',
+				pearInput({ calories: 57, protein: 0.36, carbs: 15.23, fat: 0.14, fiber: 3.1 }),
+				makeCtx()
+			)
+		);
+		expect(result.isError).toBe(true);
+		expect(result.body.error).toContain('calories, carbs for 178 g do not match record 169118');
+		expect(result.body.error).toContain(
+			'If you took these numbers from the database, use recordPerServing instead.'
+		);
+		expect(result.body.error).toContain(
+			'If they come from a label or Open Food Facts, keep them and pick another record or pass fdcId null.'
+		);
+		expect(result.body.recordPerServing).toEqual({
+			calories: 101,
+			protein: 0.6,
+			carbs: 27.1,
+			carbsWithoutFiber: 21.6,
+			fat: 0.2,
+			fiber: 5.5
+		});
+		expect(h.handleCreateFood).not.toHaveBeenCalled();
+	});
+
+	test('refuses another food in review mode as well and stores nothing', async () => {
+		const ctx = makeCtx({ mode: 'review' });
+		const result = await parsed(
+			runTaskTool(
+				'create_food',
+				pearInput({ servingSize: 100, calories: 41, protein: 0.73, carbs: 9.57, fat: 0.51 }),
+				ctx
+			)
+		);
+		expect(result.isError).toBe(true);
+		expect(ctx.foods.size).toBe(0);
+	});
+
+	test('accepts only records the search returned in this task', async () => {
+		const ctx = makeCtx({ nutrientRecords: new Set<number>() });
+		const refused = await parsed(runTaskTool('create_food', pearInput(), ctx));
+		expect(refused.isError).toBe(true);
+		expect(refused.body.error).toContain('did not come from search_nutrient_database');
+		expect(h.getFdcFood).not.toHaveBeenCalled();
+		h.searchFdcFoods.mockResolvedValue([SR_PEAR]);
+		await runTaskTool('search_nutrient_database', { query: 'pear raw' }, ctx);
+		expect([...ctx.nutrientRecords]).toEqual([169118]);
+		expect((await parsed(runTaskTool('create_food', pearInput(), ctx))).isError).toBe(false);
+	});
+
+	test('a task abort during a lookup ends the run instead of becoming a tool error', async () => {
+		const controller = new AbortController();
+		h.getFdcFood.mockImplementation(async () => {
+			controller.abort();
+			throw new DOMException('aborted', 'AbortError');
+		});
+		await expect(
+			runTaskTool('create_food', pearInput(), makeCtx({ signal: controller.signal }))
+		).rejects.toBeInstanceOf(ClaudeAbortedError);
+	});
+
+	test('a database failure becomes a tool error and creates nothing', async () => {
+		h.getFdcFood.mockRejectedValue(new NutrientDatabaseError('FoodData Central has no record 1.'));
+		const result = await parsed(runTaskTool('create_food', pearInput({ fdcId: 1 }), makeCtx()));
+		expect(result).toMatchObject({
+			isError: true,
+			body: { error: 'FoodData Central has no record 1.' }
+		});
+		expect(h.handleCreateFood).not.toHaveBeenCalled();
+	});
+
+	test('an identical request is answered from the run without a second lookup', async () => {
+		const ctx = makeCtx();
+		await runTaskTool('create_food', pearInput(), ctx);
+		await runTaskTool('create_food', pearInput(), ctx);
+		expect(h.getFdcFood).toHaveBeenCalledTimes(1);
+		expect(h.handleCreateFood).toHaveBeenCalledTimes(1);
+	});
+
+	test('without fdcId nothing is looked up', async () => {
+		await runTaskTool('create_food', pearInput({ fdcId: null }), makeCtx());
+		expect(h.getFdcFood).not.toHaveBeenCalled();
+		expect(h.handleCreateFood.mock.calls[0]![1]).not.toHaveProperty('vitaminC');
+	});
+
+	test('the record id is declared only with the database', () => {
+		const createFood = (database: boolean) =>
+			taskTools(database).find((tool) => tool.name === 'create_food')!.input_schema
+				.properties as Record<string, Record<string, unknown>>;
+		expect(createFood(true).fdcId!.anyOf).toEqual([{ type: 'integer' }, { type: 'null' }]);
+		expect(createFood(false)).not.toHaveProperty('fdcId');
+		expect(taskTools(true).map((tool) => tool.name)).toContain('search_nutrient_database');
+		expect(taskTools(false).map((tool) => tool.name)).not.toContain('search_nutrient_database');
+	});
+});
+
+describe('taskTools', () => {
 	test('has a definition for every tool the executor handles', () => {
-		expect(TASK_TOOLS).toHaveLength(9);
+		expect(taskTools(false)).toHaveLength(9);
+		expect(taskTools(true)).toHaveLength(10);
 	});
 });

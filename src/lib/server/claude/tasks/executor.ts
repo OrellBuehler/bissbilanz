@@ -3,7 +3,7 @@ import { and, eq, exists, inArray, or, sql } from 'drizzle-orm';
 import { getDB } from '../../db';
 import { aiTasks, claudeTaskRuns, userPreferences } from '../../schema';
 import { abandonStaleReservations } from '../budget';
-import { assertClaudeAllowed, getClaudeCapability } from '../capability';
+import { assertClaudeAllowed, getClaudeHeadroom, type ClaudeHeadroom } from '../capability';
 import { ClaudeGateError, ClaudeProcessorChangedError } from '../errors';
 import { isClaudeConfigured } from '../config';
 import { onClaudeAccessChanged } from '../events';
@@ -153,12 +153,26 @@ export async function abortClaudeRunsWhereGated(userId?: string): Promise<void> 
 	}
 }
 
-type Candidate = { id: string; user_id: string };
+type Candidate = {
+	id: string;
+	user_id: string;
+	state?: string | null;
+	failure_code?: string | null;
+	failure_detail?: string | null;
+};
+
+const BUDGET_GATES = new Set(['user_budget_exhausted', 'global_budget_exhausted']);
+
+const blockedNeedUsd = (candidate: Candidate): number | null => {
+	if (candidate.state !== 'blocked' || !BUDGET_GATES.has(candidate.failure_code ?? '')) return null;
+	const need = Number(candidate.failure_detail);
+	return candidate.failure_detail && Number.isFinite(need) ? need : null;
+};
 
 export async function sweepClaudeTasks(): Promise<void> {
 	await abandonStaleReservations();
 	const candidates = (await getDB().execute(sql`
-		SELECT t.id, t.user_id FROM ai_tasks t
+		SELECT t.id, t.user_id, r.state, r.failure_code, r.failure_detail FROM ai_tasks t
 		JOIN user_preferences p ON p.user_id = t.user_id AND p.ai_task_processor = 'claude'
 		LEFT JOIN claude_task_runs r ON r.task_id = t.id
 		WHERE t.status = 'pending'
@@ -171,12 +185,16 @@ export async function sweepClaudeTasks(): Promise<void> {
 		LIMIT ${SWEEP_LIMIT}
 	`)) as unknown as Candidate[];
 
-	const available = new Map<string, boolean>();
+	const headrooms = new Map<string, ClaudeHeadroom>();
 	for (const candidate of candidates) {
-		if (!available.has(candidate.user_id)) {
-			available.set(candidate.user_id, (await getClaudeCapability(candidate.user_id)).available);
+		let headroom = headrooms.get(candidate.user_id);
+		if (!headroom) {
+			headroom = await getClaudeHeadroom(candidate.user_id);
+			headrooms.set(candidate.user_id, headroom);
 		}
-		if (!available.get(candidate.user_id)) continue;
+		if (!headroom.available) continue;
+		const need = blockedNeedUsd(candidate);
+		if (need !== null && headroom.remainingUsd + 1e-9 < need) continue;
 		await ensureRun(candidate.user_id, candidate.id);
 		push({ taskId: candidate.id, userId: candidate.user_id });
 	}

@@ -25,7 +25,9 @@ describe('validateEnv claude group', () => {
 				CLAUDE_DEFAULT_USER_BUDGET_USD: '12',
 				CLAUDE_EFFORT: 'high',
 				CLAUDE_MAX_ITERATIONS: '30',
-				CLAUDE_MAX_WEB_SEARCHES: '5'
+				CLAUDE_MAX_WEB_SEARCHES: '5',
+				CLAUDE_MAX_WEB_FETCHES: '4',
+				FDC_API_KEY: 'fdc-key'
 			})
 		).toEqual([]);
 	});
@@ -49,6 +51,16 @@ describe('validateEnv claude group', () => {
 	test.each(['11', '2.5', 'abc', '-1'])('rejects max web searches %s', (value) => {
 		expect(validateEnv({ ...validEnv, CLAUDE_MAX_WEB_SEARCHES: value })).toContain(
 			'CLAUDE_MAX_WEB_SEARCHES must be a whole number between 0 and 10'
+		);
+	});
+
+	test.each(['0', '3', '10'])('accepts max web fetches %s', (value) => {
+		expect(validateEnv({ ...validEnv, CLAUDE_MAX_WEB_FETCHES: value })).toEqual([]);
+	});
+
+	test.each(['11', '2.5', 'abc', '-1'])('rejects max web fetches %s', (value) => {
+		expect(validateEnv({ ...validEnv, CLAUDE_MAX_WEB_FETCHES: value })).toContain(
+			'CLAUDE_MAX_WEB_FETCHES must be a whole number between 0 and 10'
 		);
 	});
 
@@ -128,7 +140,9 @@ describe('claude config', () => {
 			'CLAUDE_EFFORT',
 			'CLAUDE_MAX_ITERATIONS',
 			'CLAUDE_MAX_WEB_SEARCHES',
-			'CLAUDE_DEFAULT_USER_BUDGET_USD'
+			'CLAUDE_MAX_WEB_FETCHES',
+			'CLAUDE_DEFAULT_USER_BUDGET_USD',
+			'FDC_API_KEY'
 		]) {
 			vi.stubEnv(key, env[key] ?? '');
 		}
@@ -143,6 +157,7 @@ describe('claude config', () => {
 			effort: 'medium',
 			maxIterations: 20,
 			maxWebSearches: 3,
+			maxWebFetches: 3,
 			globalMonthlyBudgetUsd: 90,
 			defaultUserBudgetUsd: 10,
 			configured: false
@@ -158,7 +173,8 @@ describe('claude config', () => {
 			CLAUDE_DEFAULT_USER_BUDGET_USD: '2',
 			CLAUDE_EFFORT: 'high',
 			CLAUDE_MAX_ITERATIONS: '8',
-			CLAUDE_MAX_WEB_SEARCHES: '0'
+			CLAUDE_MAX_WEB_SEARCHES: '0',
+			CLAUDE_MAX_WEB_FETCHES: '5'
 		});
 		expect(claudeApiKey()).toBe('sk-test');
 		expect(claudeConfig()).not.toHaveProperty('apiKey');
@@ -168,11 +184,23 @@ describe('claude config', () => {
 			effort: 'high',
 			maxIterations: 8,
 			maxWebSearches: 0,
+			maxWebFetches: 5,
 			globalMonthlyBudgetUsd: 25.5,
 			defaultUserBudgetUsd: 2,
 			configured: true
 		});
 		expect(isClaudeConfigured()).toBe(true);
+	});
+
+	test('FoodData Central is configured only with a non-blank key', async () => {
+		await load({ FDC_API_KEY: ' fdc-key ' });
+		const withKey = await import('$lib/server/env');
+		expect(withKey.config.fdc.apiKey).toBe('fdc-key');
+		await load({ FDC_API_KEY: '   ' });
+		const blank = await import('$lib/server/env');
+		expect(blank.config.fdc.apiKey).toBeUndefined();
+		const { isFdcConfigured } = await import('$lib/server/fooddata-central');
+		expect(isFdcConfigured()).toBe(false);
 	});
 
 	test('a whitespace-only key is not configured', async () => {

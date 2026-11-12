@@ -34,6 +34,8 @@ const CLAUDE_DEFAULT_MAX_ITERATIONS = 20;
 const CLAUDE_MAX_ITERATIONS_LIMIT = 50;
 const CLAUDE_DEFAULT_MAX_WEB_SEARCHES = 3;
 const CLAUDE_MAX_WEB_SEARCHES_LIMIT = 10;
+const CLAUDE_DEFAULT_MAX_WEB_FETCHES = 3;
+const CLAUDE_MAX_WEB_FETCHES_LIMIT = 10;
 
 const isClaudeEffort = (value: string): value is ClaudeEffort =>
 	(CLAUDE_EFFORTS as readonly string[]).includes(value);
@@ -129,6 +131,15 @@ export function validateEnv(env: Record<string, string | undefined> = process.en
 			`CLAUDE_MAX_WEB_SEARCHES must be a whole number between 0 and ${CLAUDE_MAX_WEB_SEARCHES_LIMIT}`
 		);
 	}
+	const maxWebFetches = env.CLAUDE_MAX_WEB_FETCHES?.trim();
+	if (
+		maxWebFetches &&
+		!(/^\d+$/.test(maxWebFetches) && Number(maxWebFetches) <= CLAUDE_MAX_WEB_FETCHES_LIMIT)
+	) {
+		problems.push(
+			`CLAUDE_MAX_WEB_FETCHES must be a whole number between 0 and ${CLAUDE_MAX_WEB_FETCHES_LIMIT}`
+		);
+	}
 	if (env.TEST_MODE === 'true') {
 		if (env.NODE_ENV === 'production') problems.push('TEST_MODE must not be enabled in production');
 		if (!env.TEST_AUTH_TOKEN?.trim())
@@ -193,6 +204,10 @@ export const config = {
 			process.env.CLAUDE_MAX_WEB_SEARCHES?.trim() || undefined,
 			CLAUDE_DEFAULT_MAX_WEB_SEARCHES
 		),
+		maxWebFetches: toNumber(
+			process.env.CLAUDE_MAX_WEB_FETCHES?.trim() || undefined,
+			CLAUDE_DEFAULT_MAX_WEB_FETCHES
+		),
 		globalMonthlyBudgetUsd: toNumber(
 			process.env.CLAUDE_GLOBAL_MONTHLY_BUDGET_USD?.trim() || undefined,
 			CLAUDE_DEFAULT_GLOBAL_BUDGET_USD
@@ -202,6 +217,9 @@ export const config = {
 			CLAUDE_DEFAULT_USER_BUDGET_USD
 		),
 		configured: !!process.env.ANTHROPIC_API_KEY?.trim()
+	},
+	fdc: {
+		apiKey: process.env.FDC_API_KEY?.trim() || undefined
 	},
 	testMode: process.env.TEST_MODE === 'true',
 	testAuthToken: process.env.TEST_AUTH_TOKEN,

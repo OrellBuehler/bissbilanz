@@ -20,13 +20,16 @@ const h = vi.hoisted(() => ({
 	getUserTimeZone: vi.fn(),
 	loadTaskPhotos: vi.fn(),
 	captureException: vi.fn(),
-	config: { model: 'claude-sonnet-5-5', maxIterations: 5, maxWebSearches: 3 }
+	captureMessage: vi.fn(),
+	config: { model: 'claude-sonnet-5-5', maxIterations: 5, maxWebSearches: 3, maxWebFetches: 3 },
+	fdc: { configured: false }
 }));
 
 const { db, queueResults, reset, getCalls } = createMockDB();
 
 vi.mock('@sentry/sveltekit', () => ({
 	captureException: h.captureException,
+	captureMessage: h.captureMessage,
 	addBreadcrumb: vi.fn(),
 	logger: { info: vi.fn() }
 }));
@@ -47,7 +50,8 @@ vi.mock('$lib/server/claude/tasks/outcomes', () => ({
 	requeueRun: h.requeueRun
 }));
 vi.mock('$lib/server/claude/tasks/tools', () => ({
-	TASK_TOOLS: [{ name: 'tool' }],
+	taskTools: (database: boolean) =>
+		database ? [{ name: 'search_nutrient_database' }, { name: 'tool' }] : [{ name: 'tool' }],
 	isTerminalTool: (name: string) => name === 'complete_ai_task' || name === 'dismiss_ai_task',
 	runTaskTool: h.runTaskTool
 }));
@@ -60,10 +64,12 @@ vi.mock('$lib/server/ai-tasks', () => ({ getAiTask: h.getAiTask }));
 vi.mock('$lib/server/meal-types', () => ({ listMealTypes: h.listMealTypes }));
 vi.mock('$lib/server/preferences', () => ({ getUserTimeZone: h.getUserTimeZone }));
 vi.mock('$lib/server/claude/tasks/photos', () => ({ loadTaskPhotos: h.loadTaskPhotos }));
+vi.mock('$lib/server/fooddata-central', () => ({ isFdcConfigured: () => h.fdc.configured }));
 
 const { processTask } = await import('$lib/server/claude/tasks/processor');
 const errors = await import('$lib/server/claude/errors');
-const { CLAUDE_MODELS } = await import('$lib/server/claude/models');
+const { CLAUDE_MODELS, isWebFetchAccepted, isWebFetchRejected, resetWebFetchForTests } =
+	await import('$lib/server/claude/models');
 const { claudeAccess } = await import('$lib/server/schema');
 
 const TASK_ID = 'task-1';
@@ -103,6 +109,9 @@ const fence = { taskId: TASK_ID, instance: 'inst', attempt: 1 };
 beforeEach(() => {
 	reset();
 	h.config.maxWebSearches = 3;
+	h.config.maxWebFetches = 3;
+	h.fdc.configured = false;
+	resetWebFetchForTests();
 	for (const fn of Object.values(h)) if (typeof fn === 'function') fn.mockReset();
 	queueResults([[{ locale: 'de' }], [{ autoLog: true }]]);
 	h.claimRun.mockResolvedValue(run());
@@ -143,39 +152,356 @@ describe('claiming', () => {
 	});
 });
 
-describe('web search', () => {
+describe('server tools', () => {
 	const finish = () => {
 		h.callClaude.mockResolvedValueOnce(
 			response('tool_use', [toolUse('toolu_c', 'complete_ai_task')])
 		);
 		h.runTaskTool.mockResolvedValue({ content: '{}', isError: false, outcome: 'completed' });
 	};
+	const toolsOfFirstCall = () => h.callClaude.mock.calls[0]![0].params.tools;
+	const webFetch = (type: string) => ({
+		type,
+		name: 'web_fetch',
+		max_uses: 3,
+		max_content_tokens: 10_000,
+		url_sources: { client_tool_results: { type: 'none' } }
+	});
 
-	test('puts the capped server web search tool in front of the task tools', async () => {
+	test('puts the capped web search and web fetch in front of the task tools', async () => {
 		finish();
 		await processTask(TASK_ID, options());
-		expect(h.callClaude.mock.calls[0]![0].params.tools).toEqual([
+		expect(toolsOfFirstCall()).toEqual([
 			{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 },
+			webFetch('web_fetch_20260209'),
 			{ name: 'tool' }
 		]);
 	});
 
-	test('leaves it out when disabled', async () => {
-		h.config.maxWebSearches = 0;
+	test.each([
+		[0, 0, []],
+		[0, 3, ['web_fetch']],
+		[3, 0, ['web_search']]
+	])('with %s searches and %s fetches declares %j', async (searches, fetches, names) => {
+		h.config.maxWebSearches = searches;
+		h.config.maxWebFetches = fetches;
 		finish();
 		await processTask(TASK_ID, options());
-		expect(h.callClaude.mock.calls[0]![0].params.tools).toEqual([{ name: 'tool' }]);
+		expect(toolsOfFirstCall().map((tool: { name: string }) => tool.name)).toEqual([
+			...names,
+			'tool'
+		]);
 	});
 
-	test('uses the basic web search for Haiku 5.5', async () => {
+	test('gives Haiku 5.5 the basic web search and no web fetch', async () => {
 		queueResults([[{ locale: 'de' }], [{ autoLog: true }], [{ model: 'claude-haiku-5-5' }]]);
 		finish();
 		await processTask(TASK_ID, options());
-		expect(h.callClaude.mock.calls[0]![0].params.tools[0]).toEqual({
-			type: 'web_search_20250305',
-			name: 'web_search',
-			max_uses: 3
+		expect(toolsOfFirstCall()).toEqual([
+			{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 },
+			{ name: 'tool' }
+		]);
+	});
+
+	test('hands the task tools the run signal and a fresh record list', async () => {
+		h.callClaude
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_a')]))
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
+		h.runTaskTool
+			.mockResolvedValueOnce({ content: 'one', isError: false })
+			.mockResolvedValueOnce({ content: '{}', isError: false, outcome: 'completed' });
+		await processTask(TASK_ID, options());
+		const ctx = h.runTaskTool.mock.calls[0]![2];
+		expect(ctx.signal).toBeInstanceOf(AbortSignal);
+		expect(ctx.nutrientRecords).toEqual(new Set());
+	});
+
+	test('declares the nutrient database tools only when FoodData Central is configured', async () => {
+		finish();
+		await processTask(TASK_ID, options());
+		expect(toolsOfFirstCall().at(-2).name).toBe('web_fetch');
+		reset();
+		queueResults([[{ locale: 'de' }], [{ autoLog: true }]]);
+		h.fdc.configured = true;
+		finish();
+		await processTask(TASK_ID, options());
+		expect(h.callClaude.mock.calls[1]![0].params.tools.slice(-2)).toEqual([
+			{ name: 'search_nutrient_database' },
+			{ name: 'tool' }
+		]);
+	});
+
+	test('passes the container of a response on to the following calls', async () => {
+		h.callClaude
+			.mockResolvedValueOnce({ ...response('pause_turn'), container: { id: 'container_1' } })
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_a')]))
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
+		h.runTaskTool
+			.mockResolvedValueOnce({ content: 'one', isError: false })
+			.mockResolvedValueOnce({ content: '{}', isError: false, outcome: 'completed' });
+		await processTask(TASK_ID, options());
+		const containers = h.callClaude.mock.calls.map((call) => call[0].params.container);
+		expect(containers).toEqual([undefined, 'container_1', 'container_1']);
+	});
+
+	test('answers only the client tools when a fetch waits on them and keeps its late result', async () => {
+		const pending = {
+			type: 'server_tool_use',
+			id: 'srvtoolu_1',
+			name: 'web_fetch',
+			input: { url: 'https://example.com/pear' }
+		};
+		const fetched = [
+			{
+				type: 'web_fetch_tool_result',
+				tool_use_id: 'srvtoolu_1',
+				content: {
+					type: 'web_fetch_result',
+					url: 'https://example.com/pear',
+					content: {
+						type: 'document',
+						source: { type: 'text', media_type: 'text/plain', data: 'Vitamin C 4 mg' }
+					},
+					retrieved_at: '2026-11-12T10:00:00Z'
+				}
+			},
+			toolUse('toolu_c', 'complete_ai_task')
+		];
+		h.callClaude
+			.mockResolvedValueOnce(response('tool_use', [pending, toolUse('toolu_a')]))
+			.mockResolvedValueOnce(response('tool_use', fetched))
+			.mockResolvedValueOnce(response('refusal'));
+		h.runTaskTool
+			.mockResolvedValueOnce({ content: 'one', isError: false })
+			.mockResolvedValueOnce({ content: '{"error":"bad"}', isError: true });
+		await processTask(TASK_ID, options());
+		const second = h.callClaude.mock.calls[1]![0].params.messages;
+		expect(second[1]).toEqual({ role: 'assistant', content: [pending, toolUse('toolu_a')] });
+		expect(second[2].content).toEqual([
+			{
+				type: 'tool_result',
+				tool_use_id: 'toolu_a',
+				content: 'one',
+				cache_control: { type: 'ephemeral' }
+			}
+		]);
+		const third = h.callClaude.mock.calls[2]![0].params.messages;
+		expect(third[3]).toEqual({ role: 'assistant', content: fetched });
+	});
+});
+
+describe('when the API rejects web fetch', () => {
+	const rejected = () =>
+		new errors.ClaudeApiError({ kind: 'invalid_request', status: 400, retryable: false });
+	const toolNames = (call: number) =>
+		h.callClaude.mock.calls[call]![0].params.tools.map((tool: { name: string }) => tool.name);
+	const finished = () =>
+		h.runTaskTool.mockResolvedValue({ content: '{}', isError: false, outcome: 'completed' });
+
+	test('retries a rejected first call once without web fetch and keeps it off', async () => {
+		h.callClaude
+			.mockRejectedValueOnce(rejected())
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
+		finished();
+		await processTask(TASK_ID, options());
+		expect(toolNames(0)).toEqual(['web_search', 'web_fetch', 'tool']);
+		const expected = h.callClaude.mock.calls[0]![0].expectedRejection;
+		expect(expected(rejected())).toBe(true);
+		expect(
+			expected(new errors.ClaudeApiError({ kind: 'auth', status: 401, retryable: false }))
+		).toBe(false);
+		expect(toolNames(1)).toEqual(['web_search', 'tool']);
+		expect(h.callClaude.mock.calls[1]![0].expectedRejection).toBeUndefined();
+		expect(h.dismissRun).not.toHaveBeenCalled();
+		expect(isWebFetchRejected()).toBe(true);
+		expect(h.captureMessage).toHaveBeenCalledTimes(1);
+		expect(h.captureMessage).toHaveBeenCalledWith(
+			expect.stringContaining('web_fetch_20260209'),
+			expect.objectContaining({ level: 'warning' })
+		);
+
+		reset();
+		queueResults([[{ locale: 'de' }], [{ autoLog: true }]]);
+		h.callClaude.mockResolvedValueOnce(
+			response('tool_use', [toolUse('toolu_c', 'complete_ai_task')])
+		);
+		await processTask(TASK_ID, options());
+		expect(toolNames(2)).toEqual(['web_search', 'tool']);
+		expect(h.captureMessage).toHaveBeenCalledTimes(1);
+	});
+
+	test('a later 400 does not disable fetch once a request with it was accepted', async () => {
+		h.callClaude
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_a')]))
+			.mockRejectedValueOnce(rejected());
+		h.runTaskTool.mockResolvedValueOnce({ content: 'one', isError: false });
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(2);
+		expect(h.callClaude.mock.calls[0]![0].expectedRejection).toBeTypeOf('function');
+		expect(h.callClaude.mock.calls[1]![0].expectedRejection).toBeUndefined();
+		expect(isWebFetchAccepted()).toBe(true);
+		expect(isWebFetchRejected()).toBe(false);
+		expect(h.dismissRun).toHaveBeenCalledWith(
+			expect.anything(),
+			'claude_error',
+			'invalid_request 400'
+		);
+
+		reset();
+		queueResults([[{ locale: 'de' }], [{ autoLog: true }]]);
+		h.callClaude.mockRejectedValueOnce(rejected());
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(3);
+		expect(toolNames(2)).toEqual(['web_search', 'web_fetch', 'tool']);
+		expect(h.captureMessage).not.toHaveBeenCalled();
+	});
+
+	test.each([
+		['after pause_turn', { ...response('pause_turn'), container: { id: 'container_1' } }],
+		[
+			'with a pending server tool call',
+			response('tool_use', [
+				{
+					type: 'server_tool_use',
+					id: 'srvtoolu_1',
+					name: 'web_fetch',
+					input: { url: 'https://ex' }
+				},
+				toolUse('toolu_a')
+			])
+		]
+	])('a continuation 400 %s is not retried without fetch', async (_label, first) => {
+		h.callClaude.mockResolvedValueOnce(first).mockRejectedValueOnce(rejected());
+		h.runTaskTool.mockResolvedValueOnce({ content: 'one', isError: false });
+		h.assertClaudeAllowed.mockImplementation(async () => {
+			resetWebFetchForTests();
 		});
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(2);
+		expect(toolNames(1)).toEqual(['web_search', 'web_fetch', 'tool']);
+		expect(h.callClaude.mock.calls[1]![0].expectedRejection).toBeUndefined();
+		expect(isWebFetchRejected()).toBe(false);
+	});
+
+	test('behaves as before when the call fails without web fetch too', async () => {
+		h.callClaude.mockRejectedValueOnce(rejected()).mockRejectedValueOnce(rejected());
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(2);
+		expect(h.dismissRun).toHaveBeenCalledWith(
+			expect.anything(),
+			'claude_error',
+			'invalid_request 400'
+		);
+		expect(isWebFetchRejected()).toBe(false);
+		expect(h.captureMessage).not.toHaveBeenCalled();
+	});
+
+	test.each([
+		[
+			'a retryable failure',
+			new errors.ClaudeApiError({ kind: 'server', status: 529, retryable: true })
+		],
+		[
+			'a 404',
+			new errors.ClaudeApiError({ kind: 'invalid_request', status: 404, retryable: false })
+		],
+		['an auth failure', new errors.ClaudeApiError({ kind: 'auth', status: 401, retryable: false })]
+	])('does not retry %s', async (_label, error) => {
+		h.callClaude.mockRejectedValueOnce(error);
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(1);
+		expect(isWebFetchRejected()).toBe(false);
+	});
+
+	test('does not retry a rejected call that declared no web fetch', async () => {
+		h.config.maxWebFetches = 0;
+		h.callClaude.mockRejectedValueOnce(rejected());
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(1);
+		expect(h.dismissRun).toHaveBeenCalledWith(
+			expect.anything(),
+			'claude_error',
+			'invalid_request 400'
+		);
+	});
+});
+
+describe('limits', () => {
+	test('refuses a sixth new food in one run', async () => {
+		const creates = Array.from({ length: 6 }, (_, i) => toolUse(`toolu_${i}`, 'create_food'));
+		h.callClaude
+			.mockResolvedValueOnce(response('tool_use', creates))
+			.mockResolvedValueOnce(response('refusal'));
+		h.runTaskTool.mockImplementation(
+			async (_name: string, _input: unknown, ctx: { createdFoods: Map<string, unknown> }) => {
+				ctx.createdFoods.set(`food-${ctx.createdFoods.size}`, {});
+				return { content: '{}', isError: false };
+			}
+		);
+		await processTask(TASK_ID, options());
+		expect(h.runTaskTool).toHaveBeenCalledTimes(5);
+		const results = h.callClaude.mock.calls[1]![0].params.messages[2].content;
+		expect(results[5]).toMatchObject({ tool_use_id: 'toolu_5', is_error: true });
+		expect(results[5].content).toContain('Too many new foods');
+	});
+
+	test('re-sends the request when a reply is cut off inside a server tool call', async () => {
+		const cutOff = [
+			{ type: 'text', text: 'Looking it up' },
+			{ type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_fetch', input: { url: 'https://ex' } }
+		];
+		h.callClaude
+			.mockResolvedValueOnce(response('max_tokens', cutOff))
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
+		h.runTaskTool.mockResolvedValue({ content: '{}', isError: false, outcome: 'completed' });
+		await processTask(TASK_ID, options());
+		const [first, second] = h.callClaude.mock.calls.map((call) => call[0].params.messages);
+		expect(second).toEqual(first);
+		expect(second).toHaveLength(1);
+		expect(h.dismissRun).not.toHaveBeenCalled();
+	});
+
+	test('gives up when the re-sent request is cut off the same way', async () => {
+		const cutOff = [
+			{ type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: { query: 'x' } }
+		];
+		h.callClaude.mockResolvedValue(response('max_tokens', cutOff));
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(2);
+		expect(h.dismissRun).toHaveBeenCalledWith(expect.anything(), 'claude_incomplete');
+	});
+
+	test('a cut-off retry does not use up the end-of-turn nudge', async () => {
+		const cutOff = [
+			{ type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: { query: 'x' } }
+		];
+		h.callClaude
+			.mockResolvedValueOnce(response('max_tokens', cutOff))
+			.mockResolvedValueOnce(response('end_turn', [{ type: 'text', text: 'done' }]))
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
+		h.runTaskTool.mockResolvedValue({ content: '{}', isError: false, outcome: 'completed' });
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(3);
+		expect(h.callClaude.mock.calls[2]![0].params.messages.at(-1).content[0].text).toContain(
+			'not finished'
+		);
+		expect(h.dismissRun).not.toHaveBeenCalled();
+	});
+
+	test('a cut-off reply whose server tool calls all have results is nudged as before', async () => {
+		const complete = [
+			{ type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: { query: 'x' } },
+			{ type: 'web_search_tool_result', tool_use_id: 'srvtoolu_1', content: [] },
+			{ type: 'text', text: 'long' }
+		];
+		h.callClaude
+			.mockResolvedValueOnce(response('max_tokens', complete))
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
+		h.runTaskTool.mockResolvedValue({ content: '{}', isError: false, outcome: 'completed' });
+		await processTask(TASK_ID, options());
+		const messages = h.callClaude.mock.calls[1]![0].params.messages;
+		expect(messages[1]).toEqual({ role: 'assistant', content: complete });
+		expect(messages[2].content[0].text).toContain('cut off');
 	});
 });
 
@@ -312,7 +638,21 @@ describe('the loop', () => {
 		expect(h.stopOrBlockRun).toHaveBeenCalledWith(
 			expect.anything(),
 			'auto_log',
-			'user_budget_exhausted'
+			'user_budget_exhausted',
+			null
+		);
+	});
+
+	test('passes the reservation a budget gate refused on to the block', async () => {
+		h.callClaude.mockRejectedValueOnce(
+			new errors.ClaudeGateError('user_budget_exhausted', 1.570523)
+		);
+		await processTask(TASK_ID, options());
+		expect(h.stopOrBlockRun).toHaveBeenCalledWith(
+			expect.anything(),
+			'auto_log',
+			'user_budget_exhausted',
+			1.570523
 		);
 	});
 
@@ -496,7 +836,7 @@ describe('failures', () => {
 
 	test('a closed gate blocks or stops', async () => {
 		await fail(new errors.ClaudeGateError('disabled'));
-		expect(h.stopOrBlockRun).toHaveBeenCalledWith(expect.anything(), 'auto_log', 'disabled');
+		expect(h.stopOrBlockRun).toHaveBeenCalledWith(expect.anything(), 'auto_log', 'disabled', null);
 	});
 
 	test('an abort reports the gate that closed', async () => {

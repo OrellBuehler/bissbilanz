@@ -4,6 +4,7 @@ type ModelRow = ModelPricing & {
 	label: string;
 	selectable: boolean;
 	webSearch: 'web_search_20250305' | 'web_search_20260209';
+	webFetch: 'web_fetch_20260209' | null;
 	longPrompt?: ModelPricing & { aboveTokens: number };
 };
 
@@ -13,6 +14,7 @@ export const CLAUDE_PRICING_USD_PER_MTOK: Record<string, ModelRow> = {
 		label: 'Claude Fable 5.2',
 		selectable: true,
 		webSearch: 'web_search_20260209',
+		webFetch: 'web_fetch_20260209',
 		input: 8,
 		output: 40,
 		cacheWrite: 10,
@@ -22,6 +24,7 @@ export const CLAUDE_PRICING_USD_PER_MTOK: Record<string, ModelRow> = {
 		label: 'Claude Opus 5.5',
 		selectable: true,
 		webSearch: 'web_search_20260209',
+		webFetch: 'web_fetch_20260209',
 		input: 4,
 		output: 20,
 		cacheWrite: 5,
@@ -31,6 +34,7 @@ export const CLAUDE_PRICING_USD_PER_MTOK: Record<string, ModelRow> = {
 		label: 'Claude Sonnet 5.5',
 		selectable: true,
 		webSearch: 'web_search_20260209',
+		webFetch: 'web_fetch_20260209',
 		input: 2,
 		output: 10,
 		cacheWrite: 2.5,
@@ -40,6 +44,7 @@ export const CLAUDE_PRICING_USD_PER_MTOK: Record<string, ModelRow> = {
 		label: 'Claude Haiku 5.5',
 		selectable: true,
 		webSearch: 'web_search_20250305',
+		webFetch: null,
 		input: 0.1,
 		output: 0.5,
 		cacheWrite: 0.125,
@@ -56,6 +61,7 @@ export const CLAUDE_PRICING_USD_PER_MTOK: Record<string, ModelRow> = {
 		label: 'Claude Fable 5.1',
 		selectable: false,
 		webSearch: 'web_search_20260209',
+		webFetch: 'web_fetch_20260209',
 		input: 10,
 		output: 50,
 		cacheWrite: 12.5,
@@ -72,11 +78,27 @@ export type TokenUsage = {
 	output_tokens: number;
 	cache_creation_input_tokens?: number | null;
 	cache_read_input_tokens?: number | null;
-	server_tool_use?: { web_search_requests?: number | null } | null;
+	server_tool_use?: {
+		web_search_requests?: number | null;
+		web_fetch_requests?: number | null;
+	} | null;
+};
+
+export type ServerToolAllowance = {
+	webSearches: number;
+	webFetches: number;
+	webFetchTokens: number;
 };
 
 export const WEB_SEARCH_USD_PER_REQUEST = 0.01;
 export const WEB_SEARCH_RESULT_TOKEN_BOUND = 10_000;
+export const WEB_FETCH_MAX_CONTENT_TOKENS = 10_000;
+export const SERVER_TOOL_LOOP_ITERATIONS = 10;
+
+export const webFetchResultTokenBound = (maxContentTokens: number) =>
+	Math.ceil(maxContentTokens * 1.2);
+
+const NO_SERVER_TOOLS: ServerToolAllowance = { webSearches: 0, webFetches: 0, webFetchTokens: 0 };
 
 const round6 = (value: number) => Math.round(value * 1e6) / 1e6;
 
@@ -106,14 +128,19 @@ export function maxCallCostUsd(
 	model: string,
 	inputTokens: number,
 	maxTokens: number,
-	maxWebSearches = 0
+	serverTools: ServerToolAllowance = NO_SERVER_TOOLS
 ): number {
-	const price = pricingFor(model, inputTokens + maxWebSearches * WEB_SEARCH_RESULT_TOKEN_BOUND);
+	const { webSearches, webFetches, webFetchTokens } = serverTools;
+	const passes = webSearches + webFetches > 0 ? SERVER_TOOL_LOOP_ITERATIONS : 1;
+	const added =
+		passes > 1 ? maxTokens + webSearches * WEB_SEARCH_RESULT_TOKEN_BOUND + webFetchTokens : 0;
+	const rereads = (passes - 1) * inputTokens + Math.max(0, passes - 2) * added;
+	const price = pricingFor(model, inputTokens + added + rereads);
 	return round6(
-		(inputTokens * price.cacheWrite +
-			maxTokens * price.output +
-			maxWebSearches * WEB_SEARCH_RESULT_TOKEN_BOUND * price.cacheWrite) /
+		((inputTokens + added) * price.cacheWrite +
+			rereads * price.cacheRead +
+			maxTokens * price.output) /
 			1e6 +
-			maxWebSearches * WEB_SEARCH_USD_PER_REQUEST
+			webSearches * WEB_SEARCH_USD_PER_REQUEST
 	);
 }
