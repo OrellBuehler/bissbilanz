@@ -4,6 +4,7 @@ import TipKit
 struct FoodDetailView: View {
     @Environment(FoodRepository.self) private var foodRepository
     @Environment(AppModeManager.self) private var appMode
+    @Environment(ConnectivityMonitor.self) private var connectivity
     @Environment(\.dismiss) private var dismiss
 
     let foodId: String
@@ -92,7 +93,7 @@ struct FoodDetailView: View {
                         // look the product up by.
                         if let barcode = food.barcode, !barcode.isEmpty {
                             Button {
-                                Task { await enrich(barcode: barcode) }
+                                Task { await enrich() }
                             } label: {
                                 Label(L10n.enrichFromOpenFoodFacts, systemImage: "wand.and.stars")
                             }
@@ -301,20 +302,30 @@ struct FoodDetailView: View {
         isTogglingFavorite = false
     }
 
-    /// Overlays the Open Food Facts product for this barcode onto the stored
-    /// food. Nothing is lost on failure — the write only happens once the
-    /// lookup succeeded.
-    private func enrich(barcode: String) async {
+    private func enrich() async {
         guard !isEnriching else { return }
+        guard connectivity.isOnline else {
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            toastMessage = L10n.enhanceFoodsOffline
+            return
+        }
         isEnriching = true
         defer { isEnriching = false }
         do {
-            food = try await foodRepository.enrichFood(id: foodId, barcode: barcode)
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-            toastMessage = L10n.enrichSuccess
+            let result = try await foodRepository.enrichFood(id: foodId)
+            food = result.food
+            switch result.outcome {
+            case .updated:
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                toastMessage = L10n.enrichSuccess
+            case .unchanged:
+                toastMessage = L10n.enrichNothingNew
+            case .notFound:
+                toastMessage = L10n.enrichProductNotFound
+            }
         } catch {
             UINotificationFeedbackGenerator().notificationOccurred(.error)
-            toastMessage = L10n.enrichFailed
+            toastMessage = L10n.enrichFailureMessage(for: error)
         }
     }
 
