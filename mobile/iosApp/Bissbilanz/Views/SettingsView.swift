@@ -15,6 +15,7 @@ struct SettingsView: View {
     @Environment(LocalDataMigrator.self) private var migrator
     @Environment(FoodImageLoader.self) private var foodImageLoader
     @Environment(FoodRepository.self) private var foodRepository
+    @Environment(FoodEnrichmentController.self) private var foodEnrichment
     @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(FoodLabeler.self) private var foodLabeler
     @Environment(MealEstimator.self) private var mealEstimator
@@ -429,24 +430,25 @@ struct SettingsView: View {
 
                 // Enhance Foods: Open Food Facts scores and label details for
                 // barcode foods that lack them. No AI involved, so it sits
-                // outside the food-labels gate; hidden once nothing is left.
-                let unenrichedCount = foodRepository.unenrichedLocalFoods().count
-                if unenrichedCount > 0 {
-                    Section {
-                        NavigationLink {
-                            EnhanceFoodsView()
-                        } label: {
-                            HStack {
-                                Text(L10n.enhanceFoods)
-                                Spacer()
-                                Text(L10n.unlabeledFoodCount(unenrichedCount))
+                // outside the food-labels gate. Always present: removing a
+                // NavigationLink pops its destination, and the count changes
+                // while the screen is open.
+                Section {
+                    NavigationLink {
+                        EnhanceFoodsView()
+                    } label: {
+                        HStack {
+                            Text(L10n.enhanceFoods)
+                            Spacer()
+                            if let enhanceSummary = foodEnrichment.settingsSummary {
+                                Text(enhanceSummary)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
                         }
-                    } footer: {
-                        Text(L10n.enhanceFoodsFooter)
                     }
+                } footer: {
+                    Text(L10n.enhanceFoodsFooter)
                 }
 
                 // Help
@@ -522,6 +524,7 @@ struct SettingsView: View {
                 goalsEditor
             }
             .task { await loadData() }
+            .task { await foodEnrichment.refreshForSettings() }
             .alert(
                 L10n.error,
                 isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
@@ -729,6 +732,7 @@ struct SettingsView: View {
                 // into the next session (Local mode or another
                 // account).
                 bulkUploadManager.reset()
+                foodEnrichment.reset()
                 migrator.wipeLocalData()
                 preferencesRepository.clearClaudeCapability()
                 // wipeLocalData clears the files; this also
@@ -1075,6 +1079,7 @@ struct SettingsView: View {
                 // Same teardown as sign-out: wipe local data before flipping auth
                 // state so nothing leaks into the next session.
                 bulkUploadManager.reset()
+                foodEnrichment.reset()
                 migrator.wipeLocalData()
                 preferencesRepository.clearClaudeCapability()
                 foodImageLoader.clear()

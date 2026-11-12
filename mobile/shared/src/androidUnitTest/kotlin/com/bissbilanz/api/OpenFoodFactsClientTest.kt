@@ -174,4 +174,44 @@ class OpenFoodFactsClientTest {
             assertNull(product.nutriScore)
             assertNull(product.ingredientsText)
         }
+
+    private fun clientAnswering(
+        status: HttpStatusCode,
+        body: String,
+        vararg headers: Pair<String, String>,
+    ) = OpenFoodFactsClient(
+        MockEngine {
+            val all = listOf(HttpHeaders.ContentType to listOf("application/json")) + headers.map { it.first to listOf(it.second) }
+            respond(body, status, headersOf(*all.toTypedArray()))
+        },
+    )
+
+    @Test
+    fun lookupTellsAnUnknownBarcodeApartFromAnOutage() =
+        runBlocking {
+            assertTrue(clientAnswering(HttpStatusCode.OK, fixture).lookupProduct("7622210449283") is OpenFoodFactsLookup.Found)
+            assertEquals(OpenFoodFactsLookup.NotFound, clientAnswering(HttpStatusCode.NotFound, "{}").lookupProduct("0000"))
+            assertEquals(
+                OpenFoodFactsLookup.NotFound,
+                clientAnswering(HttpStatusCode.OK, """{"status":0,"status_verbose":"product not found"}""").lookupProduct("0000"),
+            )
+            assertEquals(
+                OpenFoodFactsLookup.Unavailable(429, 30),
+                clientAnswering(HttpStatusCode.TooManyRequests, "slow down", HttpHeaders.RetryAfter to "30").lookupProduct("0000"),
+            )
+            assertEquals(
+                OpenFoodFactsLookup.Unavailable(503, null),
+                clientAnswering(HttpStatusCode.ServiceUnavailable, "<html>down</html>").lookupProduct("0000"),
+            )
+            val garbled = clientAnswering(HttpStatusCode.OK, "<html>maintenance</html>").lookupProduct("0000")
+            assertTrue(garbled is OpenFoodFactsLookup.Unavailable && garbled.httpStatus == 200 && garbled.cause != null)
+        }
+
+    @Test
+    fun fetchProductStillAnswersNullForEveryKindOfMiss() =
+        runBlocking {
+            assertNull(clientAnswering(HttpStatusCode.TooManyRequests, "slow down", HttpHeaders.RetryAfter to "30").fetchProduct("0000"))
+            assertNull(clientAnswering(HttpStatusCode.ServiceUnavailable, "down").fetchProduct("0000"))
+            assertNull(clientAnswering(HttpStatusCode.OK, "<html>maintenance</html>").fetchProduct("0000"))
+        }
 }

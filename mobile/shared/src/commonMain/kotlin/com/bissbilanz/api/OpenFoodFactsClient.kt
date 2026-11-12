@@ -17,6 +17,20 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlin.math.round
 
+sealed interface OpenFoodFactsLookup {
+    data class Found(
+        val product: OpenFoodFactsProduct,
+    ) : OpenFoodFactsLookup
+
+    data object NotFound : OpenFoodFactsLookup
+
+    data class Unavailable(
+        val httpStatus: Int,
+        val retryAfterSeconds: Long?,
+        val cause: Throwable? = null,
+    ) : OpenFoodFactsLookup
+}
+
 /**
  * Direct Open Food Facts v2 client used in Local mode, where the app has no backend
  * to proxy through. Replicates the field selection and mapping of the SvelteKit
@@ -35,25 +49,35 @@ class OpenFoodFactsClient(
             }
         }
 
-    suspend fun fetchProduct(barcode: String): OpenFoodFactsProduct? {
+    suspend fun fetchProduct(barcode: String): OpenFoodFactsProduct? = (lookupProduct(barcode) as? OpenFoodFactsLookup.Found)?.product
+
+    suspend fun lookupProduct(barcode: String): OpenFoodFactsLookup {
         val response =
             client.get("$API_BASE/$barcode.json") {
                 parameter("fields", FIELDS)
                 header(HttpHeaders.UserAgent, USER_AGENT)
                 accept(ContentType.Application.Json)
             }
-        if (!response.status.isSuccess()) return null
+        if (response.status == HttpStatusCode.NotFound) return OpenFoodFactsLookup.NotFound
+        if (!response.status.isSuccess()) {
+            val retryAfter =
+                response.headers[HttpHeaders.RetryAfter]
+                    ?.trim()
+                    ?.toLongOrNull()
+                    ?.takeIf { it > 0 }
+            return OpenFoodFactsLookup.Unavailable(response.status.value, retryAfter)
+        }
 
         val root =
             try {
                 json.parseToJsonElement(response.bodyAsText()).jsonObject
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                return null
+                return OpenFoodFactsLookup.Unavailable(response.status.value, null, e)
             }
-        if ((root["status"] as? JsonPrimitive)?.intOrNull != 1) return null
-        val product = root["product"] as? JsonObject ?: return null
-        return mapProduct(product, barcode)
+        if ((root["status"] as? JsonPrimitive)?.intOrNull != 1) return OpenFoodFactsLookup.NotFound
+        val product = root["product"] as? JsonObject ?: return OpenFoodFactsLookup.NotFound
+        return OpenFoodFactsLookup.Found(mapProduct(product, barcode))
     }
 
     /**

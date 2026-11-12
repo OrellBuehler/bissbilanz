@@ -52,27 +52,55 @@ struct OpenFoodFactsClient {
     /// Looks the barcode up on Open Food Facts. Returns nil for unknown
     /// products or unparseable responses; throws on transport errors.
     func lookupBarcode(_ barcode: String) async throws -> Food? {
+        if case let .found(food) = try await lookupProduct(barcode) {
+            return food
+        }
+        return nil
+    }
+
+    func lookupProduct(_ barcode: String) async throws -> OpenFoodFactsLookup {
         // Untrusted scanner input — see the twin in `BissbilanzAPI.lookupBarcode`.
         guard let encoded = barcode.addingPercentEncoding(withAllowedCharacters: .alphanumerics),
               var components = URLComponents(string: "\(Self.apiBase)/\(encoded).json")
-        else { return nil }
+        else { return .notFound }
         components.queryItems = [URLQueryItem(name: "fields", value: Self.fields)]
-        guard let url = components.url else { return nil }
+        guard let url = components.url else { return .notFound }
         var request = URLRequest(url: url)
         request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200 ..< 300).contains(http.statusCode) else {
-            return nil
+        guard let http = response as? HTTPURLResponse else {
+            return .unavailable(retryAfter: nil)
         }
-        guard let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-              Self.number(root["status"]) == 1,
-              let product = root["product"] as? [String: Any]
-        else {
-            return nil
+        return Self.classify(
+            status: http.statusCode,
+            data: data,
+            retryAfterHeader: http.value(forHTTPHeaderField: "Retry-After"),
+            barcode: barcode
+        )
+    }
+
+    static func classify(status: Int, data: Data, retryAfterHeader: String?, barcode: String) -> OpenFoodFactsLookup {
+        if status == 404 {
+            return .notFound
         }
-        return Self.mapProduct(product, barcode: barcode)
+        guard (200 ..< 300).contains(status) else {
+            return .unavailable(retryAfter: retryAfterHeader.map { AiTaskRequestInProgress.retryDelay(header: $0) })
+        }
+        guard let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+            return .unavailable(retryAfter: nil)
+        }
+        guard let productStatus = number(root["status"]) else {
+            return .invalid
+        }
+        guard productStatus == 1 else {
+            return .notFound
+        }
+        guard let product = root["product"] as? [String: Any], let food = mapProduct(product, barcode: barcode) else {
+            return .invalid
+        }
+        return .found(food)
     }
 
     /// Free-text product search (`/cgi/search.pl`), mirroring the server
@@ -174,4 +202,11 @@ struct OpenFoodFactsClient {
         }
         return nil
     }
+}
+
+enum OpenFoodFactsLookup: Equatable {
+    case found(Food)
+    case notFound
+    case invalid
+    case unavailable(retryAfter: TimeInterval?)
 }

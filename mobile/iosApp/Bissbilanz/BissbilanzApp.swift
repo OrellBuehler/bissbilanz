@@ -45,6 +45,7 @@ struct BissbilanzApp: App {
     @State private var migrator: LocalDataMigrator
     @State private var entryRepository: EntryRepository
     @State private var foodRepository: FoodRepository
+    @State private var foodEnrichment: FoodEnrichmentController
     @State private var recipeRepository: RecipeRepository
     @State private var weightRepository: WeightRepository
     @State private var sleepRepository: SleepRepository
@@ -197,6 +198,14 @@ struct BissbilanzApp: App {
         )
         _entryRepository = State(wrappedValue: entryRepo)
         _foodRepository = State(wrappedValue: foodRepo)
+        _foodEnrichment = State(wrappedValue: FoodEnrichmentController(
+            api: api,
+            appMode: appMode,
+            connectivity: connectivity,
+            syncManager: sync,
+            foodRepository: foodRepo,
+            container: container
+        ))
         _recipeRepository = State(wrappedValue: recipeRepo)
         _weightRepository = State(wrappedValue: weightRepo)
         _sleepRepository = State(wrappedValue: sleepRepo)
@@ -475,6 +484,7 @@ struct BissbilanzApp: App {
             .environment(migrator)
             .environment(entryRepository)
             .environment(foodRepository)
+            .environment(foodEnrichment)
             .environment(recipeRepository)
             .environment(weightRepository)
             .environment(sleepRepository)
@@ -516,6 +526,7 @@ struct BissbilanzApp: App {
                 }
             }
             .onChange(of: appModeManager.mode) { _, _ in
+                foodEnrichment.reset()
                 defaultModeToSyncedIfNeeded()
             }
             .onChange(of: scenePhase) { _, phase in
