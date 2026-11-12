@@ -29,7 +29,27 @@ const COMPLETED_TASK = {
 
 const h = vi.hoisted(() => ({ accept: vi.fn() }));
 
-vi.mock('$lib/server/claude/tasks/proposal', () => ({ acceptProposal: h.accept }));
+vi.mock('$lib/server/claude/tasks/proposal', async (importOriginal) => ({
+	...(await importOriginal<typeof import('$lib/server/claude/tasks/proposal')>()),
+	acceptProposal: h.accept
+}));
+vi.mock('$lib/server/claude/tasks/runs', () => ({ listRunsByTaskIds: async () => [] }));
+vi.mock('$lib/server/claude/tasks/replies', () => ({
+	loadClaudeThreads: async (tasks: { id: string }[]) =>
+		new Map(
+			tasks.map((task) => [
+				task.id,
+				{
+					messages: [],
+					correctionState: 'idle',
+					canReply: true,
+					replyBlockedReason: null,
+					repliesRemaining: 5,
+					unreadReplies: 0
+				}
+			])
+		)
+}));
 
 const { POST } = await import('../../src/routes/api/ai-tasks/[id]/proposal/accept/+server');
 
@@ -75,6 +95,7 @@ describe('POST /api/ai-tasks/{id}/proposal/accept', () => {
 		expect(data.task.processedBy).toBe('assistant');
 		expect(data.task.processedByKind).toBe('claude');
 		expect(data.task.claudeProcessing).toBeNull();
+		expect(data.task.claudeThread).toMatchObject({ canReply: true, messages: [] });
 	});
 
 	test('accepts everything with an empty object', async () => {

@@ -145,13 +145,15 @@ import {
 	aiTaskUpdateSchema,
 	aiTaskListQuerySchema,
 	aiTaskAcknowledgeSchema,
-	aiTaskProposalAcceptSchema
+	aiTaskProposalAcceptSchema,
+	aiTaskReplyCreateSchema
 } from './validation/ai-tasks';
 import {
 	aiTaskResponseSchema,
 	aiTasksResponseSchema,
 	aiTaskPhotoResponseSchema,
-	aiTaskAcknowledgeResponseSchema
+	aiTaskAcknowledgeResponseSchema,
+	aiTaskReplyErrorResponseSchema
 } from './validation/responses/ai-tasks';
 import { mcpStatusResponseSchema } from './validation/responses/mcp';
 import {
@@ -2099,7 +2101,7 @@ export const apiPaths = {
 			operationId: 'acknowledgeAiTasks',
 			tags: ['AiTasks'],
 			description:
-				'Mark resolved AI tasks as seen, clearing their unread state. Omit `ids` to acknowledge every unacknowledged task.',
+				'Mark resolved AI tasks and answers of Claude as seen. `ids` acknowledges those tasks (their dismissals). `replyIds` marks exactly those answers in `claudeThread` as read (send the ids of the unread answers the client has shown) and reports how many in `repliesAcknowledged`; answers not named stay unread. A body with neither acknowledges every unacknowledged task, as before; a body with `replyIds` but no `ids` acknowledges no task. `acknowledgedAt` keeps its meaning: it only tracks dismissals.',
 			requestBody: {
 				required: false,
 				content: { 'application/json': { schema: aiTaskAcknowledgeSchema } }
@@ -2135,6 +2137,58 @@ export const apiPaths = {
 				'404': res404,
 				'409': res409,
 				'429': res429
+			}
+		}
+	},
+	'/api/ai-tasks/{id}/replies': {
+		post: {
+			operationId: 'replyToAiTask',
+			tags: ['AiTasks'],
+			description:
+				'Reply to Claude about a task it completed on the server (`processedByKind` claude), usually to say something is wrong. The reply joins `claudeThread` and starts a correction: Claude may change, remove or add the task\'s diary entries and change foods it created for the task that nothing else uses, then answers in the thread. The task stays completed throughout. Online only: never queue it offline. Send an `Idempotency-Key` (one UUID per reply, reused for retries of the same reply): a retry after a 201 returns that first 201 instead of adding the reply twice, while a rejection is never stored, so a retry with the same key is decided again. Answers 201 with the task, whose `claudeThread.correctionState` is `queued`, or already `running` if a worker picked the correction up at once; poll the task list while it is queued, running or retrying. Rejections carry a machine-readable `code`: 404 `task_not_found`; 409 `not_processed_by_server` (MCP or device tasks), `not_completed`, `correction_in_flight`, `reply_limit_reached` (5 answered replies per task; a reply whose correction failed does not count); 403 `processor_unavailable` (Claude is off, not configured or not granted), `budget_exhausted`; 429 `rate_limited` (20 replies per user in 24 hours) or `failed_too_often` (3 corrections of this task failed in the last 24 hours), both with `Retry-After`. The idempotency layer can also answer 422 `{ error: "idempotency_key_reused" }` (the key was used for another request) and 503 `{ error: "request_in_progress" }` with `Retry-After` (a request with the same key is still running).',
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: aiTaskReplyCreateSchema } }
+			},
+			responses: {
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: aiTaskResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'403': {
+					description:
+						'Claude is not available to the user right now (`processor_unavailable`, `budget_exhausted`)',
+					content: { 'application/json': { schema: aiTaskReplyErrorResponseSchema } }
+				},
+				'404': {
+					description: 'Task not found (`task_not_found`)',
+					content: { 'application/json': { schema: aiTaskReplyErrorResponseSchema } }
+				},
+				'409': {
+					description:
+						'The task cannot take a reply (`not_processed_by_server`, `not_completed`, `correction_in_flight`, `reply_limit_reached`)',
+					content: { 'application/json': { schema: aiTaskReplyErrorResponseSchema } }
+				},
+				'422': {
+					description:
+						'The Idempotency-Key was already used for a different request (`{ error: "idempotency_key_reused" }`)',
+					content: { 'application/json': { schema: errorResponseSchema } }
+				},
+				'429': {
+					description:
+						'Too many replies by this user in the last 24 hours (`rate_limited`), or too many failed corrections of this task (`failed_too_often`)',
+					headers: retryAfterHeaders,
+					content: { 'application/json': { schema: aiTaskReplyErrorResponseSchema } }
+				},
+				'503': {
+					description:
+						'A request with the same Idempotency-Key is still running (`{ error: "request_in_progress" }`); retry after `Retry-After` seconds',
+					headers: retryAfterHeaders,
+					content: { 'application/json': { schema: errorResponseSchema } }
+				}
 			}
 		}
 	},

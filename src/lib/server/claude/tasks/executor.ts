@@ -7,7 +7,9 @@ import { assertClaudeAllowed, getClaudeHeadroom, type ClaudeHeadroom } from '../
 import { ClaudeGateError, ClaudeProcessorChangedError } from '../errors';
 import { isClaudeConfigured } from '../config';
 import { onClaudeAccessChanged } from '../events';
-import { processTask } from './processor';
+import { processCorrection } from './correction';
+import { failCorrectionsWithoutProcessor } from './corrections';
+import { processTask, type ProcessOptions, type ProcessResult } from './processor';
 import { ensureRun } from './runs';
 
 const MAX_CONCURRENCY = 2;
@@ -16,7 +18,10 @@ const SWEEP_LIMIT = 50;
 
 const instanceId = crypto.randomUUID();
 
-type Job = { taskId: string; userId: string };
+// A task's first run, or a correction a reply on the completed task started.
+type Job = { taskId: string; userId: string; kind?: 'correction' };
+
+const jobKey = (job: Job) => `${job.kind ?? 'run'}:${job.taskId}`;
 
 const queue: Job[] = [];
 const queuedIds = new Set<string>();
@@ -34,28 +39,37 @@ function pump(): void {
 	}
 }
 
+const runProcessor = (job: Job, options: ProcessOptions): Promise<ProcessResult> =>
+	job.kind === 'correction'
+		? processCorrection(job.taskId, options)
+		: processTask(job.taskId, options);
+
 async function runJob(job: Job): Promise<void> {
+	const key = jobKey(job);
 	const controller = new AbortController();
-	controllers.set(job.taskId, { userId: job.userId, controller });
+	controllers.set(key, { userId: job.userId, controller });
 	activeUsers.add(job.userId);
 	let again = false;
 	try {
-		again =
-			(await processTask(job.taskId, { signal: controller.signal, instanceId })) === 'requeued';
+		again = (await runProcessor(job, { signal: controller.signal, instanceId })) === 'requeued';
 	} catch (error) {
-		Sentry.captureException(error, { tags: { job: 'claude-task' }, extra: { taskId: job.taskId } });
+		Sentry.captureException(error, {
+			tags: { job: job.kind === 'correction' ? 'claude-correction' : 'claude-task' },
+			extra: { taskId: job.taskId }
+		});
 	} finally {
-		controllers.delete(job.taskId);
+		controllers.delete(key);
 		activeUsers.delete(job.userId);
-		queuedIds.delete(job.taskId);
+		queuedIds.delete(key);
 		if (again) push(job);
 		else pump();
 	}
 }
 
 function push(job: Job): void {
-	if (queuedIds.has(job.taskId)) return;
-	queuedIds.add(job.taskId);
+	const key = jobKey(job);
+	if (queuedIds.has(key)) return;
+	queuedIds.add(key);
 	queue.push(job);
 	pump();
 }
@@ -80,6 +94,10 @@ const OPEN_RUN_STATES = ['queued', 'retry_wait', 'blocked', 'proposed'];
 
 export function wakeClaudeRun(taskId: string, userId: string): void {
 	push({ taskId, userId });
+}
+
+export function wakeClaudeCorrection(taskId: string, userId: string): void {
+	push({ taskId, userId, kind: 'correction' });
 }
 
 export async function requeueRunForEditedTask(
@@ -198,11 +216,32 @@ export async function sweepClaudeTasks(): Promise<void> {
 		await ensureRun(candidate.user_id, candidate.id);
 		push({ taskId: candidate.id, userId: candidate.user_id });
 	}
+
+	// Corrections need no headroom check here: a reply was only accepted while
+	// Claude was available, and a run that finds a gate closed tells the user
+	// in the thread instead of waiting silently.
+	const corrections = (await getDB().execute(sql`
+		SELECT c.task_id AS id, c.user_id FROM claude_task_corrections c
+		WHERE c.state = 'queued'
+			OR (c.state = 'retry_wait' AND c.next_attempt_at <= now())
+			OR (c.state = 'running' AND c.lease_expires_at < now())
+		ORDER BY c.updated_at
+		LIMIT ${SWEEP_LIMIT}
+	`)) as unknown as Candidate[];
+	for (const candidate of corrections) {
+		push({ taskId: candidate.id, userId: candidate.user_id, kind: 'correction' });
+	}
 }
 
 export function startClaudeWorker(): void {
-	if (started || !isClaudeConfigured()) return;
+	if (started) return;
 	started = true;
+	if (!isClaudeConfigured()) {
+		failCorrectionsWithoutProcessor().catch((error) => {
+			Sentry.captureException(error, { tags: { job: 'claude-corrections-unconfigured' } });
+		});
+		return;
+	}
 	onClaudeAccessChanged(({ userId }) => abortClaudeRunsWhereGated(userId));
 	const sweep = () => {
 		sweepClaudeTasks().catch((error) => {

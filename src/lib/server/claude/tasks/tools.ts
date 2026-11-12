@@ -28,20 +28,22 @@ import { ALL_NUTRIENTS } from '$lib/nutrients';
 import { servingUnitValues } from '$lib/units';
 import { entryCreateSchema, foodCreateSchema } from '../../validation';
 import { ClaudeAbortedError, LeaseLostError } from '../errors';
+import { addOpenFoodFactsDetail } from './off-detail';
 import { completeByModel, dismissByModel, type OutcomeContext } from './outcomes';
 import { ledgerGetOrCreate, loadRun, transitionFenced, withFence } from './runs';
+import { recordTaskFoods } from './task-scope';
 import type { Fence, Proposal, ProposalItem, TaskMode, TaskOutcome } from './types';
 
 export const TOOL_RESULT_MAX_CHARS = 8000;
 
 type JsonType = 'string' | 'number' | 'integer';
-const nullable = (type: JsonType, description: string) => ({
+export const nullable = (type: JsonType, description: string) => ({
 	anyOf: [{ type }, { type: 'null' }],
 	description
 });
-const text = (description: string) => ({ type: 'string', description });
+export const text = (description: string) => ({ type: 'string', description });
 
-const strictTool = (
+export const strictTool = (
 	name: string,
 	description: string,
 	properties: Record<string, unknown>
@@ -70,8 +72,8 @@ const CREATE_FOOD_WITH_DATABASE_DESCRIPTION = createFoodDescription(
 	' With fdcId from search_nutrient_database in this task and a serving by weight, the server compares your calories and macros with that record scaled to the serving, refuses a large difference, and otherwise fills every nutrient you did not list.'
 );
 
-const NUTRIENT_KEYS = ALL_NUTRIENTS.map((n) => n.key);
-const NUTRIENT_LIST = ALL_NUTRIENTS.map((n) => `${n.key} (${n.unit})`).join(', ');
+export const NUTRIENT_KEYS = ALL_NUTRIENTS.map((n) => n.key);
+export const NUTRIENT_LIST = ALL_NUTRIENTS.map((n) => `${n.key} (${n.unit})`).join(', ');
 
 const createFoodTool = (nutrientDatabase: boolean) =>
 	strictTool(
@@ -106,10 +108,11 @@ const createFoodTool = (nutrientDatabase: boolean) =>
 			},
 			...(nutrientDatabase
 				? {
-						fdcId: nullable(
-							'integer',
-							'fdcId of the search_nutrient_database result in this task that describes this food, or null. Only for a servingUnit of g, kg, oz or lb.'
-						)
+						fdcId: {
+							type: 'integer',
+							description:
+								'fdcId of the search_nutrient_database result in this task that describes this food, or 0 when no record applies. Only for a servingUnit of g, kg, oz or lb.'
+						}
 					}
 				: {}),
 			barcode: nullable('string', 'Barcode digits, when visible'),
@@ -123,7 +126,7 @@ const nutrientDatabaseTool = strictTool(
 	{ query: text('Food name in English, for example "pear raw" or "chicken breast roasted"') }
 );
 
-const toolDefinitions = (nutrientDatabase: boolean): Anthropic.Tool[] => [
+export const toolDefinitions = (nutrientDatabase: boolean): Anthropic.Tool[] => [
 	strictTool(
 		'search_foods',
 		"Search the user's saved foods by name. Foods the user logged recently come first. Returns serving size and per-serving macros.",
@@ -194,7 +197,7 @@ const toolDefinitions = (nutrientDatabase: boolean): Anthropic.Tool[] => [
 	)
 ];
 
-const withCacheBreakpoint = (tools: Anthropic.Tool[]): Anthropic.Tool[] =>
+export const withCacheBreakpoint = (tools: Anthropic.Tool[]): Anthropic.Tool[] =>
 	tools.map((tool, index) =>
 		index === tools.length - 1 ? { ...tool, cache_control: { type: 'ephemeral' } } : tool
 	);
@@ -205,9 +208,9 @@ const TOOLS_WITHOUT_DATABASE = withCacheBreakpoint(toolDefinitions(false));
 export const taskTools = (nutrientDatabase: boolean): Anthropic.Tool[] =>
 	nutrientDatabase ? TOOLS_WITH_DATABASE : TOOLS_WITHOUT_DATABASE;
 
-const optionalNumber = z.number().nonnegative().nullish();
+export const optionalNumber = z.number().nonnegative().nullish();
 
-const inputSchemas = {
+export const inputSchemas = {
 	search_foods: z.object({
 		query: z.string().min(1).max(200),
 		limit: z.number().int().min(1).nullish()
@@ -235,7 +238,9 @@ const inputSchemas = {
 				z.object({ nutrient: z.enum(NUTRIENT_KEYS as [string, ...string[]]), amount: z.number() })
 			)
 			.default([]),
-		fdcId: z.number().int().positive().nullish(),
+		// 0 means no record: a required integer keeps the strict schema free of a
+		// union type (see the complexity limits in tool-limits.test.ts).
+		fdcId: z.number().int().nonnegative().nullish(),
 		barcode: z.string().nullish(),
 		ingredientsText: z.string().default('')
 	}),
@@ -269,6 +274,9 @@ export type TaskToolContext = {
 	createdFoods: Map<string, FoodToolResult>;
 	nutrientRecords: Set<number>;
 	signal?: AbortSignal;
+	// What create_food tells the model about a food it only stages (REVIEW mode,
+	// corrections). Defaults to the REVIEW wording.
+	provisionalNote?: string;
 };
 
 type ProvisionalFood = Record<string, unknown>;
@@ -279,7 +287,7 @@ export type ToolResult = { content: string; isError: boolean; outcome?: TaskOutc
 export const isTerminalTool = (name: string) =>
 	name === 'complete_ai_task' || name === 'dismiss_ai_task';
 
-class ToolInputError extends Error {
+export class ToolInputError extends Error {
 	constructor(
 		message: string,
 		readonly details: Record<string, unknown> = {}
@@ -319,10 +327,10 @@ const trimBarcodeResult = (result: Record<string, unknown>) => {
 	return trimmed;
 };
 
-const perServing = (value: unknown, servings: number) =>
+export const perServing = (value: unknown, servings: number) =>
 	servings > 0 ? Math.round((Number(value ?? 0) / servings) * 100) / 100 : 0;
 
-const asRecord = (value: unknown): Record<string, unknown> =>
+export const asRecord = (value: unknown): Record<string, unknown> =>
 	value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 
 const DEFAULT_MEAL_TIME: Record<string, string> = {
@@ -332,13 +340,13 @@ const DEFAULT_MEAL_TIME: Record<string, string> = {
 	Snacks: '15:30'
 };
 
-const instantToIso = async (expression: ReturnType<typeof sql>): Promise<string> => {
+export const instantToIso = async (expression: ReturnType<typeof sql>): Promise<string> => {
 	const rows = await getDB().execute(sql`SELECT (extract(epoch FROM ${expression}) * 1000) AS ms`);
 	return new Date(Number((rows as unknown as { ms: string }[])[0]!.ms)).toISOString();
 };
 
-async function resolveEatenAt(
-	ctx: TaskToolContext,
+export async function resolveEatenAt(
+	ctx: Pick<TaskToolContext, 'task' | 'timeZone'>,
 	mealType: string,
 	value: string | null | undefined
 ): Promise<string> {
@@ -396,20 +404,20 @@ async function fillFromDatabase(
 ): Promise<{ data: FoodCreateInput; source: Record<string, unknown> }> {
 	if (!ctx.nutrientRecords.has(fdcId)) {
 		throw new ToolInputError(
-			`fdcId ${fdcId} did not come from search_nutrient_database in this task. Search first and pass one of its fdcIds, or pass null.`
+			`fdcId ${fdcId} did not come from search_nutrient_database in this task. Search first and pass one of its fdcIds, or pass 0.`
 		);
 	}
 	const scale = fdcServingScale(data.servingSize, data.servingUnit);
 	if (scale === null) {
 		throw new ToolInputError(
-			`A nutrient database record can only be applied to a serving given in g, kg, oz or lb, not ${data.servingUnit}. Nothing was created. Give the serving by weight, or pass fdcId null.`
+			`A nutrient database record can only be applied to a serving given in g, kg, oz or lb, not ${data.servingUnit}. Nothing was created. Give the serving by weight, or pass fdcId 0.`
 		);
 	}
 	const record = await getFdcFood(ctx.userId, fdcId, ctx.signal);
 	const comparison = compareWithRecord(record, data, scale);
 	if (!comparison.matches) {
 		throw new ToolInputError(
-			`Your ${comparison.mismatched.join(', ')} for ${data.servingSize} ${data.servingUnit} do not match record ${fdcId} "${record.description}" scaled to that serving. Nothing was created. If you took these numbers from the database, use recordPerServing instead. If they come from a label or Open Food Facts, keep them and pick another record or pass fdcId null.`,
+			`Your ${comparison.mismatched.join(', ')} for ${data.servingSize} ${data.servingUnit} do not match record ${fdcId} "${record.description}" scaled to that serving. Nothing was created. If you took these numbers from the database, use recordPerServing instead. If they come from a label or Open Food Facts, keep them and pick another record or pass fdcId 0.`,
 			{ recordPerServing: comparison.recordPerServing }
 		);
 	}
@@ -432,8 +440,10 @@ async function fillFromDatabase(
 	};
 }
 
-async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<FoodToolResult> {
-	const { nutrients, fdcId, ...fields } = inputSchemas.create_food.parse(input);
+function parseCreateFood(input: unknown) {
+	const args = inputSchemas.create_food.safeParse(input);
+	if (!args.success) return args;
+	const { nutrients, fdcId, ...fields } = args.data;
 	const explicit = Object.fromEntries(nutrients.map(({ nutrient, amount }) => [nutrient, amount]));
 	const parsed = foodCreateSchema.safeParse({
 		...Object.fromEntries(
@@ -441,9 +451,26 @@ async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<
 		),
 		...explicit
 	});
-	if (!parsed.success) throw parsed.error;
+	if (!parsed.success) return parsed;
+	return {
+		success: true as const,
+		data: parsed.data,
+		explicit,
+		fdcId,
+		hash: hashPayload({ ...parsed.data, fdcId: fdcId || null })
+	};
+}
 
-	const hash = hashPayload({ ...parsed.data, fdcId: fdcId ?? null });
+/** The food a create_food call names, the same for repeated calls; null for invalid input. */
+export function createFoodKey(input: unknown): string | null {
+	const parsed = parseCreateFood(input);
+	return parsed.success ? parsed.hash : null;
+}
+
+async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<FoodToolResult> {
+	const parsed = parseCreateFood(input);
+	if (!parsed.success) throw parsed.error;
+	const { explicit, fdcId, hash } = parsed;
 	const known = ctx.createdFoods.get(hash);
 	if (known) return known;
 
@@ -470,7 +497,9 @@ async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<
 			foodId,
 			...pick(data, FOOD_RESULT_FIELDS),
 			...nutrientSource,
-			note: 'Not saved yet: the food is created only if the user accepts the logged item. Pass this foodId to log_food.'
+			note:
+				ctx.provisionalNote ??
+				'Not saved yet: the food is created only if the user accepts the logged item. Pass this foodId to log_food.'
 		};
 	} else {
 		await withFence(ctx.fence, async () => undefined);
@@ -478,6 +507,10 @@ async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<
 		if (!created.success) {
 			throw new ToolInputError(String(created.error ?? 'Could not create the food'));
 		}
+		await recordTaskFoods(getDB(), ctx.task.id, [String(created.foodId)]);
+		await addOpenFoodFactsDetail(ctx.userId, [
+			{ id: String(created.foodId), barcode: asRecord(created.food).barcode as string | null }
+		]);
 		result = {
 			foodId: created.foodId,
 			...pick(asRecord(created.food), FOOD_RESULT_FIELDS),
@@ -488,10 +521,10 @@ async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<
 	return result;
 }
 
-async function logFood(
-	input: z.infer<(typeof inputSchemas)['log_food']>,
-	ctx: TaskToolContext
-): Promise<unknown> {
+export type LogInput = z.infer<(typeof inputSchemas)['log_food']>;
+
+/** Validates a log_food call into the entry it would create, without writing anything. */
+export async function prepareLog(input: LogInput, ctx: TaskToolContext) {
 	const mealType = ctx.task.mealType ?? input.mealType;
 	if (!mealType) throw new ToolInputError('mealType is required because the task has none');
 
@@ -524,6 +557,12 @@ async function logFood(
 	const name = input.quickName ?? String(food?.name ?? recipe?.name ?? 'entry');
 	const eatenAt = await resolveEatenAt(ctx, parsed.data.mealType, input.eatenAt);
 	const payload = { ...normalizedPayload, eatenAt };
+	return { parsed, normalizedPayload, payload, name, eatenAt, food, recipe, provisional };
+}
+
+async function logFood(input: LogInput, ctx: TaskToolContext): Promise<unknown> {
+	const { parsed, normalizedPayload, payload, name, eatenAt, food, recipe, provisional } =
+		await prepareLog(input, ctx);
 
 	if (ctx.mode === 'review') {
 		const per = food ?? {
@@ -664,60 +703,79 @@ async function execute(name: string, input: unknown, ctx: TaskToolContext): Prom
 	}
 }
 
-const truncate = (value: string) =>
+export const truncate = (value: string) =>
 	value.length > TOOL_RESULT_MAX_CHARS ? value.slice(0, TOOL_RESULT_MAX_CHARS) : value;
 
-const failure = (message: string, details: Record<string, unknown> = {}): ToolResult => ({
+export const failure = (message: string, details: Record<string, unknown> = {}): ToolResult => ({
 	content: truncate(JSON.stringify({ error: message, ...details })),
 	isError: true
 });
+
+/**
+ * The result the model sees for an error that is the model's to fix (bad input,
+ * a refused value, a missing food). Anything else is rethrown.
+ */
+export function toolErrorResult(error: unknown, signal: AbortSignal | undefined): ToolResult {
+	if (error instanceof LeaseLostError) throw error;
+	if (signal?.aborted) throw new ClaudeAbortedError();
+	if (isZodError(error)) {
+		return {
+			content: truncate(
+				JSON.stringify({
+					error: 'validation_failed',
+					issues: error.issues.map((issue) => ({
+						path: issue.path.join('.'),
+						message: issue.message
+					}))
+				})
+			),
+			isError: true
+		};
+	}
+	if (error instanceof ToolInputError) return failure(error.message, error.details);
+	if (error instanceof McpUserError || error instanceof NutrientDatabaseError) {
+		return failure(error.message);
+	}
+	if (error instanceof ApiError && error.status < 500) return failure(error.message);
+	throw error;
+}
+
+/** The read tools, create_food and log_food, without the terminal tools of a first run. */
+export async function runSharedTool(
+	name: string,
+	input: unknown,
+	ctx: TaskToolContext
+): Promise<ToolResult> {
+	try {
+		return { content: truncate(JSON.stringify(await execute(name, input, ctx))), isError: false };
+	} catch (error) {
+		return toolErrorResult(error, ctx.signal);
+	}
+}
 
 export async function runTaskTool(
 	name: string,
 	input: unknown,
 	ctx: TaskToolContext
 ): Promise<ToolResult> {
+	if (!isTerminalTool(name)) return runSharedTool(name, input, ctx);
 	try {
-		if (isTerminalTool(name)) {
-			const outcomeCtx: OutcomeContext = {
-				fence: ctx.fence,
-				userId: ctx.userId,
-				taskId: ctx.task.id,
-				locale: ctx.locale
-			};
-			const outcome =
-				name === 'complete_ai_task'
-					? await completeByModel(
-							outcomeCtx,
-							ctx.mode,
-							inputSchemas.complete_ai_task.parse(input).resultSummary
-						)
-					: await dismissByModel(outcomeCtx, inputSchemas.dismiss_ai_task.parse(input).reason);
-			return { content: JSON.stringify({ success: true }), isError: false, outcome };
-		}
-		return { content: truncate(JSON.stringify(await execute(name, input, ctx))), isError: false };
+		const outcomeCtx: OutcomeContext = {
+			fence: ctx.fence,
+			userId: ctx.userId,
+			taskId: ctx.task.id,
+			locale: ctx.locale
+		};
+		const outcome =
+			name === 'complete_ai_task'
+				? await completeByModel(
+						outcomeCtx,
+						ctx.mode,
+						inputSchemas.complete_ai_task.parse(input).resultSummary
+					)
+				: await dismissByModel(outcomeCtx, inputSchemas.dismiss_ai_task.parse(input).reason);
+		return { content: JSON.stringify({ success: true }), isError: false, outcome };
 	} catch (error) {
-		if (error instanceof LeaseLostError) throw error;
-		if (ctx.signal?.aborted) throw new ClaudeAbortedError();
-		if (isZodError(error)) {
-			return {
-				content: truncate(
-					JSON.stringify({
-						error: 'validation_failed',
-						issues: error.issues.map((issue) => ({
-							path: issue.path.join('.'),
-							message: issue.message
-						}))
-					})
-				),
-				isError: true
-			};
-		}
-		if (error instanceof ToolInputError) return failure(error.message, error.details);
-		if (error instanceof McpUserError || error instanceof NutrientDatabaseError) {
-			return failure(error.message);
-		}
-		if (error instanceof ApiError && error.status < 500) return failure(error.message);
-		throw error;
+		return toolErrorResult(error, ctx.signal);
 	}
 }

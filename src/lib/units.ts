@@ -57,6 +57,24 @@ export const unitConversionFactor = (from: ServingUnit, to: ServingUnit): number
 };
 
 /**
+ * Factor from per-100 g (mass) or per-100 ml (volume) values to one serving,
+ * for databases that publish nutrients that way (Open Food Facts, FoodData
+ * Central). Null when the serving's dimension is not accepted, the serving is
+ * not positive, or the unit is cup/tbsp/tsp, whose factors are rounded.
+ */
+export const per100Scale = (
+	servingSize: number,
+	servingUnit: ServingUnit,
+	dimensions: readonly UnitDimension[]
+): number | null => {
+	if (['cup', 'tbsp', 'tsp'].includes(servingUnit) || !(servingSize > 0)) return null;
+	const dimension = unitDimension(servingUnit);
+	if (!dimensions.includes(dimension)) return null;
+	const factor = unitConversionFactor(servingUnit, dimension === 'mass' ? 'g' : 'ml');
+	return factor === null ? null : (servingSize * factor) / 100;
+};
+
+/**
  * Converts an ingredient quantity given in `from` units into the equivalent
  * quantity in `to` units, for use in macro math (`amount * quantity /
  * food.servingSize`, where `food.servingSize` is expressed in `to` units).

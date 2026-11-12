@@ -6,6 +6,7 @@ import { strToU8, zip, type Zippable } from 'fflate';
 import { getDB } from './db';
 import {
 	aiTasks,
+	claudeTaskMessages,
 	customMealTypes,
 	dayProperties,
 	fastingSessions,
@@ -83,7 +84,8 @@ async function gatherData(userId: string) {
 		[preferences],
 		mealTypeRows,
 		timeframeRows,
-		aiTaskRows
+		aiTaskRows,
+		aiTaskMessageRows
 	] = await Promise.all([
 		db
 			.select({
@@ -230,7 +232,20 @@ async function gatherData(userId: string) {
 			.from(favoriteMealTimeframes)
 			.where(eq(favoriteMealTimeframes.userId, userId))
 			.orderBy(asc(favoriteMealTimeframes.sortOrder)),
-		db.select().from(aiTasks).where(eq(aiTasks.userId, userId)).orderBy(asc(aiTasks.createdAt))
+		db.select().from(aiTasks).where(eq(aiTasks.userId, userId)).orderBy(asc(aiTasks.createdAt)),
+		db
+			.select({
+				id: claudeTaskMessages.id,
+				taskId: claudeTaskMessages.taskId,
+				role: claudeTaskMessages.role,
+				text: claudeTaskMessages.text,
+				outcome: claudeTaskMessages.outcome,
+				readAt: claudeTaskMessages.readAt,
+				createdAt: claudeTaskMessages.createdAt
+			})
+			.from(claudeTaskMessages)
+			.where(eq(claudeTaskMessages.userId, userId))
+			.orderBy(asc(claudeTaskMessages.createdAt))
 	]);
 
 	return {
@@ -252,7 +267,9 @@ async function gatherData(userId: string) {
 		preferences: preferences ? stripUserId([preferences])[0] : null,
 		customMealTypes: stripUserId(mealTypeRows),
 		favoriteMealTimeframes: stripUserId(timeframeRows),
-		aiTasks: stripUserId(aiTaskRows)
+		aiTasks: stripUserId(aiTaskRows),
+		// Replies to Claude on processed tasks and Claude's answers, oldest first.
+		aiTaskMessages: aiTaskMessageRows
 	};
 }
 

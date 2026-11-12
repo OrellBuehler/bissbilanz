@@ -2,6 +2,7 @@ import { and, eq, exists, inArray, lt, lte, notExists, or, sql } from 'drizzle-o
 import { getDB } from '../../db';
 import {
 	aiTasks,
+	claudeTaskCorrections,
 	claudeTaskLedger,
 	claudeTaskRuns,
 	foodEntries,
@@ -16,7 +17,7 @@ export type RunTx = Parameters<Parameters<ReturnType<typeof getDB>['transaction'
 
 export const MAX_FAILURES = 3;
 
-const leaseUntil = () => sql`now() + interval '3 minutes'`;
+export const leaseUntil = () => sql`now() + interval '3 minutes'`;
 
 export async function ensureRun(userId: string, taskId: string): Promise<void> {
 	await getDB().insert(claudeTaskRuns).values({ taskId, userId }).onConflictDoNothing();
@@ -112,28 +113,50 @@ const fenceWhere = (fence: Fence) =>
 		eq(claudeTaskRuns.attempt, fence.attempt)
 	);
 
+export const correctionFenceWhere = (fence: Fence) =>
+	and(
+		eq(claudeTaskCorrections.taskId, fence.taskId),
+		eq(claudeTaskCorrections.leaseOwner, fence.instance),
+		eq(claudeTaskCorrections.attempt, fence.attempt)
+	);
+
 export async function heartbeat(fence: Fence): Promise<boolean> {
-	const rows = await getDB()
-		.update(claudeTaskRuns)
-		.set({ leaseExpiresAt: leaseUntil(), updatedAt: sql`now()` })
-		.where(fenceWhere(fence))
-		.returning({ taskId: claudeTaskRuns.taskId });
+	const db = getDB();
+	const rows =
+		fence.kind === 'correction'
+			? await db
+					.update(claudeTaskCorrections)
+					.set({ leaseExpiresAt: leaseUntil(), updatedAt: sql`now()` })
+					.where(correctionFenceWhere(fence))
+					.returning({ taskId: claudeTaskCorrections.taskId })
+			: await db
+					.update(claudeTaskRuns)
+					.set({ leaseExpiresAt: leaseUntil(), updatedAt: sql`now()` })
+					.where(fenceWhere(fence))
+					.returning({ taskId: claudeTaskRuns.taskId });
 	return rows.length > 0;
 }
 
 export async function withFence<T>(fence: Fence, fn: (tx: RunTx) => Promise<T>): Promise<T> {
 	return getDB().transaction(async (tx) => {
-		// Same order as acceptProposal: task row first, then the run row.
+		// Same order as acceptProposal and posting a reply: task row first, then the run row.
 		await tx
 			.select({ one: sql`1` })
 			.from(aiTasks)
 			.where(eq(aiTasks.id, fence.taskId))
 			.for('update');
-		const held = await tx
-			.select({ one: sql`1` })
-			.from(claudeTaskRuns)
-			.where(fenceWhere(fence))
-			.for('update');
+		const held =
+			fence.kind === 'correction'
+				? await tx
+						.select({ one: sql`1` })
+						.from(claudeTaskCorrections)
+						.where(correctionFenceWhere(fence))
+						.for('update')
+				: await tx
+						.select({ one: sql`1` })
+						.from(claudeTaskRuns)
+						.where(fenceWhere(fence))
+						.for('update');
 		if (held.length === 0) throw new LeaseLostError();
 		return fn(tx);
 	});

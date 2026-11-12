@@ -269,6 +269,19 @@ describe('foods-db', () => {
 			expect(new PgDialect().sqlToQuery(where).sql).toContain('guard');
 		});
 
+		test('a write can run in a given transaction', async () => {
+			const tx = createMockDB();
+			tx.setResult([TEST_FOOD]);
+			const result = await updateFood(TEST_USER.id, TEST_FOOD.id, { sodium: 60 }, null, {
+				tx: tx.db as never
+			});
+			expect(result.success).toBe(true);
+			expect(getCalls()).toHaveLength(0);
+			expect(tx.getCalls().find((call) => call.method === 'set')!.args[0]).toMatchObject({
+				sodium: 60
+			});
+		});
+
 		test('a server write can leave the last-write-wins clock alone', async () => {
 			setResult([TEST_FOOD]);
 			await updateFood(TEST_USER.id, TEST_FOOD.id, { nutriScore: 'b' }, null, {

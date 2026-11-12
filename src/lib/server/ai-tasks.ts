@@ -1,8 +1,25 @@
 import { getDB } from '$lib/server/db';
-import { aiTasks, aiTaskStatusValues, type AiTaskProcessedByKind } from '$lib/server/schema';
+import {
+	aiTasks,
+	aiTaskStatusValues,
+	claudeTaskMessages,
+	type AiTaskProcessedByKind
+} from '$lib/server/schema';
 import type { TxOrDb } from '$lib/server/ownership';
 import { MAX_AI_TASK_PHOTOS, aiTaskCreateSchema, aiTaskUpdateSchema } from '$lib/server/validation';
-import { and, count, desc, eq, inArray, isNotNull, isNull, lt } from 'drizzle-orm';
+import {
+	and,
+	count,
+	desc,
+	eq,
+	gte,
+	inArray,
+	isNotNull,
+	isNull,
+	lt,
+	notExists,
+	sql
+} from 'drizzle-orm';
 import type { Result } from '$lib/server/types';
 import { lwwGuard, lwwStamp } from '$lib/server/sync/conflict';
 import { ApiError } from '$lib/server/errors';
@@ -11,6 +28,7 @@ import { unlinkUploads } from '$lib/server/images';
 import { getUserTimeZone } from '$lib/server/preferences';
 import { todayInTimeZone } from '$lib/utils/dates';
 import type { serializeClaudeProcessing } from '$lib/server/claude/tasks/proposal';
+import type { ClaudeThread } from '$lib/server/claude/tasks/replies';
 import { legacyProcessedBy } from '$lib/server/ai-task-kinds';
 
 const CLEANUP_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -19,20 +37,23 @@ const CLEANUP_AGE_MS = 30 * 24 * 60 * 60 * 1000;
  * Response shape for a task. `photoUrls` is the column; `photoUrl` mirrors its
  * first entry so mobile builds shipped before multi-photo keep rendering it.
  * `processedBy` never carries 'claude' (shipped iOS builds cannot decode it):
- * the raw value is in `processedByKind`.
+ * the raw value is in `processedByKind`. Everything newer is an optional key
+ * (`claudeProcessing`, `claudeThread`), so builds that predate it decode as before.
  */
 export const serializeAiTask = <
 	T extends { photoUrls: string[] | null; processedBy: string | null }
 >(
 	task: T,
-	claudeProcessing: ReturnType<typeof serializeClaudeProcessing> = null
+	claudeProcessing: ReturnType<typeof serializeClaudeProcessing> = null,
+	claudeThread: ClaudeThread | null = null
 ) => ({
 	...task,
 	photoUrls: task.photoUrls ?? [],
 	photoUrl: task.photoUrls?.[0] ?? null,
 	processedBy: legacyProcessedBy(task.processedBy),
 	processedByKind: task.processedBy,
-	claudeProcessing
+	claudeProcessing,
+	claudeThread
 });
 
 /**
@@ -316,12 +337,32 @@ export const deleteAiTask = async (userId: string, id: string): Promise<boolean>
 	return !!deleted;
 };
 
+/**
+ * Deletes resolved tasks 30 days after they were last changed, or after the
+ * last message of a conversation about them, whichever is later.
+ */
 export const cleanupAiTasks = async (): Promise<void> => {
 	const db = getDB();
 	const cutoff = new Date(Date.now() - CLEANUP_AGE_MS);
 	const deleted = await db
 		.delete(aiTasks)
-		.where(and(inArray(aiTasks.status, ['completed', 'dismissed']), lt(aiTasks.updatedAt, cutoff)))
+		.where(
+			and(
+				inArray(aiTasks.status, ['completed', 'dismissed']),
+				lt(aiTasks.updatedAt, cutoff),
+				notExists(
+					db
+						.select({ one: sql`1` })
+						.from(claudeTaskMessages)
+						.where(
+							and(
+								eq(claudeTaskMessages.taskId, aiTasks.id),
+								gte(claudeTaskMessages.createdAt, cutoff)
+							)
+						)
+				)
+			)
+		)
 		.returning({ photoUrls: aiTasks.photoUrls, userId: aiTasks.userId });
 	await Promise.all(deleted.map((row) => unlinkUploads(row.photoUrls ?? [], row.userId)));
 };

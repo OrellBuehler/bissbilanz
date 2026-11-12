@@ -48,9 +48,22 @@ export const aiTaskUpdateSchema = z
 
 export const aiTaskAcknowledgeSchema = z
 	.object({
-		ids: z.array(z.string().uuid()).max(100).optional()
+		ids: z.array(z.string().uuid()).max(100).optional(),
+		replyIds: z.array(z.string().uuid()).max(100).optional().meta({
+			description:
+				"Ids of Claude's answers (claudeThread messages) the client has shown, to mark as read. Only the named messages change, so an answer that arrived after the client's last read stays unread. Sent without `ids`, no task is acknowledged."
+		})
 	})
 	.meta({ id: 'AiTaskAcknowledge' });
+
+/** A reply corrects one meal; a longer text is not a correction any more. */
+export const AI_TASK_REPLY_MAX_CHARS = 1000;
+
+export const aiTaskReplyCreateSchema = z
+	.object({
+		text: z.string().trim().min(1).max(AI_TASK_REPLY_MAX_CHARS)
+	})
+	.meta({ id: 'AiTaskReplyCreate' });
 
 export const aiTaskListQuerySchema = paginationSchema
 	.extend({

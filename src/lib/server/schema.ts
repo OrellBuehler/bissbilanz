@@ -87,6 +87,18 @@ export const claudeFailureCodeValues = [
 	'claude_stopped'
 ] as const;
 export type ClaudeFailureCode = (typeof claudeFailureCodeValues)[number];
+export const claudeCorrectionStateValues = [
+	'queued',
+	'running',
+	'retry_wait',
+	'succeeded',
+	'failed'
+] as const;
+export type ClaudeCorrectionState = (typeof claudeCorrectionStateValues)[number];
+export const claudeTaskMessageRoleValues = ['user', 'assistant'] as const;
+export type ClaudeTaskMessageRole = (typeof claudeTaskMessageRoleValues)[number];
+export const claudeTaskMessageOutcomeValues = ['answered', 'changed', 'failed'] as const;
+export type ClaudeTaskMessageOutcome = (typeof claudeTaskMessageOutcomeValues)[number];
 export const adminAuditActionValues = [
 	'admin.grant',
 	'admin.revoke',
@@ -1112,6 +1124,100 @@ export const claudeTaskLedger = pgTable(
 );
 
 export type ClaudeTaskLedgerRow = typeof claudeTaskLedger.$inferSelect;
+
+// The conversation on a task Claude completed: the user's replies and Claude's
+// answers, oldest first. userId is the task's owner, kept for the reply rate
+// limit and the account export.
+export const claudeTaskMessages = pgTable(
+	'claude_task_messages',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		taskId: uuid('task_id')
+			.notNull()
+			.references(() => aiTasks.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		role: text('role').notNull(),
+		text: text('text').notNull(),
+		// Claude's messages only: whether the correction changed the diary, only
+		// answered, or did not work.
+		outcome: text('outcome'),
+		// Claude's messages only: null until the user has seen the answer.
+		readAt: timestamp('read_at', { withTimezone: true }),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		index('idx_claude_task_messages_task').on(table.taskId, table.createdAt),
+		index('idx_claude_task_messages_user').on(table.userId, table.role, table.createdAt),
+		check(
+			'claude_task_messages_role_valid',
+			sql`${table.role} IN (${sqlInList(claudeTaskMessageRoleValues)})`
+		),
+		check(
+			'claude_task_messages_outcome_valid',
+			sql`${table.outcome} IS NULL OR ${table.outcome} IN (${sqlInList(claudeTaskMessageOutcomeValues)})`
+		)
+	]
+);
+
+export type ClaudeTaskMessage = typeof claudeTaskMessages.$inferSelect;
+
+// The correction run a reply starts, one row per task reused by every reply.
+// Same lease and fencing as claude_task_runs: attempt is +1 on every claim.
+export const claudeTaskCorrections = pgTable(
+	'claude_task_corrections',
+	{
+		taskId: uuid('task_id')
+			.primaryKey()
+			.references(() => aiTasks.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		// The user's message this run answers.
+		messageId: uuid('message_id')
+			.notNull()
+			.references(() => claudeTaskMessages.id, { onDelete: 'cascade' }),
+		state: text('state').notNull().default('queued'),
+		attempt: integer('attempt').notNull().default(0),
+		failures: integer('failures').notNull().default(0),
+		leaseOwner: text('lease_owner'),
+		leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
+		nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }),
+		failureCode: text('failure_code'),
+		failureDetail: text('failure_detail'),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		index('idx_claude_task_corrections_state').on(table.state, table.nextAttemptAt),
+		check(
+			'claude_task_corrections_state_valid',
+			sql`${table.state} IN (${sqlInList(claudeCorrectionStateValues)})`
+		)
+	]
+);
+
+export type ClaudeTaskCorrection = typeof claudeTaskCorrections.$inferSelect;
+
+// Foods Claude created for a task, in its first run or a correction. These are
+// the only foods a correction may change; a row goes with its task or its food.
+export const claudeTaskFoods = pgTable(
+	'claude_task_foods',
+	{
+		taskId: uuid('task_id')
+			.notNull()
+			.references(() => aiTasks.id, { onDelete: 'cascade' }),
+		foodId: uuid('food_id')
+			.notNull()
+			.references(() => foods.id, { onDelete: 'cascade' }),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		primaryKey({ columns: [table.taskId, table.foodId] }),
+		index('idx_claude_task_foods_food').on(table.foodId)
+	]
+);
 
 // OAuth Clients - per-user or dynamically registered (RFC 7591)
 export const oauthClients = pgTable(

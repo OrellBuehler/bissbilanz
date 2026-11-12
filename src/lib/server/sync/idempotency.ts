@@ -8,6 +8,26 @@ import { SYNC_CONFLICT_HEADER } from '$lib/server/sync/headers';
 /** Header echoed on a replayed response so clients/tests can observe dedup. */
 const REPLAY_HEADER = 'x-idempotent-replay';
 
+/**
+ * Set by a handler on a response that must be decided again on a retry: a
+ * rejection that depends on the current state (busy, rate-limited) and changed
+ * nothing. The claim is released, nothing is stored, and the header never
+ * reaches the client.
+ */
+export const NOT_REPLAYABLE_HEADER = 'x-not-replayable';
+
+/** The response without NOT_REPLAYABLE_HEADER, which is only meant for this module. */
+export function withoutNotReplayable(response: Response): Response {
+	if (!response.headers.has(NOT_REPLAYABLE_HEADER)) return response;
+	const headers = new Headers(response.headers);
+	headers.delete(NOT_REPLAYABLE_HEADER);
+	return new Response(response.body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers
+	});
+}
+
 /** Stored idempotency records older than this are pruned. */
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -84,7 +104,7 @@ export async function withIdempotency(
 		// If the idempotency bookkeeping itself fails, don't take the write down with
 		// it — fall back to running the handler once without dedup protection.
 		Sentry.captureException(error);
-		return resolve(event);
+		return withoutNotReplayable(await resolve(event));
 	}
 
 	if (claimed.length === 0) {
@@ -170,6 +190,11 @@ export async function withIdempotency(
 	//  - A last-write-wins conflict (X-Sync-Conflict) carries a header replay
 	//    can't reconstruct, and it means the write was rejected (no mutation), so
 	//    re-running deterministically re-derives the same conflict + header.
+	//  - A handler marked the response as not replayable (NOT_REPLAYABLE_HEADER).
+	if (response.headers.has(NOT_REPLAYABLE_HEADER)) {
+		await release();
+		return withoutNotReplayable(response);
+	}
 	if (
 		response.status >= 500 ||
 		response.status === METHOD_NOT_ALLOWED ||

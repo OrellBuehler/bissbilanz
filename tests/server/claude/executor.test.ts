@@ -3,6 +3,8 @@ import { createMockDB } from '../../helpers/mock-db';
 
 const h = vi.hoisted(() => ({
 	processTask: vi.fn(),
+	processCorrection: vi.fn(),
+	failStranded: vi.fn(),
 	ensureRun: vi.fn(),
 	getClaudeHeadroom: vi.fn(),
 	assertClaudeAllowed: vi.fn(),
@@ -21,6 +23,10 @@ vi.mock('@sentry/sveltekit', () => ({
 vi.mock('$lib/server/db', () => ({ getDB: () => db }));
 vi.mock('$lib/server/claude/config', () => ({ isClaudeConfigured: () => h.configured.value }));
 vi.mock('$lib/server/claude/tasks/processor', () => ({ processTask: h.processTask }));
+vi.mock('$lib/server/claude/tasks/correction', () => ({ processCorrection: h.processCorrection }));
+vi.mock('$lib/server/claude/tasks/corrections', () => ({
+	failCorrectionsWithoutProcessor: h.failStranded
+}));
 vi.mock('$lib/server/claude/tasks/runs', () => ({ ensureRun: h.ensureRun }));
 vi.mock('$lib/server/claude/capability', () => ({
 	getClaudeHeadroom: h.getClaudeHeadroom,
@@ -54,6 +60,8 @@ beforeEach(() => {
 	reset();
 	for (const fn of [
 		h.processTask,
+		h.processCorrection,
+		h.failStranded,
 		h.ensureRun,
 		h.getClaudeHeadroom,
 		h.assertClaudeAllowed,
@@ -64,6 +72,8 @@ beforeEach(() => {
 	}
 	h.configured.value = true;
 	h.processTask.mockResolvedValue(undefined);
+	h.processCorrection.mockResolvedValue(undefined);
+	h.failStranded.mockResolvedValue(0);
 	h.ensureRun.mockResolvedValue(undefined);
 	h.abandonStaleReservations.mockResolvedValue(0);
 	h.getClaudeHeadroom.mockResolvedValue({ available: true, remainingUsd: 5 });
@@ -284,6 +294,65 @@ describe('sweepClaudeTasks', () => {
 	});
 });
 
+describe('corrections', () => {
+	test('runs a correction apart from the first run of the same task, one per user', async () => {
+		const { executor } = await load();
+		const gate = deferred();
+		h.processCorrection.mockReturnValue(gate.promise);
+		executor.wakeClaudeCorrection('t1', 'user-1');
+		executor.wakeClaudeCorrection('t1', 'user-1');
+		executor.wakeClaudeRun('t1', 'user-1');
+		await settle();
+		expect(h.processCorrection).toHaveBeenCalledTimes(1);
+		expect(h.processCorrection).toHaveBeenCalledWith('t1', {
+			signal: expect.any(AbortSignal),
+			instanceId: expect.any(String)
+		});
+		expect(h.processTask).not.toHaveBeenCalled();
+		gate.resolve();
+		await settle();
+		expect(h.processTask).toHaveBeenCalledWith('t1', expect.anything());
+	});
+
+	test('processes a requeued correction again and aborts it with its owner', async () => {
+		const { executor } = await load();
+		const signals: AbortSignal[] = [];
+		h.processCorrection
+			.mockResolvedValueOnce('requeued')
+			.mockImplementation((_taskId: string, options: { signal: AbortSignal }) => {
+				signals.push(options.signal);
+				return new Promise(() => {});
+			});
+		executor.wakeClaudeCorrection('t1', 'user-1');
+		await settle();
+		expect(h.processCorrection).toHaveBeenCalledTimes(2);
+		executor.abortClaudeRuns('user-1');
+		expect(signals[0]!.aborted).toBe(true);
+	});
+
+	test('reports a correction that throws and tags it', async () => {
+		const { executor } = await load();
+		h.processCorrection.mockRejectedValue(new Error('boom'));
+		executor.wakeClaudeCorrection('t1', 'user-1');
+		await settle();
+		expect(h.captureException).toHaveBeenCalledWith(expect.any(Error), {
+			tags: { job: 'claude-correction' },
+			extra: { taskId: 't1' }
+		});
+	});
+
+	test('the sweep picks up waiting corrections without a headroom check', async () => {
+		const { executor } = await load();
+		reset();
+		queueResults([[], [{ id: 'c1', user_id: 'user-1' }]]);
+		await executor.sweepClaudeTasks();
+		await settle();
+		expect(h.processCorrection.mock.calls.map((call) => call[0])).toEqual(['c1']);
+		expect(h.getClaudeHeadroom).not.toHaveBeenCalled();
+		expect(h.ensureRun).not.toHaveBeenCalled();
+	});
+});
+
 describe('sweeping runs blocked for budget', () => {
 	const blocked = (id: string, code: string, detail: string | null) => ({
 		id,
@@ -346,11 +415,25 @@ describe('sweeping runs blocked for budget', () => {
 });
 
 describe('startClaudeWorker', () => {
-	test('does nothing without a key', async () => {
+	test('without a key only ends the corrections nothing will ever run', async () => {
 		const { executor } = await load();
 		h.configured.value = false;
 		executor.startClaudeWorker();
+		executor.startClaudeWorker();
+		await settle();
 		expect(h.abandonStaleReservations).not.toHaveBeenCalled();
+		expect(h.failStranded).toHaveBeenCalledTimes(1);
+	});
+
+	test('reports a failure to end those corrections', async () => {
+		const { executor } = await load();
+		h.configured.value = false;
+		h.failStranded.mockRejectedValue(new Error('db down'));
+		executor.startClaudeWorker();
+		await settle();
+		expect(h.captureException).toHaveBeenCalledWith(expect.any(Error), {
+			tags: { job: 'claude-corrections-unconfigured' }
+		});
 	});
 
 	test('sweeps immediately and then on an interval, once', async () => {

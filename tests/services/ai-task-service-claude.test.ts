@@ -278,7 +278,9 @@ describe('aiTaskService.poll', () => {
 
 		await aiTaskService.poll();
 
-		expect(mockApi.POST).toHaveBeenCalledWith('/api/ai-tasks/acknowledge', { body: {} });
+		expect(mockApi.POST).toHaveBeenCalledWith('/api/ai-tasks/acknowledge', {
+			body: { ids: ['t1'] }
+		});
 	});
 });
 

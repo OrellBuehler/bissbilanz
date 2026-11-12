@@ -4,7 +4,9 @@ export type TaskMode = 'auto_log' | 'review';
 
 export type ClaudeRun = typeof claudeTaskRuns.$inferSelect;
 
-export type Fence = { taskId: string; instance: string; attempt: number };
+// kind 'correction' fences a correction run (claude_task_corrections) instead
+// of the task's first run (claude_task_runs).
+export type Fence = { taskId: string; instance: string; attempt: number; kind?: 'correction' };
 
 export type ProposalItem = {
 	id: string;

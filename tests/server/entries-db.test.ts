@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { createMockDB } from '../helpers/mock-db';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import {
 	TEST_USER,
 	TEST_ENTRY,
@@ -305,6 +306,21 @@ describe('entries-db', () => {
 			}
 		});
 
+		test('runs in a given transaction, meal type check included', async () => {
+			const tx = createMockDB();
+			tx.queueResults([[{ id: 'custom' }], [{ ...TEST_ENTRY, mealType: 'Brunch' }]]);
+			const result = await updateEntry(
+				TEST_USER.id,
+				TEST_ENTRY.id,
+				{ mealType: 'Brunch' },
+				new Date(Date.now() - 1000),
+				{ tx: tx.db as never }
+			);
+			expect(result).toMatchObject({ success: true, data: { mealType: 'Brunch' } });
+			expect(getCalls()).toHaveLength(0);
+			expect(tx.getCalls().some((call) => call.method === 'update')).toBe(true);
+		});
+
 		test('accepts default meal type without DB lookup', async () => {
 			const updated = { ...TEST_ENTRY, mealType: 'Dinner' };
 			setResult([updated]);
@@ -328,6 +344,22 @@ describe('entries-db', () => {
 			setResult([]);
 			const deleted = await deleteEntry(TEST_USER.id, 'nonexistent-id');
 			expect(deleted).toBeNull();
+		});
+
+		test('runs in a given transaction and skips an entry edited after the edit time', async () => {
+			const tx = createMockDB();
+			tx.setResult([]);
+			const editedAt = new Date(Date.now() - 60_000);
+			const deleted = await deleteEntry(TEST_USER.id, TEST_ENTRY.id, {
+				tx: tx.db as never,
+				clientEditedAt: editedAt
+			});
+			expect(deleted).toBeNull();
+			expect(getCalls()).toHaveLength(0);
+			const where = tx.getCalls().find((call) => call.method === 'where')!.args[0];
+			const { sql, params } = new PgDialect().sqlToQuery(where);
+			expect(sql).toContain('"food_entries"."updated_at" <=');
+			expect(params).toContain(editedAt.toISOString());
 		});
 	});
 

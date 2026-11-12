@@ -23,8 +23,11 @@ import kotlinx.serialization.encoding.*
  *
  *
  * @param acknowledged
+ * @param repliesAcknowledged How many of the named replyIds were marked as read (answers already read or not the user's are skipped). Only present when the request sent replyIds.
  */
 @Serializable
 data class AiTaskAcknowledgeResponse(
     @SerialName(value = "acknowledged") @Required val acknowledged: kotlin.Int,
+    // How many of the named replyIds were marked as read (answers already read or not the user's are skipped). Only present when the request sent replyIds.
+    @SerialName(value = "repliesAcknowledged") val repliesAcknowledged: kotlin.Int? = null,
 )

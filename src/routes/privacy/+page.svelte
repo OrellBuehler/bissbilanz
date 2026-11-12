@@ -50,8 +50,13 @@
 		</li>
 		<li>
 			<strong>Meal photos for AI estimation:</strong> If you use the AI meal estimation feature, the photo
-			you submit is stored with the task while it is pending, and for up to 30 days after you log or dismiss
-			it, before it is automatically deleted.
+			you submit is stored with the task while it is pending. It is deleted automatically 30 days after
+			you log or dismiss the meal, or 30 days after the latest message of a conversation with Claude about
+			it, whichever is later.
+		</li>
+		<li>
+			<strong>Replies to Claude:</strong> If you reply to a meal Claude logged for you, your messages
+			and Claude's answers are stored with that task and deleted together with it.
 		</li>
 	</ul>
 	<p class="mb-6">
@@ -139,6 +144,20 @@
 		authorized, and stops as soon as you revoke the connection.
 	</p>
 
+	<h2 class="mb-3 mt-8 text-xl font-semibold">AI logging on the Bissbilanz server (optional)</h2>
+	<p class="mb-6">
+		If Claude is available for your account and you choose it in settings to process the meals you
+		queue, the Bissbilanz server sends each queued meal to Anthropic, the provider of Claude, to
+		have it logged: your description, the photos you attached, its date, time and meal type, your
+		language, time zone and meal type names, and the entries from your own foods and recipes that
+		Claude looks up for it (names, serving sizes and nutrition values). When you reply to a meal
+		Claude logged, your reply, the earlier conversation and that meal's diary entries and foods are
+		sent as well, so Claude can correct them. Nothing else from your account, such as your weight,
+		sleep or goals, is sent. Anthropic processes this data under its commercial terms and
+		<a href="https://www.anthropic.com/legal/privacy" class="underline">privacy policy</a>. You can
+		choose another processor at any time.
+	</p>
+
 	<h2 class="mb-3 mt-8 text-xl font-semibold">AI meal estimation (iOS)</h2>
 	<p class="mb-3">
 		The iOS app can estimate a meal's calories and macros from a description or photos using Apple
@@ -217,8 +236,10 @@
 		<li>
 			<strong>Open Food Facts (product lookups):</strong> When you scan a barcode or search the Open
 			Food Facts database, the barcode number or your search terms are sent to the Open Food Facts
-			API. No personal data is sent. Open Food Facts is a nonprofit open data project. Their privacy
-			policy is available at
+			API. When Claude creates a food with a barcode for a meal you queued, the server looks that
+			barcode up in Open Food Facts automatically to add its Nutri-Score, ingredients and other
+			product details. No personal data is sent. Open Food Facts is a nonprofit open data project.
+			Their privacy policy is available at
 			<a href="https://world.openfoodfacts.org/privacy" class="underline">world.openfoodfacts.org</a
 			>.
 		</li>

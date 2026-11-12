@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import {
 	aiTasks,
 	claudeAccess,
+	claudeTaskFoods,
 	claudeTaskLedger,
 	claudeTaskRuns,
 	claudeUsage,
@@ -63,6 +64,7 @@ let events: typeof import('$lib/server/claude/events');
 let fooddataCentral: typeof import('$lib/server/fooddata-central');
 let models: typeof import('$lib/server/claude/models');
 const fdcConfig: { apiKey: string | undefined } = { apiKey: undefined };
+const offLookup = vi.fn();
 
 beforeAll(async () => {
 	dbUrl = await createTestDatabase(DB_NAME);
@@ -80,6 +82,10 @@ beforeAll(async () => {
 		const actual = await importOriginal<typeof import('$lib/server/env')>();
 		return { ...actual, config: { ...actual.config, fdc: fdcConfig } };
 	});
+	vi.doMock('$lib/server/openfoodfacts', async (importOriginal) => ({
+		...(await importOriginal<typeof import('$lib/server/openfoodfacts')>()),
+		lookupProduct: offLookup
+	}));
 	callModule = await import('$lib/server/claude/call');
 	processor = await import('$lib/server/claude/tasks/processor');
 	runs = await import('$lib/server/claude/tasks/runs');
@@ -103,6 +109,7 @@ afterAll(async () => {
 beforeEach(async () => {
 	resetClaudeTestConfig();
 	vi.mocked(Sentry.captureException).mockClear();
+	offLookup.mockReset().mockResolvedValue({ status: 'not_found' });
 	await db.delete(claudeUsage);
 	await db.delete(users);
 	await setKillSwitch(db, true);
@@ -497,6 +504,27 @@ const foodToolInput = (overrides: Record<string, unknown> = {}) => ({
 	...overrides
 });
 
+const offSkyr = () => ({
+	name: 'Skyr Natur',
+	brand: 'Emmi',
+	servingSize: 100,
+	servingUnit: 'g',
+	calories: 60,
+	protein: 11,
+	carbs: 3.5,
+	fat: 0.2,
+	fiber: 0,
+	sodium: 50,
+	magnesium: 11,
+	nutriScore: 'a',
+	novaGroup: 1,
+	additives: ['en:e440'],
+	ingredientsText: 'Milk, cultures',
+	imageUrl: 'https://images.openfoodfacts.org/images/products/761/front.jpg',
+	categoriesTags: [],
+	barcode: '7610000000017'
+});
+
 const createFoodStep = (overrides: Record<string, unknown> = {}, id?: string) =>
 	toolStep(toolUse('create_food', foodToolInput(overrides), id));
 
@@ -561,6 +589,56 @@ describe('create_food in auto mode', () => {
 		expect(entries).toHaveLength(1);
 		expect(entries[0]).toMatchObject({ foodId, servings: 2 });
 		expect((await taskOf(task.id)).status).toBe('completed');
+		const recorded = await db.select().from(claudeTaskFoods);
+		expect(recorded.map((row) => [row.taskId, row.foodId])).toEqual([[task.id, foodId]]);
+	});
+
+	it('adds Open Food Facts detail to the new barcode food without touching its label values', async () => {
+		offLookup.mockResolvedValue({ status: 'found', product: offSkyr() });
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		startFake([createFoodStep({}, 'toolu_create'), completeStep('Saved your skyr')]);
+		await execute(user.id, task.id);
+
+		expect(offLookup).toHaveBeenCalledWith('7610000000017');
+		const [food] = await userFoods(user.id);
+		expect(food).toMatchObject({
+			name: 'Skyr Natur',
+			calories: 90,
+			sodium: 40,
+			nutriScore: 'a',
+			novaGroup: 1,
+			additives: ['en:e440'],
+			ingredientsText: 'Skim milk, cultures',
+			imageUrl: 'https://images.openfoodfacts.org/images/products/761/front.jpg',
+			magnesium: 16.5
+		});
+		expect(food!.offCheckedAt).not.toBeNull();
+		expect(food!.updatedAt!.getTime()).toBeLessThanOrEqual(food!.createdAt!.getTime() + 1000);
+	});
+
+	it('still completes the task when Open Food Facts is unavailable', async () => {
+		offLookup.mockResolvedValue({
+			status: 'unavailable',
+			httpStatus: 503,
+			retryAfterSeconds: null,
+			error: null
+		});
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		let foodId = '';
+		startFake([
+			createFoodStep({}, 'toolu_create'),
+			(params) => {
+				foodId = createdFoodId(params);
+				return logStep({ foodId, servings: 1 });
+			},
+			completeStep('Logged your skyr')
+		]);
+		await execute(user.id, task.id);
+		expect((await taskOf(task.id)).status).toBe('completed');
+		const [food] = await userFoods(user.id);
+		expect(food).toMatchObject({ id: foodId, nutriScore: null, offCheckedAt: null });
 	});
 
 	it('returns a duplicate barcode to the model as a tool error', async () => {
@@ -641,6 +719,8 @@ describe('create_food in review mode', () => {
 		const entries = await entriesOf(user.id);
 		expect(entries).toHaveLength(2);
 		expect(entries.every((entry) => entry.foodId === created[0]!.id)).toBe(true);
+		const recorded = await db.select().from(claudeTaskFoods);
+		expect(recorded.map((row) => [row.taskId, row.foodId])).toEqual([[task.id, created[0]!.id]]);
 	});
 
 	it('creates the food when only one of the items using it is accepted', async () => {
@@ -660,6 +740,17 @@ describe('create_food in review mode', () => {
 		expect(await entriesOf(user.id)).toHaveLength(1);
 	});
 
+	it('adds Open Food Facts detail to the food created on accept', async () => {
+		offLookup.mockResolvedValue({ status: 'found', product: offSkyr() });
+		const { user, task } = await proposeNewFood([{ servings: 1 }]);
+		expect(offLookup).not.toHaveBeenCalled();
+		await proposal.acceptProposal(user.id, task.id);
+		await vi.waitFor(async () => {
+			const [food] = await userFoods(user.id);
+			expect(food).toMatchObject({ nutriScore: 'a', novaGroup: 1, magnesium: 16.5, sodium: 40 });
+		});
+	});
+
 	it('reuses a food that got the same barcode in the meantime', async () => {
 		const { user, task } = await proposeNewFood([{ servings: 1 }]);
 		const existing = await seedFood(user.id, { name: 'Added by hand', barcode: '7610000000017' });
@@ -667,6 +758,7 @@ describe('create_food in review mode', () => {
 		expect(await userFoods(user.id)).toHaveLength(1);
 		const entries = await entriesOf(user.id);
 		expect(entries[0]!.foodId).toBe(existing.id);
+		expect(await db.select().from(claudeTaskFoods)).toHaveLength(0);
 	});
 
 	it('rolls the new food back when another item of the proposal cannot be created', async () => {

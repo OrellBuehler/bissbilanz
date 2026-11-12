@@ -1,5 +1,5 @@
 import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
-import { unitConversionFactor, unitDimension, type ServingUnit } from '$lib/units';
+import { per100Scale, type ServingUnit } from '$lib/units';
 import type { OFFProduct } from '$lib/server/openfoodfacts';
 import { allowedImageUrl } from '$lib/server/catalog/image-hosts';
 import type { foods } from '$lib/server/schema';
@@ -16,15 +16,8 @@ type StoredFood = Pick<
 > &
 	Record<string, unknown>;
 
-const SCALABLE_UNITS = new Set<ServingUnit>(['g', 'kg', 'oz', 'lb', 'ml', 'cl', 'l', 'fl_oz']);
-
 export function offNutrientScale(servingSize: number, servingUnit: ServingUnit): number | null {
-	if (!SCALABLE_UNITS.has(servingUnit) || !(servingSize > 0)) return null;
-	const factor = unitConversionFactor(
-		servingUnit,
-		unitDimension(servingUnit) === 'mass' ? 'g' : 'ml'
-	);
-	return factor === null ? null : (servingSize * factor) / 100;
+	return per100Scale(servingSize, servingUnit, ['mass', 'volume']);
 }
 
 const hasText = (value: string | null | undefined): value is string =>

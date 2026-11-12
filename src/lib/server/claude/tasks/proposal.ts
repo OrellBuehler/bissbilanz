@@ -6,7 +6,9 @@ import { createEntry } from '../../entries';
 import { createFood, findFoodByBarcode } from '../../foods';
 import { ApiError } from '../../errors';
 import { aiTasks, claudeTaskRuns, userPreferences } from '../../schema';
+import { addOpenFoodFactsDetail, type CreatedFood } from './off-detail';
 import { dropStaleProposalItems } from './proposal-stale';
+import { recordTaskFoods } from './task-scope';
 import type { ClaudeRun, Proposal } from './types';
 
 type ClaudeProcessingState = 'queued' | 'running' | 'retrying' | 'proposed' | 'blocked';
@@ -77,6 +79,7 @@ export async function acceptProposal(userId: string, taskId: string, itemIds?: s
 }
 
 async function acceptInTransaction(userId: string, taskId: string, itemIds?: string[]) {
+	const newFoods: CreatedFood[] = [];
 	const switched = await getDB().transaction(async (tx) => {
 		const [task] = await tx
 			.select({ status: aiTasks.status })
@@ -143,6 +146,8 @@ async function acceptInTransaction(userId: string, taskId: string, itemIds?: str
 						const food = await createFood(userId, item.food, tx);
 						if (!food.success) throw stale(food.error, item.id);
 						foodId = food.data.id;
+						newFoods.push({ id: foodId, barcode: food.data.barcode });
+						await recordTaskFoods(tx, taskId, [foodId]);
 					}
 					createdFoodIds.set(provisionalId, foodId);
 				}
@@ -165,5 +170,6 @@ async function acceptInTransaction(userId: string, taskId: string, itemIds?: str
 		return completed;
 	});
 	if (switched === true) throw new ApiError(409, 'AI task processor changed');
+	void addOpenFoodFactsDetail(userId, newFoods);
 	return switched;
 }

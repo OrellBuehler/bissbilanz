@@ -28,6 +28,23 @@
 			},
 			"state": "sample-state"
 		},
+		"claudeThread": {
+			"canReply": true,
+			"correctionState": "sample-correctionState",
+			"messages": [
+				{
+					"createdAt": "sample-createdAt",
+					"id": "6ae31144-5089-422d-8869-136268714cf3",
+					"outcome": "sample-outcome",
+					"role": "sample-role",
+					"text": "sample-text",
+					"unread": true
+				}
+			],
+			"repliesRemaining": 3,
+			"replyBlockedReason": "sample-replyBlockedReason",
+			"unreadReplies": 3
+		},
 		"completedAt": "sample-completedAt",
 		"createdAt": "sample-createdAt",
 		"createdEntryIds": ["sample-createdEntryIds"],

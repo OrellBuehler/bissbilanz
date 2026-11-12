@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/sveltekit';
 import { z } from 'zod';
 import { ALL_NUTRIENTS, type NutrientDef } from '$lib/nutrients';
-import { unitConversionFactor, type ServingUnit } from '$lib/units';
+import { per100Scale, type ServingUnit } from '$lib/units';
 import { config } from '$lib/server/env';
 import { RateLimitError, noteRateLimited } from '$lib/server/errors';
 import { rateLimit } from '$lib/server/rate-limit';
@@ -197,12 +197,8 @@ export function toFdcFood(record: z.infer<typeof recordSchema>): FdcFood {
 	};
 }
 
-const MASS_UNITS = new Set<ServingUnit>(['g', 'kg', 'oz', 'lb']);
-
 export function fdcServingScale(servingSize: number, servingUnit: ServingUnit): number | null {
-	if (!MASS_UNITS.has(servingUnit) || !(servingSize > 0)) return null;
-	const factor = unitConversionFactor(servingUnit, 'g');
-	return factor === null ? null : (servingSize * factor) / 100;
+	return per100Scale(servingSize, servingUnit, ['mass']);
 }
 
 export function scaleFdcNutrients(food: FdcFood, scale: number): Record<string, number> {

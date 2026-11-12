@@ -267,6 +267,42 @@ describe('capability', () => {
 		expect(h.captureException).toHaveBeenCalledWith(expect.any(Error), expect.anything());
 	});
 
+	test('getClaudeGateState names the closed gate', async () => {
+		access([{ enabled: true, monthlyBudgetUsd: 5 }]);
+		spend(0, 0);
+		expect(await capability.getClaudeGateState('user-1')).toEqual({
+			available: true,
+			remainingUsd: 5,
+			blockedBy: null
+		});
+		access([{ enabled: true, monthlyBudgetUsd: 5 }]);
+		spend(4.5, 0);
+		expect((await capability.getClaudeGateState('user-1')).blockedBy).toBe('user_budget_exhausted');
+		access([{ enabled: true, monthlyBudgetUsd: 5 }]);
+		spend(0, 89.5);
+		expect((await capability.getClaudeGateState('user-1')).blockedBy).toBe(
+			'global_budget_exhausted'
+		);
+		access([{ enabled: false, monthlyBudgetUsd: 5 }]);
+		expect(await capability.getClaudeGateState('user-1')).toEqual({
+			available: false,
+			remainingUsd: 0,
+			blockedBy: 'no_access'
+		});
+		h.getClaudeEnabled.mockResolvedValue(false);
+		expect((await capability.getClaudeGateState('user-1')).blockedBy).toBe('disabled');
+	});
+
+	test('assertClaudeGates checks the gates but not the processor', async () => {
+		queueResults([[{ enabled: true, monthlyBudgetUsd: null }]]);
+		await expect(capability.assertClaudeGates('user-1')).resolves.toBeUndefined();
+		expect(getCalls().filter((call) => call.method === 'select')).toHaveLength(1);
+		queueResults([[{ enabled: false, monthlyBudgetUsd: null }]]);
+		await expect(capability.assertClaudeGates('user-1')).rejects.toMatchObject({
+			code: 'no_access'
+		});
+	});
+
 	test('assertClaudeAllowed checks the gates and the processor', async () => {
 		queueResults([[{ enabled: true, monthlyBudgetUsd: null }], [{ processor: 'claude' }]]);
 		await expect(capability.assertClaudeAllowed('user-1')).resolves.toBeUndefined();
