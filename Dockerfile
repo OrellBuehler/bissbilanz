@@ -42,9 +42,10 @@ WORKDIR /app
 ARG APP_VERSION=dev
 ENV APP_VERSION=${APP_VERSION}
 
-# The base image ships openssl 3.5.6-r0 (CVE-2026-45447). Alpine has the fix,
-# so pull it in here rather than waiting for a rebased bun image.
-RUN apk --no-cache upgrade libcrypto3 libssl3
+# The base image ships openssl 3.5.7-r0 (CVE-2026-14456), musl 1.2.5-r12
+# (CVE-2026-107891) and zlib 1.3.2-r0 (CVE-2026-85091). Alpine has the fixes,
+# so pull them in here rather than waiting for a rebased bun image.
+RUN apk --no-cache upgrade libcrypto3 libssl3 musl musl-utils zlib
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 sveltekit
