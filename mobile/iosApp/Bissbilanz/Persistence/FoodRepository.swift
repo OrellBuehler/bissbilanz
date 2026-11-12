@@ -19,19 +19,22 @@ final class FoodRepository {
     private let appMode: AppModeManager
     private let syncManager: SyncManager
     private let defaults: UserDefaults
+    private let openFoodFacts: OpenFoodFactsClient
 
     init(
         context: ModelContext,
         api: BissbilanzAPI,
         appMode: AppModeManager,
         syncManager: SyncManager,
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = .standard,
+        openFoodFacts: OpenFoodFactsClient = OpenFoodFactsClient()
     ) {
         self.context = context
         self.api = api
         self.appMode = appMode
         self.syncManager = syncManager
         self.defaults = defaults
+        self.openFoodFacts = openFoodFacts
     }
 
     // MARK: - Reads (local)
@@ -166,23 +169,6 @@ final class FoodRepository {
         let descriptor = FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)])
         let rows = (try? context.fetch(descriptor)) ?? []
         return rows.filter { $0.labels.isEmpty }.compactMap { $0.toFood() }
-    }
-
-    /// Local foods with a barcode that still lack a Nutri-Score, NOVA group or
-    /// ingredients text — never enriched, or only partly. The "Enhance Foods"
-    /// sweep's work list and the Settings row's count (`EnhanceFoodsView`).
-    func unenrichedLocalFoods() -> [Food] {
-        let descriptor = FetchDescriptor<LocalFood>(sortBy: [SortDescriptor(\.name)])
-        let rows = (try? context.fetch(descriptor)) ?? []
-        return rows.compactMap { $0.toFood() }.filter(Self.needsEnrichment)
-    }
-
-    static func needsEnrichment(_ food: Food) -> Bool {
-        guard let barcode = food.barcode?.trimmingCharacters(in: .whitespaces), !barcode.isEmpty else {
-            return false
-        }
-        let noIngredients = food.ingredientsText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
-        return food.nutriScore == nil || food.novaGroup == nil || noIngredients
     }
 
     /// The most-used labels already in the local catalog, most-common first —
@@ -385,6 +371,7 @@ final class FoodRepository {
                 after: cursor,
                 limit: pageSize
             )
+            try Task.checkCancellation()
             let pendingIds = syncManager.pendingAffectedIds(table: "foods")
             upsertAll(page.foods.filter { !pendingIds.contains($0.id) })
             context.saveReportingFailure("FoodRepository.mirrorAll")
@@ -449,6 +436,7 @@ final class FoodRepository {
     private func pruneMissing() async throws {
         let before = localFoodIds()
         let serverIds = Set(try await api.getFoodIds().map { $0.lowercased() })
+        try Task.checkCancellation()
         var pendingIds = Set(syncManager.pendingAffectedIds(table: "foods").map { $0.lowercased() })
         pendingIds.formUnion(try bulkUploadFoodIds())
         let orphans = before.filter { id in
@@ -595,67 +583,60 @@ final class FoodRepository {
         ))
     }
 
-    /// Re-reads the food's barcode in Open Food Facts and overlays the product's
-    /// detail — extended nutrients, NutriScore, NOVA, additives, ingredients,
-    /// image, category tags — onto the stored food, mirroring Android's
-    /// `FoodRepository.enrichFood`. Identity and core macros stay the user's:
-    /// they already committed to those values. There is no enrich endpoint —
-    /// it is the Open Food Facts lookup plus an ordinary food update, so it
-    /// goes through the same optimistic write and sync queue as any edit.
-    @discardableResult
-    func enrichFood(id: String, barcode: String) async throws -> Food {
+    func enrichFood(id: String) async throws -> FoodEnrichResult {
         let id = TempIdMap.resolved(id)
-        guard let current = food(id: id) else { throw APIError.notFound }
-        let hit: BissbilanzAPI.OpenFoodFactsHit
         if appMode.isLocal {
-            guard let product = try await OpenFoodFactsClient().lookupBarcode(barcode) else {
-                throw APIError.notFound
-            }
-            hit = BissbilanzAPI.OpenFoodFactsHit(food: product, categoriesTags: nil)
-        } else {
-            // The throwing lookup keeps a rate limit or network failure
-            // distinguishable from "no such product" for the bulk sweep.
-            hit = try await api.lookupBarcodeOrThrow(barcode)
+            return try await enrichOnDevice(id: id)
         }
-        return try await updateFood(id: id, Self.enrichmentPayload(baseline: current, hit: hit))
+        let isQueued = LocalStore.isTempId(id) || syncManager.pendingAffectedIds(table: "foods").contains(id)
+        if try isQueued || hasBulkUploadJob(foodId: id) {
+            syncManager.scheduleDrain()
+            throw FoodEnrichmentFailure.pendingChanges
+        }
+        let response = try await api.enrichFood(id: id)
+        if !syncManager.pendingAffectedIds(table: "foods").contains(id) {
+            upsert(response.food)
+            save()
+            IntentDonations.reindexFood(response.food)
+        }
+        return FoodEnrichResult(food: food(id: id) ?? response.food, outcome: FoodEnrichOutcome(response.outcome))
     }
 
-    /// Baseline overlaid with the product, then the identity and core macro
-    /// fields forced back to the baseline. The product `Food` only encodes the
-    /// keys Open Food Facts actually returned (nil optionals are dropped), so
-    /// everything it doesn't know keeps the stored value — the `product.x ?:
-    /// baseline.x` rule of the shared Kotlin `mergeOpenFoodFactsOntoFood`.
-    static func enrichmentPayload(baseline: Food, hit: BissbilanzAPI.OpenFoodFactsHit) throws -> FoodCreate {
-        let baselineFields = try JSONPatch.dictionary(of: baseline)
-        let productFields = try JSONPatch.dictionary(of: hit.food)
-        var merged = baselineFields.merging(productFields) { _, new in new }
-        for key in userOwnedFoodKeys {
-            // A nil assignment removes the key, which leaves the stored value
-            // untouched on a partial PATCH — the same outcome as sending it.
-            merged[key] = baselineFields[key]
+    private func enrichOnDevice(id: String) async throws -> FoodEnrichResult {
+        guard let initial = food(id: id) else { throw FoodEnrichmentFailure.foodNotFound }
+        let barcode = initial.barcode?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !barcode.isEmpty else { throw FoodEnrichmentFailure.noBarcode }
+        let lookup = try await openFoodFacts.lookupProduct(barcode)
+        try Task.checkCancellation()
+        guard let row = fetchRow(id: id), let current = row.toFood() else {
+            throw FoodEnrichmentFailure.foodNotFound
         }
-        // The stored image is destructive to replace: `updateFood` on the
-        // server unlinks the previous `imageUrl` from disk once the write
-        // lands, so overwriting a photo the user took of this food deletes it
-        // irreversibly (in Local mode the `file://` copy is merely orphaned).
-        // Take the Open Food Facts product shot only when there is no image.
-        if let storedImage = baselineFields["imageUrl"] {
-            merged["imageUrl"] = storedImage
+        guard current.barcode?.trimmingCharacters(in: .whitespacesAndNewlines) == barcode else {
+            throw FoodEnrichmentFailure.foodChanged
         }
-        if let categoriesTags = hit.categoriesTags {
-            merged["categoriesTags"] = categoriesTags
-        } else {
-            merged.removeValue(forKey: "categoriesTags")
+        var patch: [String: Any]
+        let outcome: FoodEnrichOutcome
+        switch lookup {
+        case let .unavailable(retryAfter):
+            throw FoodEnrichmentFailure.offUnavailable(retryAfter: retryAfter)
+        case .invalid:
+            throw FoodEnrichmentFailure.offInvalidResponse
+        case .notFound:
+            patch = [:]
+            outcome = .notFound
+        case let .found(product):
+            patch = try FoodEnrichmentRules.patch(for: current, product: product)
+            outcome = patch.isEmpty ? .unchanged : .updated
         }
-        return try JSONPatch.decode(FoodCreate.self, from: merged)
+        patch["offCheckedAt"] = DateFormatting.isoDateTimeString(from: Date())
+        let enriched = try JSONPatch.merged(Food.self, base: current, patch: patch)
+        row.update(from: enriched)
+        save()
+        if outcome == .updated {
+            IntentDonations.reindexFood(enriched)
+        }
+        return FoodEnrichResult(food: enriched, outcome: outcome)
     }
-
-    /// Fields the user owns; Open Food Facts never overwrites them.
-    private static let userOwnedFoodKeys = [
-        "name", "brand", "servingSize", "servingUnit",
-        "calories", "protein", "carbs", "fat", "fiber",
-        "barcode", "isFavorite",
-    ]
 
     func findByBarcode(_ barcode: String) async throws -> Food? {
         if let local = findLocalByBarcode(barcode) {
@@ -689,7 +670,11 @@ final class FoodRepository {
         let patch = (try? JSONPatch.dictionary(of: create)) ?? [:]
         let existingFood = food(id: id)
         let optimistic: Food = if let existing = existingFood,
-                                  let merged = try? JSONPatch.merged(Food.self, base: existing, patch: patch)
+                                  let merged = try? JSONPatch.merged(
+                                      Food.self,
+                                      base: existing,
+                                      patch: FoodEnrichmentRules.editPatch(patch, onto: existing)
+                                  )
         {
             merged
         } else {

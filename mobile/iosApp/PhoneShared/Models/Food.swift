@@ -73,6 +73,7 @@ struct Food: Codable, Identifiable, Hashable {
     /// foods built locally; `var` with a default so existing call sites keep
     /// compiling.
     var serverModifiedAt: String? = nil
+    var offCheckedAt: String? = nil
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)

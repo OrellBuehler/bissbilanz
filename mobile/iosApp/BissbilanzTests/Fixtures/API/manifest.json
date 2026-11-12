@@ -275,6 +275,41 @@
 				}
 			]
 		},
+		"FoodEnrichErrorResponse": {
+			"enumVariants": [],
+			"full": "FoodEnrichErrorResponse.full.json",
+			"minimal": "FoodEnrichErrorResponse.minimal.json",
+			"operations": []
+		},
+		"FoodEnrichResponse": {
+			"enumVariants": [],
+			"full": "FoodEnrichResponse.full.json",
+			"minimal": "FoodEnrichResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "enrichFood",
+					"path": "/api/foods/{id}/enrich"
+				}
+			]
+		},
+		"FoodEnrichmentStatusResponse": {
+			"enumVariants": [],
+			"full": "FoodEnrichmentStatusResponse.full.json",
+			"minimal": "FoodEnrichmentStatusResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getFoodEnrichment",
+					"path": "/api/foods/enrichment"
+				},
+				{
+					"method": "DELETE",
+					"operationId": "cancelFoodEnrichment",
+					"path": "/api/foods/enrichment"
+				}
+			]
+		},
 		"FoodLabelStatsResponse": {
 			"enumVariants": [],
 			"full": "FoodLabelStatsResponse.full.json",

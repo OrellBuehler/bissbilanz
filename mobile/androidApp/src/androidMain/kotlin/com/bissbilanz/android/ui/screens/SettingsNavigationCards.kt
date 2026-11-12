@@ -90,6 +90,10 @@ internal fun SettingsNavigationCard(
                 SettingsNavItem(stringResource(R.string.maintenance_title), Icons.Default.Calculate) {
                     navController.navigate("maintenance") { launchSingleTop = true }
                 }
+                HorizontalDivider()
+                SettingsNavItem(stringResource(R.string.enhance_foods_title), Icons.Default.AutoFixHigh) {
+                    navController.navigate("enhance-foods") { launchSingleTop = true }
+                }
                 // The queue only exists server-side — the assistant reaches it
                 // over MCP — so it has no meaning in Local mode.
                 HorizontalDivider()
