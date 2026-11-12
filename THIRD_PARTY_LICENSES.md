@@ -6,8 +6,8 @@ This file lists all third-party dependencies used in production and their licens
 
 | License                          | Count |
 | -------------------------------- | ----- |
-| MIT                              | 256   |
-| Apache-2.0                       | 19    |
+| MIT                              | 255   |
+| Apache-2.0                       | 20    |
 | ISC                              | 12    |
 | (Apache-2.0 WITH LLVM-exception) | 7     |
 | BSD-3-Clause                     | 6     |
@@ -24,24 +24,10 @@ This file lists all third-party dependencies used in production and their licens
 
 ## Packages
 
-### @anthropic-ai/sdk@0.133.0
+### @anthropic-ai/sdk@1.2.0
 
-- **License:** MIT
+- **License:** Apache-2.0
 - **Repository:** https://github.com/anthropics/anthropic-sdk-typescript
-
-<details><summary>License Text</summary>
-
-```
-Copyright 2023 Anthropic, PBC.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-```
-
-</details>
 
 ### @babel/code-frame@8.0.6
 
@@ -4336,7 +4322,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### drizzle-orm@0.45.2
+### drizzle-orm@0.45.4
 
 - **License:** Apache-2.0
 - **Repository:** https://github.com/drizzle-team/drizzle-orm
