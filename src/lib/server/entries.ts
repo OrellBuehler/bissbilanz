@@ -204,14 +204,16 @@ export const updateEntry = async (
 	userId: string,
 	id: string,
 	payload: unknown,
-	clientEditedAt?: Date | null
+	clientEditedAt?: Date | null,
+	internal?: { tx?: TxOrDb }
 ): Promise<Result<typeof foodEntries.$inferSelect | undefined>> => {
 	const result = entryUpdateSchema.safeParse(payload);
 	if (!result.success) {
 		return { success: false, error: result.error };
 	}
 
-	if (result.data.mealType && !(await validateMealType(userId, result.data.mealType))) {
+	const db = internal?.tx ?? getDB();
+	if (result.data.mealType && !(await validateMealType(userId, result.data.mealType, db))) {
 		return {
 			success: false,
 			error: new ApiError(400, `Invalid meal type: ${result.data.mealType}`)
@@ -219,7 +221,6 @@ export const updateEntry = async (
 	}
 
 	try {
-		const db = getDB();
 		// Reject references to foods/recipes the caller doesn't own (IDOR).
 		if (result.data.foodId) await assertFoodOwned(db, userId, result.data.foodId);
 		if (result.data.recipeId) await assertRecipeOwned(db, userId, result.data.recipeId);
@@ -247,11 +248,21 @@ export const updateEntry = async (
 	}
 };
 
-export const deleteEntry = async (userId: string, id: string) => {
-	const db = getDB();
+export const deleteEntry = async (
+	userId: string,
+	id: string,
+	internal?: { tx?: TxOrDb; clientEditedAt?: Date | null }
+) => {
+	const db = internal?.tx ?? getDB();
 	const [deleted] = await db
 		.delete(foodEntries)
-		.where(and(eq(foodEntries.id, id), eq(foodEntries.userId, userId)))
+		.where(
+			and(
+				eq(foodEntries.id, id),
+				eq(foodEntries.userId, userId),
+				lwwGuard(foodEntries.updatedAt, internal?.clientEditedAt)
+			)
+		)
 		.returning({ id: foodEntries.id, date: foodEntries.date });
 	return deleted ?? null;
 };

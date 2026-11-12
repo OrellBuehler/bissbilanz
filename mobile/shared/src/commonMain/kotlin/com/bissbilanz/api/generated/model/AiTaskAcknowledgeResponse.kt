@@ -23,8 +23,11 @@ import kotlinx.serialization.encoding.*
  *
  *
  * @param acknowledged
+ * @param repliesAcknowledged Claude's answers marked as read. Only present when the request set replies.
  */
 @Serializable
 data class AiTaskAcknowledgeResponse(
     @SerialName(value = "acknowledged") @Required val acknowledged: kotlin.Int,
+    // Claude's answers marked as read. Only present when the request set replies.
+    @SerialName(value = "repliesAcknowledged") val repliesAcknowledged: kotlin.Int? = null,
 )

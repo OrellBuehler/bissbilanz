@@ -3,8 +3,14 @@ import { z } from 'zod';
 import {
 	aiTaskStatusValues,
 	aiTaskProcessedByValues,
-	aiTaskProcessedByKindValues
+	aiTaskProcessedByKindValues,
+	claudeTaskMessageOutcomeValues,
+	claudeTaskMessageRoleValues
 } from '$lib/server/schema';
+import {
+	correctionPublicStateValues,
+	replyBlockedReasonValues
+} from '$lib/server/claude/tasks/reply-codes';
 
 const aiTaskStatusSchema = z.enum(aiTaskStatusValues);
 const aiTaskProcessedBySchema = z.enum(aiTaskProcessedByValues);
@@ -53,6 +59,60 @@ const aiTaskClaudeProcessingSchema = z
 	})
 	.meta({ id: 'AiTaskClaudeProcessing' });
 
+const aiTaskThreadMessageSchema = z
+	.object({
+		id: z.string().uuid(),
+		role: z.string().meta({
+			description:
+				"Who wrote it: 'user' (a reply the user sent) or 'assistant' (Claude's answer, or a notice that a correction did not work). Unknown values should be shown like 'assistant'.",
+			'x-extensible-enum': [...claudeTaskMessageRoleValues]
+		}),
+		text: z.string(),
+		outcome: z
+			.string()
+			.nullable()
+			.meta({
+				description:
+					"Claude's messages only, null on the user's: 'changed' (the diary entries or foods of this task changed; refresh the task's date), 'answered' (Claude replied without changing anything) or 'failed' (the correction did not work and nothing was changed). Unknown values should be treated like 'answered'.",
+				'x-extensible-enum': [...claudeTaskMessageOutcomeValues]
+			}),
+		createdAt: z.string(),
+		unread: z.boolean().meta({
+			description:
+				'True for an answer of Claude the user has not acknowledged yet (see POST /api/ai-tasks/acknowledge with replies). Always false for the user’s own messages.'
+		})
+	})
+	.meta({ id: 'AiTaskThreadMessage' });
+
+const aiTaskClaudeThreadSchema = z
+	.object({
+		messages: z.array(aiTaskThreadMessageSchema).meta({
+			description:
+				'The conversation under the task’s resultSummary, oldest first. Empty until the user replies.'
+		}),
+		correctionState: z.string().meta({
+			description:
+				"Where the correction for the latest reply stands: 'idle' (nothing running), 'queued', 'running', 'retrying' (waiting to try again after an error) or 'failed' (the last correction did not work; the thread says so and a new reply is possible). Unknown values should be treated as in progress.",
+			'x-extensible-enum': [...correctionPublicStateValues]
+		}),
+		canReply: z.boolean(),
+		replyBlockedReason: z
+			.string()
+			.nullable()
+			.meta({
+				description:
+					"Why canReply is false, null when it is true: not_completed, correction_in_flight, reply_limit_reached, processor_unavailable, budget_exhausted, rate_limited. Matches the code POST /api/ai-tasks/{id}/replies would answer with. Unknown values should be shown as a generic 'replies are not possible right now'.",
+				'x-extensible-enum': [...replyBlockedReasonValues]
+			}),
+		repliesRemaining: z.number().int().meta({
+			description: 'How many more replies this task takes before the per-task limit.'
+		}),
+		unreadReplies: z.number().int().meta({
+			description: 'Number of messages with unread true.'
+		})
+	})
+	.meta({ id: 'AiTaskClaudeThread' });
+
 const aiTaskSchema = z
 	.object({
 		id: z.string().uuid(),
@@ -84,6 +144,10 @@ const aiTaskSchema = z
 			})
 			.optional(),
 		claudeProcessing: aiTaskClaudeProcessingSchema.nullable().optional(),
+		claudeThread: aiTaskClaudeThreadSchema.nullable().optional().meta({
+			description:
+				'Replies to Claude about a task it processed on the server (processedByKind claude), so it fixes what it logged. Present on every completed Claude task, and on other Claude tasks that already have a conversation; null or absent otherwise, including on the response to creating a task.'
+		}),
 		createdAt: z.string().optional(),
 		updatedAt: z.string().optional()
 	})
@@ -112,6 +176,29 @@ export const aiTaskPhotoResponseSchema = z
 
 export const aiTaskAcknowledgeResponseSchema = z
 	.object({
-		acknowledged: z.number().int()
+		acknowledged: z.number().int(),
+		repliesAcknowledged: z.number().int().optional().meta({
+			description: "Claude's answers marked as read. Only present when the request set replies."
+		})
 	})
 	.meta({ id: 'AiTaskAcknowledgeResponse' });
+
+export const aiTaskReplyErrorCodeValues = [
+	'task_not_found',
+	'not_processed_by_server',
+	...replyBlockedReasonValues.filter((code) => code !== 'not_processed_by_server')
+] as const;
+
+export const aiTaskReplyErrorResponseSchema = z
+	.object({
+		error: z.string(),
+		code: z
+			.string()
+			.meta({
+				description:
+					'Machine-readable reason. Absent on generic failures such as an invalid id. Unknown values should be treated as a generic failure of the given status.',
+				'x-extensible-enum': [...aiTaskReplyErrorCodeValues]
+			})
+			.optional()
+	})
+	.meta({ id: 'AiTaskReplyErrorResponse' });

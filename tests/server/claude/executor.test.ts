@@ -3,6 +3,7 @@ import { createMockDB } from '../../helpers/mock-db';
 
 const h = vi.hoisted(() => ({
 	processTask: vi.fn(),
+	processCorrection: vi.fn(),
 	ensureRun: vi.fn(),
 	getClaudeHeadroom: vi.fn(),
 	assertClaudeAllowed: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock('@sentry/sveltekit', () => ({
 vi.mock('$lib/server/db', () => ({ getDB: () => db }));
 vi.mock('$lib/server/claude/config', () => ({ isClaudeConfigured: () => h.configured.value }));
 vi.mock('$lib/server/claude/tasks/processor', () => ({ processTask: h.processTask }));
+vi.mock('$lib/server/claude/tasks/correction', () => ({ processCorrection: h.processCorrection }));
 vi.mock('$lib/server/claude/tasks/runs', () => ({ ensureRun: h.ensureRun }));
 vi.mock('$lib/server/claude/capability', () => ({
 	getClaudeHeadroom: h.getClaudeHeadroom,
@@ -54,6 +56,7 @@ beforeEach(() => {
 	reset();
 	for (const fn of [
 		h.processTask,
+		h.processCorrection,
 		h.ensureRun,
 		h.getClaudeHeadroom,
 		h.assertClaudeAllowed,
@@ -64,6 +67,7 @@ beforeEach(() => {
 	}
 	h.configured.value = true;
 	h.processTask.mockResolvedValue(undefined);
+	h.processCorrection.mockResolvedValue(undefined);
 	h.ensureRun.mockResolvedValue(undefined);
 	h.abandonStaleReservations.mockResolvedValue(0);
 	h.getClaudeHeadroom.mockResolvedValue({ available: true, remainingUsd: 5 });
@@ -281,6 +285,65 @@ describe('sweepClaudeTasks', () => {
 		expect(h.getClaudeHeadroom).toHaveBeenCalledTimes(2);
 		expect(h.ensureRun.mock.calls.map((call) => call[1])).toEqual(['t1', 't2']);
 		expect(h.processTask.mock.calls.map((call) => call[0]).sort()).toEqual(['t1', 't2']);
+	});
+});
+
+describe('corrections', () => {
+	test('runs a correction apart from the first run of the same task, one per user', async () => {
+		const { executor } = await load();
+		const gate = deferred();
+		h.processCorrection.mockReturnValue(gate.promise);
+		executor.wakeClaudeCorrection('t1', 'user-1');
+		executor.wakeClaudeCorrection('t1', 'user-1');
+		executor.wakeClaudeRun('t1', 'user-1');
+		await settle();
+		expect(h.processCorrection).toHaveBeenCalledTimes(1);
+		expect(h.processCorrection).toHaveBeenCalledWith('t1', {
+			signal: expect.any(AbortSignal),
+			instanceId: expect.any(String)
+		});
+		expect(h.processTask).not.toHaveBeenCalled();
+		gate.resolve();
+		await settle();
+		expect(h.processTask).toHaveBeenCalledWith('t1', expect.anything());
+	});
+
+	test('processes a requeued correction again and aborts it with its owner', async () => {
+		const { executor } = await load();
+		const signals: AbortSignal[] = [];
+		h.processCorrection
+			.mockResolvedValueOnce('requeued')
+			.mockImplementation((_taskId: string, options: { signal: AbortSignal }) => {
+				signals.push(options.signal);
+				return new Promise(() => {});
+			});
+		executor.wakeClaudeCorrection('t1', 'user-1');
+		await settle();
+		expect(h.processCorrection).toHaveBeenCalledTimes(2);
+		executor.abortClaudeRuns('user-1');
+		expect(signals[0]!.aborted).toBe(true);
+	});
+
+	test('reports a correction that throws and tags it', async () => {
+		const { executor } = await load();
+		h.processCorrection.mockRejectedValue(new Error('boom'));
+		executor.wakeClaudeCorrection('t1', 'user-1');
+		await settle();
+		expect(h.captureException).toHaveBeenCalledWith(expect.any(Error), {
+			tags: { job: 'claude-correction' },
+			extra: { taskId: 't1' }
+		});
+	});
+
+	test('the sweep picks up waiting corrections without a headroom check', async () => {
+		const { executor } = await load();
+		reset();
+		queueResults([[], [{ id: 'c1', user_id: 'user-1' }]]);
+		await executor.sweepClaudeTasks();
+		await settle();
+		expect(h.processCorrection.mock.calls.map((call) => call[0])).toEqual(['c1']);
+		expect(h.getClaudeHeadroom).not.toHaveBeenCalled();
+		expect(h.ensureRun).not.toHaveBeenCalled();
 	});
 });
 

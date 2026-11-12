@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { ApiError, validationError, withAuthedResource } from '$lib/server/errors';
 import { aiTaskProposalAcceptSchema } from '$lib/server/validation';
 import { acceptProposal } from '$lib/server/claude/tasks/proposal';
-import { serializeAiTask } from '$lib/server/ai-tasks';
+import { serializeAiTaskWithRun } from '$lib/server/claude/tasks/serialize';
 
 const readOptionalBody = async (request: Request): Promise<unknown> => {
 	const raw = await request.text();
@@ -19,5 +19,5 @@ export const POST: RequestHandler = withAuthedResource(async ({ userId, id, requ
 	const parsed = aiTaskProposalAcceptSchema.safeParse(await readOptionalBody(request));
 	if (!parsed.success) return validationError(parsed.error);
 	const task = await acceptProposal(userId, id, parsed.data.itemIds);
-	return json({ task: serializeAiTask(task) });
+	return json({ task: await serializeAiTaskWithRun(task) });
 });

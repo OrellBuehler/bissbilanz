@@ -6,19 +6,10 @@ import { getDB } from '../../db';
 import { listMealTypes } from '../../meal-types';
 import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 import { getUserTimeZone } from '../../preferences';
-import { claudeAccess, userPreferences, users } from '../../schema';
+import { claudeAccess, userPreferences } from '../../schema';
 import { assertClaudeAllowed } from '../capability';
-import { callClaude } from '../call';
-import { claudeConfig } from '../config';
 import { isFdcConfigured } from '../../fooddata-central';
-import {
-	acceptWebFetch,
-	isWebFetchAccepted,
-	isWebFetchTool,
-	rejectWebFetch,
-	resolveClaudeModel,
-	taskServerTools
-} from '../models';
+import { resolveClaudeModel, taskServerTools } from '../models';
 import { AI_TASK_FEATURE } from '../constants';
 import {
 	ClaudeAbortedError,
@@ -36,32 +27,19 @@ import {
 	supersedeRun,
 	type OutcomeContext
 } from './outcomes';
+import { runToolLoop } from './loop';
+import { failureDetail, loadLocale, startHeartbeat } from './run-support';
 import { loadTaskPhotos } from './photos';
 import { TASK_SYSTEM, buildTaskUserContent } from './prompt';
-import {
-	MAX_FAILURES,
-	claimRun,
-	heartbeat,
-	listLoggedLedger,
-	supersedeIfProcessorChanged
-} from './runs';
+import { MAX_FAILURES, claimRun, listLoggedLedger, supersedeIfProcessorChanged } from './runs';
 import { isTerminalTool, runTaskTool, taskTools, type TaskToolContext } from './tools';
 import type { ClaudeRun, Fence, TaskMode } from './types';
 
+export { MAX_TOOL_CALLS_PER_RESPONSE } from './loop';
+
 export const HEARTBEAT_INTERVAL_MS = 60_000;
-export const MAX_TOOL_CALLS_PER_RESPONSE = 20;
 export const MAX_LOG_CALLS_PER_RUN = 30;
 export const MAX_FOODS_CREATED_PER_RUN = 5;
-
-const hasUnansweredServerTool = (content: Anthropic.ContentBlock[]): boolean => {
-	const answered = new Set(
-		content.flatMap((block) => ('tool_use_id' in block ? [block.tool_use_id] : []))
-	);
-	return content.some((block) => block.type === 'server_tool_use' && !answered.has(block.id));
-};
-
-const isInvalidRequest = (error: unknown): error is ClaudeApiError =>
-	error instanceof ClaudeApiError && error.kind === 'invalid_request' && error.status === 400;
 
 const NUDGE =
 	'Your reply was cut off. Keep it short: call complete_ai_task or dismiss_ai_task now.';
@@ -84,28 +62,6 @@ type Loaded = {
 	imageCount: number;
 	model: string;
 };
-
-function withCacheBreakpoint(messages: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
-	const last = messages[messages.length - 1];
-	if (!last || last.role !== 'user') return messages;
-	const blocks: Anthropic.ContentBlockParam[] =
-		typeof last.content === 'string' ? [{ type: 'text', text: last.content }] : [...last.content];
-	const tail = blocks[blocks.length - 1];
-	if (!tail) return messages;
-	blocks[blocks.length - 1] = {
-		...tail,
-		cache_control: { type: 'ephemeral' }
-	} as Anthropic.ContentBlockParam;
-	return [...messages.slice(0, -1), { role: 'user', content: blocks }];
-}
-
-async function loadLocale(userId: string): Promise<string | null> {
-	const [owner] = await getDB()
-		.select({ locale: users.locale })
-		.from(users)
-		.where(eq(users.id, userId));
-	return owner?.locale ?? null;
-}
 
 async function loadInputs(run: ClaudeRun, locale: string | null): Promise<Loaded | null> {
 	const task = await getAiTask(run.userId, run.taskId);
@@ -155,23 +111,6 @@ async function isStillPending(userId: string, taskId: string): Promise<boolean> 
 	return task?.status === 'pending';
 }
 
-function startHeartbeat(fence: Fence, controller: AbortController, intervalMs: number) {
-	let lost = false;
-	const timer = setInterval(() => {
-		heartbeat(fence)
-			.then((alive) => {
-				if (!alive) {
-					lost = true;
-					controller.abort();
-				}
-			})
-			.catch((error) => {
-				Sentry.captureException(error, { tags: { job: 'claude-heartbeat' } });
-			});
-	}, intervalMs);
-	return { stop: () => clearInterval(timer), isLost: () => lost };
-}
-
 async function runLoop(
 	run: ClaudeRun,
 	loaded: Loaded,
@@ -179,7 +118,6 @@ async function runLoop(
 	signal: AbortSignal
 ): Promise<void> {
 	const { task, mode } = loaded;
-	const messages: Anthropic.MessageParam[] = [{ role: 'user', content: loaded.content }];
 	const toolCtx: TaskToolContext = {
 		userId: run.userId,
 		task: { id: task.id, date: task.date, mealType: task.mealType, eatenAt: task.eatenAt },
@@ -193,174 +131,42 @@ async function runLoop(
 		nutrientRecords: new Set(),
 		signal
 	};
-	let nudged = false;
 	let logCalls = 0;
 
-	const regate = async (): Promise<boolean> => {
-		await assertClaudeAllowed(run.userId);
-		if (await isStillPending(run.userId, task.id)) return true;
-		await supersedeRun(ctx);
-		return false;
-	};
-
-	const { maxIterations } = claudeConfig();
-	let tools: Anthropic.ToolUnion[] = [
-		...taskServerTools(loaded.model),
-		...taskTools(isFdcConfigured())
-	];
-	let container: string | undefined;
-	let continuation = false;
-	let cutOffRetried = false;
-	const call = (
-		requestTools: Anthropic.ToolUnion[],
-		expectedRejection?: (error: ClaudeApiError) => boolean
-	) =>
-		callClaude({
-			userId: run.userId,
-			feature: AI_TASK_FEATURE,
-			model: loaded.model,
-			aiTaskId: task.id,
-			params: {
-				system: TASK_SYSTEM,
-				tools: requestTools,
-				messages: withCacheBreakpoint(messages),
-				...(container ? { container } : {})
-			},
-			imageCount: loaded.imageCount,
-			signal,
-			expectedRejection
-		});
-
-	for (let iteration = 0; iteration < maxIterations; iteration++) {
-		if (!(await regate())) return;
-
-		const declaresFetch = tools.some(isWebFetchTool);
-		const mayDropFetch = declaresFetch && !continuation && !isWebFetchAccepted();
-		let response: Anthropic.Message;
-		try {
-			response = await call(tools, mayDropFetch ? isInvalidRequest : undefined);
-			if (declaresFetch) acceptWebFetch();
-		} catch (error) {
-			if (!mayDropFetch || !isInvalidRequest(error)) throw error;
-			const dropped = tools.filter(isWebFetchTool);
-			const withoutFetch = tools.filter((tool) => !isWebFetchTool(tool));
-			response = await call(withoutFetch);
-			tools = withoutFetch;
-			if (rejectWebFetch()) {
-				Sentry.captureMessage(
-					`The API rejected a request with ${dropped.map((tool) => ('type' in tool ? tool.type : tool.name)).join(', ')}; web fetch is off until the next restart`,
-					{ level: 'warning', tags: { job: 'claude-task' }, extra: { model: loaded.model } }
-				);
-			}
-		}
-		container = response.container?.id ?? container;
-
-		if (response.stop_reason === 'refusal') {
-			await dismissRun(ctx, 'claude_refused');
-			return;
-		}
-
-		if (response.stop_reason === 'max_tokens' && hasUnansweredServerTool(response.content)) {
-			if (cutOffRetried) break;
-			cutOffRetried = true;
-			continue;
-		}
-		continuation =
-			response.stop_reason === 'pause_turn' || hasUnansweredServerTool(response.content);
-
-		if (response.content.length > 0) {
-			messages.push({
-				role: 'assistant',
-				content: response.content as Anthropic.ContentBlockParam[]
-			});
-		}
-		const toolUses = response.content.filter(
-			(block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
-		);
-
-		if (response.stop_reason === 'tool_use' && toolUses.length > 0) {
-			if (!(await regate())) return;
-			const results: Anthropic.ToolResultBlockParam[] = [];
-			let failed = false;
-			for (const [index, block] of toolUses.entries()) {
-				if (signal.aborted) throw new ClaudeAbortedError();
-				const rejection =
-					index >= MAX_TOOL_CALLS_PER_RESPONSE
-						? 'Too many tool calls in one response. Make fewer calls per turn.'
-						: block.name === 'log_food' && logCalls >= MAX_LOG_CALLS_PER_RUN
-							? 'Too many log_food calls for this meal. Finish with complete_ai_task or dismiss_ai_task.'
-							: block.name === 'create_food' &&
-								  toolCtx.createdFoods.size >= MAX_FOODS_CREATED_PER_RUN
-								? 'Too many new foods for one meal. Log the rest as quick entries.'
-								: isTerminalTool(block.name) && failed
-									? 'Fix the failed call first, then finish.'
-									: null;
-				if (rejection) {
-					failed = true;
-					results.push({
-						type: 'tool_result',
-						tool_use_id: block.id,
-						content: JSON.stringify({ error: rejection }),
-						is_error: true
-					});
-					continue;
-				}
-				if (block.name === 'log_food') logCalls++;
-				const result = await runTaskTool(block.name, block.input, toolCtx);
-				if (result.outcome) return;
-				if (result.isError) failed = true;
-				results.push({
-					type: 'tool_result',
-					tool_use_id: block.id,
-					content: result.content,
-					...(result.isError ? { is_error: true } : {})
-				});
-			}
-			messages.push({ role: 'user', content: results });
-			continue;
-		}
-
-		if (response.stop_reason === 'pause_turn') continue;
-
-		if (response.stop_reason === 'max_tokens' || response.stop_reason === 'end_turn') {
-			if (nudged) break;
-			nudged = true;
-			if (response.stop_reason === 'max_tokens' && toolUses.length > 0) {
-				messages.push({
-					role: 'user',
-					content: toolUses.map((block) => ({
-						type: 'tool_result' as const,
-						tool_use_id: block.id,
-						content: NUDGE,
-						is_error: true
-					}))
-				});
-			} else {
-				messages.push({
-					role: 'user',
-					content: [
-						{
-							type: 'text',
-							text: response.stop_reason === 'max_tokens' ? NUDGE : NUDGE_NO_TERMINAL
-						}
-					]
-				});
-			}
-			continue;
-		}
-
-		break;
-	}
-
-	await dismissRun(ctx, 'claude_incomplete');
+	await runToolLoop({
+		userId: run.userId,
+		taskId: task.id,
+		feature: AI_TASK_FEATURE,
+		model: loaded.model,
+		system: TASK_SYSTEM,
+		content: loaded.content,
+		imageCount: loaded.imageCount,
+		tools: [...taskServerTools(loaded.model), ...taskTools(isFdcConfigured())],
+		signal,
+		nudge: NUDGE,
+		nudgeNoTerminal: NUDGE_NO_TERMINAL,
+		isTerminal: isTerminalTool,
+		regate: async () => {
+			await assertClaudeAllowed(run.userId);
+			if (await isStillPending(run.userId, task.id)) return true;
+			await supersedeRun(ctx);
+			return false;
+		},
+		reject: (block) =>
+			block.name === 'log_food' && logCalls >= MAX_LOG_CALLS_PER_RUN
+				? 'Too many log_food calls for this meal. Finish with complete_ai_task or dismiss_ai_task.'
+				: block.name === 'create_food' && toolCtx.createdFoods.size >= MAX_FOODS_CREATED_PER_RUN
+					? 'Too many new foods for one meal. Log the rest as quick entries.'
+					: null,
+		runTool: async (block) => {
+			if (block.name === 'log_food') logCalls++;
+			const result = await runTaskTool(block.name, block.input, toolCtx);
+			return { ...result, done: !!result.outcome };
+		},
+		onRefusal: () => dismissRun(ctx, 'claude_refused'),
+		onIncomplete: () => dismissRun(ctx, 'claude_incomplete')
+	});
 }
-
-const failureDetail = (error: unknown): string => {
-	if (error instanceof ClaudeApiError) {
-		return `${error.kind}${error.status === undefined ? '' : ` ${error.status}`}`;
-	}
-	return 'unexpected';
-};
 
 async function handleFailure(
 	error: unknown,

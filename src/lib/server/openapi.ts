@@ -145,13 +145,15 @@ import {
 	aiTaskUpdateSchema,
 	aiTaskListQuerySchema,
 	aiTaskAcknowledgeSchema,
-	aiTaskProposalAcceptSchema
+	aiTaskProposalAcceptSchema,
+	aiTaskReplyCreateSchema
 } from './validation/ai-tasks';
 import {
 	aiTaskResponseSchema,
 	aiTasksResponseSchema,
 	aiTaskPhotoResponseSchema,
-	aiTaskAcknowledgeResponseSchema
+	aiTaskAcknowledgeResponseSchema,
+	aiTaskReplyErrorResponseSchema
 } from './validation/responses/ai-tasks';
 import { mcpStatusResponseSchema } from './validation/responses/mcp';
 import {
@@ -2099,7 +2101,7 @@ export const apiPaths = {
 			operationId: 'acknowledgeAiTasks',
 			tags: ['AiTasks'],
 			description:
-				'Mark resolved AI tasks as seen, clearing their unread state. Omit `ids` to acknowledge every unacknowledged task.',
+				"Mark resolved AI tasks as seen, clearing their unread state. Omit `ids` to acknowledge every unacknowledged task. With `replies: true` it also marks Claude's answers in `claudeThread` as read (on the tasks in `ids`, or on all) and reports how many in `repliesAcknowledged`; without it those stay unread. `acknowledgedAt` keeps its meaning either way: it only tracks dismissals.",
 			requestBody: {
 				required: false,
 				content: { 'application/json': { schema: aiTaskAcknowledgeSchema } }
@@ -2135,6 +2137,46 @@ export const apiPaths = {
 				'404': res404,
 				'409': res409,
 				'429': res429
+			}
+		}
+	},
+	'/api/ai-tasks/{id}/replies': {
+		post: {
+			operationId: 'replyToAiTask',
+			tags: ['AiTasks'],
+			description:
+				"Reply to Claude about a task it completed on the server (`processedByKind` claude), usually to say something is wrong. The reply joins `claudeThread` and starts a correction: Claude may change, remove or add the task's diary entries and change foods it created for the task, then answers in the thread. The task stays completed throughout. Online only: never queue it offline. Send an `Idempotency-Key` (one UUID per reply, reused for retries of the same reply) so a retried request returns the first response instead of adding the reply twice. Answers 201 with the task, whose `claudeThread.correctionState` is `queued`; poll the task list while it is queued, running or retrying. Rejections carry a machine-readable `code`: 404 `task_not_found`; 409 `not_processed_by_server` (MCP or device tasks), `not_completed`, `correction_in_flight`, `reply_limit_reached` (5 replies per task); 403 `processor_unavailable` (Claude is off, not configured or not granted), `budget_exhausted`; 429 `rate_limited` (20 replies per user in 24 hours) with `Retry-After`.",
+			requestParams: { path: uuidPathId },
+			requestBody: {
+				required: true,
+				content: { 'application/json': { schema: aiTaskReplyCreateSchema } }
+			},
+			responses: {
+				'201': {
+					description: 'Created',
+					content: { 'application/json': { schema: aiTaskResponseSchema } }
+				},
+				'400': res400,
+				'401': res401,
+				'403': {
+					description:
+						'Claude is not available to the user right now (`processor_unavailable`, `budget_exhausted`)',
+					content: { 'application/json': { schema: aiTaskReplyErrorResponseSchema } }
+				},
+				'404': {
+					description: 'Task not found (`task_not_found`)',
+					content: { 'application/json': { schema: aiTaskReplyErrorResponseSchema } }
+				},
+				'409': {
+					description:
+						'The task cannot take a reply (`not_processed_by_server`, `not_completed`, `correction_in_flight`, `reply_limit_reached`)',
+					content: { 'application/json': { schema: aiTaskReplyErrorResponseSchema } }
+				},
+				'429': {
+					description: 'Too many replies in the last 24 hours (`rate_limited`)',
+					headers: retryAfterHeaders,
+					content: { 'application/json': { schema: aiTaskReplyErrorResponseSchema } }
+				}
 			}
 		}
 	},

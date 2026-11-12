@@ -62,6 +62,33 @@ describe('run rows', () => {
 	});
 });
 
+describe('correction fences', () => {
+	const correction = { ...fence, kind: 'correction' as const };
+	const tables = () =>
+		getCalls()
+			.filter((call) => call.method === 'update' || call.method === 'from')
+			.map((call) => (call.args[0] as Record<symbol, string>)[Symbol.for('drizzle:Name')]);
+
+	test('heartbeat extends the correction lease, not the run lease', async () => {
+		setResult([{ taskId: 'task-1' }]);
+		expect(await runs.heartbeat(correction)).toBe(true);
+		expect(tables()).toEqual(['claude_task_corrections']);
+		setResult([]);
+		expect(await runs.heartbeat(correction)).toBe(false);
+	});
+
+	test('withFence locks the task, then the fenced correction row', async () => {
+		queueResults([[{ one: 1 }], [{ one: 1 }]]);
+		expect(await runs.withFence(correction, async () => 'done')).toBe('done');
+		expect(tables()).toEqual(['ai_tasks', 'claude_task_corrections']);
+		reset();
+		queueResults([[{ one: 1 }], []]);
+		await expect(runs.withFence(correction, async () => 'done')).rejects.toBeInstanceOf(
+			LeaseLostError
+		);
+	});
+});
+
 describe('withFence', () => {
 	test('runs the callback inside the fenced transaction', async () => {
 		queueResults([[{ one: 1 }], [{ one: 1 }]]);

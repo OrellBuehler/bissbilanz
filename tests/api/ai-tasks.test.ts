@@ -29,6 +29,8 @@ let mockCreateResult: any = null;
 let mockUpdateResult: any = undefined;
 let mockAcknowledgedCount = 0;
 let mockRuns: any[] = [];
+let mockThreads = new Map<string, any>();
+const markRepliesRead = vi.fn();
 const requeue = vi.fn();
 const captureException = vi.hoisted(() => vi.fn());
 const enqueue = vi.fn();
@@ -64,6 +66,11 @@ vi.mock('$lib/server/claude/tasks/runs', () => ({
 	listRunsByTaskIds: async () => mockRuns
 }));
 
+vi.mock('$lib/server/claude/tasks/replies', () => ({
+	loadClaudeThreads: async () => mockThreads,
+	markRepliesRead
+}));
+
 vi.mock('$lib/server/claude/tasks/executor', () => ({
 	enqueueClaudeTaskIfEligible: enqueue,
 	requeueRunForEditedTask: requeue
@@ -85,6 +92,8 @@ describe('api/ai-tasks', () => {
 		mockUpdateResult = undefined;
 		mockAcknowledgedCount = 0;
 		mockRuns = [];
+		mockThreads = new Map();
+		markRepliesRead.mockReset().mockResolvedValue(0);
 		requeue.mockReset();
 		captureException.mockReset();
 		enqueue.mockReset();
@@ -123,6 +132,53 @@ describe('api/ai-tasks', () => {
 			expect(data.tasks[1].processedBy).toBe('on_device');
 			expect(data.tasks[1].processedByKind).toBe('on_device');
 			expect(data.tasks[0].claudeProcessing).toBeNull();
+			expect(data.tasks[0].claudeThread).toBeNull();
+		});
+
+		test('attaches the thread of a completed claude task', async () => {
+			const completed = { ...TEST_AI_TASK, status: 'completed', processedBy: 'claude' };
+			mockListResult = { tasks: [completed], total: 1 };
+			mockThreads = new Map([
+				[
+					completed.id,
+					{
+						messages: [
+							{
+								id: '10000000-0000-4000-8000-0000000000e1',
+								role: 'user',
+								text: 'That was 250 g',
+								outcome: null,
+								createdAt: '2026-02-27T12:10:00.000Z',
+								unread: false
+							},
+							{
+								id: '10000000-0000-4000-8000-0000000000e2',
+								role: 'assistant',
+								text: 'Changed to 250 g.',
+								outcome: 'changed',
+								createdAt: '2026-02-27T12:11:00.000Z',
+								unread: true
+							}
+						],
+						correctionState: 'idle',
+						canReply: true,
+						replyBlockedReason: null,
+						repliesRemaining: 4,
+						unreadReplies: 1
+					}
+				]
+			]);
+			const response = await aiTasksModule.GET(createMockEvent({ user: TEST_USER }));
+			await expectResponseContract('GET', '/api/ai-tasks', response);
+			const data = await response.json();
+			expect(data.tasks[0].claudeThread).toMatchObject({
+				correctionState: 'idle',
+				canReply: true,
+				unreadReplies: 1,
+				messages: [{ role: 'user' }, { role: 'assistant', outcome: 'changed', unread: true }]
+			});
+			expect(data.tasks[0].status).toBe('completed');
+			expect(data.tasks[0].acknowledgedAt).toBeNull();
 		});
 
 		test('attaches claude processing with the proposal and without its internal entry', async () => {
@@ -360,6 +416,25 @@ describe('api/ai-tasks', () => {
 			const data = await response.json();
 			expect(response.status).toBe(200);
 			expect(data.acknowledged).toBe(2);
+		});
+
+		test('leaves replies unread unless asked to mark them', async () => {
+			mockAcknowledgedCount = 1;
+			const response = await aiTaskAckModule.POST(createMockEvent({ user: TEST_USER, body: {} }));
+			await expectResponseContract('POST', '/api/ai-tasks/acknowledge', response);
+			expect(await response.json()).toEqual({ acknowledged: 1 });
+			expect(markRepliesRead).not.toHaveBeenCalled();
+		});
+
+		test('marks replies read on request and reports their count', async () => {
+			mockAcknowledgedCount = 0;
+			markRepliesRead.mockResolvedValue(3);
+			const response = await aiTaskAckModule.POST(
+				createMockEvent({ user: TEST_USER, body: { ids: [TEST_AI_TASK.id], replies: true } })
+			);
+			await expectResponseContract('POST', '/api/ai-tasks/acknowledge', response);
+			expect(await response.json()).toEqual({ acknowledged: 0, repliesAcknowledged: 3 });
+			expect(markRepliesRead).toHaveBeenCalledWith(TEST_USER.id, [TEST_AI_TASK.id]);
 		});
 
 		test('returns 400 for an invalid payload', async () => {

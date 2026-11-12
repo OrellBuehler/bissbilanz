@@ -40,7 +40,7 @@ export type TaskPromptContext = {
 	alreadyLogged: string[];
 };
 
-function offsetString(date: Date, timeZone: string): string {
+export function offsetString(date: Date, timeZone: string): string {
 	const parts = new Intl.DateTimeFormat('en-US', {
 		timeZone,
 		year: 'numeric',

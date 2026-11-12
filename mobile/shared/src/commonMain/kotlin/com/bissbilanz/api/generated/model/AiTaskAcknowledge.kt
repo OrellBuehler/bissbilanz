@@ -23,8 +23,11 @@ import kotlinx.serialization.encoding.*
  *
  *
  * @param ids
+ * @param replies Also mark Claude's answers in claudeThread as read, on the tasks in `ids` or on every task. Omitted or false leaves them unread.
  */
 @Serializable
 data class AiTaskAcknowledge(
     @SerialName(value = "ids") val ids: kotlin.collections.List<kotlin.String>? = null,
+    // Also mark Claude's answers in claudeThread as read, on the tasks in `ids` or on every task. Omitted or false leaves them unread.
+    @SerialName(value = "replies") val replies: kotlin.Boolean? = null,
 )

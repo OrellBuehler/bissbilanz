@@ -283,7 +283,12 @@ export const toFoodUpdate = (input: FoodUpdateInput) => {
 const offCheckedAtAfterBarcodeChange = (barcode: string | null) =>
 	sql`CASE WHEN ${foods.barcode} IS NOT DISTINCT FROM ${barcode} THEN ${foods.offCheckedAt} END`;
 
-export type FoodServerWrite = { offCheckedAt?: Date; where?: SQL; keepUpdatedAt?: boolean };
+export type FoodServerWrite = {
+	offCheckedAt?: Date;
+	where?: SQL;
+	keepUpdatedAt?: boolean;
+	tx?: TxOrDb;
+};
 
 export const updateFood = (
 	userId: string,
@@ -294,7 +299,7 @@ export const updateFood = (
 ): Promise<Result<FoodWithLabels | undefined>> =>
 	withValidation(foodUpdateSchema, payload, async (data) => {
 		try {
-			const db = getDB();
+			const db = server.tx ?? getDB();
 			const [previous] =
 				data.imageUrl !== undefined
 					? await db

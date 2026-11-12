@@ -24,7 +24,8 @@ const h = vi.hoisted(() => ({
 	dismissByModel: vi.fn(),
 	searchFdcFoods: vi.fn(),
 	getFdcFood: vi.fn(),
-	addOff: vi.fn()
+	addOff: vi.fn(),
+	recordTaskFoods: vi.fn()
 }));
 
 const TX = { tx: true };
@@ -59,6 +60,7 @@ vi.mock('$lib/server/claude/tasks/outcomes', () => ({
 	dismissByModel: h.dismissByModel
 }));
 vi.mock('$lib/server/claude/tasks/off-detail', () => ({ addOpenFoodFactsDetail: h.addOff }));
+vi.mock('$lib/server/claude/tasks/task-scope', () => ({ recordTaskFoods: h.recordTaskFoods }));
 vi.mock('$lib/server/fooddata-central', async (importOriginal) => ({
 	...(await importOriginal<typeof import('$lib/server/fooddata-central')>()),
 	searchFdcFoods: h.searchFdcFoods,
@@ -665,6 +667,7 @@ describe('create_food', () => {
 		expect(payload).not.toHaveProperty('barcode');
 		expect(payload).not.toHaveProperty('ingredientsText');
 		expect(h.addOff).toHaveBeenCalledWith('user-1', [{ id: FOOD_ID, barcode: undefined }]);
+		expect(h.recordTaskFoods).toHaveBeenCalledWith(expect.anything(), 'task-1', [FOOD_ID]);
 	});
 
 	test('auto log adds Open Food Facts detail to a new barcode food', async () => {
@@ -728,6 +731,7 @@ describe('create_food', () => {
 		expect(h.handleCreateFood).not.toHaveBeenCalled();
 		expect(h.transitionFenced).not.toHaveBeenCalled();
 		expect(h.addOff).not.toHaveBeenCalled();
+		expect(h.recordTaskFoods).not.toHaveBeenCalled();
 		expect(ctx.foods.get(result.body.foodId)).toMatchObject({ name: 'Skyr', sodium: 40 });
 	});
 

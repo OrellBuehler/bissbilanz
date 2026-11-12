@@ -1133,7 +1133,7 @@ export interface paths {
 		};
 		get?: never;
 		put?: never;
-		/** @description Mark resolved AI tasks as seen, clearing their unread state. Omit `ids` to acknowledge every unacknowledged task. */
+		/** @description Mark resolved AI tasks as seen, clearing their unread state. Omit `ids` to acknowledge every unacknowledged task. With `replies: true` it also marks Claude's answers in `claudeThread` as read (on the tasks in `ids`, or on all) and reports how many in `repliesAcknowledged`; without it those stay unread. `acknowledgedAt` keeps its meaning either way: it only tracks dismissals. */
 		post: operations['acknowledgeAiTasks'];
 		delete?: never;
 		options?: never;
@@ -1152,6 +1152,23 @@ export interface paths {
 		put?: never;
 		/** @description Accept Claude's proposal for a pending AI task: logs the proposed entries (all of them, or only the listed `itemIds`) and completes the task. An empty or missing body accepts every item. Answers 409 when there is no open proposal, the processor moved away from Claude, or a food, recipe or meal type of the proposal no longer exists (nothing is logged; the stale items are removed from the proposal, or Claude proposes again if none is left, so refresh the task and accept again). */
 		post: operations['acceptAiTaskProposal'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/ai-tasks/{id}/replies': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Reply to Claude about a task it completed on the server (`processedByKind` claude), usually to say something is wrong. The reply joins `claudeThread` and starts a correction: Claude may change, remove or add the task's diary entries and change foods it created for the task, then answers in the thread. The task stays completed throughout. Online only: never queue it offline. Send an `Idempotency-Key` (one UUID per reply, reused for retries of the same reply) so a retried request returns the first response instead of adding the reply twice. Answers 201 with the task, whose `claudeThread.correctionState` is `queued`; poll the task list while it is queued, running or retrying. Rejections carry a machine-readable `code`: 404 `task_not_found`; 409 `not_processed_by_server` (MCP or device tasks), `not_completed`, `correction_in_flight`, `reply_limit_reached` (5 replies per task); 403 `processor_unavailable` (Claude is off, not configured or not granted), `budget_exhausted`; 429 `rate_limited` (20 replies per user in 24 hours) with `Retry-After`. */
+		post: operations['replyToAiTask'];
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -2173,9 +2190,14 @@ export interface components {
 		};
 		AiTaskAcknowledge: {
 			ids?: string[];
+			/** @description Also mark Claude's answers in claudeThread as read, on the tasks in `ids` or on every task. Omitted or false leaves them unread. */
+			replies?: boolean;
 		};
 		AiTaskProposalAccept: {
 			itemIds?: string[];
+		};
+		AiTaskReplyCreate: {
+			text: string;
 		};
 		AiTaskUpdate: {
 			/** @enum {string} */
@@ -3417,6 +3439,8 @@ export interface components {
 			/** @description Who actually resolved the task, including values newer than the legacy processedBy enum (e.g. 'claude'). Unknown values should be treated like processedBy. */
 			processedByKind?: string | null;
 			claudeProcessing?: components['schemas']['AiTaskClaudeProcessing'] | null;
+			/** @description Replies to Claude about a task it processed on the server (processedByKind claude), so it fixes what it logged. Present on every completed Claude task, and on other Claude tasks that already have a conversation; null or absent otherwise, including on the response to creating a task. */
+			claudeThread?: components['schemas']['AiTaskClaudeThread'] | null;
 			createdAt?: string;
 			updatedAt?: string;
 		};
@@ -3450,11 +3474,43 @@ export interface components {
 			servingSize: number;
 			servingUnit: string;
 		};
+		AiTaskClaudeThread: {
+			/** @description The conversation under the task’s resultSummary, oldest first. Empty until the user replies. */
+			messages: components['schemas']['AiTaskThreadMessage'][];
+			/** @description Where the correction for the latest reply stands: 'idle' (nothing running), 'queued', 'running', 'retrying' (waiting to try again after an error) or 'failed' (the last correction did not work; the thread says so and a new reply is possible). Unknown values should be treated as in progress. */
+			correctionState: string;
+			canReply: boolean;
+			/** @description Why canReply is false, null when it is true: not_completed, correction_in_flight, reply_limit_reached, processor_unavailable, budget_exhausted, rate_limited. Matches the code POST /api/ai-tasks/{id}/replies would answer with. Unknown values should be shown as a generic 'replies are not possible right now'. */
+			replyBlockedReason: string | null;
+			/** @description How many more replies this task takes before the per-task limit. */
+			repliesRemaining: number;
+			/** @description Number of messages with unread true. */
+			unreadReplies: number;
+		};
+		AiTaskThreadMessage: {
+			/** Format: uuid */
+			id: string;
+			/** @description Who wrote it: 'user' (a reply the user sent) or 'assistant' (Claude's answer, or a notice that a correction did not work). Unknown values should be shown like 'assistant'. */
+			role: string;
+			text: string;
+			/** @description Claude's messages only, null on the user's: 'changed' (the diary entries or foods of this task changed; refresh the task's date), 'answered' (Claude replied without changing anything) or 'failed' (the correction did not work and nothing was changed). Unknown values should be treated like 'answered'. */
+			outcome: string | null;
+			createdAt: string;
+			/** @description True for an answer of Claude the user has not acknowledged yet (see POST /api/ai-tasks/acknowledge with replies). Always false for the user’s own messages. */
+			unread: boolean;
+		};
 		AiTaskResponse: {
 			task: components['schemas']['AiTask'];
 		};
 		AiTaskAcknowledgeResponse: {
 			acknowledged: number;
+			/** @description Claude's answers marked as read. Only present when the request set replies. */
+			repliesAcknowledged?: number;
+		};
+		AiTaskReplyErrorResponse: {
+			error: string;
+			/** @description Machine-readable reason. Absent on generic failures such as an invalid id. Unknown values should be treated as a generic failure of the given status. */
+			code?: string;
 		};
 		AiTaskPhotoResponse: {
 			photoUrl: string;
@@ -6375,6 +6431,72 @@ export interface operations {
 			404: components['responses']['NotFoundResponse'];
 			409: components['responses']['ConflictResponse'];
 			429: components['responses']['RateLimitedResponse'];
+		};
+	};
+	replyToAiTask: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['AiTaskReplyCreate'];
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AiTaskResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			/** @description Claude is not available to the user right now (`processor_unavailable`, `budget_exhausted`) */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AiTaskReplyErrorResponse'];
+				};
+			};
+			/** @description Task not found (`task_not_found`) */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AiTaskReplyErrorResponse'];
+				};
+			};
+			/** @description The task cannot take a reply (`not_processed_by_server`, `not_completed`, `correction_in_flight`, `reply_limit_reached`) */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AiTaskReplyErrorResponse'];
+				};
+			};
+			/** @description Too many replies in the last 24 hours (`rate_limited`) */
+			429: {
+				headers: {
+					/** @description Seconds until the rate limit window resets; clients should not retry before then. */
+					'Retry-After'?: number;
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AiTaskReplyErrorResponse'];
+				};
+			};
 		};
 	};
 	uploadAiTaskPhoto: {

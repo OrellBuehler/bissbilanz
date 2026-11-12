@@ -52,6 +52,11 @@
 					"path": "/api/ai-tasks/{id}/proposal/accept"
 				},
 				{
+					"method": "POST",
+					"operationId": "replyToAiTask",
+					"path": "/api/ai-tasks/{id}/replies"
+				},
+				{
 					"method": "PATCH",
 					"operationId": "updateAiTask",
 					"path": "/api/ai-tasks/{id}"

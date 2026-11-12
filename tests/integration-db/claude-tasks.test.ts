@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import {
 	aiTasks,
 	claudeAccess,
+	claudeTaskFoods,
 	claudeTaskLedger,
 	claudeTaskRuns,
 	claudeUsage,
@@ -588,6 +589,8 @@ describe('create_food in auto mode', () => {
 		expect(entries).toHaveLength(1);
 		expect(entries[0]).toMatchObject({ foodId, servings: 2 });
 		expect((await taskOf(task.id)).status).toBe('completed');
+		const recorded = await db.select().from(claudeTaskFoods);
+		expect(recorded.map((row) => [row.taskId, row.foodId])).toEqual([[task.id, foodId]]);
 	});
 
 	it('adds Open Food Facts detail to the new barcode food without touching its label values', async () => {
@@ -716,6 +719,8 @@ describe('create_food in review mode', () => {
 		const entries = await entriesOf(user.id);
 		expect(entries).toHaveLength(2);
 		expect(entries.every((entry) => entry.foodId === created[0]!.id)).toBe(true);
+		const recorded = await db.select().from(claudeTaskFoods);
+		expect(recorded.map((row) => [row.taskId, row.foodId])).toEqual([[task.id, created[0]!.id]]);
 	});
 
 	it('creates the food when only one of the items using it is accepted', async () => {
@@ -753,6 +758,7 @@ describe('create_food in review mode', () => {
 		expect(await userFoods(user.id)).toHaveLength(1);
 		const entries = await entriesOf(user.id);
 		expect(entries[0]!.foodId).toBe(existing.id);
+		expect(await db.select().from(claudeTaskFoods)).toHaveLength(0);
 	});
 
 	it('rolls the new food back when another item of the proposal cannot be created', async () => {

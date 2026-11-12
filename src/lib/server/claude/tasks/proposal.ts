@@ -8,6 +8,7 @@ import { ApiError } from '../../errors';
 import { aiTasks, claudeTaskRuns, userPreferences } from '../../schema';
 import { addOpenFoodFactsDetail, type CreatedFood } from './off-detail';
 import { dropStaleProposalItems } from './proposal-stale';
+import { recordTaskFoods } from './task-scope';
 import type { ClaudeRun, Proposal } from './types';
 
 type ClaudeProcessingState = 'queued' | 'running' | 'retrying' | 'proposed' | 'blocked';
@@ -146,6 +147,7 @@ async function acceptInTransaction(userId: string, taskId: string, itemIds?: str
 						if (!food.success) throw stale(food.error, item.id);
 						foodId = food.data.id;
 						newFoods.push({ id: foodId, barcode: food.data.barcode });
+						await recordTaskFoods(tx, taskId, [foodId]);
 					}
 					createdFoodIds.set(provisionalId, foodId);
 				}
