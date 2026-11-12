@@ -171,16 +171,6 @@ final class FoodRepository {
         return rows.filter { $0.labels.isEmpty }.compactMap { $0.toFood() }
     }
 
-    func unenrichedLocalFoods(now: Date = Date()) -> [Food] {
-        let descriptor = FetchDescriptor<LocalFood>(
-            predicate: #Predicate { $0.barcode != nil },
-            sortBy: [SortDescriptor(\.name)]
-        )
-        return fetchRows(descriptor).compactMap { $0.toFood() }.filter {
-            FoodEnrichmentRules.needsEnrichment($0, now: now)
-        }
-    }
-
     /// The most-used labels already in the local catalog, most-common first —
     /// handed to `FoodLabeler` so it reuses existing vocabulary instead of
     /// inventing near-synonyms, mirroring the MCP `label_foods` prompt's
@@ -381,6 +371,7 @@ final class FoodRepository {
                 after: cursor,
                 limit: pageSize
             )
+            try Task.checkCancellation()
             let pendingIds = syncManager.pendingAffectedIds(table: "foods")
             upsertAll(page.foods.filter { !pendingIds.contains($0.id) })
             context.saveReportingFailure("FoodRepository.mirrorAll")
@@ -445,6 +436,7 @@ final class FoodRepository {
     private func pruneMissing() async throws {
         let before = localFoodIds()
         let serverIds = Set(try await api.getFoodIds().map { $0.lowercased() })
+        try Task.checkCancellation()
         var pendingIds = Set(syncManager.pendingAffectedIds(table: "foods").map { $0.lowercased() })
         pendingIds.formUnion(try bulkUploadFoodIds())
         let orphans = before.filter { id in

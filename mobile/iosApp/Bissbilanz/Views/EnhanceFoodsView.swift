@@ -4,6 +4,16 @@ struct EnhanceFoodsView: View {
     @Environment(FoodEnrichmentController.self) private var controller
     @Environment(AppModeManager.self) private var appMode
     @Environment(ConnectivityMonitor.self) private var connectivity
+    @Environment(\.scenePhase) private var scenePhase
+
+    private struct ScreenTrigger: Equatable {
+        let online: Bool
+        let active: Bool
+    }
+
+    private var isActiveScene: Bool {
+        scenePhase == .active
+    }
 
     var body: some View {
         List {
@@ -32,11 +42,34 @@ struct EnhanceFoodsView: View {
         }
         .navigationTitle(L10n.enhanceFoods)
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: connectivity.isOnline) { await controller.refreshForScreen() }
-        .task(id: controller.shouldPoll) {
-            if controller.shouldPoll {
+        .task(id: ScreenTrigger(online: connectivity.isOnline, active: isActiveScene)) {
+            if isActiveScene {
+                await controller.refreshForScreen()
+            }
+        }
+        .task(id: controller.shouldPoll && isActiveScene) {
+            if controller.shouldPoll, isActiveScene {
                 await controller.pollWhileActive()
             }
+        }
+    }
+
+    private var loadFailedSection: some View {
+        Section {
+            Text(L10n.enhanceFoodsLoadFailed)
+                .foregroundStyle(.red)
+            Button(L10n.retry) {
+                Task { await controller.refreshForScreen() }
+            }
+            .disabled(!connectivity.isOnline)
+        }
+    }
+
+    private var loadingRow: some View {
+        HStack(spacing: 12) {
+            ProgressView()
+            Text(L10n.loading)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -56,22 +89,11 @@ struct EnhanceFoodsView: View {
             }
         } else if connectivity.isOnline, !controller.loadFailed {
             Section {
-                HStack(spacing: 12) {
-                    ProgressView()
-                    Text(L10n.loading)
-                        .foregroundStyle(.secondary)
-                }
+                loadingRow
             }
         }
         if controller.loadFailed {
-            Section {
-                Text(L10n.enhanceFoodsLoadFailed)
-                    .foregroundStyle(.red)
-                Button(L10n.retry) {
-                    Task { await controller.refreshStatus() }
-                }
-                .disabled(!connectivity.isOnline)
-            }
+            loadFailedSection
         }
     }
 
@@ -111,9 +133,12 @@ struct EnhanceFoodsView: View {
             }
         } else {
             idleSweepSection(controller.sweep)
-            startSection(disabled: controller.localCandidateCount == 0) {
+            startSection(disabled: (controller.localCandidateCount ?? 0) == 0) {
                 controller.startLocalSweep()
             }
+        }
+        if controller.loadFailed {
+            loadFailedSection
         }
     }
 
@@ -141,9 +166,11 @@ struct EnhanceFoodsView: View {
 
     private func idleSweepSection(_ sweep: LocalSweepProgress) -> some View {
         Section {
-            Text(controller.localCandidateCount > 0
-                ? L10n.enhanceFoodsCandidates(controller.localCandidateCount)
-                : L10n.enhanceFoodsNone)
+            if let count = controller.localCandidateCount {
+                Text(count > 0 ? L10n.enhanceFoodsCandidates(count) : L10n.enhanceFoodsNone)
+            } else if !controller.loadFailed {
+                loadingRow
+            }
             if let summary = Self.sweepSummary(sweep) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(summary)

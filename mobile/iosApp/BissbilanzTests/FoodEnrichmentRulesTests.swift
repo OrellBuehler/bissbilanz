@@ -22,11 +22,12 @@ struct FoodEnrichmentRulesTests {
         return try JSONPatch.decode(Food.self, from: fields)
     }
 
-    private func status(_ state: String?, updated: Int = 0) throws -> FoodEnrichmentStatus {
+    private func status(_ state: String?, updated: Int = 0, finishedAt: String? = nil) throws -> FoodEnrichmentStatus {
+        let finished = finishedAt.map { "\"\($0)\"" } ?? "null"
         let job = state.map {
             """
             {"state": "\($0)", "total": 4, "processed": 2, "updated": \(updated), "notFound": 1, "failed": 0,
-             "startedAt": "2026-11-12T08:00:00.000Z", "finishedAt": null}
+             "startedAt": "2026-11-12T08:00:00.000Z", "finishedAt": \(finished)}
             """
         } ?? "null"
         let json = Data(#"{"candidates": 4, "job": \#(job)}"#.utf8)
@@ -222,16 +223,25 @@ struct FoodEnrichmentRulesTests {
         #expect(!FoodEnrichmentPhase("paused_for_maintenance").isActive)
     }
 
-    @Test("A run finishes when an active job turns into any other state")
-    func didFinish() throws {
-        let running = try status("running")
-        #expect(FoodEnrichmentRules.didFinish(previous: running, next: try status("completed", updated: 2)))
-        #expect(FoodEnrichmentRules.didFinish(previous: running, next: try status("something_new")))
-        #expect(FoodEnrichmentRules.didFinish(previous: try status("queued"), next: try status("cancelled")))
-        #expect(!FoodEnrichmentRules.didFinish(previous: running, next: running))
-        #expect(!FoodEnrichmentRules.didFinish(previous: nil, next: try status("completed")))
-        #expect(!FoodEnrichmentRules.didFinish(previous: try status("completed"), next: try status("completed")))
-        #expect(!FoodEnrichmentRules.didFinish(previous: try status(nil), next: try status(nil)))
+    @Test("A finished run with updates refreshes local foods once, whenever it is first seen")
+    func runToRefresh() throws {
+        let done = try status("completed", updated: 2, finishedAt: "2026-11-12T09:00:00.000Z")
+        let run = try #require(FoodEnrichmentRules.runToRefresh(done, refreshed: nil))
+        #expect(FoodEnrichmentRules.runToRefresh(done, refreshed: run) == nil)
+
+        let later = try status("cancelled", updated: 1, finishedAt: "2026-11-13T09:00:00.000Z")
+        #expect(FoodEnrichmentRules.runToRefresh(later, refreshed: run) != nil)
+        #expect(FoodEnrichmentRules.runToRefresh(try status("something_new", updated: 3), refreshed: run) != nil)
+
+        #expect(FoodEnrichmentRules.runToRefresh(try status("running", updated: 2), refreshed: nil) == nil)
+        #expect(FoodEnrichmentRules.runToRefresh(try status("completed", updated: 0), refreshed: nil) == nil)
+        #expect(FoodEnrichmentRules.runToRefresh(try status(nil), refreshed: nil) == nil)
+    }
+
+    @Test("The Settings caption says when nothing is left to check")
+    func countSummary() {
+        #expect(L10n.enhanceFoodsCountSummary(3) == L10n.unlabeledFoodCount(3))
+        #expect(L10n.enhanceFoodsCountSummary(0) == L10n.enhanceFoodsAllChecked)
     }
 
     @Test("Unknown enrich outcomes read as unchanged")
@@ -302,8 +312,12 @@ struct FoodEnrichmentRulesTests {
         #expect(FoodEnrichmentController.sweepStep(for: FoodEnrichmentFailure.foodNotFound) == .skip)
         #expect(FoodEnrichmentController.sweepStep(for: FoodEnrichmentFailure.offInvalidResponse)
             == .fail("off_invalid_response"))
-        if case .fail = FoodEnrichmentController.sweepStep(for: APIError.badRequest(nil)) {} else {
-            Issue.record("a non-transport error must not be retried")
+        #expect(FoodEnrichmentController.sweepStep(for: FoodEnrichmentFailure.failed(status: 500))
+            == .fail("status_500"))
+        #expect(FoodEnrichmentController.sweepStep(for: APIError.badRequest(nil)) == .unexpected("bad_request"))
+        let decoding = DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "broken"))
+        if case .unexpected = FoodEnrichmentController.sweepStep(for: decoding) {} else {
+            Issue.record("a bug-shaped error must be reported, not retried or treated as expected")
         }
     }
 

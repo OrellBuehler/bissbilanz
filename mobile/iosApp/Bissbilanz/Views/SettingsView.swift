@@ -430,23 +430,25 @@ struct SettingsView: View {
 
                 // Enhance Foods: Open Food Facts scores and label details for
                 // barcode foods that lack them. No AI involved, so it sits
-                // outside the food-labels gate; hidden once nothing is left.
-                if let enhanceSummary = foodEnrichment.settingsSummary {
-                    Section {
-                        NavigationLink {
-                            EnhanceFoodsView()
-                        } label: {
-                            HStack {
-                                Text(L10n.enhanceFoods)
-                                Spacer()
+                // outside the food-labels gate. Always present: removing a
+                // NavigationLink pops its destination, and the count changes
+                // while the screen is open.
+                Section {
+                    NavigationLink {
+                        EnhanceFoodsView()
+                    } label: {
+                        HStack {
+                            Text(L10n.enhanceFoods)
+                            Spacer()
+                            if let enhanceSummary = foodEnrichment.settingsSummary {
                                 Text(enhanceSummary)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
                         }
-                    } footer: {
-                        Text(L10n.enhanceFoodsFooter)
                     }
+                } footer: {
+                    Text(L10n.enhanceFoodsFooter)
                 }
 
                 // Help

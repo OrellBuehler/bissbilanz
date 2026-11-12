@@ -14,7 +14,9 @@ struct FoodEnrichmentControllerTests {
             api: harness.api,
             appMode: harness.appMode,
             connectivity: harness.connectivity,
+            syncManager: harness.syncManager,
             foodRepository: foodRepository ?? harness.foodRepository,
+            container: harness.container,
             defaults: harness.defaults,
             delay: { _ in }
         )
@@ -180,7 +182,7 @@ struct FoodEnrichmentControllerTests {
         #expect(!enrichment.shouldPoll)
         #expect(requests(harness, "GET /api/foods/enrichment") == 2)
         #expect(harness.foodRepository.food(id: "f1")?.nutriScore == "a")
-        #expect(enrichment.settingsSummary == nil)
+        #expect(enrichment.settingsSummary == L10n.enhanceFoodsAllChecked)
     }
 
     @Test("A run that finished without updates does not resync foods")
@@ -262,7 +264,7 @@ struct FoodEnrichmentControllerTests {
             json: #"{"status": 0}"#
         )
         let enrichment = controller(harness, foodRepository: repo)
-        enrichment.refreshLocalCount()
+        await enrichment.refreshLocalCount()
         #expect(enrichment.localCandidateCount == 2)
 
         enrichment.startLocalSweep()
@@ -337,5 +339,171 @@ struct FoodEnrichmentControllerTests {
         #expect(enrichment.status == nil)
         #expect(enrichment.settingsSummary == nil)
         #expect(controller(harness).cachedCandidates == nil)
+    }
+
+    @Test("A mode change forgets the previous account's status and cached count")
+    func modeChangeResets() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("GET", "/api/foods/enrichment", json: statusJSON("running", processed: 2))
+        let enrichment = controller(harness)
+        await enrichment.refreshStatus()
+        #expect(enrichment.settingsSummary == L10n.enhanceFoodsProgress(2, 5))
+
+        harness.appMode.setMode(.local)
+        await enrichment.refreshForSettings()
+
+        #expect(enrichment.status == nil)
+        #expect(enrichment.cachedCandidates == nil)
+        #expect(harness.defaults.object(forKey: FoodEnrichmentState.candidatesKey) == nil)
+        #expect(enrichment.settingsSummary == L10n.enhanceFoodsAllChecked)
+    }
+
+    @Test("Wiping local data clears the cached count")
+    func wipeClearsCachedCount() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("GET", "/api/foods/enrichment", json: statusJSON(nil, candidates: 9))
+        await controller(harness).refreshStatus()
+        #expect(controller(harness).cachedCandidates == 9)
+
+        harness.migrator.wipeLocalData()
+
+        #expect(controller(harness).cachedCandidates == nil)
+    }
+
+    @Test("Start drains queued food edits first and refuses while they are still waiting")
+    func startWaitsForQueuedFoodEdits() async throws {
+        let harness = try RepositoryHarness()
+        try harness.context.insert(LocalFood(food: food(id: "f1", barcode: "111")))
+        try harness.context.save()
+        _ = try await harness.foodRepository.toggleFavorite(foodId: "f1", isFavorite: true)
+        harness.stub("PATCH", "/api/foods/f1", status: 503, json: #"{"error": "down"}"#)
+        let enrichment = controller(harness)
+
+        await enrichment.startJob()
+
+        #expect(enrichment.notice == .pendingChanges)
+        #expect(requests(harness, "PATCH /api/foods/f1") == 1)
+        #expect(requests(harness, "POST /api/foods/enrichment") == 0)
+        #expect(!enrichment.isSubmitting)
+    }
+
+    @Test("Start goes ahead once the queued food edits have uploaded")
+    func startAfterQueueDrained() async throws {
+        let harness = try RepositoryHarness()
+        try harness.context.insert(LocalFood(food: food(id: "f1", barcode: "111")))
+        try harness.context.save()
+        _ = try await harness.foodRepository.toggleFavorite(foodId: "f1", isFavorite: true)
+        harness.stub("PATCH", "/api/foods/f1", json: """
+        {"food": {"id": "f1", "userId": "u1", "name": "Food f1", "servingSize": 100, "servingUnit": "g",
+         "calories": 100, "protein": 1, "carbs": 1, "fat": 1, "fiber": 1, "isFavorite": true, "barcode": "111"}}
+        """)
+        harness.stub("POST", "/api/foods/enrichment", status: 202, json: statusJSON("queued"))
+        let enrichment = controller(harness)
+
+        await enrichment.startJob()
+
+        #expect(harness.syncManager.queuedRows().isEmpty)
+        #expect(requests(harness, "POST /api/foods/enrichment") == 1)
+        #expect(enrichment.isJobActive)
+        #expect(enrichment.notice == nil)
+    }
+
+    @Test("An action's own result is applied; status reads around it do not overwrite it")
+    func actionResultWins() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("GET", "/api/foods/enrichment", json: statusJSON(nil), delayMs: 300)
+        harness.stub("POST", "/api/foods/enrichment", status: 202, json: statusJSON("queued"), delayMs: 100)
+        let enrichment = controller(harness)
+
+        let staleRead = Task { await enrichment.refreshStatus() }
+        try await Task.sleep(for: .milliseconds(30))
+        let start = Task { await enrichment.startJob() }
+        try await Task.sleep(for: .milliseconds(30))
+        let readDuringAction = await enrichment.refreshStatus()
+        await start.value
+        _ = await staleRead.value
+
+        #expect(!readDuringAction)
+        #expect(enrichment.isJobActive)
+        #expect(requests(harness, "GET /api/foods/enrichment") == 1)
+    }
+
+    @Test("A run that finished while the app was away refreshes local foods once")
+    func finishedRunRefreshesOnce() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub(
+            "GET", "/api/foods/enrichment",
+            json: statusJSON("completed", candidates: 0, processed: 5, updated: 2)
+        )
+        harness.stub("GET", "/api/foods", json: """
+        {"foods": [{"id": "f1", "userId": "u1", "name": "Skyr", "servingSize": 150, "servingUnit": "g",
+         "calories": 90, "protein": 15, "carbs": 6, "fat": 0.3, "fiber": 0, "isFavorite": false,
+         "barcode": "111", "nutriScore": "a"}], "total": 1, "nextCursor": null}
+        """)
+        harness.stub("GET", "/api/foods/ids", json: #"{"ids": ["f1"]}"#)
+        let enrichment = controller(harness)
+
+        await enrichment.refreshStatus()
+        try await waitUntil { harness.defaults.string(forKey: FoodEnrichmentState.refreshedRunKey) != nil }
+        await controller(harness).refreshStatus()
+        try await Task.sleep(for: .milliseconds(50))
+
+        #expect(harness.foodRepository.food(id: "f1")?.nutriScore == "a")
+        #expect(requests(harness, "GET /api/foods") == 1)
+    }
+
+    @Test("The local sweep stops when the app leaves local mode")
+    func localSweepStopsOnModeChange() async throws {
+        let harness = try RepositoryHarness(mode: .local)
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubURLProtocol.self]
+        let repo = FoodRepository(
+            context: harness.context,
+            api: harness.api,
+            appMode: harness.appMode,
+            syncManager: harness.syncManager,
+            defaults: harness.defaults,
+            openFoodFacts: OpenFoodFactsClient(session: URLSession(configuration: configuration))
+        )
+        try harness.context.insert(LocalFood(food: food(id: "a-first", barcode: "7610000000206")))
+        try harness.context.insert(LocalFood(food: food(id: "b-second", barcode: "7610000000207")))
+        try harness.context.save()
+        StubURLProtocol.stub(
+            "GET", "https://world.openfoodfacts.org/api/v2/product/7610000000206.json",
+            json: #"{"status": 0}"#,
+            delayMs: 300
+        )
+        StubURLProtocol.stub(
+            "GET", "https://world.openfoodfacts.org/api/v2/product/7610000000207.json",
+            json: #"{"status": 0}"#
+        )
+        let enrichment = controller(harness, foodRepository: repo)
+
+        enrichment.startLocalSweep()
+        try await Task.sleep(for: .milliseconds(100))
+        harness.appMode.setMode(.synced)
+        try await waitUntil { !enrichment.isSweepRunning }
+
+        #expect(enrichment.sweep.state == .stopped)
+        #expect(repo.food(id: "b-second")?.offCheckedAt == nil)
+        #expect(!harness.recordedRequests.contains { $0.hasSuffix("/enrich") })
+    }
+
+    @Test("Resetting also forgets the local sweep and count")
+    func resetClearsSweep() async throws {
+        let harness = try RepositoryHarness(mode: .local, online: false)
+        try harness.context.insert(LocalFood(food: food(id: "f1", barcode: "7610000000208")))
+        try harness.context.save()
+        let enrichment = controller(harness)
+        await enrichment.refreshLocalCount()
+        enrichment.startLocalSweep()
+        #expect(enrichment.sweep.state == .offline)
+        #expect(enrichment.localCandidateCount == 1)
+
+        enrichment.reset()
+
+        #expect(enrichment.sweep == LocalSweepProgress())
+        #expect(enrichment.localCandidateCount == nil)
+        #expect(enrichment.settingsSummary == nil)
     }
 }

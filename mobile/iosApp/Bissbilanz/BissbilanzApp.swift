@@ -199,7 +199,12 @@ struct BissbilanzApp: App {
         _entryRepository = State(wrappedValue: entryRepo)
         _foodRepository = State(wrappedValue: foodRepo)
         _foodEnrichment = State(wrappedValue: FoodEnrichmentController(
-            api: api, appMode: appMode, connectivity: connectivity, foodRepository: foodRepo
+            api: api,
+            appMode: appMode,
+            connectivity: connectivity,
+            syncManager: sync,
+            foodRepository: foodRepo,
+            container: container
         ))
         _recipeRepository = State(wrappedValue: recipeRepo)
         _weightRepository = State(wrappedValue: weightRepo)
@@ -521,6 +526,7 @@ struct BissbilanzApp: App {
                 }
             }
             .onChange(of: appModeManager.mode) { _, _ in
+                foodEnrichment.reset()
                 defaultModeToSyncedIfNeeded()
             }
             .onChange(of: scenePhase) { _, phase in

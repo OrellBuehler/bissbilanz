@@ -58,6 +58,14 @@ extension L10n {
         )
     }
 
+    static var enhanceFoodsAllChecked: String {
+        localized("enhance_foods_all_checked", en: "All checked", de: "Alle geprüft")
+    }
+
+    static func enhanceFoodsCountSummary(_ count: Int) -> String {
+        count > 0 ? unlabeledFoodCount(count) : enhanceFoodsAllChecked
+    }
+
     static var enhanceFoodsStart: String {
         localized("enhance_foods_start", en: "Start", de: "Starten")
     }
@@ -191,12 +199,21 @@ extension L10n {
         )
     }
 
+    static var enhanceFoodsPendingChanges: String {
+        localized(
+            "enhance_foods_pending_changes",
+            en: "Some food changes are still waiting to sync. Try again once they have.",
+            de: "Einige Änderungen an Lebensmitteln warten noch auf die Synchronisierung. Versuche es danach erneut."
+        )
+    }
+
     static func enhanceFoodsNotice(_ notice: FoodEnrichmentNotice) -> String {
         switch notice {
         case .offline: enhanceFoodsOffline
         case let .rateLimited(seconds): enhanceFoodsRateLimited(seconds: seconds)
         case .actionFailed: enhanceFoodsActionFailed
         case .foodsRefreshFailed: enhanceFoodsRefreshFailed
+        case .pendingChanges: enhanceFoodsPendingChanges
         }
     }
 

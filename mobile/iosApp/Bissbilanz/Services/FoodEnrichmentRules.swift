@@ -87,8 +87,10 @@ enum FoodEnrichmentRules {
         return max(delay, rateLimitedFor ?? 0)
     }
 
-    static func didFinish(previous: FoodEnrichmentStatus?, next: FoodEnrichmentStatus) -> Bool {
-        (previous?.isActive ?? false) && !next.isActive
+    static func runToRefresh(_ status: FoodEnrichmentStatus, refreshed: String?) -> String? {
+        guard let job = status.job, !job.phase.isActive, job.updated > 0 else { return nil }
+        let run = "\(job.startedAt ?? "")|\(job.finishedAt ?? "")"
+        return run == refreshed ? nil : run
     }
 
     static func hasText(_ value: String?) -> Bool {

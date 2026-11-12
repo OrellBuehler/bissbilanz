@@ -15,6 +15,10 @@ struct EnhanceFoodsCandidatesTests {
         return try JSONPatch.decode(Food.self, from: fields)
     }
 
+    private func candidateIds(_ harness: RepositoryHarness) async throws -> [String] {
+        try await FoodEnrichmentCandidateReader.read(container: harness.container).map(\.id)
+    }
+
     private func stamp(daysAgo days: Double) -> String {
         DateFormatting.isoDateTimeString(from: Date().addingTimeInterval(-days * 24 * 60 * 60))
     }
@@ -51,7 +55,7 @@ struct EnhanceFoodsCandidatesTests {
     }
 
     @Test("Only barcode foods missing a score or ingredients are candidates, sorted by name")
-    func candidateFilter() throws {
+    func candidateFilter() async throws {
         let harness = try RepositoryHarness()
         let foods = try [
             food(id: "full", name: "Complete", [
@@ -75,12 +79,12 @@ struct EnhanceFoodsCandidatesTests {
         }
         try harness.context.save()
 
-        let candidates = harness.foodRepository.unenrichedLocalFoods().map(\.id)
+        let candidates = try await candidateIds(harness)
         #expect(candidates == ["no-score", "bare", "no-ingredients", "no-nova"])
     }
 
     @Test("Foods checked in the last 30 days are not candidates again")
-    func checkedFoodsAreSkipped() throws {
+    func checkedFoodsAreSkipped() async throws {
         let harness = try RepositoryHarness()
         let foods = try [
             food(id: "recent", name: "Recent", ["barcode": "111", "offCheckedAt": stamp(daysAgo: 3)]),
@@ -93,7 +97,7 @@ struct EnhanceFoodsCandidatesTests {
         }
         try harness.context.save()
 
-        let candidates = harness.foodRepository.unenrichedLocalFoods().map(\.id)
+        let candidates = try await candidateIds(harness)
         #expect(candidates == ["garbled", "never", "stale"])
     }
 
@@ -242,7 +246,7 @@ struct EnhanceFoodsCandidatesTests {
         #expect(stored.salt == 0.3)
         #expect(stored.sugar == 5)
         #expect(stored.offCheckedAt != nil)
-        #expect(repo.unenrichedLocalFoods().isEmpty)
+        #expect(try await candidateIds(harness).isEmpty)
     }
 
     @Test("Local mode records a not-found product as checked and leaves the food alone")
@@ -258,7 +262,7 @@ struct EnhanceFoodsCandidatesTests {
         #expect(result.outcome == .notFound)
         #expect(repo.food(id: "f1")?.nutriScore == nil)
         #expect(repo.food(id: "f1")?.offCheckedAt != nil)
-        #expect(repo.unenrichedLocalFoods().isEmpty)
+        #expect(try await candidateIds(harness).isEmpty)
     }
 
     @Test("Local mode does not mark a food checked when Open Food Facts is unavailable")
@@ -273,7 +277,7 @@ struct EnhanceFoodsCandidatesTests {
             try await repo.enrichFood(id: "f1")
         }
         #expect(repo.food(id: "f1")?.offCheckedAt == nil)
-        #expect(repo.unenrichedLocalFoods().map(\.id) == ["f1"])
+        #expect(try await candidateIds(harness) == ["f1"])
     }
 
     @Test("Local mode reports a product it cannot read without marking the food")
@@ -307,5 +311,24 @@ struct EnhanceFoodsCandidatesTests {
 
         #expect(repo.food(id: "f1")?.barcode == "222")
         #expect(repo.food(id: "f1")?.offCheckedAt == nil)
+    }
+
+    @Test("A cancelled foods refresh writes nothing into the store")
+    func cancelledMirrorWritesNothing() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("GET", "/api/foods", json: """
+        {"foods": [{"id": "f9", "userId": "u1", "name": "Late", "servingSize": 100, "servingUnit": "g",
+         "calories": 1, "protein": 1, "carbs": 1, "fat": 1, "fiber": 1, "isFavorite": false}],
+         "total": 1, "nextCursor": null}
+        """, delayMs: 300)
+        harness.stub("GET", "/api/foods/ids", json: #"{"ids": ["f9"]}"#)
+        let repo = harness.foodRepository
+
+        let refresh = Task { try await repo.mirrorAll() }
+        try await Task.sleep(for: .milliseconds(50))
+        refresh.cancel()
+
+        await #expect(throws: (any Error).self) { try await refresh.value }
+        #expect(repo.food(id: "f9") == nil)
     }
 }

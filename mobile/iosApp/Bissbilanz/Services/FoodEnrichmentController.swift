@@ -1,11 +1,23 @@
 import Foundation
 import Observation
+import SwiftData
+
+enum FoodEnrichmentState {
+    static let candidatesKey = "food_enrichment_candidates"
+    static let refreshedRunKey = "food_enrichment_refreshed_run"
+
+    static func reset(_ defaults: UserDefaults) {
+        defaults.removeObject(forKey: candidatesKey)
+        defaults.removeObject(forKey: refreshedRunKey)
+    }
+}
 
 enum FoodEnrichmentNotice: Equatable {
     case offline
     case rateLimited(seconds: Int)
     case actionFailed
     case foodsRefreshFailed
+    case pendingChanges
 }
 
 enum LocalSweepState: Equatable {
@@ -31,6 +43,7 @@ struct LocalSweepProgress: Equatable {
 enum FoodEnrichmentSweepStep: Equatable {
     case skip
     case fail(String)
+    case unexpected(String)
     case retry(after: TimeInterval?, reason: String)
     case cancel
 }
@@ -38,7 +51,6 @@ enum FoodEnrichmentSweepStep: Equatable {
 @MainActor
 @Observable
 final class FoodEnrichmentController {
-    nonisolated static let candidatesKey = "food_enrichment_candidates"
     nonisolated static let statusMaxAge: TimeInterval = 300
     nonisolated static let activeStatusMaxAge: TimeInterval = 30
 
@@ -48,17 +60,22 @@ final class FoodEnrichmentController {
     private(set) var isSubmitting = false
     private(set) var notice: FoodEnrichmentNotice?
     private(set) var sweep = LocalSweepProgress()
-    private(set) var localCandidateCount = 0
+    private(set) var localCandidateCount: Int?
+    private(set) var localReadFailed = false
 
     @ObservationIgnored private let api: BissbilanzAPI
     @ObservationIgnored private let appMode: AppModeManager
     @ObservationIgnored private let connectivity: ConnectivityMonitor
+    @ObservationIgnored private let syncManager: SyncManager
     @ObservationIgnored private let foodRepository: FoodRepository
+    @ObservationIgnored private let container: ModelContainer
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let delay: @Sendable (TimeInterval) async throws -> Void
     @ObservationIgnored private var lastFetchedAt: Date?
     @ObservationIgnored private var rateLimitedUntil: Date?
     @ObservationIgnored private var latestRequest = 0
+    @ObservationIgnored private var generation = 0
+    @ObservationIgnored private var trackedMode: AppMode?
     @ObservationIgnored private var sweepTask: Task<Void, Never>?
     @ObservationIgnored private var mirrorTask: Task<Void, Never>?
 
@@ -66,7 +83,9 @@ final class FoodEnrichmentController {
         api: BissbilanzAPI,
         appMode: AppModeManager,
         connectivity: ConnectivityMonitor,
+        syncManager: SyncManager,
         foodRepository: FoodRepository,
+        container: ModelContainer,
         defaults: UserDefaults = .standard,
         delay: @escaping @Sendable (TimeInterval) async throws -> Void = { seconds in
             try await Task.sleep(for: .seconds(seconds))
@@ -75,10 +94,13 @@ final class FoodEnrichmentController {
         self.api = api
         self.appMode = appMode
         self.connectivity = connectivity
+        self.syncManager = syncManager
         self.foodRepository = foodRepository
+        self.container = container
         self.defaults = defaults
         self.delay = delay
-        cachedCandidates = defaults.object(forKey: Self.candidatesKey) as? Int
+        trackedMode = appMode.mode
+        cachedCandidates = defaults.object(forKey: FoodEnrichmentState.candidatesKey) as? Int
     }
 
     var isJobActive: Bool {
@@ -90,7 +112,10 @@ final class FoodEnrichmentController {
     }
 
     var loadFailed: Bool {
-        consecutiveFailures > 0 && !shouldPoll
+        if appMode.isLocal {
+            return localReadFailed
+        }
+        return consecutiveFailures > 0 && !shouldPoll
     }
 
     var isSweepRunning: Bool {
@@ -102,18 +127,18 @@ final class FoodEnrichmentController {
             if isSweepRunning {
                 return L10n.enhanceFoodsProgress(sweep.done, sweep.total)
             }
-            return localCandidateCount > 0 ? L10n.unlabeledFoodCount(localCandidateCount) : nil
+            return localCandidateCount.map(L10n.enhanceFoodsCountSummary)
         }
         if let job = status?.job, job.phase.isActive {
             return L10n.enhanceFoodsJobProgress(job)
         }
-        let count = status?.candidates ?? cachedCandidates ?? 0
-        return count > 0 ? L10n.unlabeledFoodCount(count) : nil
+        return (status?.candidates ?? cachedCandidates).map(L10n.enhanceFoodsCountSummary)
     }
 
     func refreshForSettings() async {
+        resetIfModeChanged()
         if appMode.isLocal {
-            refreshLocalCount()
+            await refreshLocalCount()
             return
         }
         let maxAge = isJobActive ? Self.activeStatusMaxAge : Self.statusMaxAge
@@ -124,8 +149,9 @@ final class FoodEnrichmentController {
     }
 
     func refreshForScreen() async {
+        resetIfModeChanged()
         if appMode.isLocal {
-            refreshLocalCount()
+            await refreshLocalCount()
         } else {
             await refreshStatus()
         }
@@ -133,7 +159,7 @@ final class FoodEnrichmentController {
 
     @discardableResult
     func refreshStatus() async -> Bool {
-        guard !appMode.isLocal, connectivity.isOnline else { return false }
+        guard !appMode.isLocal, connectivity.isOnline, !isSubmitting else { return false }
         latestRequest += 1
         let request = latestRequest
         do {
@@ -178,6 +204,7 @@ final class FoodEnrichmentController {
     }
 
     private func perform(_ action: JobAction) async {
+        resetIfModeChanged()
         guard !appMode.isLocal, !isSubmitting else { return }
         guard connectivity.isOnline else {
             notice = .offline
@@ -189,22 +216,30 @@ final class FoodEnrichmentController {
         }
         isSubmitting = true
         defer { isSubmitting = false }
+        let current = generation
         latestRequest += 1
-        let request = latestRequest
+        if action == .start, syncManager.hasPending(table: "foods") {
+            await syncManager.drainPendingQueue()
+            guard current == generation else { return }
+            if syncManager.hasPending(table: "foods") {
+                notice = .pendingChanges
+                return
+            }
+        }
         do {
             let next: FoodEnrichmentStatus
             switch action {
             case .start: next = try await api.startFoodEnrichment()
             case .cancel: next = try await api.cancelFoodEnrichment()
             }
+            guard current == generation else { return }
+            latestRequest += 1
             notice = nil
             rateLimitedUntil = nil
             consecutiveFailures = 0
-            if request == latestRequest {
-                apply(next)
-            }
+            apply(next)
         } catch {
-            guard !Self.isCancellation(error) else { return }
+            guard current == generation, !Self.isCancellation(error) else { return }
             if let failure = error as? FoodEnrichmentFailure, case let .rateLimited(retryAfter) = failure {
                 rateLimitedUntil = Date().addingTimeInterval(retryAfter)
             }
@@ -213,24 +248,28 @@ final class FoodEnrichmentController {
     }
 
     private func apply(_ next: FoodEnrichmentStatus) {
-        let finished = FoodEnrichmentRules.didFinish(previous: status, next: next)
         status = next
         lastFetchedAt = Date()
         cachedCandidates = next.candidates
-        defaults.set(next.candidates, forKey: Self.candidatesKey)
-        if finished, (next.job?.updated ?? 0) > 0 {
-            refreshLocalFoods()
+        defaults.set(next.candidates, forKey: FoodEnrichmentState.candidatesKey)
+        let refreshed = defaults.string(forKey: FoodEnrichmentState.refreshedRunKey)
+        if let run = FoodEnrichmentRules.runToRefresh(next, refreshed: refreshed) {
+            refreshLocalFoods(run: run)
         }
     }
 
-    private func refreshLocalFoods() {
+    private func refreshLocalFoods(run: String) {
         guard mirrorTask == nil else { return }
+        let current = generation
         mirrorTask = Task { [weak self] in
             guard let self else { return }
             do {
                 try await foodRepository.mirrorAll()
+                if current == generation {
+                    defaults.set(run, forKey: FoodEnrichmentState.refreshedRunKey)
+                }
             } catch {
-                if !Self.isCancellation(error) {
+                if current == generation, !Self.isCancellation(error) {
                     notice = .foodsRefreshFailed
                     let reason = ErrorReporter.reason(for: error)
                     if !ErrorReporter.isExpectedFailureReason(reason) {
@@ -238,23 +277,35 @@ final class FoodEnrichmentController {
                     }
                 }
             }
-            mirrorTask = nil
+            if current == generation {
+                mirrorTask = nil
+            }
         }
     }
 
     func reset() {
+        generation += 1
+        latestRequest += 1
+        trackedMode = appMode.mode
         sweepTask?.cancel()
+        sweepTask = nil
         mirrorTask?.cancel()
         mirrorTask = nil
-        latestRequest += 1
         status = nil
         cachedCandidates = nil
         consecutiveFailures = 0
         notice = nil
         lastFetchedAt = nil
         rateLimitedUntil = nil
-        localCandidateCount = 0
-        defaults.removeObject(forKey: Self.candidatesKey)
+        sweep = LocalSweepProgress()
+        localCandidateCount = nil
+        localReadFailed = false
+        FoodEnrichmentState.reset(defaults)
+    }
+
+    private func resetIfModeChanged() {
+        guard appMode.mode != trackedMode else { return }
+        reset()
     }
 
     nonisolated static func failureNotice(for error: Error) -> FoodEnrichmentNotice {
@@ -276,28 +327,40 @@ final class FoodEnrichmentController {
         error is CancellationError || ErrorReporter.reason(for: error) == "cancelled"
     }
 
-    func refreshLocalCount() {
+    func refreshLocalCount() async {
         guard appMode.isLocal else { return }
-        localCandidateCount = foodRepository.unenrichedLocalFoods().count
+        let current = generation
+        do {
+            let candidates = try await FoodEnrichmentCandidateReader.read(container: container)
+            guard current == generation else { return }
+            localCandidateCount = candidates.count
+            localReadFailed = false
+        } catch {
+            guard current == generation else { return }
+            localReadFailed = true
+            ErrorReporter.capture(error, context: ["operation": "FoodEnrichmentController.refreshLocalCount"])
+        }
     }
 
     func startLocalSweep() {
+        resetIfModeChanged()
         guard appMode.isLocal, sweepTask == nil else { return }
         guard connectivity.isOnline else {
             sweep = LocalSweepProgress(state: .offline)
             return
         }
-        let foods = foodRepository.unenrichedLocalFoods()
-        localCandidateCount = foods.count
-        sweep = LocalSweepProgress(state: .running, total: foods.count)
+        let current = generation
+        sweep = LocalSweepProgress(state: .running)
         sweepTask = Task { [weak self] in
             guard let self else { return }
-            let finalState = await runSweep(foods)
-            sweep.state = finalState
+            let finalState = await runSweep(generation: current)
+            guard current == generation else { return }
             sweep.currentFoodName = nil
             sweep.isWaiting = false
+            await refreshLocalCount()
+            guard current == generation else { return }
+            sweep.state = finalState
             sweepTask = nil
-            refreshLocalCount()
         }
     }
 
@@ -313,14 +376,30 @@ final class FoodEnrichmentController {
         case cancelled
     }
 
-    private func runSweep(_ foods: [Food]) async -> LocalSweepState {
+    private func isCurrentSweep(_ current: Int) -> Bool {
+        !Task.isCancelled && appMode.isLocal && current == generation
+    }
+
+    private func runSweep(generation current: Int) async -> LocalSweepState {
+        let foods: [FoodEnrichmentCandidate]
+        do {
+            foods = try await FoodEnrichmentCandidateReader.read(container: container)
+        } catch {
+            ErrorReporter.capture(error, context: ["operation": "FoodEnrichmentController.runSweep"])
+            return .failed
+        }
+        guard isCurrentSweep(current) else { return .stopped }
+        sweep.total = foods.count
+        localCandidateCount = foods.count
         var failuresInARow = 0
         for (index, food) in foods.enumerated() {
-            if Task.isCancelled || !appMode.isLocal { return .stopped }
+            guard isCurrentSweep(current) else { return .stopped }
             guard connectivity.isOnline else { return .offline }
             if index > 0, !(await pause(FoodEnrichmentRules.requestSpacing)) { return .stopped }
+            guard isCurrentSweep(current) else { return .stopped }
             sweep.currentFoodName = food.name
-            let item = await enrichWithRetry(food)
+            let item = await enrichWithRetry(food, generation: current)
+            guard current == generation else { return .stopped }
             switch item {
             case .cancelled:
                 return .stopped
@@ -354,28 +433,36 @@ final class FoodEnrichmentController {
         return .completed
     }
 
-    private func enrichWithRetry(_ food: Food) async -> SweepItem {
+    private func enrichWithRetry(_ food: FoodEnrichmentCandidate, generation current: Int) async -> SweepItem {
         var attempt = 1
         while true {
+            guard isCurrentSweep(current) else { return .cancelled }
             let step: FoodEnrichmentSweepStep
             do {
                 let result = try await foodRepository.enrichFood(id: food.id)
                 return .outcome(result.outcome)
             } catch {
                 step = Self.sweepStep(for: error)
+                if case .unexpected = step {
+                    ErrorReporter.capture(
+                        error,
+                        context: ["operation": "FoodEnrichmentController.sweep", "sync.food_id": food.id]
+                    )
+                }
             }
             switch step {
             case .cancel:
                 return .cancelled
             case .skip:
                 return .skipped
-            case let .fail(reason):
+            case let .fail(reason), let .unexpected(reason):
                 return .failed(reason)
             case let .retry(after, reason):
                 guard attempt < FoodEnrichmentRules.maxAttempts else { return .failed(reason) }
                 guard connectivity.isOnline else { return .offline }
                 sweep.isWaiting = true
                 let resumed = await pause(FoodEnrichmentRules.backoff(attempt: attempt, retryAfter: after))
+                guard current == generation else { return .cancelled }
                 sweep.isWaiting = false
                 guard resumed else { return .cancelled }
                 attempt += 1
@@ -389,7 +476,7 @@ final class FoodEnrichmentController {
         }
         guard let failure = error as? FoodEnrichmentFailure else {
             let reason = ErrorReporter.reason(for: error)
-            return isTransportError(error) ? .retry(after: nil, reason: reason) : .fail(reason)
+            return isTransportError(error) ? .retry(after: nil, reason: reason) : .unexpected(reason)
         }
         switch failure {
         case .foodNotFound, .foodChanged, .noBarcode, .pendingChanges:
