@@ -155,6 +155,22 @@ enum DateFormatting {
         isoString(from: Date())
     }
 
+    /// The day `days` before `date`: entries dated after it fall within the
+    /// last `days` days, counting the day of `date` itself.
+    static func isoDay(daysBefore days: Int, from date: Date = Date()) -> String {
+        isoString(from: date.adding(days: -days))
+    }
+
+    /// `entries` dated after `cutoffDay` (all of them when nil), oldest first.
+    /// Entry dates are canonical "yyyy-MM-dd" days, which order chronologically
+    /// as plain strings, so nothing is parsed here: parsing both dates in every
+    /// comparison over the whole history hung the weight chart for seconds
+    /// (BISSBILANZ-4A).
+    static func chronological<T>(_ entries: [T], after cutoffDay: String?, day: (T) -> String) -> [T] {
+        let inRange = cutoffDay.map { cutoff in entries.filter { day($0) > cutoff } } ?? entries
+        return inRange.sorted { day($0) < day($1) }
+    }
+
     /// Whole days between two "yyyy-MM-dd" strings, ignoring direction.
     /// Unparseable input counts as infinitely far.
     static func dayDistance(_ a: String, _ b: String) -> Int {

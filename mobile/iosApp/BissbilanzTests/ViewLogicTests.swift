@@ -392,6 +392,100 @@ struct WeightTrendTests {
     }
 }
 
+// MARK: - Weight Chart Data
+
+// Tests the chart data WeightView derives once per change of its inputs.
+
+@Suite("Weight Chart Data Tests")
+struct WeightChartDataTests {
+    private func makeWeight(date: String, kg: Double) -> WeightEntry {
+        WeightEntry(
+            id: "w-\(date)", userId: "u1", weightKg: kg, entryDate: date,
+            loggedAt: nil, notes: nil, createdAt: nil, updatedAt: nil
+        )
+    }
+
+    private func chart(
+        _ entries: [WeightEntry],
+        after cutoffDay: String? = nil,
+        projectionDays: Int? = nil
+    ) -> WeightChartData {
+        WeightChartData(WeightChartData.Inputs(
+            entries: entries,
+            cutoffDay: cutoffDay,
+            showProjection: projectionDays != nil,
+            projectionDays: projectionDays ?? 30
+        ))
+    }
+
+    @Test("Charts the entries after the cutoff day, oldest first")
+    func chartsEntriesAfterTheCutoff() {
+        // Newest first, the order the repository returns them in.
+        let entries = [
+            makeWeight(date: "2026-06-10", kg: 80),
+            makeWeight(date: "2026-06-05", kg: 81),
+            makeWeight(date: "2026-06-01", kg: 82),
+            makeWeight(date: "2026-05-20", kg: 83),
+        ]
+        let data = chart(entries, after: "2026-06-01")
+        #expect(data.entries.map(\.entryDate) == ["2026-06-05", "2026-06-10"])
+        #expect(data.points.map(\.id) == ["w-2026-06-05", "w-2026-06-10"])
+        #expect(data.points.map(\.date) == ["2026-06-05", "2026-06-10"].compactMap(DateFormatting.date(from:)))
+    }
+
+    @Test("Without a cutoff the whole history is charted and unparseable days are dropped")
+    func chartsTheWholeHistory() {
+        let entries = [
+            makeWeight(date: "2026-06-10", kg: 80),
+            makeWeight(date: "garbage", kg: 70),
+            makeWeight(date: "2024-01-01", kg: 90),
+        ]
+        let data = chart(entries)
+        #expect(data.entries.map(\.entryDate) == ["2024-01-01", "2026-06-10"])
+        #expect(data.points.count == 2)
+    }
+
+    @Test("The moving average covers the charted days")
+    func movingAverageCoversTheChartedDays() {
+        let entries = [
+            makeWeight(date: "2026-06-03", kg: 82),
+            makeWeight(date: "2026-06-02", kg: 81),
+            makeWeight(date: "2026-06-01", kg: 80),
+        ]
+        let data = chart(entries)
+        #expect(data.movingAverage.map(\.average) == [80, 80.5, 81])
+        #expect(data.movingAverage.map(\.date) == data.points.map(\.date))
+        #expect(chart([makeWeight(date: "2026-06-01", kg: 80)]).movingAverage.isEmpty)
+    }
+
+    @Test("The projection is only built when shown and extends the fit from the newest day")
+    func projectionExtendsTheFit() throws {
+        let entries = [
+            makeWeight(date: "2026-06-03", kg: 79),
+            makeWeight(date: "2026-06-02", kg: 80),
+            makeWeight(date: "2026-06-01", kg: 81),
+        ]
+        #expect(chart(entries).projection.isEmpty)
+
+        let data = chart(entries, projectionDays: 14)
+        let newest = try #require(DateFormatting.date(from: "2026-06-03"))
+        #expect(data.projection.count == 15)
+        #expect(data.projection.first?.date == newest)
+        #expect(abs((data.projection.first?.weight ?? 0) - 79) < 0.0001)
+        #expect(abs((data.projection.last?.weight ?? 0) - 65) < 0.0001)
+        // The y-axis makes room for the projected line.
+        #expect(data.weightRange.lowerBound < 65)
+    }
+
+    @Test("Without entries the y-axis keeps its default range")
+    func emptyHistory() {
+        let data = chart([])
+        #expect(data.entries.isEmpty)
+        #expect(data.weightRange.lowerBound == 0)
+        #expect(data.weightRange.upperBound == 100)
+    }
+}
+
 // MARK: - Snapshot Meal Order
 
 @Suite("Snapshot Meal Order Tests")

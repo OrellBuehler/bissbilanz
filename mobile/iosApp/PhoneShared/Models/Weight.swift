@@ -1,6 +1,6 @@
 import Foundation
 
-struct WeightEntry: Codable, Identifiable {
+struct WeightEntry: Codable, Equatable, Identifiable {
     let id: String
     let userId: String
     let weightKg: Double

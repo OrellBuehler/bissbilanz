@@ -2,7 +2,7 @@ import 'zod-openapi';
 import { z } from 'zod';
 import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
 import { servingUnitValues } from '$lib/units';
-import { labelSourceValues } from '$lib/server/schema';
+import { foodEnrichmentJobStateValues, labelSourceValues } from '$lib/server/schema';
 
 const optNutrient = z.number().nullable().optional();
 const nutrientFields = Object.fromEntries(ALL_NUTRIENT_KEYS.map((key) => [key, optNutrient]));
@@ -28,6 +28,10 @@ export const foodSchema = z
 		additives: z.array(z.string()).nullable(),
 		ingredientsText: z.string().nullable(),
 		imageUrl: z.string().nullable(),
+		offCheckedAt: z.string().nullable().optional().meta({
+			description:
+				'When the server last got a definite answer (found or not found) from Open Food Facts for the barcode; null if never. Server-owned.'
+		}),
 		// General en_US nouns describing what the food physically is, as a camera
 		// would see it. Flattened server-side from the food_labels table (sorted,
 		// deduped, sources collapsed) so clients see one more scalar-ish field.
@@ -105,6 +109,65 @@ export const foodBulkResponseSchema = z
 		results: z.array(foodBulkResultSchema)
 	})
 	.meta({ id: 'FoodBulkResponse' });
+
+export const foodEnrichmentJobSchema = z
+	.object({
+		state: z.string().meta({
+			description:
+				'queued and running are active; completed, cancelled and failed are finished. Unknown values should be treated as finished.',
+			'x-extensible-enum': [...foodEnrichmentJobStateValues]
+		}),
+		total: z.number().int(),
+		processed: z.number().int(),
+		updated: z.number().int(),
+		notFound: z.number().int(),
+		failed: z.number().int(),
+		startedAt: z.string().nullable(),
+		finishedAt: z.string().nullable()
+	})
+	.meta({ id: 'FoodEnrichmentJob' });
+
+export const foodEnrichmentStatusResponseSchema = z
+	.object({
+		candidates: z.number().int(),
+		job: foodEnrichmentJobSchema.nullable()
+	})
+	.meta({ id: 'FoodEnrichmentStatusResponse' });
+
+export const foodEnrichOutcomeValues = ['updated', 'unchanged', 'not_found'] as const;
+
+export const foodEnrichResponseSchema = z
+	.object({
+		food: foodSchema,
+		outcome: z.string().meta({
+			description:
+				'updated: the lookup changed the food (fields or labels); unchanged: Open Food Facts had nothing new; not_found: Open Food Facts does not know the barcode (offCheckedAt is still set). Unknown values should be treated like unchanged.',
+			'x-extensible-enum': [...foodEnrichOutcomeValues]
+		})
+	})
+	.meta({ id: 'FoodEnrichResponse' });
+
+export const foodEnrichErrorCodeValues = [
+	'no_barcode',
+	'food_not_found',
+	'food_changed',
+	'off_invalid_response',
+	'off_unavailable'
+] as const;
+
+export const foodEnrichErrorResponseSchema = z
+	.object({
+		error: z.string(),
+		code: z
+			.string()
+			.meta({
+				description:
+					'Machine-readable reason. Absent on generic failures such as an invalid id. Unknown values should be treated as a generic failure of the given status.',
+				'x-extensible-enum': [...foodEnrichErrorCodeValues]
+			})
+			.optional()
+	})
+	.meta({ id: 'FoodEnrichErrorResponse' });
 
 export const foodResponseSchema = z
 	.object({

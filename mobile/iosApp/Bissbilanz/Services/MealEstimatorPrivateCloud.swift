@@ -124,14 +124,18 @@ private extension MealEstimator {
     /// Same retry and validation policy as the on-device path (`MealEstimateGeneration`).
     func estimateWithPCCModel(description: String) async throws -> MealEstimate {
         try await MealEstimateGeneration.run(description: description) { attempt in
-            try await generateOnPrivateCloud(prompt: attempt.prompt(for: description), usesTools: attempt.usesTools)
+            try await generateOnPrivateCloud(
+                prompt: attempt.prompt(for: description),
+                usesTools: attempt.usesTools,
+                toolResultLimit: attempt.toolResultLimit
+            )
         }
     }
 
-    func generateOnPrivateCloud(prompt: String, usesTools: Bool) async throws -> MealEstimate {
+    func generateOnPrivateCloud(prompt: String, usesTools: Bool, toolResultLimit: Int) async throws -> MealEstimate {
         let matchedIds = MatchedFoodIds()
         let tools: [any Tool] = usesTools
-            ? [FoodSearchTool(search: makeSearchClosure(), matchedIds: matchedIds)]
+            ? [FoodSearchTool(search: makeSearchClosure(), matchedIds: matchedIds, resultLimit: toolResultLimit)]
             : []
         let session = LanguageModelSession(
             model: PrivateCloudComputeLanguageModel(),
@@ -143,10 +147,8 @@ private extension MealEstimator {
             // Same hallucination guard as the on-device path: drops any
             // matchedFoodId the tool never actually returned.
             return await Self.estimate(from: response.content, matchedIds: matchedIds, source: .privateCloudCompute)
-        } catch let error as LanguageModelSession.GenerationError {
-            throw MealEstimator.mapGenerationError(error)
         } catch {
-            throw MealEstimatorError.generationFailed(error.localizedDescription)
+            throw MealEstimator.estimatorError(for: error)
         }
     }
 }

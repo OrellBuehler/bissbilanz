@@ -48,19 +48,10 @@ struct SleepView: View {
         }
     }
 
+    /// Compares the day strings instead of parsing them; see `DateFormatting.chronological`.
     private var chartEntries: [SleepEntry] {
-        let sorted = entries.sorted { entryA, entryB in
-            guard let dateA = DateFormatting.date(from: entryA.entryDate),
-                  let dateB = DateFormatting.date(from: entryB.entryDate)
-            else { return false }
-            return dateA < dateB
-        }
-        guard selectedRange > 0 else { return sorted }
-        let cutoff = Date().adding(days: -selectedRange)
-        return sorted.filter { entry in
-            guard let date = DateFormatting.date(from: entry.entryDate) else { return false }
-            return date >= cutoff
-        }
+        let cutoffDay = selectedRange > 0 ? DateFormatting.isoDay(daysBefore: selectedRange) : nil
+        return DateFormatting.chronological(entries, after: cutoffDay, day: \.entryDate)
     }
 
     var body: some View {
@@ -136,11 +127,8 @@ struct SleepView: View {
 
     /// Entries from the last 7 calendar days, backing the average card.
     private var recentEntries: [SleepEntry] {
-        let cutoff = Date().adding(days: -7)
-        return entries.filter { entry in
-            guard let date = DateFormatting.date(from: entry.entryDate) else { return false }
-            return date >= cutoff
-        }
+        let cutoffDay = DateFormatting.isoDay(daysBefore: 7)
+        return entries.filter { $0.entryDate > cutoffDay }
     }
 
     private var statsSection: some View {
@@ -275,6 +263,7 @@ struct SleepView: View {
 
     /// Read before a VoiceOver user swipes through each night.
     private var sleepChartAccessibilitySummary: String {
+        let chartEntries = chartEntries
         guard !chartEntries.isEmpty else { return L10n.noEntries }
         let avgMinutes = chartEntries.map(\.durationMinutes).reduce(0, +) / chartEntries.count
         return "\(L10n.average): \(formatSleepDuration(avgMinutes))"

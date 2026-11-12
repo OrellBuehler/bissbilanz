@@ -14,6 +14,36 @@ struct DateFormattingTests {
             .displayString(from: now.adding(days: -2)))
     }
 
+    @Test("The cutoff day counts back whole calendar days")
+    func isoDayCountsBack() throws {
+        let noon = try #require(DateFormatting.date(from: "2026-06-15")).addingTimeInterval(12 * 3600)
+        #expect(DateFormatting.isoDay(daysBefore: 7, from: noon) == "2026-06-08")
+        #expect(DateFormatting.isoDay(daysBefore: 0, from: noon) == "2026-06-15")
+    }
+
+    @Test("Comparing day strings with the cutoff day matches the date comparison it replaced, across DST")
+    func cutoffDayMatchesDateComparison() throws {
+        // The EU clocks change on 2026-03-29, inside every range below.
+        let now = try #require(DateFormatting.date(from: "2026-04-02")).addingTimeInterval(9 * 3600)
+        for offset in -3 ... 100 {
+            let day = DateFormatting.isoString(from: now.adding(days: -offset))
+            let date = try #require(DateFormatting.date(from: day))
+            for range in [7, 30, 90] {
+                let cutoffDay = DateFormatting.isoDay(daysBefore: range, from: now)
+                #expect((date >= now.adding(days: -range)) == (day > cutoffDay), "\(day) in the last \(range) days")
+            }
+        }
+    }
+
+    @Test("Chronological order keeps only the days after the cutoff, oldest first")
+    func chronologicalOrdersAndFilters() {
+        let days = ["2026-06-10", "2026-05-31", "2026-06-01", "2025-12-31", "2026-06-02"]
+        let afterCutoff = DateFormatting.chronological(days, after: "2026-06-01", day: { $0 })
+        let all = DateFormatting.chronological(days, after: nil, day: { $0 })
+        #expect(afterCutoff == ["2026-06-02", "2026-06-10"])
+        #expect(all == ["2025-12-31", "2026-05-31", "2026-06-01", "2026-06-02", "2026-06-10"])
+    }
+
     @Test("ISO string format is yyyy-MM-dd")
     func isoStringFormat() throws {
         let components = DateComponents(year: 2026, month: 3, day: 12)
