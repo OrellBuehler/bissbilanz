@@ -1,0 +1,13 @@
+{
+	"candidates": 3,
+	"job": {
+		"failed": 3,
+		"finishedAt": "sample-finishedAt",
+		"notFound": 3,
+		"processed": 3,
+		"startedAt": "sample-startedAt",
+		"state": "sample-state",
+		"total": 3,
+		"updated": 3
+	}
+}
