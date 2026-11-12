@@ -15,14 +15,16 @@ import com.bissbilanz.android.MainActivity
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.api.generated.model.AiTask
+import com.bissbilanz.util.TaskReply
 
 /**
- * Tells the user the assistant gave up on a meal they sent it.
+ * Tells the user the assistant gave up on a meal they sent it, or that Claude answered a
+ * reply they sent about one.
  *
- * A dismissal is the only AI task outcome worth interrupting for: a completion speaks
- * for itself as new diary entries, whereas a dismissal means the meal was never logged
- * and the user has to do something about it. Its own low-key channel so it can be muted
- * without losing supplement reminders.
+ * Those are the AI task outcomes worth interrupting for: a completion speaks for itself as
+ * new diary entries, whereas a dismissal means the meal was never logged and an answer is
+ * what the user asked for. Its own low-key channel so it can be muted without losing
+ * supplement reminders.
  */
 object AiTaskNotifier {
     const val CHANNEL_ID = "ai_tasks"
@@ -31,6 +33,8 @@ object AiTaskNotifier {
     /** Clear of FastingNotifier's 4201 and the supplement summary's 4300. */
     private const val SUMMARY_NOTIFICATION_ID = 4400
     private const val UPLOAD_FAILED_NOTIFICATION_ID = 4401
+    const val REPLIES_SUMMARY_NOTIFICATION_ID = 4402
+    const val REPLIES_GROUP_KEY = "com.bissbilanz.android.AI_TASK_REPLIES"
 
     /**
      * Returns whether the notifications were actually posted. Callers must not record
@@ -76,6 +80,79 @@ object AiTaskNotifier {
     }
 
     fun notificationId(taskId: String): Int = taskId.hashCode() and 0x0FFF_FFFF
+
+    @SuppressLint("MissingPermission")
+    fun showReplies(
+        context: Context,
+        replies: List<TaskReply>,
+    ): Boolean {
+        if (replies.isEmpty() || !hasPermission(context)) return false
+        ensureChannel(context)
+        val strings = AppLanguage.localized(context)
+        val manager = NotificationManagerCompat.from(context)
+        for (reply in replies) {
+            val id = notificationId(reply.message.id)
+            val notification =
+                NotificationCompat
+                    .Builder(context, CHANNEL_ID)
+                    .setSmallIcon(R.drawable.ic_stat_ai_task)
+                    .setContentTitle(strings.getString(R.string.ai_tasks_reply_notification_title))
+                    .setContentText(reply.message.text)
+                    .setStyle(NotificationCompat.BigTextStyle().bigText(reply.message.text))
+                    .setAutoCancel(true)
+                    .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                    .setOnlyAlertOnce(true)
+                    .setGroup(REPLIES_GROUP_KEY)
+                    .setContentIntent(openAiTasksIntent(context, id))
+                    .build()
+            manager.notify(id, notification)
+        }
+        manager.notify(
+            REPLIES_SUMMARY_NOTIFICATION_ID,
+            NotificationCompat
+                .Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_stat_ai_task)
+                .setContentTitle(strings.getString(R.string.ai_tasks_reply_notification_summary))
+                .setGroup(REPLIES_GROUP_KEY)
+                .setGroupSummary(true)
+                .setOnlyAlertOnce(true)
+                .setAutoCancel(true)
+                .setContentIntent(openAiTasksIntent(context, REPLIES_SUMMARY_NOTIFICATION_ID))
+                .build(),
+        )
+        return true
+    }
+
+    fun cancelReplies(
+        context: Context,
+        messageIds: Collection<String>,
+    ) {
+        if (messageIds.isEmpty()) return
+        val manager = NotificationManagerCompat.from(context)
+        val cancelled = messageIds.mapTo(mutableSetOf()) { notificationId(it) }
+        cancelled.forEach { manager.cancel(it) }
+        val active =
+            context
+                .getSystemService(NotificationManager::class.java)
+                ?.activeNotifications
+                .orEmpty()
+                .map { it.id to it.notification.group }
+        if (!replyStillShown(active, cancelled)) manager.cancel(REPLIES_SUMMARY_NOTIFICATION_ID)
+    }
+
+    fun replyStillShown(
+        active: List<Pair<Int, String?>>,
+        cancelled: Set<Int>,
+    ): Boolean =
+        active.any { (id, group) ->
+            id != REPLIES_SUMMARY_NOTIFICATION_ID && id !in cancelled && group == REPLIES_GROUP_KEY
+        }
+
+    fun repliesEnabled(context: Context): Boolean {
+        if (!hasPermission(context) || !NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
+        val channel = context.getSystemService(NotificationManager::class.java)?.getNotificationChannel(CHANNEL_ID)
+        return channel == null || channel.importance != NotificationManager.IMPORTANCE_NONE
+    }
 
     /**
      * The meal never reached the server after every retry. Unlike a dismissal there

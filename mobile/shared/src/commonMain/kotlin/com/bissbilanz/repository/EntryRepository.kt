@@ -93,6 +93,8 @@ class EntryRepository(
         fetchDay(date)
     }
 
+    suspend fun refreshWithoutViewing(date: String) = fetchDay(date)
+
     /** [refresh] without making [date] the viewed day. */
     private suspend fun fetchDay(date: String) {
         // In Local mode the cache is the primary store; there is nothing to refresh.

@@ -5,10 +5,21 @@ import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.AiTask
 import com.bissbilanz.api.generated.model.AiTaskUpdate
+import com.bissbilanz.api.isReplyBlocked
 import com.bissbilanz.mode.AppModeManager
+import com.bissbilanz.util.AI_TASK_ACKNOWLEDGE_MAX_IDS
+import com.bissbilanz.util.TaskReply
+import com.bissbilanz.util.changedReplies
+import com.bissbilanz.util.threadMessageIds
+import com.bissbilanz.util.unreadReplies
+import com.bissbilanz.util.unreadTaskReplies
+import com.bissbilanz.util.withRepliesRead
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.concurrent.Volatile
 
 /**
@@ -42,6 +53,16 @@ class AiTaskRepository(
      */
     var onUnreadDismissals: ((unread: List<AiTask>, knownIds: Set<String>) -> Unit)? = null
 
+    var onUnreadReplies: ((unread: List<TaskReply>) -> Unit)? = null
+
+    var onChangedReplies: (suspend (changed: List<TaskReply>) -> Unit)? = null
+
+    @Volatile
+    private var loaded = false
+
+    private val replyAckMutex = Mutex()
+    private val acknowledgedReplyIds = mutableSetOf<String>()
+
     /**
      * Rethrows after reporting so callers can react — the list screen shows a failure
      * instead of an empty "you're all caught up", and the poll worker can retry.
@@ -49,19 +70,103 @@ class AiTaskRepository(
      */
     suspend fun refresh() {
         if (appModeManager.isLocal) return
-        try {
-            val generation = mutationGeneration
-            val response = api.listAiTasks(limit = 100)
-            if (generation != mutationGeneration) return
-            _tasks.value = response.tasks
-            val unread = response.tasks.filter { it.isUnreadDismissal() }
-            if (unread.isNotEmpty()) {
-                onUnreadDismissals?.invoke(unread, response.tasks.mapTo(mutableSetOf()) { it.id })
+        val changed =
+            try {
+                read()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.captureException(e)
+                throw e
             }
+        handleChangedReplies(changed)
+    }
+
+    private suspend fun read(): List<TaskReply> {
+        val generation = mutationGeneration
+        val response = api.listAiTasks(limit = 100)
+        if (generation != mutationGeneration) return emptyList()
+        val previous = if (loaded) _tasks.value else null
+        _tasks.value = response.tasks
+        loaded = true
+        val unread = response.tasks.filter { it.isUnreadDismissal() }
+        if (unread.isNotEmpty()) {
+            onUnreadDismissals?.invoke(unread, response.tasks.mapTo(mutableSetOf()) { it.id })
+        }
+        val replies = response.tasks.flatMap { it.unreadTaskReplies() }
+        if (replies.isNotEmpty()) onUnreadReplies?.invoke(replies)
+        return changedReplies(previous, response.tasks)
+    }
+
+    private suspend fun handleChangedReplies(changed: List<TaskReply>) {
+        try {
+            onChangedReplies?.invoke(changed)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
-            throw e
+        }
+    }
+
+    suspend fun reply(
+        id: String,
+        text: String,
+        idempotencyKey: String,
+    ): AiTask {
+        val result =
+            try {
+                api.replyToAiTask(id, text, idempotencyKey)
+            } catch (e: ApiException) {
+                if (e.isReplyBlocked() || e.statusCode == 404) {
+                    try {
+                        refresh()
+                    } catch (refreshError: Exception) {
+                        if (refreshError is kotlinx.coroutines.CancellationException) throw refreshError
+                        e.addSuppressed(refreshError)
+                    }
+                }
+                throw e
+            }
+        mutationGeneration++
+        if (!result.replayed) {
+            _tasks.update { tasks -> tasks.map { if (it.id == id) result.task else it } }
+            return result.task
+        }
+        val changed =
+            try {
+                read()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                errorReporter.addBreadcrumb("List read after a replayed reply failed: ${e.message.orEmpty().take(120)}", "ai-task")
+                val snapshotIds = result.task.threadMessageIds()
+                _tasks.update { tasks ->
+                    tasks.map { if (it.id == id && !it.threadMessageIds().containsAll(snapshotIds)) result.task else it }
+                }
+                emptyList()
+            }
+        handleChangedReplies(changed)
+        return result.task
+    }
+
+    suspend fun markRepliesRead(
+        ids: Collection<String>,
+        quiet: Boolean = false,
+    ): Boolean {
+        if (appModeManager.isLocal) return true
+        replyAckMutex.withLock {
+            val unread = _tasks.value.flatMapTo(mutableSetOf()) { task -> task.unreadReplies().map { it.id } }
+            val pending = ids.distinct().filter { it in unread && it !in acknowledgedReplyIds }
+            try {
+                for (chunk in pending.chunked(AI_TASK_ACKNOWLEDGE_MAX_IDS)) {
+                    api.acknowledgeAiTaskReplies(chunk)
+                    acknowledgedReplyIds += chunk
+                    val read = chunk.toSet()
+                    _tasks.update { tasks -> tasks.map { it.withRepliesRead(read) } }
+                }
+                return true
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                if (!quiet) errorReporter.captureException(e)
+                return false
+            }
         }
     }
 
@@ -141,6 +246,8 @@ class AiTaskRepository(
     suspend fun uploadPhotos(photos: List<Pair<String, ByteArray>>): List<String> = api.uploadAiTaskPhotos(photos)
 
     fun unreadCount(): Int = _tasks.value.count { it.isUnreadDismissal() }
+
+    fun unreadReplyCount(): Int = _tasks.value.sumOf { it.unreadReplies().size }
 }
 
 fun AiTask.isUnreadDismissal(): Boolean = status == AiTask.Status.dismissed && acknowledgedAt == null

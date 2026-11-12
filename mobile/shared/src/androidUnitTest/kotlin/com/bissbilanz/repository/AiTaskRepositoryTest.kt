@@ -1,17 +1,22 @@
 package com.bissbilanz.repository
 
+import com.bissbilanz.ErrorReporter
+import com.bissbilanz.api.AiTaskReplyResult
 import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.AiTask
+import com.bissbilanz.api.generated.model.AiTaskThreadMessage
 import com.bissbilanz.api.generated.model.AiTaskUpdate
 import com.bissbilanz.api.generated.model.AiTasksResponse
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.test.NoopErrorReporter
 import com.bissbilanz.test.TestFixtures
 import com.bissbilanz.test.appModeManager
+import com.bissbilanz.util.unreadReplies
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
@@ -20,6 +25,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class AiTaskRepositoryTest {
@@ -247,5 +253,380 @@ class AiTaskRepositoryTest {
             repository.dismiss("1")
 
             assertEquals(listOf(AiTask.Status.dismissed), repository.tasks.value.map { it.status })
+        }
+
+    private fun answered(
+        id: String = "1",
+        date: String = "2024-01-15",
+        messages: List<AiTaskThreadMessage> = emptyList(),
+        correctionState: String = "idle",
+    ) = TestFixtures.aiTask(
+        id = id,
+        status = AiTask.Status.completed,
+        date = date,
+        processedBy = AiTask.ProcessedBy.assistant,
+        processedByKind = "claude",
+        claudeThread = TestFixtures.claudeThread(*messages.toTypedArray(), correctionState = correctionState),
+    )
+
+    private fun list(vararg tasks: AiTask) = AiTasksResponse(tasks = tasks.toList(), total = tasks.size)
+
+    private fun rejection(
+        status: Int,
+        code: String?,
+    ) = ApiException(
+        "rejected",
+        status,
+        null,
+        if (code == null) """{"error":"slow down"}""" else """{"error":"rejected","code":"$code"}""",
+    )
+
+    @Test
+    fun aReplySwapsInTheTaskTheServerAnswered() =
+        runTest {
+            val before = answered()
+            coEvery { api.listAiTasks(limit = 100) } returns list(before)
+            repository.refresh()
+            val after = answered(messages = listOf(TestFixtures.threadMessage("u1", role = "user")), correctionState = "queued")
+            coEvery { api.replyToAiTask("1", "It was 3 eggs", "key-1") } returns AiTaskReplyResult(after, replayed = false)
+
+            val result = repository.reply("1", "It was 3 eggs", "key-1")
+
+            assertEquals(after, result)
+            assertEquals(listOf(after), repository.tasks.value)
+            coVerify(exactly = 1) { api.listAiTasks(limit = 100) }
+        }
+
+    @Test
+    fun aListReadThatStartedBeforeAReplyLandedIsDropped() =
+        runTest {
+            val before = answered()
+            coEvery { api.listAiTasks(limit = 100) } returns list(before)
+            repository.refresh()
+            val staleRead = CompletableDeferred<AiTasksResponse>()
+            coEvery { api.listAiTasks(limit = 100) } coAnswers { staleRead.await() }
+            val after = answered(messages = listOf(TestFixtures.threadMessage("u1", role = "user")), correctionState = "queued")
+            coEvery { api.replyToAiTask("1", "x", "key-1") } returns AiTaskReplyResult(after, replayed = false)
+
+            val inFlight = launch { repository.refresh() }
+            runCurrent()
+            repository.reply("1", "x", "key-1")
+            staleRead.complete(list(before))
+            inFlight.join()
+
+            assertEquals(listOf(after), repository.tasks.value)
+        }
+
+    @Test
+    fun aReplayedReplyReReadsTheListInsteadOfApplyingItsOldBody() =
+        runTest {
+            val snapshot = answered(messages = listOf(TestFixtures.threadMessage("u1", role = "user")), correctionState = "queued")
+            val current =
+                answered(
+                    messages = listOf(TestFixtures.threadMessage("u1", role = "user"), TestFixtures.threadMessage("a1", unread = true)),
+                )
+            coEvery { api.replyToAiTask("1", "x", "key-1") } returns AiTaskReplyResult(snapshot, replayed = true)
+            coEvery { api.listAiTasks(limit = 100) } returns list(current)
+
+            val result = repository.reply("1", "x", "key-1")
+
+            assertEquals(snapshot, result)
+            assertEquals(listOf(current), repository.tasks.value)
+        }
+
+    @Test
+    fun aReplayWhoseReReadFailsStillSucceedsAndKeepsAFresherCachedCopy() =
+        runTest {
+            val reporter: ErrorReporter = mockk(relaxed = true)
+            val repo = AiTaskRepository(api, reporter, appModeManager())
+            val user = TestFixtures.threadMessage("u1", role = "user")
+            val fresher = answered(messages = listOf(user, TestFixtures.threadMessage("a1", unread = true)))
+            coEvery { api.listAiTasks(limit = 100) } returns list(fresher)
+            repo.refresh()
+            val snapshot = answered(messages = listOf(user), correctionState = "queued")
+            coEvery { api.replyToAiTask("1", "x", "key-1") } returns AiTaskReplyResult(snapshot, replayed = true)
+            coEvery { api.listAiTasks(limit = 100) } throws java.io.IOException("offline")
+
+            val result = repo.reply("1", "x", "key-1")
+
+            assertEquals(snapshot, result)
+            assertEquals(listOf(fresher), repo.tasks.value)
+            verify(exactly = 0) { reporter.captureException(any()) }
+            verify(exactly = 1) { reporter.addBreadcrumb(any(), "ai-task") }
+        }
+
+    @Test
+    fun aReplayWhoseReReadFailsAppliesTheSnapshotOverAnOlderCachedCopy() =
+        runTest {
+            val older = answered()
+            coEvery { api.listAiTasks(limit = 100) } returns list(older, answered("2"))
+            repository.refresh()
+            val snapshot = answered(messages = listOf(TestFixtures.threadMessage("u1", role = "user")), correctionState = "queued")
+            coEvery { api.replyToAiTask("1", "x", "key-1") } returns AiTaskReplyResult(snapshot, replayed = true)
+            coEvery { api.listAiTasks(limit = 100) } throws java.io.IOException("offline")
+
+            repository.reply("1", "x", "key-1")
+
+            assertEquals(listOf(snapshot, answered("2")), repository.tasks.value)
+        }
+
+    @Test
+    fun aRejectedReplyReReadsTheListAndRethrows() =
+        runTest {
+            for ((status, code) in listOf(403 to "budget_exhausted", 404 to "task_not_found", 409 to "correction_in_flight")) {
+                coEvery { api.replyToAiTask("1", "x", "key-1") } throws rejection(status, code)
+                coEvery { api.listAiTasks(limit = 100) } returns list(answered(correctionState = "running"))
+
+                val error = assertFailsWith<ApiException> { repository.reply("1", "x", "key-1") }
+
+                assertEquals(status, error.statusCode)
+                assertEquals(
+                    "running",
+                    repository.tasks.value
+                        .single()
+                        .claudeThread
+                        ?.correctionState,
+                )
+            }
+            coVerify(exactly = 3) { api.listAiTasks(limit = 100) }
+        }
+
+    @Test
+    fun aCodedRateLimitReReadsTheListButTheGenericLimiterDoesNot() =
+        runTest {
+            coEvery { api.listAiTasks(limit = 100) } returns list(answered())
+            coEvery { api.replyToAiTask("1", "x", "a") } throws rejection(429, "failed_too_often")
+            coEvery { api.replyToAiTask("1", "x", "b") } throws rejection(429, null)
+            coEvery { api.replyToAiTask("1", "x", "c") } throws ApiException("boom", 500)
+
+            assertFailsWith<ApiException> { repository.reply("1", "x", "a") }
+            coVerify(exactly = 1) { api.listAiTasks(limit = 100) }
+            assertFailsWith<ApiException> { repository.reply("1", "x", "b") }
+            assertFailsWith<ApiException> { repository.reply("1", "x", "c") }
+            coVerify(exactly = 1) { api.listAiTasks(limit = 100) }
+        }
+
+    @Test
+    fun aRejectionStillThrowsWhenTheReReadFailsToo() =
+        runTest {
+            coEvery { api.replyToAiTask("1", "x", "key-1") } throws rejection(409, "reply_limit_reached")
+            coEvery { api.listAiTasks(limit = 100) } throws RuntimeException("offline")
+
+            val error = assertFailsWith<ApiException> { repository.reply("1", "x", "key-1") }
+
+            assertEquals(409, error.statusCode)
+            assertEquals("offline", error.suppressed.single().message)
+        }
+
+    @Test
+    fun refreshAnnouncesUnreadAnswers() =
+        runTest {
+            val announced = mutableListOf<List<String>>()
+            repository.onUnreadReplies = { unread -> announced += unread.map { it.message.id } }
+            coEvery { api.listAiTasks(limit = 100) } returns
+                list(
+                    answered(
+                        "1",
+                        messages =
+                            listOf(
+                                TestFixtures.threadMessage("u1", role = "user"),
+                                TestFixtures.threadMessage("a1", unread = true),
+                                TestFixtures.threadMessage("a2"),
+                            ),
+                    ),
+                    answered("2"),
+                )
+
+            repository.refresh()
+
+            assertEquals(listOf(listOf("a1")), announced)
+            assertEquals(1, repository.unreadReplyCount())
+        }
+
+    @Test
+    fun refreshWithoutUnreadAnswersAnnouncesNothing() =
+        runTest {
+            var calls = 0
+            repository.onUnreadReplies = { calls++ }
+            coEvery { api.listAiTasks(limit = 100) } returns list(answered(messages = listOf(TestFixtures.threadMessage("a1"))))
+
+            repository.refresh()
+
+            assertEquals(0, calls)
+            assertEquals(0, repository.unreadReplyCount())
+        }
+
+    @Test
+    fun anAnswerThatChangedTheDiaryIsHandedOnWithItsTask() =
+        runTest {
+            val handed = mutableListOf<List<Pair<String, String>>>()
+            repository.onChangedReplies = { changed -> handed += changed.map { it.message.id to it.task.date } }
+            val user = TestFixtures.threadMessage("u1", role = "user")
+            coEvery { api.listAiTasks(limit = 100) } returns list(answered(messages = listOf(user), correctionState = "running"))
+            repository.refresh()
+            val changed = TestFixtures.threadMessage("a1", outcome = "changed")
+            coEvery { api.listAiTasks(limit = 100) } returns list(answered(date = "2024-01-15", messages = listOf(user, changed)))
+
+            repository.refresh()
+            repository.refresh()
+
+            assertEquals(listOf(emptyList(), listOf("a1" to "2024-01-15"), emptyList()), handed)
+        }
+
+    @Test
+    fun theFirstReadHandsOnUnreadChanges() =
+        runTest {
+            val handed = mutableListOf<List<String>>()
+            repository.onChangedReplies = { changed -> handed += changed.map { it.message.id } }
+            coEvery { api.listAiTasks(limit = 100) } returns
+                list(answered(date = "2024-01-20", messages = listOf(TestFixtures.threadMessage("a1", outcome = "changed", unread = true))))
+
+            repository.refresh()
+
+            assertEquals(listOf(listOf("a1")), handed)
+        }
+
+    @Test
+    fun aFailedDiaryRefreshIsReportedWithoutFailingTheListRead() =
+        runTest {
+            val reporter: ErrorReporter = mockk(relaxed = true)
+            val repo = AiTaskRepository(api, reporter, appModeManager())
+            repo.onChangedReplies = { throw RuntimeException("entries offline") }
+            val task = answered(messages = listOf(TestFixtures.threadMessage("a1", outcome = "changed", unread = true)))
+            coEvery { api.listAiTasks(limit = 100) } returns list(task)
+
+            repo.refresh()
+
+            assertEquals(listOf(task), repo.tasks.value)
+            verify(exactly = 1) { reporter.captureException(match { it.message == "entries offline" }) }
+        }
+
+    @Test
+    fun markingRepliesReadNamesOnlyUnreadAnswersAndClearsThemLocally() =
+        runTest {
+            coEvery { api.listAiTasks(limit = 100) } returns
+                list(
+                    answered(
+                        messages =
+                            listOf(
+                                TestFixtures.threadMessage("u1", role = "user"),
+                                TestFixtures.threadMessage("a1", unread = true),
+                                TestFixtures.threadMessage("a2", unread = false),
+                                TestFixtures.threadMessage("a3", unread = true),
+                            ),
+                    ),
+                )
+            repository.refresh()
+            coEvery { api.acknowledgeAiTaskReplies(any()) } returns 1
+
+            assertTrue(repository.markRepliesRead(listOf("a1", "a2", "u1", "missing", "a1")))
+
+            coVerify(exactly = 1) { api.acknowledgeAiTaskReplies(listOf("a1")) }
+            coVerify(exactly = 0) { api.acknowledgeAiTasks(any()) }
+            assertEquals(
+                listOf("a3"),
+                repository.tasks.value
+                    .single()
+                    .unreadReplies()
+                    .map { it.id },
+            )
+            assertEquals(
+                1,
+                repository.tasks.value
+                    .single()
+                    .claudeThread
+                    ?.unreadReplies,
+            )
+
+            assertTrue(repository.markRepliesRead(listOf("a1")))
+
+            coVerify(exactly = 1) { api.acknowledgeAiTaskReplies(any()) }
+        }
+
+    @Test
+    fun anAnswerAlreadyMarkedReadIsNotSentAgainAfterAStaleRead() =
+        runTest {
+            val unread = list(answered(messages = listOf(TestFixtures.threadMessage("a1", unread = true))))
+            coEvery { api.listAiTasks(limit = 100) } returns unread
+            repository.refresh()
+            coEvery { api.acknowledgeAiTaskReplies(any()) } returns 1
+            repository.markRepliesRead(listOf("a1"))
+
+            repository.refresh()
+            repository.markRepliesRead(listOf("a1"))
+
+            coVerify(exactly = 1) { api.acknowledgeAiTaskReplies(any()) }
+        }
+
+    @Test
+    fun moreThanAHundredAnswersAreMarkedReadInSeveralRequests() =
+        runTest {
+            val messages = (1..150).map { TestFixtures.threadMessage("a$it", unread = true) }
+            coEvery { api.listAiTasks(limit = 100) } returns list(answered(messages = messages))
+            repository.refresh()
+            val sent = mutableListOf<List<String>>()
+            coEvery { api.acknowledgeAiTaskReplies(capture(sent)) } returns 1
+
+            repository.markRepliesRead(messages.map { it.id })
+
+            assertEquals(listOf(100, 50), sent.map { it.size })
+            assertEquals(0, repository.unreadReplyCount())
+        }
+
+    @Test
+    fun aFailedReadMarkIsReportedAndLeavesTheAnswersUnread() =
+        runTest {
+            val reporter: ErrorReporter = mockk(relaxed = true)
+            val repo = AiTaskRepository(api, reporter, appModeManager())
+            coEvery { api.listAiTasks(limit = 100) } returns
+                list(answered(messages = listOf(TestFixtures.threadMessage("a1", unread = true))))
+            repo.refresh()
+            coEvery { api.acknowledgeAiTaskReplies(any()) } throws java.io.IOException("offline")
+
+            assertFalse(repo.markRepliesRead(listOf("a1")))
+            assertFalse(repo.markRepliesRead(listOf("a1"), quiet = true))
+
+            assertEquals(1, repo.unreadReplyCount())
+            verify(exactly = 1) { reporter.captureException(any()) }
+            coEvery { api.acknowledgeAiTaskReplies(any()) } returns 1
+            assertTrue(repo.markRepliesRead(listOf("a1")))
+            assertEquals(0, repo.unreadReplyCount())
+        }
+
+    @Test
+    fun markingRepliesReadDoesNothingInLocalMode() =
+        runTest {
+            val local = AiTaskRepository(api, NoopErrorReporter(), appModeManager(AppMode.LOCAL))
+
+            local.markRepliesRead(listOf("a1"))
+
+            coVerify(exactly = 0) { api.acknowledgeAiTaskReplies(any()) }
+        }
+
+    @Test
+    fun acknowledgingDismissalsStillAcknowledgesEveryTaskAndNamesNoReplies() =
+        runTest {
+            val dismissed = TestFixtures.aiTask(id = "d1", status = AiTask.Status.dismissed)
+            val withAnswer = answered("2", messages = listOf(TestFixtures.threadMessage("a1", unread = true)))
+            coEvery { api.listAiTasks(limit = 100) } returns list(dismissed, withAnswer)
+            repository.refresh()
+            coEvery { api.acknowledgeAiTasks() } returns 1
+
+            repository.acknowledgeAll()
+
+            coVerify(exactly = 1) { api.acknowledgeAiTasks(null) }
+            coVerify(exactly = 0) { api.acknowledgeAiTaskReplies(any()) }
+        }
+
+    @Test
+    fun unreadAnswersAloneDoNotTriggerTheDismissalAcknowledgement() =
+        runTest {
+            coEvery { api.listAiTasks(limit = 100) } returns
+                list(answered(messages = listOf(TestFixtures.threadMessage("a1", unread = true))))
+            repository.refresh()
+
+            repository.acknowledgeAll()
+
+            coVerify(exactly = 0) { api.acknowledgeAiTasks(any()) }
         }
 }

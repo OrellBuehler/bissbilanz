@@ -307,13 +307,54 @@
     <string name="ai_tasks_load_failed">Could not load AI tasks</string>
     <string name="ai_tasks_updated">AI task updated</string>
     <string name="ai_tasks_notification_channel">AI tasks</string>
-    <string name="ai_tasks_notification_channel_desc">Tells you when the assistant could not log a meal you sent.</string>
+    <string name="ai_tasks_notification_channel_desc">Tells you when the assistant could not log a meal you sent, or when Claude answers your reply.</string>
     <string name="ai_tasks_notification_title">AI task dismissed</string>
     <string name="ai_tasks_notification_body_fallback">Your assistant could not log this meal.</string>
     <string name="ai_tasks_notification_summary">Dismissed AI tasks</string>
     <string name="ai_tasks_upload_failed_title">Could not send meal to your assistant</string>
     <string name="ai_tasks_upload_failed_body">Check your connection and send it again.</string>
     <string name="ai_task_upload_sending">Sending to your assistant…</string>
+    <string name="ai_tasks_reply_label">Reply to Claude</string>
+    <string name="ai_tasks_reply_placeholder">Something wrong? Tell Claude what to fix.</string>
+    <string name="ai_tasks_reply_hint">Claude can change this meal\'s entries, and foods it created only for this meal.</string>
+    <string name="ai_tasks_reply_send">Send reply</string>
+    <string name="ai_tasks_reply_sending">Sending reply</string>
+    <string name="ai_tasks_reply_counter">%1$d / %2$d</string>
+    <string name="ai_tasks_reply_too_long">Keep your reply to %1$d characters or fewer.</string>
+    <string name="ai_tasks_reply_working">Claude is working on your reply</string>
+    <string name="ai_tasks_reply_retrying">Claude ran into a problem and will try again in a few minutes</string>
+    <string name="ai_tasks_reply_you">You</string>
+    <string name="ai_tasks_reply_claude">Claude</string>
+    <string name="ai_tasks_reply_changed">Changes applied</string>
+    <string name="ai_tasks_reply_failed">Did not work</string>
+    <string name="ai_tasks_reply_blocked_not_server">Replies are only possible for meals Claude processed on the server.</string>
+    <string name="ai_tasks_reply_blocked_not_completed">Replies are possible once this task is completed.</string>
+    <string name="ai_tasks_reply_blocked_in_flight">Claude is still working on your last reply. Send yours once it answers.</string>
+    <string name="ai_tasks_reply_blocked_limit">This task has reached its reply limit.</string>
+    <string name="ai_tasks_reply_blocked_failing">Claude could not handle the last replies on this meal. Try again later.</string>
+    <string name="ai_tasks_reply_blocked_unavailable">Claude is not available for your account right now.</string>
+    <string name="ai_tasks_reply_blocked_budget">Claude\'s monthly budget is used up.</string>
+    <string name="ai_tasks_reply_blocked_rate">You have sent a lot of replies today. Try again later.</string>
+    <string name="ai_tasks_reply_blocked_other">Replies are not possible for this task right now.</string>
+    <string name="ai_tasks_reply_offline">You\'re offline. Replies need a connection.</string>
+    <string name="ai_tasks_reply_network">Your reply could not be sent. Check your connection and try again.</string>
+    <string name="ai_tasks_reply_still_sending">Your reply is still being sent.</string>
+    <string name="ai_tasks_reply_too_many">Too many requests at the moment.</string>
+    <string name="ai_tasks_reply_invalid">Your reply could not be sent. Check the text and try again.</string>
+    <string name="ai_tasks_reply_signed_out">Sign in again to send replies.</string>
+    <string name="ai_tasks_reply_error">Your reply could not be sent. Try again.</string>
+    <string name="ai_tasks_reply_task_gone">This task no longer exists. The list has been refreshed.</string>
+    <string name="ai_tasks_reply_retry_soon">You can try again in a moment.</string>
+    <plurals name="ai_tasks_reply_retry_minutes">
+        <item quantity="one">You can try again in %1$d minute.</item>
+        <item quantity="other">You can try again in %1$d minutes.</item>
+    </plurals>
+    <plurals name="ai_tasks_reply_retry_hours">
+        <item quantity="one">You can try again in %1$d hour.</item>
+        <item quantity="other">You can try again in %1$d hours.</item>
+    </plurals>
+    <string name="ai_tasks_reply_notification_title">Claude replied</string>
+    <string name="ai_tasks_reply_notification_summary">Answers from Claude</string>
 
     <!-- Connect an assistant -->
     <string name="connect_assistant_title">Connect an assistant</string>
