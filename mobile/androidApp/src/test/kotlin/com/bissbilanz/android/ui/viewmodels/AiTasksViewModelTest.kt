@@ -9,6 +9,7 @@ import com.bissbilanz.api.generated.model.AiTask
 import com.bissbilanz.api.generated.model.AiTaskClaudeProcessing
 import com.bissbilanz.repository.AiTaskRepository
 import com.bissbilanz.repository.EntryRepository
+import com.bissbilanz.sync.ConnectivityProvider
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -37,6 +38,7 @@ class AiTasksViewModelTest {
     private lateinit var entryRepo: EntryRepository
     private lateinit var errorReporter: ErrorReporter
     private lateinit var viewModel: AiTasksViewModel
+    private val online = MutableStateFlow(true)
 
     private val completed =
         AiTask(
@@ -72,7 +74,8 @@ class AiTasksViewModelTest {
             mockk(relaxed = true) {
                 every { items } returns MutableStateFlow(emptyList())
             }
-        viewModel = AiTasksViewModel(aiTaskRepo, uploadQueue, errorReporter, entryRepo, SavedStateHandle())
+        val connectivity: ConnectivityProvider = mockk { every { isOnline } returns online }
+        viewModel = AiTasksViewModel(aiTaskRepo, uploadQueue, errorReporter, entryRepo, connectivity, SavedStateHandle())
     }
 
     @AfterTest

@@ -38,7 +38,24 @@ class AiTaskNotificationPreferences(
         return ids.filterNot { it in seen }
     }
 
+    var notifiedReplies: Set<String>
+        get() = prefs.getStringSet(KEY_NOTIFIED_REPLIES, emptySet()).orEmpty()
+        set(value) = prefs.edit().putStringSet(KEY_NOTIFIED_REPLIES, value.toSet()).apply()
+
+    fun markRepliesNotified(
+        ids: Collection<String>,
+        knownMessageIds: Set<String>,
+    ) {
+        notifiedReplies = (notifiedReplies + ids).filterTo(mutableSetOf()) { it in knownMessageIds }
+    }
+
+    fun unnotifiedReplies(ids: Collection<String>): List<String> {
+        val seen = notifiedReplies
+        return ids.filterNot { it in seen }
+    }
+
     private companion object {
         const val KEY_NOTIFIED = "notified_ids"
+        const val KEY_NOTIFIED_REPLIES = "notified_reply_ids"
     }
 }

@@ -13,6 +13,7 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.content.TextContent
 import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
@@ -23,6 +24,13 @@ class ApiException(
     val rawResponse: HttpResponse? = null,
     /** Response body, when the caller needs to parse a structured error (e.g. a 409's counts). */
     val responseBody: String? = null,
+    val retryAfterSeconds: Long? =
+        rawResponse
+            ?.headers
+            ?.get(HttpHeaders.RetryAfter)
+            ?.trim()
+            ?.toLongOrNull()
+            ?.takeIf { it > 0 },
 ) : Exception(message)
 
 class UnauthorizedException : Exception("Not authenticated")

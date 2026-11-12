@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -45,6 +46,7 @@ import com.bissbilanz.android.aitasks.AiTaskUploadWorker
 import com.bissbilanz.android.aitasks.QueuedAiTaskUpload
 import com.bissbilanz.android.ui.components.AiMealSheet
 import com.bissbilanz.android.ui.components.AiTaskImageViewer
+import com.bissbilanz.android.ui.components.AiTaskThread
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.ClaudeProposalCard
 import com.bissbilanz.android.ui.components.EmptyState
@@ -55,11 +57,14 @@ import com.bissbilanz.android.ui.components.formatTimeOfDay
 import com.bissbilanz.android.ui.components.mealTypeDisplayName
 import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
+import com.bissbilanz.android.ui.viewmodels.ReplyDraft
 import com.bissbilanz.android.util.formatIsoDate
 import com.bissbilanz.api.generated.model.AiTask
+import com.bissbilanz.repository.isUnreadDismissal
 import com.bissbilanz.util.ClaudeTaskState
 import com.bissbilanz.util.TaskResolver
 import com.bissbilanz.util.claudeTaskState
+import com.bissbilanz.util.hasUnreadReply
 import com.bissbilanz.util.resolver
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
@@ -79,6 +84,8 @@ fun AiTasksScreen(navController: NavController) {
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val loadFailed by viewModel.loadFailed.collectAsStateWithLifecycle()
     val busyTaskId by viewModel.busyTaskId.collectAsStateWithLifecycle()
+    val replyDrafts by viewModel.replyDrafts.collectAsStateWithLifecycle()
+    val newReplyIds by viewModel.newReplyIds.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val loadFailedMessage = stringResource(R.string.ai_tasks_load_failed)
@@ -182,7 +189,18 @@ fun AiTasksScreen(navController: NavController) {
                     } else if (tasks.isEmpty() && queuedUploads.isEmpty()) {
                         EmptyState(stringResource(selectedFilter.emptyMessage), Icons.Default.AutoAwesome)
                     } else {
+                        val listState = rememberLazyListState()
+                        LaunchedEffect(listState, lifecycleOwner) {
+                            lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                                viewModel.markDisplayedRepliesRead(
+                                    snapshotFlow {
+                                        listState.layoutInfo.visibleItemsInfo.mapNotNullTo(mutableSetOf()) { it.key as? String }
+                                    },
+                                )
+                            }
+                        }
                         LazyColumn(
+                            state = listState,
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding =
@@ -209,6 +227,10 @@ fun AiTasksScreen(navController: NavController) {
                                     proposalBusy = busyTaskId == task.id,
                                     onAcceptProposal = { viewModel.acceptProposal(task.id, it) },
                                     onDiscardProposal = { viewModel.discardProposal(task.id) },
+                                    replyDraft = replyDrafts[task.id] ?: ReplyDraft(),
+                                    newReplyIds = newReplyIds,
+                                    onReplyTextChange = { viewModel.updateReplyText(task.id, it) },
+                                    onSendReply = { viewModel.sendReply(task.id) },
                                     modifier = Modifier.animateItem(),
                                 )
                             }
@@ -325,9 +347,17 @@ private fun AiTaskListItem(
     proposalBusy: Boolean,
     onAcceptProposal: (itemIds: List<String>) -> Unit,
     onDiscardProposal: () -> Unit,
+    replyDraft: ReplyDraft,
+    newReplyIds: Set<String>,
+    onReplyTextChange: (String) -> Unit,
+    onSendReply: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val isUnread = task.status == AiTask.Status.dismissed && task.acknowledgedAt == null
+    val thread = task.claudeThread
+    val isUnread =
+        task.isUnreadDismissal() ||
+            task.hasUnreadReply() ||
+            thread?.messages.orEmpty().any { it.id in newReplyIds }
     var galleryIndex by remember(task.id) { mutableStateOf<Int?>(null) }
 
     Card(
@@ -500,6 +530,17 @@ private fun AiTaskListItem(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+
+            if (thread != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                AiTaskThread(
+                    thread = thread,
+                    draft = replyDraft,
+                    newReplyIds = newReplyIds,
+                    onTextChange = onReplyTextChange,
+                    onSend = onSendReply,
+                )
             }
         }
     }

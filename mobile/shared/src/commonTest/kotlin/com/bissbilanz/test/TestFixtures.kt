@@ -2,7 +2,9 @@ package com.bissbilanz.test
 
 import com.bissbilanz.api.generated.model.AiTask
 import com.bissbilanz.api.generated.model.AiTaskClaudeProcessing
+import com.bissbilanz.api.generated.model.AiTaskClaudeThread
 import com.bissbilanz.api.generated.model.AiTaskProposalItem
+import com.bissbilanz.api.generated.model.AiTaskThreadMessage
 import com.bissbilanz.api.generated.model.Food
 import com.bissbilanz.api.generated.model.OpenFoodFactsProduct
 import com.bissbilanz.api.generated.model.Preferences
@@ -70,6 +72,7 @@ object TestFixtures {
         processedBy: AiTask.ProcessedBy? = null,
         processedByKind: String? = null,
         claudeProcessing: AiTaskClaudeProcessing? = null,
+        claudeThread: AiTaskClaudeThread? = null,
     ) = AiTask(
         id = id,
         userId = "user-1",
@@ -89,6 +92,36 @@ object TestFixtures {
         processedBy = processedBy,
         processedByKind = processedByKind,
         claudeProcessing = claudeProcessing,
+        claudeThread = claudeThread,
+    )
+
+    fun threadMessage(
+        id: String,
+        role: String = "assistant",
+        text: String = "Fixed it",
+        outcome: String? = if (role == "user") null else "answered",
+        unread: Boolean = false,
+    ) = AiTaskThreadMessage(
+        id = id,
+        role = role,
+        text = text,
+        outcome = outcome,
+        createdAt = "2024-01-15T12:00:00Z",
+        unread = unread,
+    )
+
+    fun claudeThread(
+        vararg messages: AiTaskThreadMessage,
+        correctionState: String = "idle",
+        canReply: Boolean = true,
+        replyBlockedReason: String? = null,
+    ) = AiTaskClaudeThread(
+        messages = messages.toList(),
+        correctionState = correctionState,
+        canReply = canReply,
+        replyBlockedReason = replyBlockedReason,
+        repliesRemaining = 5,
+        unreadReplies = messages.count { it.unread },
     )
 
     fun proposalItem(

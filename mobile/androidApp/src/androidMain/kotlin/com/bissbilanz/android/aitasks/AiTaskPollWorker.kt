@@ -16,8 +16,8 @@ import org.koin.java.KoinJavaComponent
 import java.util.concurrent.TimeUnit
 
 /**
- * Pulls AI tasks while the app is closed, so a dismissal reaches the user without them
- * opening the app first.
+ * Pulls AI tasks while the app is closed, so a dismissal or an answer from Claude reaches
+ * the user without them opening the app first.
  *
  * Nothing else covers this on Android: the only other periodic work is a side effect of
  * placing a widget, and there is no push channel. The 30/15 cadence matches those widget
@@ -31,8 +31,8 @@ class AiTaskPollWorker(
         val koin = KoinJavaComponent.getKoin()
         return try {
             if (koin.get<AppModeManager>().isLocal) return Result.success()
-            // The repository's onUnreadDismissals hook, wired in BissbilanzApplication,
-            // posts the notification.
+            // The repository's onUnreadDismissals and onUnreadReplies hooks, wired in
+            // BissbilanzApplication, post the notifications.
             koin.get<AiTaskRepository>().refresh()
             Result.success()
         } catch (e: Exception) {

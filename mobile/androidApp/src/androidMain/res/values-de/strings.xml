@@ -305,13 +305,54 @@
     <string name="ai_tasks_load_failed">KI-Aufgaben konnten nicht geladen werden</string>
     <string name="ai_tasks_updated">KI-Aufgabe aktualisiert</string>
     <string name="ai_tasks_notification_channel">KI-Aufgaben</string>
-    <string name="ai_tasks_notification_channel_desc">Meldet, wenn der Assistent eine gesendete Mahlzeit nicht erfassen konnte.</string>
+    <string name="ai_tasks_notification_channel_desc">Meldet, wenn der Assistent eine gesendete Mahlzeit nicht erfassen konnte oder Claude auf deine Antwort reagiert.</string>
     <string name="ai_tasks_notification_title">KI-Aufgabe verworfen</string>
     <string name="ai_tasks_notification_body_fallback">Dein Assistent konnte diese Mahlzeit nicht erfassen.</string>
     <string name="ai_tasks_notification_summary">Verworfene KI-Aufgaben</string>
     <string name="ai_tasks_upload_failed_title">Mahlzeit konnte nicht an den Assistenten gesendet werden</string>
     <string name="ai_tasks_upload_failed_body">Prüfe deine Verbindung und sende sie erneut.</string>
     <string name="ai_task_upload_sending">Wird an deinen Assistenten gesendet…</string>
+    <string name="ai_tasks_reply_label">Claude antworten</string>
+    <string name="ai_tasks_reply_placeholder">Stimmt etwas nicht? Schreib Claude, was korrigiert werden soll.</string>
+    <string name="ai_tasks_reply_hint">Claude kann die Einträge dieser Mahlzeit ändern und Lebensmittel, die nur für sie erstellt wurden.</string>
+    <string name="ai_tasks_reply_send">Antwort senden</string>
+    <string name="ai_tasks_reply_sending">Antwort wird gesendet</string>
+    <string name="ai_tasks_reply_counter">%1$d / %2$d</string>
+    <string name="ai_tasks_reply_too_long">Deine Antwort darf höchstens %1$d Zeichen lang sein.</string>
+    <string name="ai_tasks_reply_working">Claude bearbeitet deine Antwort</string>
+    <string name="ai_tasks_reply_retrying">Claude hatte ein Problem und versucht es in ein paar Minuten erneut</string>
+    <string name="ai_tasks_reply_you">Du</string>
+    <string name="ai_tasks_reply_claude">Claude</string>
+    <string name="ai_tasks_reply_changed">Änderungen übernommen</string>
+    <string name="ai_tasks_reply_failed">Hat nicht geklappt</string>
+    <string name="ai_tasks_reply_blocked_not_server">Antworten sind nur bei Mahlzeiten möglich, die Claude auf dem Server verarbeitet hat.</string>
+    <string name="ai_tasks_reply_blocked_not_completed">Antworten sind möglich, sobald diese Aufgabe erledigt ist.</string>
+    <string name="ai_tasks_reply_blocked_in_flight">Claude bearbeitet noch deine letzte Antwort. Sende deine, sobald Claude geantwortet hat.</string>
+    <string name="ai_tasks_reply_blocked_limit">Für diese Aufgabe sind keine weiteren Antworten möglich.</string>
+    <string name="ai_tasks_reply_blocked_failing">Claude konnte die letzten Antworten zu dieser Mahlzeit nicht verarbeiten. Versuche es später erneut.</string>
+    <string name="ai_tasks_reply_blocked_unavailable">Claude ist für dein Konto gerade nicht verfügbar.</string>
+    <string name="ai_tasks_reply_blocked_budget">Das Monatsbudget für Claude ist aufgebraucht.</string>
+    <string name="ai_tasks_reply_blocked_rate">Du hast heute schon viele Antworten gesendet. Versuche es später erneut.</string>
+    <string name="ai_tasks_reply_blocked_other">Antworten sind für diese Aufgabe gerade nicht möglich.</string>
+    <string name="ai_tasks_reply_offline">Du bist offline. Antworten brauchen eine Verbindung.</string>
+    <string name="ai_tasks_reply_network">Deine Antwort konnte nicht gesendet werden. Prüfe deine Verbindung und versuche es erneut.</string>
+    <string name="ai_tasks_reply_still_sending">Deine Antwort wird noch gesendet.</string>
+    <string name="ai_tasks_reply_too_many">Im Moment gibt es zu viele Anfragen.</string>
+    <string name="ai_tasks_reply_invalid">Deine Antwort konnte nicht gesendet werden. Prüfe den Text und versuche es erneut.</string>
+    <string name="ai_tasks_reply_signed_out">Melde dich erneut an, um Antworten zu senden.</string>
+    <string name="ai_tasks_reply_error">Deine Antwort konnte nicht gesendet werden. Versuche es erneut.</string>
+    <string name="ai_tasks_reply_task_gone">Diese Aufgabe gibt es nicht mehr. Die Liste wurde aktualisiert.</string>
+    <string name="ai_tasks_reply_retry_soon">Du kannst es gleich erneut versuchen.</string>
+    <plurals name="ai_tasks_reply_retry_minutes">
+        <item quantity="one">Du kannst es in %1$d Minute erneut versuchen.</item>
+        <item quantity="other">Du kannst es in %1$d Minuten erneut versuchen.</item>
+    </plurals>
+    <plurals name="ai_tasks_reply_retry_hours">
+        <item quantity="one">Du kannst es in %1$d Stunde erneut versuchen.</item>
+        <item quantity="other">Du kannst es in %1$d Stunden erneut versuchen.</item>
+    </plurals>
+    <string name="ai_tasks_reply_notification_title">Claude hat geantwortet</string>
+    <string name="ai_tasks_reply_notification_summary">Antworten von Claude</string>
 
     <!-- Connect an assistant -->
     <string name="connect_assistant_title">KI-Assistent verbinden</string>

@@ -431,6 +431,13 @@ class BissbilanzApplication :
             // id a concurrent refresh had already recorded, re-alerting the user.
             aiTaskNotificationPrefs.markNotified(if (shown) fresh else emptyList(), knownIds)
         }
+        koin.get<AiTaskRepository>().onUnreadReplies = { unread, knownMessageIds ->
+            AiTaskNotifier.announceReplies(this@BissbilanzApplication, aiTaskNotificationPrefs, unread, knownMessageIds)
+        }
+        val entryRepository = koin.get<EntryRepository>()
+        koin.get<AiTaskRepository>().onRepliesChangedDiary = { dates ->
+            dates.forEach { entryRepository.refresh(it) }
+        }
         // Nothing else pulls AI tasks while the app is closed — there is no push
         // channel, and the only other periodic work exists solely for the widgets.
         AiTaskPollWorker.enqueue(this)
