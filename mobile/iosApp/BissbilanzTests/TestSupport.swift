@@ -292,7 +292,7 @@ struct RepositoryHarness {
     }
 
     var aiTaskStore: AiTaskStore {
-        AiTaskStore(api: api, appMode: appMode)
+        AiTaskStore(api: api, appMode: appMode, defaults: defaults)
     }
 
     var preferencesRepository: PreferencesRepository {

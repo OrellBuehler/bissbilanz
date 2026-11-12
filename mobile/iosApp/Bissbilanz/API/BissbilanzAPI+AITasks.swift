@@ -79,6 +79,104 @@ extension BissbilanzAPI {
         return response.acknowledged
     }
 
+    /// Marks exactly these answers of Claude read. Sent without `ids`, so no
+    /// task — and no dismissal the user has not seen — is acknowledged on the
+    /// side. At most `aiTaskAcknowledgeMaxIds` per request.
+    @discardableResult
+    func acknowledgeAiTaskReplies(replyIds: [String]) async throws -> Int {
+        let response: AiTaskAcknowledgeResponse = try await post(
+            "/api/ai-tasks/acknowledge", body: AiTaskAcknowledge(ids: nil, replyIds: replyIds)
+        )
+        return response.repliesAcknowledged ?? 0
+    }
+
+    nonisolated static let aiTaskAcknowledgeMaxIds = 100
+
+    /// A request still running under the same key is waited for this many
+    /// times, each wait capped at `aiTaskReplyInProgressMaxWait` seconds.
+    nonisolated static let aiTaskReplyInProgressRetries = 2
+    nonisolated static let aiTaskReplyInProgressMaxWait: TimeInterval = 10
+
+    /// Replies to Claude about a task it processed on the server. A direct,
+    /// online-only call that never goes through `SyncManager`: a reply asks
+    /// Claude to act now, it is not an edit to replay later. Reuse
+    /// `idempotencyKey` for a retry of the same reply.
+    ///
+    /// Throws `AiTaskReplyFailure` for every non-2xx answer and transport
+    /// failure. Expected rejections leave a breadcrumb; anything else is
+    /// reported here.
+    func replyToAiTask(id: String, text: String, idempotencyKey: String) async throws -> AiTaskReplyReceipt {
+        var request = URLRequest(url: try makeURL("/api/ai-tasks/\(id)/replies"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(AiTaskReplyCreate(text: text))
+        applySyncHeaders(&request, idempotencyKey: idempotencyKey, clientEditedAt: nil)
+        var waits = 0
+        let maxWaits = Self.aiTaskReplyInProgressRetries
+        while true {
+            do {
+                return try await sendAiTaskReply(request)
+            } catch AiTaskReplyFailure.requestInProgress(let retryAfter) where waits < maxWaits {
+                waits += 1
+                try await Task.sleep(for: .seconds(min(retryAfter, Self.aiTaskReplyInProgressMaxWait)))
+            }
+        }
+    }
+
+    private func sendAiTaskReply(_ request: URLRequest) async throws -> AiTaskReplyReceipt {
+        let path = request.url?.path ?? "/api/ai-tasks/replies"
+        ErrorReporter.addBreadcrumb("POST \(path)", category: "http")
+        let data: Data
+        let response: HTTPURLResponse
+        do {
+            (data, response) = try await executeRequestData(request)
+        } catch let error as APIError {
+            let failure = AiTaskReplyFailure(transport: error)
+            recordAiTaskReplyFailure(failure, error: error, request: request)
+            throw failure
+        }
+        guard (200 ..< 300).contains(response.statusCode) else {
+            let failure = AiTaskReplyFailure(
+                status: response.statusCode,
+                body: data,
+                retryAfter: response.value(forHTTPHeaderField: "Retry-After")
+            )
+            let error = APIError.serverError(response.statusCode, String(data: data, encoding: .utf8))
+            recordAiTaskReplyFailure(failure, error: error, request: request)
+            throw failure
+        }
+        let isReplay = response.value(forHTTPHeaderField: "x-idempotent-replay") == "true"
+        if isReplay {
+            ErrorReporter.addBreadcrumb("AI task reply replayed", category: "ai-task")
+        }
+        do {
+            let task = try JSONDecoder().decode(AiTaskResponse.self, from: data).task
+            return AiTaskReplyReceipt(task: task, isReplay: isReplay)
+        } catch {
+            let decodingError = APIError.decodingError(
+                error,
+                statusCode: response.statusCode,
+                body: String(data: data, encoding: .utf8)
+            )
+            ErrorReporter.capture(decodingError, context: Self.errorContext(for: request, error: decodingError))
+            throw AiTaskReplyFailure.failed(status: response.statusCode)
+        }
+    }
+
+    private func recordAiTaskReplyFailure(_ failure: AiTaskReplyFailure, error: APIError, request: URLRequest) {
+        if failure.isExpected {
+            ErrorReporter.addBreadcrumb(
+                "AI task reply rejected",
+                category: "ai-task",
+                data: ["reason": failure.telemetryReason]
+            )
+        } else {
+            var context = Self.errorContext(for: request, error: error)
+            context["reason"] = failure.telemetryReason
+            ErrorReporter.capture(error, context: context)
+        }
+    }
+
     /// Uploads every photo of one meal in a single request — the route reads
     /// repeated `photo` parts and answers with the URLs in the order sent.
     func uploadAiTaskPhotos(_ photos: [(data: Data, filename: String)]) async throws -> [String] {

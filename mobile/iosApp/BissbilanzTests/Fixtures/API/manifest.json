@@ -36,6 +36,12 @@
 				}
 			]
 		},
+		"AiTaskReplyErrorResponse": {
+			"enumVariants": [],
+			"full": "AiTaskReplyErrorResponse.full.json",
+			"minimal": "AiTaskReplyErrorResponse.minimal.json",
+			"operations": []
+		},
 		"AiTaskResponse": {
 			"enumVariants": [],
 			"full": "AiTaskResponse.full.json",

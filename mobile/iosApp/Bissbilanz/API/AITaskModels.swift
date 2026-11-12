@@ -42,9 +42,17 @@ struct AiTask: Codable, Identifiable, Hashable {
     /// Claude's server-side progress; null unless the task is pending and has
     /// an active run (and always null on the response to creating a task).
     var claudeProcessing: AiTaskClaudeProcessing? = nil
+    /// The user's replies to Claude and its answers. Present on every completed
+    /// task Claude processed on the server; nil on tasks processed any other
+    /// way, which take no replies, and on responses from older servers.
+    var claudeThread: AiTaskClaudeThread? = nil
 
     var isUnreadDismissal: Bool {
         status == "dismissed" && acknowledgedAt == nil
+    }
+
+    var hasUnreadReplies: Bool {
+        claudeThread?.messages.contains(where: \.isUnreadAnswer) == true
     }
 
     /// Claude resolved this task. A pending task is excluded because
@@ -246,12 +254,18 @@ extension AiTaskUpdate {
     }
 }
 
+/// An empty body acknowledges every unacknowledged task. With `replyIds` the
+/// server marks exactly those answers read and acknowledges only the tasks
+/// named in `ids` — none when it is absent.
 struct AiTaskAcknowledge: Codable {
     var ids: [String]?
+    var replyIds: [String]? = nil
 }
 
 struct AiTaskAcknowledgeResponse: Codable {
     let acknowledged: Int
+    /// Only present when the request sent `replyIds`.
+    var repliesAcknowledged: Int? = nil
 }
 
 /// Matches `aiTaskCreateSchema`: `description`/`photoUrls` are individually

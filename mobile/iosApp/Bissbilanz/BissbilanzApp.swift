@@ -251,6 +251,10 @@ struct BissbilanzApp: App {
         aiTasks.onRefreshed = {
             await processor.processPendingTasks()
         }
+        // An answer of Claude that changed a meal's entries re-pulls that day.
+        aiTasks.onEntriesChanged = { date in
+            try await entryRepo.refresh(date: date)
+        }
 
         let router = DeepLinkRouter()
         _deepLinkRouter = State(wrappedValue: router)
@@ -527,6 +531,7 @@ struct BissbilanzApp: App {
             }
             .onChange(of: appModeManager.mode) { _, _ in
                 foodEnrichment.reset()
+                aiTaskStore.resetAccountState()
                 defaultModeToSyncedIfNeeded()
             }
             .onChange(of: scenePhase) { _, phase in
@@ -651,6 +656,7 @@ struct BissbilanzApp: App {
         // First, re-send any meal a previous launch was killed while uploading.
         try? await aiTaskStore.refresh()
         await AiTaskNotifier.notifyNewDismissals(aiTaskStore.tasks)
+        await AiTaskNotifier.notifyNewReplies(aiTaskStore.tasks)
         // Keeps the "send to assistant" gate in AIMealSheet current without
         // ever blocking it on a network call — see McpConnectionStatus.
         await mcpConnectionStatus.refresh()

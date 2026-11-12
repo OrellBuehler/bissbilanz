@@ -89,6 +89,7 @@ const SCHEMA_NAMES: string[] = [
 	'AiTasksResponse',
 	'AiTaskResponse',
 	'AiTaskAcknowledgeResponse',
+	'AiTaskReplyErrorResponse',
 	'AiTaskPhotoResponse',
 	'McpStatusResponse',
 	'OpenFoodFactsSearchResponse',

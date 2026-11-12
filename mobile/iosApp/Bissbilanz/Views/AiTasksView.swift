@@ -17,6 +17,10 @@ struct AiTasksView: View {
     @State private var readyForReviewDrafts: [ProcessedAiTaskDraft] = []
     @State private var selectedDraftForReview: ProcessedAiTaskDraft?
     @State private var editingTask: AiTask?
+    /// Task rows the list has on screen right now.
+    @State private var onScreenTaskIds: Set<String> = []
+    /// Tells whether anything is presented over the list.
+    @State private var coverProbe = PresentationCoverProbe()
 
     private enum Filter: Int, CaseIterable, Identifiable {
         case open
@@ -52,6 +56,18 @@ struct AiTasksView: View {
 
     private var shouldPoll: Bool {
         store.hasActiveClaudeWork && scenePhase == .active
+    }
+
+    /// Claude's unread answers in rows that are on screen, with the scene
+    /// active and none of this view's own sheets or alerts up. Anything else
+    /// presented over the list is checked by `coverProbe` before marking.
+    private var markableReplyIds: [String] {
+        guard scenePhase == .active, !isLoading, error == nil,
+              editingTask == nil, selectedDraftForReview == nil,
+              errorMessage == nil, proposalNotice == nil
+        else { return [] }
+        let onScreen = visibleTasks.filter { onScreenTaskIds.contains($0.id) }
+        return AiTaskThreadChanges.unreadReplyIds(in: onScreen)
     }
 
     private static let pollInterval = Duration.seconds(10)
@@ -124,6 +140,8 @@ struct AiTasksView: View {
                                 onEdit: editHandler(for: task),
                                 onProposalNotice: { proposalNotice = $0 }
                             )
+                                .onAppear { _ = onScreenTaskIds.insert(task.id) }
+                                .onDisappear { _ = onScreenTaskIds.remove(task.id) }
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     Button(role: .destructive) {
                                         Task { await delete(task) }
@@ -142,6 +160,10 @@ struct AiTasksView: View {
                         }
                     }
                     .listStyle(.plain)
+                    // The reply box sits in a row; on a small phone the keyboard
+                    // must be easy to get rid of again.
+                    .keyboardDismissable()
+                    .background(PresentationCoverProbeView(probe: coverProbe))
                 }
             }
         }
@@ -151,6 +173,21 @@ struct AiTasksView: View {
         .task(id: shouldPoll) {
             guard shouldPoll else { return }
             await pollWhileClaudeWorks()
+        }
+        // Showing an answer is what reads it: once its row is on screen and
+        // nothing — the photo viewer, an alert, a sheet from elsewhere — is
+        // over the list. Only the waiting belongs to this task; the store
+        // sends the acknowledgement in a task of its own.
+        .task(id: markableReplyIds) {
+            let ids = markableReplyIds
+            guard !ids.isEmpty else { return }
+            while coverProbe.isCovered {
+                // The sleep only throws on cancellation (the ids changed or
+                // the list went away), which the check below acts on.
+                try? await Task.sleep(for: .seconds(1))
+                if Task.isCancelled { return }
+            }
+            store.markRepliesRead(ids: ids)
         }
         .sheet(item: $selectedDraftForReview) { draft in
             NavigationStack {
@@ -226,18 +263,22 @@ struct AiTasksView: View {
         }
     }
 
-    /// While Claude works on a pending task, re-reads the list every
-    /// `pollInterval`. SwiftUI cancels this task when the view disappears and
-    /// restarts it when `shouldPoll` flips (Claude work starts or ends, or the scene
-    /// leaves the active phase).
+    /// While Claude works on a pending task or a correction, re-reads the list
+    /// every `pollInterval`. SwiftUI cancels this task when the view disappears
+    /// and restarts it when `shouldPoll` flips (Claude work starts or ends, or
+    /// the scene leaves the active phase).
     private func pollWhileClaudeWorks() async {
         while !Task.isCancelled, store.hasActiveClaudeWork {
             try? await Task.sleep(for: Self.pollInterval)
             guard !Task.isCancelled else { return }
             do {
-                try await store.refresh()
+                try await store.pollRefresh()
                 readyForReviewDrafts = AiTaskDraftDisk.loadAll()
                 await store.acknowledgeAll(quiet: true)
+                // Also retries answers an earlier acknowledgement failed on.
+                if !coverProbe.isCovered {
+                    store.markRepliesRead(ids: markableReplyIds)
+                }
             } catch {
                 if Task.isCancelled { return }
                 ErrorReporter.addBreadcrumb(
@@ -258,10 +299,13 @@ struct AiTasksView: View {
             try await store.refresh()
             readyForReviewDrafts = AiTaskDraftDisk.loadAll()
             // Show the tab holding what the user came here for. Arriving from a
-            // dismissal notification would otherwise land on Open, which by
-            // definition cannot contain the task they just tapped.
-            if !hasChosenFilter, !store.unreadDismissals.isEmpty {
-                selectedFilter = .dismissed
+            // dismissal or answer notification would otherwise land on Open,
+            // which cannot contain the task they just tapped.
+            if !hasChosenFilter,
+               let status = AiTaskThreadChanges.statusWithNews(in: store.tasks),
+               let filter = Filter.allCases.first(where: { $0.status == status })
+            {
+                selectedFilter = filter
             }
             // Opening the list is what marks the outcomes as read — posting a
             // notification does not, so the user's other devices still get to tell them.
@@ -357,6 +401,9 @@ private struct AiTaskRow: View {
             if let proposal = task.openProposal {
                 ClaudeProposalCard(task: task, proposal: proposal, onNotice: onProposalNotice)
             }
+            if let thread = task.claudeThread {
+                AiTaskThreadView(task: task, thread: thread)
+            }
         }
         .padding(.vertical, 4)
         .fullScreenCover(isPresented: $showGallery) {
@@ -376,13 +423,8 @@ private struct AiTaskRow: View {
                 Text(taskSubtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if task.isUnreadDismissal {
-                    Text(L10n.aiTasksUnread)
-                        .font(.caption2.weight(.semibold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.accentColor.opacity(0.15))
-                        .clipShape(Capsule())
+                if task.isUnreadDismissal || task.hasUnreadReplies {
+                    UnreadChip()
                 }
             }
 
@@ -661,5 +703,54 @@ private struct ClaudeProposalCard: View {
             ErrorReporter.captureWarning("Proposal discard failed", context: ["reason": ErrorReporter.reason(for: error)])
             inlineMessage = L10n.somethingWentWrong
         }
+    }
+}
+
+/// Whether anything is presented over the list it sits in: an alert, the photo
+/// viewer, this view's own sheets, or a sheet the app presented from elsewhere
+/// (a notification's deep link over the Settings tab). UIKit does not announce
+/// a presentation to the views underneath, so this is asked when it matters.
+@MainActor
+final class PresentationCoverProbe {
+    weak var view: UIView?
+
+    nonisolated init() {}
+
+    /// Not attached or not in a window counts as covered, so an answer is
+    /// never marked read on a guess.
+    var isCovered: Bool {
+        guard let attached = view, attached.window != nil else { return true }
+        var responder: UIResponder? = attached
+        var controller: UIViewController?
+        while let current = responder {
+            if let found = current as? UIViewController {
+                controller = found
+                break
+            }
+            responder = current.next
+        }
+        while let current = controller {
+            if current.presentedViewController != nil {
+                return true
+            }
+            controller = current.parent
+        }
+        return false
+    }
+}
+
+/// Attaches a `PresentationCoverProbe` to the list's place in the view hierarchy.
+private struct PresentationCoverProbeView: UIViewRepresentable {
+    let probe: PresentationCoverProbe
+
+    func makeUIView(context _: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isUserInteractionEnabled = false
+        probe.view = view
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context _: Context) {
+        probe.view = uiView
     }
 }

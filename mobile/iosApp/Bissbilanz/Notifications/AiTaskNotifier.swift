@@ -1,10 +1,12 @@
 import Foundation
 import UserNotifications
 
-/// Tells the user the assistant gave up on a meal they sent it.
+/// Tells the user the assistant gave up on a meal they sent it, or that Claude
+/// answered a reply they sent about one.
 ///
-/// A dismissal is the only AI task outcome worth interrupting for: a completion speaks
-/// for itself as new diary entries, whereas a dismissal means the meal was never logged.
+/// Those are the AI task outcomes worth interrupting for: a completion speaks for
+/// itself as new diary entries, whereas a dismissal means the meal was never logged
+/// and an answer is the result of something the user asked for.
 ///
 /// Unlike supplement reminders these fire immediately (a 1s interval trigger, the
 /// shortest the framework allows) rather than being scheduled ahead, so they barely
@@ -77,6 +79,84 @@ enum AiTaskNotifier {
         }
 
         store(notified, knownIds: Set(tasks.map(\.id)))
+    }
+
+    /// Claude's answers already announced on this device, by message id — the
+    /// same once-per-device record as `notifiedKey`, kept apart so pruning one
+    /// never touches the other.
+    static let notifiedRepliesKey = "ai_task_reply_notified_ids"
+    static let replyIdentifierPrefix = "aitask-reply-"
+
+    struct ReplyAnnouncement: Equatable {
+        let taskId: String
+        let messageId: String
+        let text: String
+    }
+
+    /// Posts one notification per unread answer of Claude this device has not
+    /// announced yet. The answer stays unread until the list shows it, so the
+    /// user's other devices still get to tell them too. Taps open AI Tasks
+    /// through the same category as a dismissal.
+    static func notifyNewReplies(_ tasks: [AiTask]) async {
+        guard !AiTaskThreadChanges.unreadReplyIds(in: tasks).isEmpty else {
+            recordReplyAnnouncements(for: [], in: tasks, defaults: .standard)
+            return
+        }
+        guard await SupplementReminderScheduler.authorizationStatus() == .authorized else { return }
+
+        let fresh = freshReplies(in: tasks, notified: Set(storedNotifiedReplyIds(defaults: .standard)))
+        for reply in fresh {
+            let content = UNMutableNotificationContent()
+            content.title = L10n.aiTasksReplyNotificationTitle
+            content.body = reply.text
+            content.sound = .default
+            content.categoryIdentifier = categoryIdentifier
+            content.userInfo = [userInfoTaskId: reply.taskId]
+            let request = UNNotificationRequest(
+                identifier: "\(replyIdentifierPrefix)\(reply.messageId)",
+                content: content,
+                trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+            )
+            UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+        }
+        recordReplyAnnouncements(for: fresh, in: tasks, defaults: .standard)
+    }
+
+    /// Unread answers not announced yet, oldest first within each task, at most `burstCap`.
+    static func freshReplies(in tasks: [AiTask], notified: Set<String>) -> [ReplyAnnouncement] {
+        var fresh: [ReplyAnnouncement] = []
+        for task in tasks {
+            for message in task.claudeThread?.unreadAnswers ?? [] where !notified.contains(message.id) {
+                fresh.append(ReplyAnnouncement(taskId: task.id, messageId: message.id, text: message.text))
+            }
+        }
+        return Array(fresh.prefix(burstCap))
+    }
+
+    /// Adds the announced answers to the record and drops ids the list no
+    /// longer holds — except against an empty list, which a failed or not yet
+    /// run refresh looks identical to (see `store(_:knownIds:)`).
+    static func recordReplyAnnouncements(
+        for announced: [ReplyAnnouncement],
+        in tasks: [AiTask],
+        defaults: UserDefaults
+    ) {
+        var ids = storedNotifiedReplyIds(defaults: defaults)
+        ids.append(contentsOf: announced.map(\.messageId))
+        if !tasks.isEmpty {
+            var known = Set<String>()
+            for task in tasks {
+                for message in task.claudeThread?.messages ?? [] {
+                    known.insert(message.id)
+                }
+            }
+            ids = ids.filter { known.contains($0) }
+        }
+        defaults.set(Array(ids.suffix(notifiedCap)), forKey: notifiedRepliesKey)
+    }
+
+    static func storedNotifiedReplyIds(defaults: UserDefaults) -> [String] {
+        defaults.stringArray(forKey: notifiedRepliesKey) ?? []
     }
 
     /// The meal never reached the server after every retry. Fires only when the

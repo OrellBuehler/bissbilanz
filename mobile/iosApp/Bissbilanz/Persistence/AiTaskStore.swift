@@ -47,6 +47,8 @@ final class AiTaskStore {
     private let api: BissbilanzAPI
     private let appMode: AppModeManager
     private let uploadRoot: URL
+    /// Holds which answers already re-pulled their day on this device.
+    private let defaults: UserDefaults
 
     private(set) var tasks: [AiTask] = []
     private(set) var pendingUploads: [PendingAiTaskUpload] = []
@@ -71,12 +73,23 @@ final class AiTaskStore {
     /// `AiTasksView` opening, the background refresh pull, and the foreground
     /// activation pull all double as `AiTaskProcessor` triggers — they each
     /// already call `refresh()` themselves.
-    @ObservationIgnored var onRefreshed: (() async -> Void)?
+    @ObservationIgnored var onRefreshed: (@MainActor () async -> Void)?
 
-    init(api: BissbilanzAPI, appMode: AppModeManager, uploadRoot: URL = AiTaskUploadDisk.defaultRoot) {
+    /// Invoked with a task's date when a list read brings an answer of Claude
+    /// that changed that meal's entries — set once by the app to re-pull the
+    /// day. Foods arrive through the normal foods sync.
+    @ObservationIgnored var onEntriesChanged: (@MainActor (String) async throws -> Void)?
+
+    init(
+        api: BissbilanzAPI,
+        appMode: AppModeManager,
+        uploadRoot: URL = AiTaskUploadDisk.defaultRoot,
+        defaults: UserDefaults = .standard
+    ) {
         self.api = api
         self.appMode = appMode
         self.uploadRoot = uploadRoot
+        self.defaults = defaults
     }
 
     /// Photo size the server keeps (it downsizes every AI task photo to 1024px), so
@@ -397,23 +410,119 @@ final class AiTaskStore {
         tasks.filter(\.isUnreadDismissal)
     }
 
-    /// A pending task Claude has queued, is running or is retrying — the list
-    /// is polled while this holds.
+    /// A pending task Claude has queued, is running or is retrying, or a
+    /// correction of a completed one in those states — the list is polled
+    /// while this holds.
     var hasActiveClaudeWork: Bool {
-        AiTaskClaudeState.hasActiveWork(in: tasks)
+        Self.hasPollableWork(in: tasks)
     }
 
-    /// Bumped whenever a local accept or edit lands, so a list read that started
-    /// earlier (and may predate it) is dropped instead of undoing the change.
+    nonisolated static func hasPollableWork(in tasks: [AiTask]) -> Bool {
+        AiTaskClaudeState.hasActiveWork(in: tasks) || AiTaskCorrectionState.hasPolledWork(in: tasks)
+    }
+
+    /// Bumped whenever a local accept or edit lands, and when a reply starts
+    /// and lands, so a list read that started earlier (and may predate it) is
+    /// dropped instead of undoing the change.
     @ObservationIgnored private var mutationGeneration = 0
+    /// The first read of a launch has no earlier list to compare answers against.
+    @ObservationIgnored private var hasReadList = false
+    @ObservationIgnored private var lastRefreshAt: Date?
+    @ObservationIgnored private var pollInFlight = false
 
     func refresh() async throws {
-        guard !appMode.isLocal else { return }
+        guard let changedAnswers = try await readList() else { return }
+        await finishRead(changedAnswers)
+    }
+
+    /// Reads and applies the list. Nil when there is no server or the read
+    /// was dropped because a local change landed while it was out.
+    private func readList() async throws -> [AiTaskChangedAnswer]? {
+        guard !appMode.isLocal else { return nil }
         let generation = mutationGeneration
         let fetched = try await api.listAiTasks(limit: 100).tasks
-        guard generation == mutationGeneration else { return }
-        tasks = fetched
+        guard generation == mutationGeneration else { return nil }
+        lastRefreshAt = Date()
+        return apply(fetched)
+    }
+
+    /// What every applied read is followed by: re-pulling the days changing
+    /// answers touched, then the processor hook.
+    private func finishRead(_ changedAnswers: [AiTaskChangedAnswer]) async {
+        await refreshEntries(for: changedAnswers)
         await onRefreshed?()
+    }
+
+    /// Two lists polling at once (one pushed in Settings, one opened from a
+    /// notification) share one read: a tick is skipped while another is in
+    /// flight or a read landed moments ago.
+    func pollRefresh(now: Date = Date()) async throws {
+        guard !pollInFlight else { return }
+        if let last = lastRefreshAt, now.timeIntervalSince(last) < Self.pollMinimumGap { return }
+        pollInFlight = true
+        defer { pollInFlight = false }
+        try await refresh()
+    }
+
+    nonisolated static let pollMinimumGap: TimeInterval = 5
+
+    /// Swaps in a fresh list, settles replies it shows to have landed, and
+    /// returns the answers whose day still has to be re-pulled on this device.
+    private func apply(_ fetched: [AiTask]) -> [AiTaskChangedAnswer] {
+        let previous = tasks
+        let isFirstRead = !hasReadList
+        hasReadList = true
+        let knownIds = Set(AiTaskThreadChanges.messageIds(in: fetched))
+        if !fetched.isEmpty {
+            readReplyIds.formIntersection(knownIds)
+        }
+        tasks = AiTaskThreadChanges.maskingRead(fetched, read: readReplyIds)
+        reconcileReplies()
+        let stored = Self.entriesRefreshedIds(defaults: defaults)
+        let refreshed = AiTaskThreadChanges.pruned(stored, knownIds: knownIds, cap: Self.entriesRefreshedCap)
+        if refreshed != stored {
+            defaults.set(refreshed, forKey: Self.entriesRefreshedKey)
+        }
+        return AiTaskThreadChanges.changedAnswersToRefresh(
+            previous: previous, next: fetched, isFirstRead: isFirstRead, alreadyRefreshed: Set(refreshed)
+        )
+    }
+
+    /// Answers that already re-pulled their day on this device, so a cold
+    /// start that finds them still unread does not repeat the work.
+    nonisolated static let entriesRefreshedKey = "ai_task_entries_refreshed_reply_ids"
+    nonisolated static let entriesRefreshedCap = 200
+
+    nonisolated static func entriesRefreshedIds(defaults: UserDefaults) -> [String] {
+        defaults.stringArray(forKey: entriesRefreshedKey) ?? []
+    }
+
+    /// Re-pulls each day once and records its answers only once that worked,
+    /// so a failed pull is tried again on a later read.
+    private func refreshEntries(for answers: [AiTaskChangedAnswer]) async {
+        guard let hook = onEntriesChanged, !answers.isEmpty else { return }
+        var dates: [String] = []
+        for answer in answers where !dates.contains(answer.date) {
+            dates.append(answer.date)
+        }
+        for date in dates {
+            do {
+                try await hook(date)
+            } catch {
+                // The entries request already reported itself; the day is
+                // pulled again on a later read, or whenever it is opened.
+                ErrorReporter.addBreadcrumb(
+                    "AI task entries refresh failed",
+                    category: "ai-task",
+                    level: .warning,
+                    data: ["date": date, "reason": ErrorReporter.reason(for: error)]
+                )
+                continue
+            }
+            let ids = answers.filter { $0.date == date }.map(\.messageId)
+            let recorded = Self.entriesRefreshedIds(defaults: defaults) + ids
+            defaults.set(Array(recorded.suffix(Self.entriesRefreshedCap)), forKey: Self.entriesRefreshedKey)
+        }
     }
 
     /// Clears the unread badge for every resolved task. Called when the user opens the
@@ -439,6 +548,265 @@ final class AiTaskStore {
                 ErrorReporter.capture(error, context: ["op": "acknowledgeAiTasks"])
             }
         }
+    }
+
+    // MARK: - Replies to Claude
+
+    /// Tasks with a reply on its way, so the reply box shows it sending and a
+    /// second tap cannot send it twice.
+    private(set) var sendingReplies: Set<String> = []
+    /// One per task: the key of the reply last attempted, kept until it lands
+    /// or the text changes — see `AiTaskReplyAttempt`.
+    @ObservationIgnored private var replyAttempts: [String: AiTaskReplyAttempt] = [:]
+    /// Answers this device marked read; a list read that started before the
+    /// acknowledgement and lands after it must not show them unread again.
+    @ObservationIgnored private var readReplyIds: Set<String> = []
+    /// What each task's reply box holds, so it survives a tab switch or
+    /// leaving the screen.
+    private(set) var replyComposers: [String: AiTaskReplyComposer] = [:]
+
+    func replyComposer(for taskId: String) -> AiTaskReplyComposer {
+        replyComposers[taskId] ?? AiTaskReplyComposer()
+    }
+
+    /// Editing clears the last failure, unless the server asked to wait: the
+    /// box keeps saying why Send is off until then.
+    func setReplyText(_ text: String, for taskId: String, now: Date = Date()) {
+        var composer = replyComposer(for: taskId)
+        guard composer.text != text else { return }
+        composer.text = text
+        if !composer.isBlocked(at: now) {
+            composer.failure = nil
+        }
+        replyComposers[taskId] = composer
+    }
+
+    /// Sends a reply straight to the server — online only, never through
+    /// `SyncManager`. A failure keeps the attempt's key, so sending the same
+    /// text again is answered from the first attempt if that one did land.
+    /// When the reply may have landed without its answer arriving, the list
+    /// is re-read; finding the reply there counts as sent.
+    func sendReply(taskId: String, text: String, now: Date = Date()) async -> AiTaskReplySendResult {
+        let reply = AiTaskReplyDraft.trimmed(text)
+        guard !appMode.isLocal, !reply.isEmpty, !sendingReplies.contains(taskId),
+              !replyComposer(for: taskId).isBlocked(at: now)
+        else { return .skipped }
+        var composer = replyComposer(for: taskId)
+        composer.text = text
+        composer.failure = nil
+        composer.blockedUntil = nil
+        replyComposers[taskId] = composer
+        let attempt = AiTaskReplyAttempt.next(
+            for: reply, previous: replyAttempts[taskId], baseline: Set(userMessageIds(taskId: taskId))
+        )
+        replyAttempts[taskId] = attempt
+        sendingReplies.insert(taskId)
+        defer { sendingReplies.remove(taskId) }
+        // A list read already in flight predates the reply; dropping it keeps
+        // it from landing on top of the reply's own result.
+        mutationGeneration += 1
+        let failure: AiTaskReplyFailure
+        do {
+            let receipt = try await api.replyToAiTask(id: taskId, text: reply, idempotencyKey: attempt.key)
+            mutationGeneration += 1
+            replyAttempts[taskId] = nil
+            settleComposer(taskId: taskId, sentText: reply)
+            if receipt.isReplay {
+                // The stored first answer is the task as it was back then;
+                // laid over the list it would hide what happened since. Only
+                // if no read lands, and the list does not show the reply yet,
+                // is it better than nothing: it starts the poll.
+                let reread = await rereadAfterReply()
+                let cached = tasks.first(where: { $0.id == taskId })?.claudeThread
+                if !reread, !attempt.landed(in: cached) {
+                    replaceTask(receipt.task)
+                }
+            } else {
+                replaceTask(receipt.task)
+            }
+            return .sent
+        } catch let rejected as AiTaskReplyFailure {
+            failure = rejected
+        } catch {
+            // Building the request failed, or the wait for a request still in
+            // progress was cancelled. The API reported nothing for either.
+            ErrorReporter.capture(error, context: ["op": "sendAiTaskReply"])
+            failure = .failed(status: 0)
+        }
+        if failure.refreshesList || failure.mayHaveLanded {
+            await rereadAfterReply()
+        }
+        // The read settled the attempt: the reply is in the thread after all.
+        if replyAttempts[taskId]?.key != attempt.key {
+            return .sent
+        }
+        if failure == .keyReused {
+            // The server tied this key to another request; only a new one can go through.
+            replyAttempts[taskId] = nil
+        }
+        var failed = replyComposer(for: taskId)
+        failed.failure = failure
+        if let delay = failure.retryAfter {
+            failed.blockedUntil = now.addingTimeInterval(delay)
+        }
+        replyComposers[taskId] = failed
+        return .failed(failure)
+    }
+
+    private func userMessageIds(taskId: String) -> [String] {
+        let messages = tasks.first(where: { $0.id == taskId })?.claudeThread?.messages ?? []
+        return messages.filter(\.isFromUser).map(\.id)
+    }
+
+    private func replaceTask(_ task: AiTask) {
+        guard let index = tasks.firstIndex(where: { $0.id == task.id }) else { return }
+        tasks[index] = AiTaskThreadChanges.maskingRead([task], read: readReplyIds)[0]
+    }
+
+    /// The re-read a send makes. It applies the list and returns whether one
+    /// landed; the diary pulls and the processor hook that follow every read
+    /// run in a task of their own, so the reply box is not held in "sending"
+    /// for an on-device run of an unrelated meal.
+    @discardableResult
+    private func rereadAfterReply() async -> Bool {
+        do {
+            guard let changedAnswers = try await readList() else { return false }
+            followUpTask = Task { [weak self] in
+                await self?.finishRead(changedAnswers)
+            }
+            return true
+        } catch {
+            // The thread catches up on the next read; the box keeps the text.
+            ErrorReporter.addBreadcrumb(
+                "AI task refresh after reply failed",
+                category: "ai-task",
+                level: .warning,
+                data: ["reason": ErrorReporter.reason(for: error)]
+            )
+            return false
+        }
+    }
+
+    /// The last read follow-up a send started, so tests can wait for it.
+    @ObservationIgnored private(set) var followUpTask: Task<Void, Never>?
+
+    /// A reply the list shows to have landed is done: its key goes, and so
+    /// does the box's text — or only its stale failure, if the user has
+    /// edited the text since.
+    private func reconcileReplies() {
+        for (taskId, attempt) in replyAttempts {
+            guard let task = tasks.first(where: { $0.id == taskId }), attempt.landed(in: task.claudeThread) else {
+                continue
+            }
+            replyAttempts[taskId] = nil
+            settleComposer(taskId: taskId, sentText: attempt.text)
+        }
+    }
+
+    private func settleComposer(taskId: String, sentText: String) {
+        guard var composer = replyComposers[taskId] else { return }
+        if AiTaskReplyDraft.trimmed(composer.text) == sentText {
+            replyComposers[taskId] = nil
+            replySettles[taskId, default: 0] += 1
+        } else {
+            composer.failure = nil
+            replyComposers[taskId] = composer
+        }
+    }
+
+    /// Bumped whenever the store clears a box's text on its own, because the
+    /// reply it held landed. The only time the view copies the store's text
+    /// back into the field; ordinary edits never round-trip.
+    private(set) var replySettles: [String: Int] = [:]
+
+    func replySettleCount(for taskId: String) -> Int {
+        replySettles[taskId] ?? 0
+    }
+
+    /// Answers shown to the user and not acknowledged yet, oldest first.
+    @ObservationIgnored private var pendingReadIds: [String] = []
+    /// The one task sending `pendingReadIds`. The store owns it, so a view
+    /// that disappears or re-renders cannot cancel an acknowledgement mid-request.
+    @ObservationIgnored private var readTask: Task<Void, Never>?
+    /// Answers the server refused to mark read for good, kept out of the queue.
+    @ObservationIgnored private var rejectedReadIds: Set<String> = []
+
+    /// Queues the given answers to be marked read with `replyIds` only, so no
+    /// dismissal is acknowledged on the side, and starts sending if nothing is.
+    /// A failed request leaves its answers queued and unread; the next call,
+    /// even with no ids, tries them again. Returns the task sending them.
+    @discardableResult
+    func markRepliesRead(ids: [String]) -> Task<Void, Never>? {
+        guard !appMode.isLocal else { return nil }
+        for id in ids where !readReplyIds.contains(id) && !rejectedReadIds.contains(id) {
+            if !pendingReadIds.contains(id) {
+                pendingReadIds.append(id)
+            }
+        }
+        if readTask == nil, !pendingReadIds.isEmpty {
+            readTask = Task { [weak self] in
+                await self?.sendPendingReads()
+            }
+        }
+        return readTask
+    }
+
+    /// Sends the queue in requests of at most what the server takes, picking
+    /// up answers queued while one was in flight, until it is empty.
+    private func sendPendingReads() async {
+        defer { readTask = nil }
+        while !pendingReadIds.isEmpty {
+            let chunk = Array(pendingReadIds.prefix(BissbilanzAPI.aiTaskAcknowledgeMaxIds))
+            let sent = Set(chunk)
+            do {
+                try await api.acknowledgeAiTaskReplies(replyIds: chunk)
+            } catch {
+                guard AiTaskThreadChanges.isPermanentRejection(error) else {
+                    // Transient: the answers stay queued and unread rather
+                    // than pretending they were read, for the next call.
+                    ErrorReporter.addBreadcrumb(
+                        "AI task reply acknowledge failed",
+                        category: "ai-task",
+                        level: .warning,
+                        data: ["reason": ErrorReporter.reason(for: error), "count": chunk.count]
+                    )
+                    return
+                }
+                // Refused for good: retrying would only hold up every answer
+                // queued behind these. They stay unread and are not queued
+                // again until the next launch.
+                pendingReadIds.removeAll { sent.contains($0) }
+                rejectedReadIds.formUnion(sent)
+                ErrorReporter.captureWarning("AI task reply acknowledge rejected", context: [
+                    "reason": ErrorReporter.reason(for: error),
+                    "count": chunk.count
+                ])
+                continue
+            }
+            pendingReadIds.removeAll { sent.contains($0) }
+            readReplyIds.formUnion(sent)
+            tasks = AiTaskThreadChanges.maskingRead(tasks, read: sent)
+        }
+    }
+
+    /// Forgets everything that belongs to the account: the list, the first
+    /// read, the reply boxes and keys, the read queue and the record of
+    /// answers that re-pulled their day. Called on sign-out, account deletion
+    /// and an app-mode change, so the next account's first read is not
+    /// compared with this one's list. A list read still out is dropped.
+    func resetAccountState() {
+        mutationGeneration += 1
+        tasks = []
+        hasReadList = false
+        lastRefreshAt = nil
+        replyComposers = [:]
+        replySettles = [:]
+        replyAttempts = [:]
+        readReplyIds = []
+        rejectedReadIds = []
+        // A request already out finishes on its own; nothing new is queued behind it.
+        pendingReadIds = []
+        defaults.removeObject(forKey: Self.entriesRefreshedKey)
     }
 
     func delete(id: String) async throws {

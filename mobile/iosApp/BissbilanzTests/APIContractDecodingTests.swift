@@ -98,6 +98,9 @@ struct APIContractDecodingTests {
         entry("AiTasksResponse", AiTasksResponse.self),
         entry("AiTaskResponse", AiTaskResponse.self),
         entry("AiTaskAcknowledgeResponse", AiTaskAcknowledgeResponse.self),
+        // The rejection body of `POST /api/ai-tasks/{id}/replies`, which
+        // `BissbilanzAPI.replyToAiTask` decodes for its `code`.
+        entry("AiTaskReplyErrorResponse", AiTaskReplyErrorBody.self),
         entry("AiTaskPhotoResponse", AiTaskPhotoResponse.self),
         entry("McpStatusResponse", McpStatusResponse.self),
         entry("OpenFoodFactsSearchResponse", BissbilanzAPI.OpenFoodFactsSearchResponse.self),
