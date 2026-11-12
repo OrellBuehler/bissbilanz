@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import type { SQL } from 'drizzle-orm';
 import { createMockDB } from '../../helpers/mock-db';
 
 const h = vi.hoisted(() => ({
@@ -39,7 +41,7 @@ describe('replyBlockedReason', () => {
 		processedBy: 'claude',
 		status: 'completed',
 		correctionState: null,
-		userReplies: 0,
+		answeredReplies: 0,
 		gate: null,
 		window: { count: 0, oldest: null },
 		...overrides
@@ -62,13 +64,13 @@ describe('replyBlockedReason', () => {
 			replies.replyBlockedReason(facts({ status: 'dismissed', correctionState: 'queued' }))
 		).toBe('not_completed');
 		for (const state of ['queued', 'running', 'retry_wait'] as const) {
-			expect(replies.replyBlockedReason(facts({ correctionState: state, userReplies: 9 }))).toBe(
-				'correction_in_flight'
-			);
+			expect(
+				replies.replyBlockedReason(facts({ correctionState: state, answeredReplies: 9 }))
+			).toBe('correction_in_flight');
 		}
-		expect(replies.replyBlockedReason(facts({ userReplies: 5, gate: 'budget_exhausted' }))).toBe(
-			'reply_limit_reached'
-		);
+		expect(
+			replies.replyBlockedReason(facts({ answeredReplies: 5, gate: 'budget_exhausted' }))
+		).toBe('reply_limit_reached');
 		expect(
 			replies.replyBlockedReason(
 				facts({ gate: 'processor_unavailable', window: { count: 99, oldest: null } })
@@ -112,8 +114,7 @@ describe('postTaskReply', () => {
 			[{ count: options.replies ?? 0 }],
 			options.window ?? window(),
 			[{ id: 'message-1' }],
-			[],
-			[task({ updatedAt: new Date() })]
+			[]
 		]);
 
 	test('adds the reply, queues the correction and wakes it', async () => {
@@ -141,6 +142,11 @@ describe('postTaskReply', () => {
 		const upsert = getCalls().find((call) => call.method === 'onConflictDoUpdate')!.args[0];
 		expect(upsert.set).toMatchObject({ messageId: 'message-1', state: 'queued', failures: 0 });
 		expect(getCalls().filter((call) => call.method === 'for')).toHaveLength(2);
+		expect(getCalls().some((call) => call.method === 'update')).toBe(false);
+		const counted = getCalls().filter((call) => call.method === 'where')[2]!.args[0] as SQL;
+		const { sql, params } = new PgDialect().sqlToQuery(counted);
+		expect(sql).toContain('"claude_task_messages"."outcome" <>');
+		expect(params).toEqual(['task-1', 'assistant', 'failed']);
 		expect(h.wake).toHaveBeenCalledWith('task-1', 'user-1');
 	});
 
@@ -269,7 +275,7 @@ describe('loadClaudeThreads', () => {
 			correctionState: 'retrying',
 			canReply: false,
 			replyBlockedReason: 'correction_in_flight',
-			repliesRemaining: 4,
+			repliesRemaining: 3,
 			unreadReplies: 1
 		});
 		expect(threads.get('task-3')).toMatchObject({
@@ -283,6 +289,31 @@ describe('loadClaudeThreads', () => {
 			repliesRemaining: 5
 		});
 		expect(h.getClaudeGateState).toHaveBeenCalledTimes(1);
+	});
+
+	test('does not count a reply whose correction failed', async () => {
+		const at = new Date('2026-10-12T08:00:00Z');
+		const message = (id: string, role: string, outcome: string | null) => ({
+			id,
+			taskId: 'task-1',
+			role,
+			text: id,
+			outcome,
+			readAt: at,
+			createdAt: at
+		});
+		queueResults([
+			[
+				message('u1', 'user', null),
+				message('a1', 'assistant', 'failed'),
+				message('u2', 'user', null),
+				message('a2', 'assistant', 'changed')
+			],
+			[{ taskId: 'task-1', state: 'succeeded' }],
+			window(2)
+		]);
+		const threads = await replies.loadClaudeThreads([task()]);
+		expect(threads.get('task-1')).toMatchObject({ canReply: true, repliesRemaining: 4 });
 	});
 
 	test('treats a failing gate check as unavailable and reports it', async () => {
@@ -302,7 +333,7 @@ describe('loadClaudeThreads', () => {
 describe('markRepliesRead', () => {
 	test('marks Claude answers read and counts them', async () => {
 		queueResults([[{ id: 'm1' }, { id: 'm2' }]]);
-		expect(await replies.markRepliesRead('user-1')).toBe(2);
+		expect(await replies.markRepliesRead('user-1', ['m1', 'm2'])).toBe(2);
 		expect(getCalls().find((call) => call.method === 'set')!.args[0].readAt).toBeInstanceOf(Date);
 	});
 
@@ -311,8 +342,8 @@ describe('markRepliesRead', () => {
 		expect(getCalls()).toHaveLength(0);
 	});
 
-	test('limits to the given tasks', async () => {
+	test('counts only the named answers that were still unread', async () => {
 		queueResults([[{ id: 'm1' }]]);
-		expect(await replies.markRepliesRead('user-1', ['task-1'])).toBe(1);
+		expect(await replies.markRepliesRead('user-1', ['m1', 'm-already-read'])).toBe(1);
 	});
 });

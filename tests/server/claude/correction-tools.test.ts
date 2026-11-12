@@ -180,7 +180,6 @@ const updateInput = (overrides: Record<string, unknown>) => ({
 	quickCarbs: null,
 	quickFat: null,
 	quickFiber: null,
-	quantityDescription: null,
 	...overrides
 });
 
@@ -263,7 +262,7 @@ beforeEach(() => {
 });
 
 describe('tool definitions', () => {
-	test('are strict, end on the reply tool with the cache breakpoint and never offer first-run finishers', () => {
+	test('end on the reply tool with the cache breakpoint and never offer first-run finishers', () => {
 		for (const database of [true, false]) {
 			const list = tools.correctionTools(database);
 			const names = list.map((tool) => tool.name);
@@ -274,12 +273,18 @@ describe('tool definitions', () => {
 			expect(names).not.toContain('dismiss_ai_task');
 			expect(names.includes('search_nutrient_database')).toBe(database);
 			for (const tool of list) {
-				expect(tool.strict).toBe(true);
+				expect(tool.strict, tool.name).toBe(
+					['update_entry', 'log_food', 'update_food'].includes(tool.name) ? undefined : true
+				);
 				expect(tool.input_schema.additionalProperties).toBe(false);
 				expect([...(tool.input_schema.required ?? [])].sort()).toEqual(
 					Object.keys(tool.input_schema.properties as object).sort()
 				);
 			}
+			const log = list.find((tool) => tool.name === 'log_food') as Anthropic.Tool;
+			expect(log.input_schema.properties).not.toHaveProperty('quantityDescription');
+			const update = list.find((tool) => tool.name === 'update_entry') as Anthropic.Tool;
+			expect(update.input_schema.properties).not.toHaveProperty('quantityDescription');
 			const create = list.find((tool) => tool.name === 'create_food') as Anthropic.Tool;
 			expect(create.description).toContain('saved only when reply_to_user saves');
 			expect(create.description?.includes('fdcId')).toBe(database);
@@ -354,13 +359,13 @@ describe('update_entry', () => {
 		const ctx = await makeCtx();
 		const { body, isError } = await run(
 			'update_entry',
-			{ entryId: E_SKYR, ...updateInput({ servings: 1.5, quantityDescription: '225 g' }) },
+			{ entryId: E_SKYR, ...updateInput({ servings: 1.5 }) },
 			ctx
 		);
 		expect(isError).toBe(false);
 		expect(body).toMatchObject({
 			staged: true,
-			entry: { status: 'changed', servings: 1.5, quantityDescription: '225 g' }
+			entry: { status: 'changed', servings: 1.5 }
 		});
 		expect(h.updateEntry).not.toHaveBeenCalled();
 		expect(ctx.entryChanges).toBe(1);
@@ -465,17 +470,12 @@ describe('delete_entry and log_food', () => {
 
 	test('adds an entry on the task day, and dropping it again leaves no trace', async () => {
 		const ctx = await makeCtx();
-		const added = await run(
-			'log_food',
-			logInput({ foodId: BREAD, quantityDescription: '1 slice' }),
-			ctx
-		);
+		const added = await run('log_food', logInput({ foodId: BREAD }), ctx);
 		expect(added.isError).toBe(false);
 		expect(added.body.entry).toMatchObject({
 			status: 'added',
 			foodId: BREAD,
-			mealType: 'Breakfast',
-			quantityDescription: '1 slice'
+			mealType: 'Breakfast'
 		});
 		const dropped = await run('delete_entry', { entryId: added.body.entryId }, ctx);
 		expect(dropped.isError).toBe(false);
@@ -523,15 +523,20 @@ describe('update_food', () => {
 		expect(ctx.foodPatches.get(SKYR)).toEqual({ sodium: 60, calcium: 120 });
 	});
 
-	test('keeps the serving of a task food used elsewhere but allows it otherwise', async () => {
+	test('refuses any change to a task food used elsewhere but allows it otherwise', async () => {
 		const ctx = await makeCtx();
 		h.isFoodUsedOutsideTask.mockResolvedValue(true);
-		const refused = await run(
-			'update_food',
-			{ foodId: SKYR, ...foodPatch({ servingSize: 170 }) },
-			ctx
-		);
-		expect(refused.body.error).toContain('also logged outside this meal');
+		for (const patch of [
+			{ servingSize: 170 },
+			{ calories: 95 },
+			{ nutrients: [{ nutrient: 'sodium', amount: 60 }] }
+		]) {
+			const refused = await run('update_food', { foodId: SKYR, ...foodPatch(patch) }, ctx);
+			expect(refused.body.error).toContain('Create a corrected food');
+		}
+		expect(ctx.foodPatches.size).toBe(0);
+		const { body } = await run('get_task_entries', {}, ctx);
+		expect(body.foods[0]).toMatchObject({ usedOutsideThisTask: true, canChange: false });
 
 		const fresh = await makeCtx();
 		h.isFoodUsedOutsideTask.mockResolvedValue(false);
@@ -541,6 +546,7 @@ describe('update_food', () => {
 			fresh
 		);
 		expect(allowed.isError).toBe(false);
+		expect(allowed.body.food).toMatchObject({ usedOutsideThisTask: false, canChange: true });
 	});
 
 	test('refuses an empty change and invalid values', async () => {
@@ -782,12 +788,51 @@ describe('reply_to_user', () => {
 			expect(body.error).toContain('Nothing was saved');
 			expect(body.error).toContain(message);
 			expect(h.addAssistantMessage).not.toHaveBeenCalled();
-			expect(h.listTaskEntries.mock.calls.length).toBe(loads + 1);
-			expect(ctx.entryChanges).toBe(0);
+			expect(h.listTaskEntries.mock.calls.length).toBeGreaterThan(loads);
+			expect([...ctx.entries.values()].every((entry) => entry.base && !entry.deleted)).toBe(true);
 			expect(ctx.foodPatches.size).toBe(0);
 			expect(ctx.shared.foods.size).toBe(0);
 		}
 	);
+
+	test('re-checks the scope under the lock and refuses an entry moved away meanwhile', async () => {
+		completedTask();
+		const ctx = await makeCtx();
+		await run('update_entry', { entryId: E_RECIPE, ...updateInput({ servings: 3 }) }, ctx);
+		h.listTaskEntries.mockResolvedValue([row(E_SKYR), row(E_QUICK)]);
+		const result = await tools.runCorrectionTool('reply_to_user', { message: 'Done.' }, ctx);
+		expect(JSON.parse(result.content).error).toContain('moved to another day');
+		expect(h.updateEntry).not.toHaveBeenCalled();
+		expect(h.listTaskEntries.mock.calls.at(-2)![1]).toMatchObject({
+			createdEntryIds: [E_SKYR, E_QUICK, E_RECIPE]
+		});
+	});
+
+	test('re-checks under the lock that a changed food is still used only here', async () => {
+		completedTask();
+		const ctx = await makeCtx();
+		await run('update_food', { foodId: SKYR, ...foodPatch({ calories: 95 }) }, ctx);
+		h.isFoodUsedOutsideTask.mockResolvedValue(true);
+		const result = await tools.runCorrectionTool('reply_to_user', { message: 'Done.' }, ctx);
+		expect(JSON.parse(result.content).error).toContain('now also used outside this meal');
+		expect(h.updateFood).not.toHaveBeenCalled();
+		const [, , foodId, scope] = h.isFoodUsedOutsideTask.mock.calls.at(-1)!;
+		expect([foodId, scope]).toEqual([SKYR, [E_SKYR, E_QUICK, E_RECIPE]]);
+	});
+
+	test('keeps the per-correction caps across a reload after a failed save', async () => {
+		completedTask();
+		const ctx = await makeCtx();
+		await run('update_entry', { entryId: E_SKYR, ...updateInput({ servings: 2 }) }, ctx);
+		await run('create_food', createInput(), ctx);
+		await run('create_food', createInput(), ctx);
+		expect([ctx.entryChanges, ctx.foodsCreated]).toEqual([1, 1]);
+		h.updateEntry.mockResolvedValue({ success: true, data: undefined });
+		await tools.runCorrectionTool('reply_to_user', { message: 'Done.' }, ctx);
+		expect([ctx.entryChanges, ctx.foodsCreated]).toEqual([1, 1]);
+		await run('create_food', createInput(), ctx);
+		expect(ctx.foodsCreated).toBe(2);
+	});
 
 	test('stops the run when the task is no longer completed', async () => {
 		queueResults([[{ status: 'pending', createdEntryIds: [] }]]);

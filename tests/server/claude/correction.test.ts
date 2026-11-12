@@ -52,7 +52,8 @@ vi.mock('$lib/server/claude/tasks/correction-tools', () => ({
 		task,
 		shared,
 		replyAt,
-		entryChanges: 0
+		entryChanges: 0,
+		foodsCreated: 0
 	}),
 	renderState: async () => ({ entries: [{ entryId: 'e1' }] }),
 	runCorrectionTool: h.runTool
@@ -217,10 +218,7 @@ describe('processCorrection', () => {
 	test('limits entry changes and new foods per reply', async () => {
 		h.loadCorrectionState.mockImplementation(async (tools: Record<string, unknown>) => {
 			tools.entryChanges = 30;
-			(tools.shared as { createdFoods: Map<string, unknown> }).createdFoods.set('x', {});
-			for (let index = 1; index < 5; index++) {
-				(tools.shared as { createdFoods: Map<string, unknown> }).createdFoods.set(`x${index}`, {});
-			}
+			tools.foodsCreated = 5;
 		});
 		h.callClaude
 			.mockResolvedValueOnce(

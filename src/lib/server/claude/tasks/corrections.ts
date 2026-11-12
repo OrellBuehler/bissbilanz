@@ -4,7 +4,6 @@ import { isLocale } from '$lib/paraglide/runtime';
 import { getDB } from '../../db';
 import type { TxOrDb } from '../../ownership';
 import {
-	aiTasks,
 	claudeTaskCorrections,
 	claudeTaskMessages,
 	type ClaudeCorrectionState,
@@ -127,8 +126,9 @@ export async function transitionCorrection(
 }
 
 /**
- * Claude's answer in the thread. The task's updatedAt moves too, so the
- * conversation keeps the task out of the 30-day cleanup while it is active.
+ * Claude's answer in the thread. The task row is left alone: its updatedAt is
+ * the clients' last-write-wins clock, and cleanup keeps a task with a recent
+ * message on its own (cleanupAiTasks).
  */
 export async function addAssistantMessage(
 	tx: TxOrDb,
@@ -141,10 +141,6 @@ export async function addAssistantMessage(
 		text: input.text,
 		outcome: input.outcome
 	});
-	await tx
-		.update(aiTasks)
-		.set({ updatedAt: new Date() })
-		.where(and(eq(aiTasks.id, input.taskId), eq(aiTasks.userId, input.userId)));
 }
 
 /**

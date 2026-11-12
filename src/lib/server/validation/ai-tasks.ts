@@ -49,9 +49,9 @@ export const aiTaskUpdateSchema = z
 export const aiTaskAcknowledgeSchema = z
 	.object({
 		ids: z.array(z.string().uuid()).max(100).optional(),
-		replies: z.boolean().optional().meta({
+		replyIds: z.array(z.string().uuid()).max(100).optional().meta({
 			description:
-				"Also mark Claude's answers in claudeThread as read, on the tasks in `ids` or on every task. Omitted or false leaves them unread."
+				"Ids of Claude's answers (claudeThread messages) the client has shown, to mark as read. Only the named messages change, so an answer that arrived after the client's last read stays unread. Independent of `ids`."
 		})
 	})
 	.meta({ id: 'AiTaskAcknowledge' });

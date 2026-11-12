@@ -27,7 +27,7 @@ import kotlinx.serialization.encoding.*
  * @param correctionState Where the correction for the latest reply stands: 'idle' (nothing running), 'queued', 'running', 'retrying' (waiting to try again after an error) or 'failed' (the last correction did not work; the thread says so and a new reply is possible). Unknown values should be treated as in progress.
  * @param canReply
  * @param replyBlockedReason Why canReply is false, null when it is true: not_completed, correction_in_flight, reply_limit_reached, processor_unavailable, budget_exhausted, rate_limited. Matches the code POST /api/ai-tasks/{id}/replies would answer with. Unknown values should be shown as a generic 'replies are not possible right now'.
- * @param repliesRemaining How many more replies this task takes before the per-task limit.
+ * @param repliesRemaining How many more replies this task takes before the per-task limit. A reply whose correction failed does not count; one in progress does.
  * @param unreadReplies Number of messages with unread true.
  */
 @Serializable
@@ -39,7 +39,7 @@ data class AiTaskClaudeThread(
     @SerialName(value = "canReply") @Required val canReply: kotlin.Boolean,
     // Why canReply is false, null when it is true: not_completed, correction_in_flight, reply_limit_reached, processor_unavailable, budget_exhausted, rate_limited. Matches the code POST /api/ai-tasks/{id}/replies would answer with. Unknown values should be shown as a generic 'replies are not possible right now'.
     @SerialName(value = "replyBlockedReason") @Required val replyBlockedReason: kotlin.String?,
-    // How many more replies this task takes before the per-task limit.
+    // How many more replies this task takes before the per-task limit. A reply whose correction failed does not count; one in progress does.
     @SerialName(value = "repliesRemaining") @Required val repliesRemaining: kotlin.Int,
     // Number of messages with unread true.
     @SerialName(value = "unreadReplies") @Required val unreadReplies: kotlin.Int,

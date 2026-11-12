@@ -108,10 +108,11 @@ const createFoodTool = (nutrientDatabase: boolean) =>
 			},
 			...(nutrientDatabase
 				? {
-						fdcId: nullable(
-							'integer',
-							'fdcId of the search_nutrient_database result in this task that describes this food, or null. Only for a servingUnit of g, kg, oz or lb.'
-						)
+						fdcId: {
+							type: 'integer',
+							description:
+								'fdcId of the search_nutrient_database result in this task that describes this food, or 0 when no record applies. Only for a servingUnit of g, kg, oz or lb.'
+						}
 					}
 				: {}),
 			barcode: nullable('string', 'Barcode digits, when visible'),
@@ -237,7 +238,9 @@ export const inputSchemas = {
 				z.object({ nutrient: z.enum(NUTRIENT_KEYS as [string, ...string[]]), amount: z.number() })
 			)
 			.default([]),
-		fdcId: z.number().int().positive().nullish(),
+		// 0 means no record: a required integer keeps the strict schema free of a
+		// union type (see the complexity limits in tool-limits.test.ts).
+		fdcId: z.number().int().nonnegative().nullish(),
 		barcode: z.string().nullish(),
 		ingredientsText: z.string().default('')
 	}),
@@ -401,20 +404,20 @@ async function fillFromDatabase(
 ): Promise<{ data: FoodCreateInput; source: Record<string, unknown> }> {
 	if (!ctx.nutrientRecords.has(fdcId)) {
 		throw new ToolInputError(
-			`fdcId ${fdcId} did not come from search_nutrient_database in this task. Search first and pass one of its fdcIds, or pass null.`
+			`fdcId ${fdcId} did not come from search_nutrient_database in this task. Search first and pass one of its fdcIds, or pass 0.`
 		);
 	}
 	const scale = fdcServingScale(data.servingSize, data.servingUnit);
 	if (scale === null) {
 		throw new ToolInputError(
-			`A nutrient database record can only be applied to a serving given in g, kg, oz or lb, not ${data.servingUnit}. Nothing was created. Give the serving by weight, or pass fdcId null.`
+			`A nutrient database record can only be applied to a serving given in g, kg, oz or lb, not ${data.servingUnit}. Nothing was created. Give the serving by weight, or pass fdcId 0.`
 		);
 	}
 	const record = await getFdcFood(ctx.userId, fdcId, ctx.signal);
 	const comparison = compareWithRecord(record, data, scale);
 	if (!comparison.matches) {
 		throw new ToolInputError(
-			`Your ${comparison.mismatched.join(', ')} for ${data.servingSize} ${data.servingUnit} do not match record ${fdcId} "${record.description}" scaled to that serving. Nothing was created. If you took these numbers from the database, use recordPerServing instead. If they come from a label or Open Food Facts, keep them and pick another record or pass fdcId null.`,
+			`Your ${comparison.mismatched.join(', ')} for ${data.servingSize} ${data.servingUnit} do not match record ${fdcId} "${record.description}" scaled to that serving. Nothing was created. If you took these numbers from the database, use recordPerServing instead. If they come from a label or Open Food Facts, keep them and pick another record or pass fdcId 0.`,
 			{ recordPerServing: comparison.recordPerServing }
 		);
 	}
@@ -448,7 +451,7 @@ async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<
 	});
 	if (!parsed.success) throw parsed.error;
 
-	const hash = hashPayload({ ...parsed.data, fdcId: fdcId ?? null });
+	const hash = hashPayload({ ...parsed.data, fdcId: fdcId || null });
 	const known = ctx.createdFoods.get(hash);
 	if (known) return known;
 

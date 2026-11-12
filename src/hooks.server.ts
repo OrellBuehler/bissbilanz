@@ -12,7 +12,11 @@ import { runMigrations, withDbRetry } from '$lib/server/db';
 import { ensureMobileClient } from '$lib/server/mobile-auth';
 import { config, validateEnv } from '$lib/server/env';
 import { isCrossOriginEndpoint, isCsrfViolation } from '$lib/server/csrf';
-import { withIdempotency, cleanupIdempotencyKeys } from '$lib/server/sync/idempotency';
+import {
+	withIdempotency,
+	withoutNotReplayable,
+	cleanupIdempotencyKeys
+} from '$lib/server/sync/idempotency';
 import { cleanupAiTasks } from '$lib/server/ai-tasks';
 import { cleanupOrphanedImages } from '$lib/server/image-cleanup';
 import { startReminderScheduler } from '$lib/server/push/scheduler';
@@ -284,11 +288,11 @@ const idempotencyHandle: Handle = async ({ event, resolve }) => {
 	const user = event.locals.user;
 
 	if (!isWrite || !user || !pathname.startsWith('/api/') || isMcpRoute(pathname)) {
-		return resolve(event);
+		return withoutNotReplayable(await resolve(event));
 	}
 
 	const key = readIdempotencyKey(event.request);
-	if (!key) return resolve(event);
+	if (!key) return withoutNotReplayable(await resolve(event));
 
 	return withIdempotency(event, resolve, user.id, key);
 };

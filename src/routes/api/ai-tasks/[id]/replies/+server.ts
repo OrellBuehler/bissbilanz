@@ -11,6 +11,7 @@ import {
 import { aiTaskReplyCreateSchema } from '$lib/server/validation';
 import { postTaskReply, ReplyRejectedError } from '$lib/server/claude/tasks/replies';
 import { serializeAiTaskWithRun } from '$lib/server/claude/tasks/serialize';
+import { NOT_REPLAYABLE_HEADER } from '$lib/server/sync/idempotency';
 
 const rejected = (error: ReplyRejectedError) => {
 	Sentry.addBreadcrumb({
@@ -26,7 +27,7 @@ const rejected = (error: ReplyRejectedError) => {
 	return json(body, { status: error.status });
 };
 
-export const POST: RequestHandler = withAuthedResource(async ({ userId, id, request }) => {
+const reply = withAuthedResource(async ({ userId, id, request }) => {
 	const parsed = aiTaskReplyCreateSchema.safeParse(await parseJsonBody(request));
 	if (!parsed.success) return validationError(parsed.error);
 	try {
@@ -37,3 +38,12 @@ export const POST: RequestHandler = withAuthedResource(async ({ userId, id, requ
 		throw error;
 	}
 });
+
+// Only a created reply is replayed under its Idempotency-Key. A rejection
+// changed nothing and depends on the moment (a correction in flight, the rate
+// limit), so a retry with the same key is decided again.
+export const POST: RequestHandler = async (event) => {
+	const response = await reply(event);
+	if (response.status !== 201) response.headers.set(NOT_REPLAYABLE_HEADER, '1');
+	return response;
+};

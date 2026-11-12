@@ -79,7 +79,7 @@ const aiTaskThreadMessageSchema = z
 		createdAt: z.string(),
 		unread: z.boolean().meta({
 			description:
-				'True for an answer of Claude the user has not acknowledged yet (see POST /api/ai-tasks/acknowledge with replies). Always false for the user’s own messages.'
+				'True for an answer of Claude the user has not acknowledged yet (see replyIds on POST /api/ai-tasks/acknowledge). Always false for the user’s own messages.'
 		})
 	})
 	.meta({ id: 'AiTaskThreadMessage' });
@@ -105,7 +105,8 @@ const aiTaskClaudeThreadSchema = z
 				'x-extensible-enum': [...replyBlockedReasonValues]
 			}),
 		repliesRemaining: z.number().int().meta({
-			description: 'How many more replies this task takes before the per-task limit.'
+			description:
+				'How many more replies this task takes before the per-task limit. A reply whose correction failed does not count; one in progress does.'
 		}),
 		unreadReplies: z.number().int().meta({
 			description: 'Number of messages with unread true.'
@@ -146,7 +147,7 @@ const aiTaskSchema = z
 		claudeProcessing: aiTaskClaudeProcessingSchema.nullable().optional(),
 		claudeThread: aiTaskClaudeThreadSchema.nullable().optional().meta({
 			description:
-				'Replies to Claude about a task it processed on the server (processedByKind claude), so it fixes what it logged. Present on every completed Claude task, and on other Claude tasks that already have a conversation; null or absent otherwise, including on the response to creating a task.'
+				"Replies to Claude about a task it processed on the server (processedByKind claude), so it fixes what it logged: the task's diary entries, and foods it created for the task that nothing else uses. Present on every completed Claude task, and on other Claude tasks that already have a conversation; null or absent otherwise, including on the response to creating a task."
 		}),
 		createdAt: z.string().optional(),
 		updatedAt: z.string().optional()
@@ -178,7 +179,8 @@ export const aiTaskAcknowledgeResponseSchema = z
 	.object({
 		acknowledged: z.number().int(),
 		repliesAcknowledged: z.number().int().optional().meta({
-			description: "Claude's answers marked as read. Only present when the request set replies."
+			description:
+				"How many of the named replyIds were marked as read (answers already read or not the user's are skipped). Only present when the request sent replyIds."
 		})
 	})
 	.meta({ id: 'AiTaskAcknowledgeResponse' });

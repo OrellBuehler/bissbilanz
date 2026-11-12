@@ -46,13 +46,21 @@ CREATE INDEX "idx_claude_task_corrections_state" ON "claude_task_corrections" US
 CREATE INDEX "idx_claude_task_foods_food" ON "claude_task_foods" USING btree ("food_id");--> statement-breakpoint
 CREATE INDEX "idx_claude_task_messages_task" ON "claude_task_messages" USING btree ("task_id","created_at");--> statement-breakpoint
 CREATE INDEX "idx_claude_task_messages_user" ON "claude_task_messages" USING btree ("user_id","role","created_at");--> statement-breakpoint
+
 -- Data-only backfill: which foods Claude created for tasks it completed before
 -- claude_task_foods existed. A correction may only change a task's own foods,
--- so only foods that cannot belong to anyone else count: logged by one of the
--- task's entries, created while the task was processed (during the run, or in
--- the accept transaction that completed it), used by no other entry, recipe or
--- supplement, and not edited since. Anything less certain is left out, and a
--- correction then switches the entry to a new or existing food instead.
+-- so a food counts only when nothing else can have created it:
+--  * Claude worked on the task: its call log (claude_usage) has rows for it.
+--    A task without them claims nothing.
+--  * The food was created while Claude worked on it, not merely between the
+--    task's creation and completion (a task can wait for days): in auto-log,
+--    create_food runs between two calls of the run, after one call settled and
+--    before the next one was reserved; in review, accepting the proposal
+--    creates the food in the transaction that completes the task.
+--  * Only that task's entries log it, no recipe or supplement uses it, and it
+--    was not edited since.
+-- Anything less certain is left out; a correction then switches the entry to
+-- another food instead. Re-running it adds nothing.
 INSERT INTO "claude_task_foods" ("task_id", "food_id", "created_at")
 SELECT DISTINCT t.id, f.id, f.created_at
 FROM "ai_tasks" t
@@ -61,9 +69,27 @@ JOIN "foods" f ON f.id = e.food_id AND f.user_id = t.user_id
 WHERE t.processed_by = 'claude'
 	AND t.status = 'completed'
 	AND f.kind = 'food'
-	AND f.created_at >= t.created_at
-	AND f.created_at <= t.completed_at + interval '1 minute'
 	AND coalesce(f.updated_at, f.created_at) <= f.created_at + interval '1 minute'
+	AND (
+		EXISTS (
+			SELECT 1
+			FROM "claude_usage" settled
+			JOIN "claude_usage" next_call ON next_call.ai_task_id = settled.ai_task_id
+			WHERE settled.ai_task_id = t.id
+				AND settled.feature = 'ai_task'
+				AND next_call.feature = 'ai_task'
+				AND settled.settled_at <= f.created_at
+				AND next_call.created_at >= f.created_at
+				AND next_call.created_at <= settled.settled_at + interval '2 minutes'
+		)
+		OR (
+			f.created_at BETWEEN t.completed_at - interval '10 seconds' AND t.completed_at + interval '1 second'
+			AND EXISTS (
+				SELECT 1 FROM "claude_usage" u
+				WHERE u.ai_task_id = t.id AND u.feature = 'ai_task' AND u.settled_at <= f.created_at
+			)
+		)
+	)
 	AND NOT EXISTS (
 		SELECT 1 FROM "food_entries" o
 		WHERE o.food_id = f.id AND NOT (o.id::text = ANY(t.created_entry_ids))

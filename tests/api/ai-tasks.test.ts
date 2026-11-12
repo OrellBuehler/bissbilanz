@@ -426,15 +426,24 @@ describe('api/ai-tasks', () => {
 			expect(markRepliesRead).not.toHaveBeenCalled();
 		});
 
-		test('marks replies read on request and reports their count', async () => {
+		test('marks the named replies read and reports their count', async () => {
+			const replyIds = ['10000000-0000-4000-8000-0000000000e2'];
 			mockAcknowledgedCount = 0;
-			markRepliesRead.mockResolvedValue(3);
+			markRepliesRead.mockResolvedValue(1);
 			const response = await aiTaskAckModule.POST(
-				createMockEvent({ user: TEST_USER, body: { ids: [TEST_AI_TASK.id], replies: true } })
+				createMockEvent({ user: TEST_USER, body: { ids: [TEST_AI_TASK.id], replyIds } })
 			);
 			await expectResponseContract('POST', '/api/ai-tasks/acknowledge', response);
-			expect(await response.json()).toEqual({ acknowledged: 0, repliesAcknowledged: 3 });
-			expect(markRepliesRead).toHaveBeenCalledWith(TEST_USER.id, [TEST_AI_TASK.id]);
+			expect(await response.json()).toEqual({ acknowledged: 0, repliesAcknowledged: 1 });
+			expect(markRepliesRead).toHaveBeenCalledWith(TEST_USER.id, replyIds);
+		});
+
+		test('rejects reply ids that are not uuids', async () => {
+			const response = await aiTaskAckModule.POST(
+				createMockEvent({ user: TEST_USER, body: { replyIds: ['nope'] } })
+			);
+			expect(response.status).toBe(400);
+			expect(markRepliesRead).not.toHaveBeenCalled();
 		});
 
 		test('returns 400 for an invalid payload', async () => {

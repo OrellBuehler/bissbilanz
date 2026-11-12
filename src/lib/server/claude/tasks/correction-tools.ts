@@ -71,6 +71,21 @@ const NOT_IN_TASK =
 const NOT_TASK_FOOD =
 	"This food was not created for this meal, so it cannot be changed: it is the user's own and may be logged elsewhere. Switch the entry to a better existing food, or create a corrected food with create_food and switch the entry to it.";
 
+const SHARED_FOOD =
+	"This food was created for this meal, but it is now also logged outside this meal or used in a recipe or supplement, so it is the user's like any other food and changing it would rewrite those too. Create a corrected food with create_food and switch this meal's entries to it.";
+
+// Non-strict on purpose: the strict grammar has a request-wide budget of 16
+// parameters with union types (see tool-limits.test.ts), and these tools need
+// a nullable value per field. Their input is validated by the schemas below.
+const looseTool = (
+	name: string,
+	description: string,
+	properties: Record<string, unknown>
+): Anthropic.Tool => {
+	const { strict: _strict, ...tool } = strictTool(name, description, properties);
+	return tool;
+};
+
 const createFoodDescription = (nutrientDatabase: boolean) =>
 	`Create a new food in the user's food database, with nutrition per serving, when an entry of this meal needs a food the user does not have, for example a different product or a corrected copy of a food you may not change. You need real nutrition data: a label photo, Open Food Facts${nutrientDatabase ? ', a nutrient database record' : ''} or a web page. Pass barcode whenever one is visible. Returns a foodId for update_entry and log_food; the food is saved only when reply_to_user saves your changes.${nutrientDatabase ? ' With fdcId from search_nutrient_database and a serving by weight, the server compares your calories and macros with that record, refuses a large difference, and fills every nutrient you did not list.' : ''}`;
 
@@ -81,6 +96,9 @@ const correctionToolDefinitions = (nutrientDatabase: boolean): Anthropic.Tool[] 
 		const tool = named(name);
 		return tool ? [tool] : [];
 	});
+	// A correction keeps no amount text: entries carry servings, and the answer says the rest.
+	const { quantityDescription: _amountText, ...logProperties } = named('log_food')!.input_schema
+		.properties as Record<string, unknown>;
 	return withCacheBreakpoint([
 		...reads,
 		{ ...named('create_food')!, description: createFoodDescription(nutrientDatabase) },
@@ -89,7 +107,7 @@ const correctionToolDefinitions = (nutrientDatabase: boolean): Anthropic.Tool[] 
 			'Get the diary entries of this meal and their foods in full, with every change you staged so far applied. Foods you created for this meal are marked createdByThisTask.',
 			{}
 		),
-		strictTool(
+		looseTool(
 			'update_entry',
 			"Change one entry of this meal. Pass only what changes and null for everything else. foodId switches the entry to another food (an existing one of the user's, or one from create_food); quick values change a quick entry. A recipe entry can change its servings, meal type and time only. Staged until reply_to_user.",
 			{
@@ -106,11 +124,7 @@ const correctionToolDefinitions = (nutrientDatabase: boolean): Anthropic.Tool[] 
 				quickProtein: nullable('number', 'Protein in grams per serving of a quick entry'),
 				quickCarbs: nullable('number', 'Carbohydrates in grams per serving of a quick entry'),
 				quickFat: nullable('number', 'Fat in grams per serving of a quick entry'),
-				quickFiber: nullable('number', 'Fiber in grams per serving of a quick entry'),
-				quantityDescription: nullable(
-					'string',
-					'Short human description of the new amount, for example "250 g"'
-				)
+				quickFiber: nullable('number', 'Fiber in grams per serving of a quick entry')
 			}
 		),
 		strictTool(
@@ -118,14 +132,14 @@ const correctionToolDefinitions = (nutrientDatabase: boolean): Anthropic.Tool[] 
 			'Remove one entry of this meal from the diary. Staged until reply_to_user.',
 			{ entryId: text('entryId from get_task_entries') }
 		),
-		{
-			...named('log_food')!,
-			description:
-				"Add one food, recipe or quick entry to this meal, for something that was eaten but is missing. Give foodId or recipeId, or the quick values for a one-off estimate. servings is the number of servings of the food's own serving size. Use null for anything that does not apply. Staged until reply_to_user."
-		},
-		strictTool(
+		looseTool(
+			'log_food',
+			"Add one food, recipe or quick entry to this meal, for something that was eaten but is missing. Give foodId or recipeId, or the quick values for a one-off estimate. servings is the number of servings of the food's own serving size. Use null for anything that does not apply. Staged until reply_to_user.",
+			logProperties
+		),
+		looseTool(
 			'update_food',
-			`Change a food you created for this meal (createdByThisTask), or one you created in this correction. Pass only what changes and null for everything else. Values are per serving. A food logged outside this meal keeps its serving size. Staged until reply_to_user.`,
+			`Change a food marked canChange in get_task_entries: one you created for this meal that nothing outside this meal uses, or one you created in this correction. Pass only what changes and null for everything else. Values are per serving. Staged until reply_to_user.`,
 			{
 				foodId: text('foodId of a food you created for this meal'),
 				name: nullable('string', 'Food name'),
@@ -189,8 +203,7 @@ const schemas = {
 		quickProtein: quickNumber,
 		quickCarbs: quickNumber,
 		quickFat: quickNumber,
-		quickFiber: quickNumber,
-		quantityDescription: z.string().max(200).nullish()
+		quickFiber: quickNumber
 	}),
 	delete_entry: z.object({ entryId: z.string().uuid() }),
 	update_food: z.object({
@@ -255,7 +268,6 @@ type PlannedEntry = {
 	base: EntryFields | null;
 	fields: EntryFields;
 	deleted: boolean;
-	quantityDescription: string | null;
 };
 
 export type CorrectionTask = ScopedTask & {
@@ -280,7 +292,9 @@ export type CorrectionToolContext = {
 	foodRows: Map<string, FoodRow | null>;
 	usedOutside: Map<string, boolean>;
 	recipes: Map<string, RecipeView | null>;
+	// Per correction, not per plan: a reload after a failed save keeps them.
 	entryChanges: number;
+	foodsCreated: number;
 };
 
 const fieldsOf = (row: typeof foodEntries.$inferSelect): EntryFields => ({
@@ -312,8 +326,7 @@ export async function loadCorrectionState(ctx: CorrectionToolContext, db: TxOrDb
 				id: row.id,
 				base: fieldsOf(row),
 				fields: fieldsOf(row),
-				deleted: false,
-				quantityDescription: null
+				deleted: false
 			}
 		])
 	);
@@ -322,7 +335,6 @@ export async function loadCorrectionState(ctx: CorrectionToolContext, db: TxOrDb
 	ctx.foodRows = new Map();
 	ctx.usedOutside = new Map();
 	ctx.recipes = new Map();
-	ctx.entryChanges = 0;
 	ctx.shared.foods.clear();
 	ctx.shared.createdFoods.clear();
 }
@@ -343,7 +355,8 @@ export function newCorrectionContext(
 		foodRows: new Map(),
 		usedOutside: new Map(),
 		recipes: new Map(),
-		entryChanges: 0
+		entryChanges: 0,
+		foodsCreated: 0
 	};
 }
 
@@ -407,6 +420,7 @@ async function describeFood(ctx: CorrectionToolContext, foodId: string) {
 	if (!food) return null;
 	const staged = ctx.shared.foods.has(foodId);
 	const createdByThisTask = staged || ctx.taskFoods.has(foodId);
+	const usedOutsideThisTask = createdByThisTask && !staged && (await usedOutsideTask(ctx, foodId));
 	const nutrients = Object.fromEntries(
 		ALL_NUTRIENT_KEYS.flatMap((key) =>
 			typeof food[key] === 'number' ? [[key, round(food[key] as number)]] : []
@@ -430,9 +444,8 @@ async function describeFood(ctx: CorrectionToolContext, foodId: string) {
 			ingredients && ingredients.length > 300 ? `${ingredients.slice(0, 300)}…` : ingredients,
 		createdByThisTask,
 		...(staged ? { notSavedYet: true } : {}),
-		...(createdByThisTask && !staged
-			? { usedOutsideThisTask: await usedOutsideTask(ctx, foodId) }
-			: {}),
+		...(createdByThisTask && !staged ? { usedOutsideThisTask } : {}),
+		canChange: createdByThisTask && !usedOutsideThisTask,
 		...(ctx.foodPatches.has(foodId) ? { changed: true } : {})
 	};
 }
@@ -474,7 +487,6 @@ async function describeEntry(ctx: CorrectionToolContext, entry: PlannedEntry) {
 			: {
 					quick: Object.fromEntries(QUICK_KEYS.map((key) => [key, fields[key]]))
 				}),
-		...(entry.quantityDescription ? { quantityDescription: entry.quantityDescription } : {}),
 		totals
 	};
 }
@@ -551,13 +563,12 @@ async function stageEntryUpdate(
 			input.eatenAt
 		);
 	}
-	if (sameFields(next, entry.fields) && !input.quantityDescription) {
+	if (sameFields(next, entry.fields)) {
 		throw new ToolInputError('Nothing to change: pass at least one new value.');
 	}
 	const check = entryCreateSchema.safeParse({ ...entryPayload(next), date: ctx.task.date });
 	if (!check.success) throw check.error;
 	entry.fields = next;
-	if (input.quantityDescription) entry.quantityDescription = input.quantityDescription;
 	return { entryId: entry.id, staged: true, entry: await describeEntry(ctx, entry) };
 }
 
@@ -580,8 +591,7 @@ async function stageEntryAdd(input: unknown, ctx: CorrectionToolContext) {
 			quickFat: data.quickFat ?? null,
 			quickFiber: data.quickFiber ?? null
 		},
-		deleted: false,
-		quantityDescription: inputSchemas.log_food.parse(input).quantityDescription ?? null
+		deleted: false
 	};
 	ctx.entries.set(entry.id, entry);
 	return { entryId: entry.id, staged: true, entry: await describeEntry(ctx, entry) };
@@ -617,13 +627,8 @@ async function stageFoodUpdate(
 	}
 
 	if (!ctx.taskFoods.has(foodId)) throw new ToolInputError(NOT_TASK_FOOD);
+	if (await usedOutsideTask(ctx, foodId)) throw new ToolInputError(SHARED_FOOD);
 	const parsed = foodUpdateSchema.parse(patch);
-	const servingChange = parsed.servingSize !== undefined || parsed.servingUnit !== undefined;
-	if (servingChange && (await usedOutsideTask(ctx, foodId))) {
-		throw new ToolInputError(
-			'This food is also logged outside this meal or used in a recipe or supplement, and a new serving size would change those too. Create a food with the right serving and switch the entry to it.'
-		);
-	}
 	ctx.foodPatches.set(foodId, { ...(ctx.foodPatches.get(foodId) ?? {}), ...parsed });
 	return { foodId, staged: true, food: await describeFood(ctx, foodId) };
 }
@@ -694,6 +699,17 @@ async function applyCorrection(
 		const added = live.filter((entry) => !entry.base);
 		const removed = all.filter((entry) => entry.deleted && entry.base);
 
+		// The scope again, under the task lock: an entry moved to another day or
+		// out of the task since it was staged is the user's now.
+		const scope = (
+			await listTaskEntries(tx, { ...ctx.task, createdEntryIds: task.createdEntryIds })
+		).map((row) => row.id);
+		if ([...changed, ...removed].some((entry) => !scope.includes(entry.id))) {
+			throw new ApplyConflict(
+				'An entry you changed or removed was moved to another day or removed after the user wrote.'
+			);
+		}
+
 		const savedIds = new Map<string, string>();
 		for (const [stagedId, data] of ctx.shared.foods) {
 			if (!live.some((entry) => entry.fields.foodId === stagedId)) continue;
@@ -719,6 +735,11 @@ async function applyCorrection(
 			for (const [foodId, patch] of ctx.foodPatches) {
 				if (!owned.has(foodId)) {
 					throw new ApplyConflict('A food you changed was deleted after the user wrote.');
+				}
+				if (await isFoodUsedOutsideTask(tx, userId, foodId, scope)) {
+					throw new ApplyConflict(
+						'A food you changed is now also used outside this meal, so it is the user’s like any other food.'
+					);
 				}
 				const updated = await updateFood(userId, foodId, patch, ctx.replyAt, { tx });
 				if (!updated.success) throw conflictFrom(updated.error);
@@ -804,7 +825,12 @@ export async function runCorrectionTool(
 	input: unknown,
 	ctx: CorrectionToolContext
 ): Promise<LoopToolResult> {
-	if (SHARED_TOOLS.includes(name)) return runSharedTool(name, input, ctx.shared);
+	if (SHARED_TOOLS.includes(name)) {
+		const staged = ctx.shared.createdFoods.size;
+		const result = await runSharedTool(name, input, ctx.shared);
+		if (ctx.shared.createdFoods.size > staged) ctx.foodsCreated++;
+		return result;
+	}
 	try {
 		switch (name) {
 			case 'get_task_entries':

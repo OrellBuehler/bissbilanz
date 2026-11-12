@@ -950,7 +950,7 @@ describe('create_food with a nutrient database record', () => {
 			);
 			expect(result.isError).toBe(true);
 			expect(result.body.error).toContain('only be applied to a serving given in g, kg, oz or lb');
-			expect(result.body.error).toContain('pass fdcId null');
+			expect(result.body.error).toContain('pass fdcId 0');
 			expect(h.handleCreateFood).not.toHaveBeenCalled();
 			expect(h.getFdcFood).not.toHaveBeenCalled();
 			expect(ctx.foods.size).toBe(0);
@@ -998,7 +998,7 @@ describe('create_food with a nutrient database record', () => {
 			'If you took these numbers from the database, use recordPerServing instead.'
 		);
 		expect(result.body.error).toContain(
-			'If they come from a label or Open Food Facts, keep them and pick another record or pass fdcId null.'
+			'If they come from a label or Open Food Facts, keep them and pick another record or pass fdcId 0.'
 		);
 		expect(result.body.recordPerServing).toEqual({
 			calories: 101,
@@ -1065,17 +1065,25 @@ describe('create_food with a nutrient database record', () => {
 		expect(h.handleCreateFood).toHaveBeenCalledTimes(1);
 	});
 
-	test('without fdcId nothing is looked up', async () => {
-		await runTaskTool('create_food', pearInput({ fdcId: null }), makeCtx());
+	test.each([null, 0])('without a record (fdcId %s) nothing is looked up', async (fdcId) => {
+		await runTaskTool('create_food', pearInput({ fdcId }), makeCtx());
 		expect(h.getFdcFood).not.toHaveBeenCalled();
 		expect(h.handleCreateFood.mock.calls[0]![1]).not.toHaveProperty('vitaminC');
+	});
+
+	test('fdcId 0 and null name the same food, so it is created once', async () => {
+		const ctx = makeCtx();
+		await runTaskTool('create_food', pearInput({ fdcId: 0 }), ctx);
+		await runTaskTool('create_food', pearInput({ fdcId: null }), ctx);
+		expect(h.handleCreateFood).toHaveBeenCalledTimes(1);
 	});
 
 	test('the record id is declared only with the database', () => {
 		const createFood = (database: boolean) =>
 			taskTools(database).find((tool) => tool.name === 'create_food')!.input_schema
 				.properties as Record<string, Record<string, unknown>>;
-		expect(createFood(true).fdcId!.anyOf).toEqual([{ type: 'integer' }, { type: 'null' }]);
+		expect(createFood(true).fdcId).toMatchObject({ type: 'integer' });
+		expect(createFood(true).fdcId).not.toHaveProperty('anyOf');
 		expect(createFood(false)).not.toHaveProperty('fdcId');
 		expect(taskTools(true).map((tool) => tool.name)).toContain('search_nutrient_database');
 		expect(taskTools(false).map((tool) => tool.name)).not.toContain('search_nutrient_database');

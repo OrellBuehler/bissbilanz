@@ -169,7 +169,7 @@
 						</div>
 					{:else}
 						<p
-							class="text-xs break-words text-muted-foreground {task.claudeThread
+							class="text-xs break-words text-muted-foreground {task.claudeThread?.messages.length
 								? ''
 								: 'line-clamp-2'}"
 						>

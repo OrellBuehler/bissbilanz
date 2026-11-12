@@ -41,6 +41,12 @@ export const HEARTBEAT_INTERVAL_MS = 60_000;
 export const MAX_LOG_CALLS_PER_RUN = 30;
 export const MAX_FOODS_CREATED_PER_RUN = 5;
 
+/** Every tool a first-run request declares; tool-limits.test.ts checks them against the API limits. */
+export const firstRunTools = (model: string, nutrientDatabase: boolean) => [
+	...taskServerTools(model),
+	...taskTools(nutrientDatabase)
+];
+
 const NUDGE =
 	'Your reply was cut off. Keep it short: call complete_ai_task or dismiss_ai_task now.';
 const NUDGE_NO_TERMINAL = 'You have not finished. Call complete_ai_task or dismiss_ai_task now.';
@@ -141,7 +147,7 @@ async function runLoop(
 		system: TASK_SYSTEM,
 		content: loaded.content,
 		imageCount: loaded.imageCount,
-		tools: [...taskServerTools(loaded.model), ...taskTools(isFdcConfigured())],
+		tools: firstRunTools(loaded.model, isFdcConfigured()),
 		signal,
 		nudge: NUDGE,
 		nudgeNoTerminal: NUDGE_NO_TERMINAL,

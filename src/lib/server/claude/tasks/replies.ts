@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
-import { and, asc, count, eq, gt, inArray, isNull, min, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gt, inArray, isNull, min, ne, sql } from 'drizzle-orm';
 import { getDB } from '../../db';
 import { ApiError } from '../../errors';
 import type { TxOrDb } from '../../ownership';
@@ -91,7 +91,8 @@ type ReplyFacts = {
 	processedBy: string | null;
 	status: string;
 	correctionState: ClaudeCorrectionState | null;
-	userReplies: number;
+	// Replies Claude answered; a reply whose correction failed does not count.
+	answeredReplies: number;
 	gate: ReplyBlockedReason | null;
 	window: ReplyWindow;
 };
@@ -103,7 +104,7 @@ export function replyBlockedReason(facts: ReplyFacts): ReplyBlockedReason | null
 	if (facts.correctionState && IN_FLIGHT_CORRECTION_STATES.includes(facts.correctionState)) {
 		return 'correction_in_flight';
 	}
-	if (facts.userReplies >= MAX_REPLIES_PER_TASK) return 'reply_limit_reached';
+	if (facts.answeredReplies >= MAX_REPLIES_PER_TASK) return 'reply_limit_reached';
 	if (facts.gate) return facts.gate;
 	if (facts.window.count >= MAX_REPLIES_PER_DAY) return 'rate_limited';
 	return null;
@@ -137,16 +138,22 @@ export async function postTaskReply(userId: string, taskId: string, text: string
 			.from(claudeTaskCorrections)
 			.where(eq(claudeTaskCorrections.taskId, taskId))
 			.for('update');
-		const [replies] = await tx
+		const [answered] = await tx
 			.select({ count: count() })
 			.from(claudeTaskMessages)
-			.where(and(eq(claudeTaskMessages.taskId, taskId), eq(claudeTaskMessages.role, 'user')));
+			.where(
+				and(
+					eq(claudeTaskMessages.taskId, taskId),
+					eq(claudeTaskMessages.role, 'assistant'),
+					ne(claudeTaskMessages.outcome, 'failed')
+				)
+			);
 		const window = await replyWindow(tx, userId);
 		const reason = replyBlockedReason({
 			processedBy: task.processedBy,
 			status: task.status,
 			correctionState: (correction?.state as ClaudeCorrectionState | undefined) ?? null,
-			userReplies: Number(replies?.count ?? 0),
+			answeredReplies: Number(answered?.count ?? 0),
 			gate,
 			window
 		});
@@ -173,12 +180,7 @@ export async function postTaskReply(userId: string, taskId: string, text: string
 			.insert(claudeTaskCorrections)
 			.values({ taskId, userId, ...reset })
 			.onConflictDoUpdate({ target: claudeTaskCorrections.taskId, set: reset });
-		const [touched] = await tx
-			.update(aiTasks)
-			.set({ updatedAt: new Date() })
-			.where(eq(aiTasks.id, taskId))
-			.returning();
-		return touched!;
+		return task;
 	});
 	wakeClaudeCorrection(taskId, userId);
 	return task;
@@ -243,13 +245,16 @@ export async function loadClaudeThreads(tasks: ThreadTask[]): Promise<Map<string
 		const own = messages.filter((message) => message.taskId === task.id);
 		if (task.status !== 'completed' && own.length === 0) continue;
 		const facts = userFacts.get(task.userId)!;
-		const userReplies = own.filter((message) => message.role === 'user').length;
 		const state = states.get(task.id) ?? null;
+		const answeredReplies = own.filter(
+			(message) => message.role === 'assistant' && message.outcome !== 'failed'
+		).length;
+		const inFlight = state !== null && IN_FLIGHT_CORRECTION_STATES.includes(state) ? 1 : 0;
 		const reason = replyBlockedReason({
 			processedBy: task.processedBy,
 			status: task.status,
 			correctionState: state,
-			userReplies,
+			answeredReplies,
 			gate: facts.gate,
 			window: facts.window
 		});
@@ -267,16 +272,19 @@ export async function loadClaudeThreads(tasks: ThreadTask[]): Promise<Map<string
 			correctionState: state ? PUBLIC_STATES[state] : 'idle',
 			canReply: reason === null,
 			replyBlockedReason: reason,
-			repliesRemaining: Math.max(0, MAX_REPLIES_PER_TASK - userReplies),
+			repliesRemaining: Math.max(0, MAX_REPLIES_PER_TASK - answeredReplies - inFlight),
 			unreadReplies: own.filter(unread).length
 		});
 	}
 	return threads;
 }
 
-/** Marks Claude's answers on the given tasks (or all of them) as seen. */
-export async function markRepliesRead(userId: string, taskIds?: string[]): Promise<number> {
-	if (taskIds && taskIds.length === 0) return 0;
+/**
+ * Marks the answers the client names as seen. By id, never by task: an answer
+ * that arrived after the client's last read stays unread until it is shown.
+ */
+export async function markRepliesRead(userId: string, messageIds: string[]): Promise<number> {
+	if (messageIds.length === 0) return 0;
 	const rows = await getDB()
 		.update(claudeTaskMessages)
 		.set({ readAt: new Date() })
@@ -285,7 +293,7 @@ export async function markRepliesRead(userId: string, taskIds?: string[]): Promi
 				eq(claudeTaskMessages.userId, userId),
 				eq(claudeTaskMessages.role, 'assistant'),
 				isNull(claudeTaskMessages.readAt),
-				taskIds ? inArray(claudeTaskMessages.taskId, taskIds) : undefined
+				inArray(claudeTaskMessages.id, messageIds)
 			)
 		)
 		.returning({ id: claudeTaskMessages.id });

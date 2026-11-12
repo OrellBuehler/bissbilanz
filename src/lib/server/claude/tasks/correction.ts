@@ -44,6 +44,12 @@ import { failureDetail, loadLocale, startHeartbeat } from './run-support';
 import { MAX_FAILURES } from './runs';
 import type { Fence } from './types';
 
+/** Every tool a correction request declares; tool-limits.test.ts checks them against the API limits. */
+export const correctionRunTools = (model: string, nutrientDatabase: boolean) => [
+	...taskServerTools(model),
+	...correctionTools(nutrientDatabase)
+];
+
 const NUDGE = 'Your reply was cut off. Keep it short: call reply_to_user now.';
 const NUDGE_NO_TERMINAL = 'You have not finished. Call reply_to_user now.';
 
@@ -144,7 +150,7 @@ async function runCorrection(
 		system: CORRECTION_SYSTEM,
 		content: loaded.content,
 		imageCount: loaded.imageCount,
-		tools: [...taskServerTools(loaded.model), ...correctionTools(isFdcConfigured())],
+		tools: correctionRunTools(loaded.model, isFdcConfigured()),
 		signal,
 		nudge: NUDGE,
 		nudgeNoTerminal: NUDGE_NO_TERMINAL,
@@ -157,8 +163,7 @@ async function runCorrection(
 		reject: (block) =>
 			ENTRY_TOOLS.has(block.name) && tools.entryChanges >= MAX_ENTRY_CHANGES_PER_CORRECTION
 				? 'Too many entry changes for one reply. Save what you have with reply_to_user.'
-				: block.name === 'create_food' &&
-					  tools.shared.createdFoods.size >= MAX_FOODS_CREATED_PER_RUN
+				: block.name === 'create_food' && tools.foodsCreated >= MAX_FOODS_CREATED_PER_RUN
 					? 'Too many new foods for one reply.'
 					: null,
 		runTool: (block) => runCorrectionTool(block.name, block.input, tools),

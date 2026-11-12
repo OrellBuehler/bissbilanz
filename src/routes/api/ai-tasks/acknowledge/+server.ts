@@ -16,8 +16,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		}
 
 		const acknowledged = await acknowledgeAiTasks(userId, result.data.ids);
-		if (!result.data.replies) return json({ acknowledged });
-		const repliesAcknowledged = await markRepliesRead(userId, result.data.ids);
+		if (!result.data.replyIds) return json({ acknowledged });
+		const repliesAcknowledged = await markRepliesRead(userId, result.data.replyIds);
 		return json({ acknowledged, repliesAcknowledged });
 	} catch (error) {
 		return handleApiError(error);

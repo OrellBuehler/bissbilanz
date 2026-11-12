@@ -134,7 +134,6 @@ const updateInput = (overrides: Record<string, unknown>) => ({
 	quickCarbs: null,
 	quickFat: null,
 	quickFiber: null,
-	quantityDescription: null,
 	...overrides
 });
 
@@ -165,7 +164,6 @@ const logInput = (overrides: Record<string, unknown>) => ({
 	quickCarbs: null,
 	quickFat: null,
 	quickFiber: null,
-	quantityDescription: null,
 	...overrides
 });
 
@@ -263,6 +261,7 @@ describe('a full correction', () => {
 	it('changes the amount, answers in the thread and keeps the task completed', async () => {
 		const { user, task, skyrEntry, ownEntry } = await seedCompleted();
 		const posted = await replies.postTaskReply(user.id, task.id, 'That was 250 g, not 150 g');
+		expect(posted.updatedAt).toEqual(task.updatedAt);
 		expect(wake).toHaveBeenCalledWith(task.id, user.id);
 		const [userMessage] = await threadOf(task.id);
 
@@ -273,7 +272,7 @@ describe('a full correction', () => {
 					'update_entry',
 					{
 						entryId: skyrEntry.id,
-						...updateInput({ servings: 250 / 150, quantityDescription: '250 g' })
+						...updateInput({ servings: 250 / 150 })
 					},
 					'toolu_update'
 				)
@@ -293,7 +292,7 @@ describe('a full correction', () => {
 			resultSummary: 'Logged 150 g Skyr and 100 g yogurt',
 			createdEntryIds: [skyrEntry.id, ownEntry.id]
 		});
-		expect(done[0]!.updatedAt!.getTime()).toBeGreaterThanOrEqual(posted.updatedAt!.getTime());
+		expect(done[0]!.updatedAt).toEqual(task.updatedAt);
 
 		const thread = await threadOf(task.id);
 		expect(thread.map((row) => [row.role, row.outcome, row.text])).toEqual([
@@ -513,17 +512,63 @@ describe('scope', () => {
 		expect((await entryOf(skyrEntry.id))!.foodId).not.toBe(strangerFood.id);
 	});
 
-	it('keeps the serving of a task food that is used outside the task', async () => {
+	it('treats a task food used outside the task as the user’s own', async () => {
 		const { user, task, skyr } = await seedCompleted();
 		await seedEntry(user.id, { foodId: skyr.id, date: '2026-10-13' });
-		await replies.postTaskReply(user.id, task.id, 'The serving is 170 g');
+		await replies.postTaskReply(user.id, task.id, 'The sodium is 60 mg');
 		const fake = startFake([
-			toolStep(toolUse('update_food', { foodId: skyr.id, ...foodPatch({ servingSize: 170 }) })),
-			reply('That skyr is logged elsewhere too, so I left its serving.')
+			toolStep(
+				toolUse('update_food', {
+					foodId: skyr.id,
+					...foodPatch({ nutrients: [{ nutrient: 'sodium', amount: 60 }] })
+				})
+			),
+			reply('That skyr is logged on other days too, so I left it.')
 		]);
 		await runCorrection(task.id);
-		expect(resultsOf(fake, 1)[0]!.body.error).toContain('also logged outside this meal');
-		expect((await foodOf(skyr.id))!.servingSize).toBe(150);
+		expect(resultsOf(fake, 1)[0]!.body.error).toContain('Create a corrected food');
+		expect((await foodOf(skyr.id))!.sodium).toBe(900);
+	});
+
+	it('refuses at save time a task food that became used elsewhere after staging', async () => {
+		const { user, task, skyr } = await seedCompleted();
+		await replies.postTaskReply(user.id, task.id, 'The sodium is 60 mg');
+		const fake = startFake([
+			toolStep(
+				toolUse('update_food', {
+					foodId: skyr.id,
+					...foodPatch({ nutrients: [{ nutrient: 'sodium', amount: 60 }] })
+				})
+			),
+			async () => {
+				await seedEntry(user.id, { foodId: skyr.id, date: '2026-10-14' });
+				return reply('Sodium is 60 mg now.');
+			},
+			reply('That skyr is now logged on another day too, so I left it.')
+		]);
+		await runCorrection(task.id);
+		expect(resultsOf(fake, 2)[0]!.body.error).toContain('now also used outside this meal');
+		expect((await foodOf(skyr.id))!.sodium).toBe(900);
+		expect((await threadOf(task.id)).at(-1)).toMatchObject({ outcome: 'answered' });
+	});
+
+	it('refuses at save time an entry the user moved to another day after staging', async () => {
+		const { user, task, skyrEntry } = await seedCompleted();
+		await replies.postTaskReply(user.id, task.id, 'two portions');
+		const fake = startFake([
+			toolStep(toolUse('update_entry', { entryId: skyrEntry.id, ...updateInput({ servings: 2 }) })),
+			async () => {
+				await db
+					.update(foodEntries)
+					.set({ date: '2026-10-11' })
+					.where(eq(foodEntries.id, skyrEntry.id));
+				return reply('Two portions.');
+			},
+			reply('You moved that entry, so I left it.')
+		]);
+		await runCorrection(task.id);
+		expect(resultsOf(fake, 2)[0]!.body.error).toContain('moved to another day');
+		expect((await entryOf(skyrEntry.id))!.servings).toBe(1);
 	});
 
 	it('does not reach an entry the user moved to another day', async () => {
@@ -620,6 +665,35 @@ describe('failures leave the diary unchanged and allow another reply', () => {
 		expect(done!.status).toBe('completed');
 		await expect(replies.postTaskReply(user.id, task.id, 'try again')).resolves.toBeTruthy();
 		expect((await correctionOf(task.id)).state).toBe('queued');
+	});
+
+	it('does not use up a reply when the request is rejected as too complex', async () => {
+		const { user, task } = await seedCompleted();
+		const tooComplex = () =>
+			new Anthropic.BadRequestError(
+				400,
+				{
+					type: 'error',
+					error: {
+						type: 'invalid_request_error',
+						message: 'Schema is too complex for compilation.'
+					}
+				},
+				'Schema is too complex for compilation.',
+				new Headers()
+			);
+		for (let attempt = 0; attempt < replies.MAX_REPLIES_PER_TASK + 1; attempt++) {
+			await replies.postTaskReply(user.id, task.id, `attempt ${attempt}`);
+			startFake([tooComplex(), tooComplex()]);
+			await runCorrection(task.id);
+			expect(await correctionOf(task.id)).toMatchObject({
+				state: 'failed',
+				failureCode: 'claude_error'
+			});
+		}
+		const [current] = await db.select().from(aiTasks).where(eq(aiTasks.id, task.id));
+		const [view] = await serialize.serializeAiTasksWithRuns([current!]);
+		expect(view!.claudeThread).toMatchObject({ canReply: true, repliesRemaining: 5 });
 	});
 
 	it('gives up when the model does not finish', async () => {
@@ -872,10 +946,8 @@ describe('posting replies', () => {
 		const { user, task } = await seedCompleted();
 		for (let index = 0; index < replies.MAX_REPLIES_PER_TASK; index++) {
 			await replies.postTaskReply(user.id, task.id, `reply ${index}`);
-			await db
-				.update(claudeTaskCorrections)
-				.set({ state: 'succeeded' })
-				.where(eq(claudeTaskCorrections.taskId, task.id));
+			startFake([reply(`answer ${index}`)]);
+			await runCorrection(task.id);
 		}
 		await expect(replies.postTaskReply(user.id, task.id, 'one more')).rejects.toMatchObject({
 			code: 'reply_limit_reached',
@@ -940,8 +1012,12 @@ describe('the thread on task responses', () => {
 			messages: [{ role: 'user' }, { role: 'assistant', outcome: 'answered', unread: true }]
 		});
 
+		const answer = (await threadOf(task.id)).at(-1)!;
 		expect(await replies.markRepliesRead(user.id, [randomUUID()])).toBe(0);
-		expect(await replies.markRepliesRead(user.id)).toBe(1);
+		const stranger = await seedUser(db);
+		expect(await replies.markRepliesRead(stranger.id, [answer.id])).toBe(0);
+		expect(await replies.markRepliesRead(user.id, [answer.id])).toBe(1);
+		expect(await replies.markRepliesRead(user.id, [answer.id])).toBe(0);
 		const [read] = await serialize.serializeAiTasksWithRuns([task]);
 		expect(read!.claudeThread!.unreadReplies).toBe(0);
 
@@ -997,25 +1073,39 @@ describe('the backfill of foods created before tracking', () => {
 		return contents.slice(contents.indexOf('INSERT INTO "claude_task_foods"'));
 	};
 
-	it('counts only foods that cannot belong to anyone else', async () => {
+	const usage = (taskId: string, userId: string, createdAt: Date, settledAt: Date) =>
+		db.insert(claudeUsage).values({
+			userId,
+			aiTaskId: taskId,
+			feature: 'ai_task',
+			model: 'claude-opus-5-5',
+			status: 'succeeded',
+			createdAt,
+			settledAt
+		});
+	const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000);
+
+	it('counts only foods created while the processor worked, that nothing else owns', async () => {
 		const user = await seedUser(db);
-		const started = new Date(Date.now() - 10 * 60_000);
 		const task = await seedTask(db, user.id, {
 			status: 'completed',
 			processedBy: 'claude',
-			createdAt: started,
-			completedAt: new Date(Date.now() - 60_000)
+			createdAt: ago(3 * 24 * 60),
+			completedAt: ago(10)
 		});
-		const during = new Date(Date.now() - 5 * 60_000);
+		// The run: two calls, with tools executed in the gap between them.
+		await usage(task.id, user.id, ago(14), ago(13.5));
+		await usage(task.id, user.id, ago(12.5), ago(11));
 		const create = (name: string, createdAt: Date, updatedAt = createdAt) =>
 			seedFood(user.id, { name, createdAt, updatedAt });
-		const own = await create('created by the task', during);
-		const before = await create('existed before', new Date(started.getTime() - 60_000));
-		const edited = await create('edited since', during, new Date());
-		const elsewhere = await create('logged elsewhere', during);
-		const inRecipe = await create('in a recipe', during);
+		const own = await create('created in the run', ago(13));
+		const waiting = await create('created by the user while the task waited', ago(24 * 60));
+		const beforeRun = await create('created just before the run', ago(14.5));
+		const edited = await create('edited since', ago(13), new Date());
+		const elsewhere = await create('logged elsewhere', ago(13));
+		const inRecipe = await create('in a recipe', ago(13));
 		const entries = await Promise.all(
-			[own, before, edited, elsewhere, inRecipe].map((food) =>
+			[own, waiting, beforeRun, edited, elsewhere, inRecipe].map((food) =>
 				seedEntry(user.id, { foodId: food.id })
 			)
 		);
@@ -1035,19 +1125,58 @@ describe('the backfill of foods created before tracking', () => {
 			.update(aiTasks)
 			.set({ createdEntryIds: entries.map((entry) => entry.id) })
 			.where(eq(aiTasks.id, task.id));
-		const viaMcp = await seedTask(db, user.id, {
+
+		// Same shape, but no call log: claims nothing.
+		const unlogged = await seedTask(db, user.id, {
 			status: 'completed',
-			processedBy: 'assistant',
-			createdAt: started,
-			completedAt: new Date(),
-			createdEntryIds: [entries[0]!.id]
+			processedBy: 'claude',
+			createdAt: ago(20),
+			completedAt: ago(5)
 		});
+		const unloggedFood = await create('no call log', ago(10));
+		const unloggedEntry = await seedEntry(user.id, { foodId: unloggedFood.id });
+		await db
+			.update(aiTasks)
+			.set({ createdEntryIds: [unloggedEntry.id] })
+			.where(eq(aiTasks.id, unlogged.id));
 
 		await db.execute(sql.raw(backfill()));
 		await db.execute(sql.raw(backfill()));
 		const rows = await db.select().from(claudeTaskFoods);
 		expect(rows.map((row) => [row.taskId, row.foodId])).toEqual([[task.id, own.id]]);
-		expect(rows.some((row) => row.taskId === viaMcp.id)).toBe(false);
+	});
+
+	it('counts a food created by accepting a proposal, but not one the user made meanwhile', async () => {
+		const user = await seedUser(db);
+		const completedAt = ago(1);
+		const task = await seedTask(db, user.id, {
+			status: 'completed',
+			processedBy: 'claude',
+			createdAt: ago(60),
+			completedAt
+		});
+		await usage(task.id, user.id, ago(58), ago(57));
+		const accepted = await seedFood(user.id, {
+			name: 'created on accept',
+			createdAt: new Date(completedAt.getTime() - 50),
+			updatedAt: new Date(completedAt.getTime() - 50)
+		});
+		const sameBarcode = await seedFood(user.id, {
+			name: 'added by hand, reused on accept',
+			createdAt: ago(5),
+			updatedAt: ago(5)
+		});
+		const entries = await Promise.all(
+			[accepted, sameBarcode].map((food) => seedEntry(user.id, { foodId: food.id }))
+		);
+		await db
+			.update(aiTasks)
+			.set({ createdEntryIds: entries.map((entry) => entry.id) })
+			.where(eq(aiTasks.id, task.id));
+
+		await db.execute(sql.raw(backfill()));
+		const rows = await db.select().from(claudeTaskFoods);
+		expect(rows.map((row) => [row.taskId, row.foodId])).toEqual([[task.id, accepted.id]]);
 	});
 });
 
@@ -1078,6 +1207,70 @@ describe('a retried reply request', () => {
 		expect(await second.json()).toEqual(await first.json());
 		expect(await threadOf(task.id)).toHaveLength(1);
 		expect(wake).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('a rejected reply retried with the same key', () => {
+	it('is decided again, and only the created reply is replayed', async () => {
+		const { withIdempotency } = await import('$lib/server/sync/idempotency');
+		const route = await import('../../src/routes/api/ai-tasks/[id]/replies/+server');
+		const { createMockEvent } = await import('../helpers/mock-request-event');
+		const { user, task } = await seedCompleted();
+		await replies.postTaskReply(user.id, task.id, 'first');
+		const send = () =>
+			withIdempotency(
+				createMockEvent({
+					user: user as never,
+					params: { id: task.id },
+					body: { text: 'second' },
+					method: 'POST',
+					url: `http://localhost/api/ai-tasks/${task.id}/replies`
+				}),
+				route.POST as never,
+				user.id,
+				'reply-key-2'
+			);
+
+		const busy = await send();
+		expect(busy.status).toBe(409);
+		expect(await busy.json()).toMatchObject({ code: 'correction_in_flight' });
+		expect(busy.headers.has('x-not-replayable')).toBe(false);
+
+		startFake([reply('Done.')]);
+		await runCorrection(task.id);
+		const created = await send();
+		expect(created.status).toBe(201);
+		const again = await send();
+		expect(again.status).toBe(201);
+		expect(again.headers.get('x-idempotent-replay')).toBe('true');
+		const texts = (await threadOf(task.id)).map((row) => row.text);
+		expect(texts.filter((text) => text === 'second')).toHaveLength(1);
+	});
+});
+
+describe('retention', () => {
+	it('keeps a resolved task while its conversation is recent, and deletes it later', async () => {
+		const { cleanupAiTasks } = await import('$lib/server/ai-tasks');
+		const old = new Date(Date.now() - 40 * 24 * 60 * 60_000);
+		const talking = await seedCompleted();
+		const quiet = await seedCompleted();
+		for (const { task } of [talking, quiet]) {
+			await db.update(aiTasks).set({ updatedAt: old }).where(eq(aiTasks.id, task.id));
+		}
+		await db.insert(claudeTaskMessages).values([
+			{ taskId: talking.task.id, userId: talking.user.id, role: 'user', text: 'recent' },
+			{
+				taskId: quiet.task.id,
+				userId: quiet.user.id,
+				role: 'user',
+				text: 'long ago',
+				createdAt: old
+			}
+		]);
+		await cleanupAiTasks();
+		const left = await db.select({ id: aiTasks.id }).from(aiTasks);
+		expect(left.map((row) => row.id)).toContain(talking.task.id);
+		expect(left.map((row) => row.id)).not.toContain(quiet.task.id);
 	});
 });
 

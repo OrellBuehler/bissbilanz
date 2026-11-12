@@ -92,8 +92,12 @@ afterEach(() => {
 });
 
 describe('aiTaskService.reply', () => {
-	test('posts online only with the idempotency key and replaces the task', async () => {
-		await load([task()]);
+	test('posts online only with the idempotency key, replaces the task and syncs the badge', async () => {
+		const setAppBadge = vi.fn(() => Promise.resolve());
+		const clearAppBadge = vi.fn(() => Promise.resolve());
+		vi.stubGlobal('navigator', { onLine: true, setAppBadge, clearAppBadge });
+		await load([task([message()])]);
+		setAppBadge.mockClear();
 		const queued = task([message({ role: 'user', outcome: null, unread: false })]);
 		mockApi.POST.mockResolvedValue({
 			data: { task: queued },
@@ -106,6 +110,7 @@ describe('aiTaskService.reply', () => {
 			headers: { [NO_QUEUE_HEADER]: '1', [IDEMPOTENCY_KEY_HEADER]: 'key-1' }
 		});
 		expect(aiTaskService.tasks[0]!.claudeThread!.messages).toHaveLength(1);
+		expect(clearAppBadge).toHaveBeenCalled();
 	});
 
 	test('returns the rejection code, refreshes and leaves only a breadcrumb', async () => {
@@ -155,13 +160,13 @@ describe('aiTaskService.reply', () => {
 });
 
 describe('unread replies', () => {
-	test('count towards the badge and are acknowledged with the replies flag', async () => {
+	test('count towards the badge and are acknowledged by the ids the list shows', async () => {
 		await load([task([message()])]);
 		expect(aiTaskService.unreadCount).toBe(1);
 		mockApi.POST.mockResolvedValue({ data: {}, response: new Response(null, { status: 200 }) });
 		await aiTaskService.acknowledgeAll();
 		expect(mockApi.POST).toHaveBeenCalledWith('/api/ai-tasks/acknowledge', {
-			body: { replies: true }
+			body: { ids: [], replyIds: ['m1'] }
 		});
 		expect(aiTaskService.unreadCount).toBe(0);
 		expect(aiTaskService.tasks[0]!.claudeThread!.messages[0]!.unread).toBe(false);

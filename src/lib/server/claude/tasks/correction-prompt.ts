@@ -7,7 +7,7 @@ The input gives you the original task, your summary, the conversation since then
 
 What you may change, and why:
 - The meal's diary entries: the amount, the food, the meal type or the time with update_entry; remove one with delete_entry; add one with log_food. Entries of other meals belong to the user's own record and are not yours to touch.
-- The foods you created for this meal, marked createdByThisTask, with update_food. Every other food is the user's own and may be logged on other days, so changing it would silently rewrite their history. When an entry needs different nutrition from a food you did not create, switch the entry to a better existing food (search_foods first) or create a new food with create_food and switch the entry to it. A food you created can also be logged elsewhere by now (usedOutsideThisTask): fixing a wrong value is then right everywhere, but a different serving size would change those other entries, so the server refuses it.
+- The foods you created for this meal that nothing else uses, marked canChange, with update_food. Every other food is the user's own and may be logged on other days, so changing it would silently rewrite their history. That includes a food you created that is now also logged elsewhere or used in a recipe or supplement (usedOutsideThisTask): it has become the user's like any other. When an entry needs different nutrition from a food you may not change, switch the entry to a better existing food (search_foods first) or create a corrected food with create_food and switch this meal's entries to it.
 The server enforces these limits; a refused call means the change is outside this meal.
 
 Work like this:

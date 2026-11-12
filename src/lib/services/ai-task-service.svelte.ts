@@ -350,10 +350,19 @@ async function poll(): Promise<void> {
 	}
 }
 
+/**
+ * Marks what this list shows as seen: the unread dismissals and the unread
+ * answers in it, by id, so anything that arrived after the last read stays
+ * unread until it is shown too.
+ */
 async function acknowledgeAll(options: { quiet?: boolean } = {}): Promise<void> {
 	if (!browser || !tasks.some(needsAttention)) return;
+	const ids = tasks.filter(isUnread).map((t) => t.id);
+	const replyIds = tasks.flatMap((t) => unreadReplies(t).map((message) => message.id));
 	try {
-		await api.POST('/api/ai-tasks/acknowledge', { body: { replies: true } });
+		await api.POST('/api/ai-tasks/acknowledge', {
+			body: { ids, ...(replyIds.length > 0 ? { replyIds } : {}) }
+		});
 		const seenAt = new Date().toISOString();
 		tasks = tasks.map((t) => {
 			const seen = isUnread(t) ? { ...t, acknowledgedAt: seenAt } : t;
@@ -402,6 +411,7 @@ async function reply(id: string, text: string, idempotencyKey: string): Promise<
 		if (data?.task) {
 			mutationGeneration++;
 			tasks = tasks.map((t) => (t.id === id ? data.task : t));
+			syncAppBadge();
 			return 'sent';
 		}
 		if (REJECTION_STATUSES.has(response.status)) {

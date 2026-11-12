@@ -97,8 +97,8 @@ describe('transitionCorrection', () => {
 });
 
 describe('outcomes', () => {
-	test('a failure answers in the thread, moves the task and ends the run', async () => {
-		fenced([], [], [{ taskId: 'task-1' }]);
+	test('a failure answers in the thread and ends the run, leaving the task row alone', async () => {
+		fenced([], [{ taskId: 'task-1' }]);
 		await corrections.failCorrection(ctx('de'), 'claude_refused', 'detail');
 		expect(values()[0]).toEqual({
 			taskId: 'task-1',
@@ -107,8 +107,8 @@ describe('outcomes', () => {
 			text: 'Claude hat diese Anfrage abgelehnt. Es wurde nichts geändert.',
 			outcome: 'failed'
 		});
-		const [touch, state] = sets();
-		expect(touch.updatedAt).toBeInstanceOf(Date);
+		const [state] = sets();
+		expect(sets()).toHaveLength(1);
 		expect(state).toMatchObject({
 			state: 'failed',
 			failureCode: 'claude_refused',
@@ -134,10 +134,10 @@ describe('outcomes', () => {
 		expect(sets()[0]!.nextAttemptAt).toEqual(new Date('2026-10-12T10:05:00Z'));
 
 		reset();
-		fenced([], [], [{ taskId: 'task-1' }]);
+		fenced([], [{ taskId: 'task-1' }]);
 		expect(await corrections.retryOrFailCorrection(ctx(), 2, 'server 529')).toBe('failed');
 		expect(values()[0]).toMatchObject({ outcome: 'failed' });
-		expect(sets()[1]).toMatchObject({ state: 'failed', failureCode: 'claude_error' });
+		expect(sets()[0]).toMatchObject({ state: 'failed', failureCode: 'claude_error' });
 	});
 
 	test('a requeue only puts the run back in the queue', async () => {

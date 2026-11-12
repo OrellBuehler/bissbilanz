@@ -27,7 +27,7 @@ import kotlinx.serialization.encoding.*
  * @param text
  * @param outcome Claude's messages only, null on the user's: 'changed' (the diary entries or foods of this task changed; refresh the task's date), 'answered' (Claude replied without changing anything) or 'failed' (the correction did not work and nothing was changed). Unknown values should be treated like 'answered'.
  * @param createdAt
- * @param unread True for an answer of Claude the user has not acknowledged yet (see POST /api/ai-tasks/acknowledge with replies). Always false for the user’s own messages.
+ * @param unread True for an answer of Claude the user has not acknowledged yet (see replyIds on POST /api/ai-tasks/acknowledge). Always false for the user’s own messages.
  */
 @Serializable
 data class AiTaskThreadMessage(
@@ -38,6 +38,6 @@ data class AiTaskThreadMessage(
     // Claude's messages only, null on the user's: 'changed' (the diary entries or foods of this task changed; refresh the task's date), 'answered' (Claude replied without changing anything) or 'failed' (the correction did not work and nothing was changed). Unknown values should be treated like 'answered'.
     @SerialName(value = "outcome") @Required val outcome: kotlin.String?,
     @SerialName(value = "createdAt") @Required val createdAt: kotlin.String,
-    // True for an answer of Claude the user has not acknowledged yet (see POST /api/ai-tasks/acknowledge with replies). Always false for the user’s own messages.
+    // True for an answer of Claude the user has not acknowledged yet (see replyIds on POST /api/ai-tasks/acknowledge). Always false for the user’s own messages.
     @SerialName(value = "unread") @Required val unread: kotlin.Boolean,
 )

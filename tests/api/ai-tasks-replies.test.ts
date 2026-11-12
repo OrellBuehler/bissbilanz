@@ -63,6 +63,7 @@ vi.mock('$lib/server/claude/tasks/serialize', async () => {
 
 const { POST } = await import('../../src/routes/api/ai-tasks/[id]/replies/+server');
 const { ReplyRejectedError } = await import('$lib/server/claude/tasks/replies');
+const { NOT_REPLAYABLE_HEADER } = await import('$lib/server/sync/idempotency');
 
 const post = (options: {
 	user?: typeof TEST_USER | null;
@@ -94,6 +95,7 @@ describe('POST /api/ai-tasks/{id}/replies', () => {
 		const response = await post({ user: null, body: { text: 'hi' } });
 		await expectResponseContract('POST', '/api/ai-tasks/{id}/replies', response);
 		expect(response.status).toBe(401);
+		expect(response.headers.has(NOT_REPLAYABLE_HEADER)).toBe(true);
 		expect(h.post).not.toHaveBeenCalled();
 	});
 
@@ -101,6 +103,7 @@ describe('POST /api/ai-tasks/{id}/replies', () => {
 		const response = await post({ body: { text: '  That was 250 g  ' } });
 		await expectResponseContract('POST', '/api/ai-tasks/{id}/replies', response);
 		expect(response.status).toBe(201);
+		expect(response.headers.has(NOT_REPLAYABLE_HEADER)).toBe(false);
 		expect(h.post).toHaveBeenCalledWith(TEST_USER.id, TASK_ID, 'That was 250 g');
 		const data = await response.json();
 		expect(data.task.status).toBe('completed');
@@ -147,6 +150,7 @@ describe('POST /api/ai-tasks/{id}/replies', () => {
 		const response = await post({ body: { text: 'hi' } });
 		await expectResponseContract('POST', '/api/ai-tasks/{id}/replies', response);
 		expect(response.status).toBe(status);
+		expect(response.headers.has(NOT_REPLAYABLE_HEADER)).toBe(true);
 		const data = await response.json();
 		expect(data.code).toBe(code);
 		expect(typeof data.error).toBe('string');

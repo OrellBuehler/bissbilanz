@@ -51,7 +51,8 @@
 		<li>
 			<strong>Meal photos for AI estimation:</strong> If you use the AI meal estimation feature, the photo
 			you submit is stored with the task while it is pending, and for up to 30 days after you log or dismiss
-			it, before it is automatically deleted.
+			it, before it is automatically deleted. If you reply to Claude about the meal, the 30 days count
+			from the latest message of that conversation instead.
 		</li>
 		<li>
 			<strong>Replies to Claude:</strong> If you reply to a meal Claude logged for you, your messages
@@ -235,8 +236,10 @@
 		<li>
 			<strong>Open Food Facts (product lookups):</strong> When you scan a barcode or search the Open
 			Food Facts database, the barcode number or your search terms are sent to the Open Food Facts
-			API. No personal data is sent. Open Food Facts is a nonprofit open data project. Their privacy
-			policy is available at
+			API. When Claude creates a food with a barcode for a meal you queued, the server looks that
+			barcode up in Open Food Facts automatically to add its Nutri-Score, ingredients and other
+			product details. No personal data is sent. Open Food Facts is a nonprofit open data project.
+			Their privacy policy is available at
 			<a href="https://world.openfoodfacts.org/privacy" class="underline">world.openfoodfacts.org</a
 			>.
 		</li>

@@ -11,6 +11,7 @@ import {
 	initialSelection,
 	isClaudeAvailable,
 	isCorrectionActive,
+	isCorrectionPolled,
 	isProcessedByClaude,
 	legacyProcessor,
 	newChangingReplies,
@@ -263,9 +264,16 @@ describe('reply threads', () => {
 		expect(isCorrectionActive({})).toBe(false);
 	});
 
-	test('polls while a correction is active on a completed task', () => {
-		expect(hasActiveClaudeWork([withThread('running')])).toBe(true);
-		expect(hasActiveClaudeWork([withThread('idle')])).toBe(false);
+	test('polls only while a correction is in a state this build knows to end', () => {
+		for (const state of ['queued', 'running', 'retrying']) {
+			expect(isCorrectionPolled(withThread(state))).toBe(true);
+			expect(hasActiveClaudeWork([withThread(state)])).toBe(true);
+		}
+		for (const state of ['idle', 'failed', 'paused']) {
+			expect(isCorrectionPolled(withThread(state))).toBe(false);
+			expect(hasActiveClaudeWork([withThread(state)])).toBe(false);
+		}
+		expect(isCorrectionPolled({})).toBe(false);
 	});
 
 	test('lists unread answers but never the user’s own messages', () => {

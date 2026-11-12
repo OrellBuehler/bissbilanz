@@ -1817,7 +1817,7 @@
 	"claude_reply_failed_task_changed": "Diese Aufgabe hat sich geändert, bevor Claude antworten konnte, deshalb wurde nichts geändert.",
 	"ai_tasks_reply_label": "Claude antworten",
 	"ai_tasks_reply_placeholder": "Stimmt etwas nicht? Schreib Claude, was korrigiert werden soll.",
-	"ai_tasks_reply_hint": "Claude kann die Einträge dieser Mahlzeit und die dafür erstellten Lebensmittel ändern.",
+	"ai_tasks_reply_hint": "Claude kann die Einträge dieser Mahlzeit ändern und Lebensmittel, die nur für sie erstellt wurden.",
 	"ai_tasks_reply_send": "Antwort senden",
 	"ai_tasks_reply_working": "Claude bearbeitet deine Antwort",
 	"ai_tasks_reply_you": "Du",

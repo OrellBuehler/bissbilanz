@@ -2101,7 +2101,7 @@ export const apiPaths = {
 			operationId: 'acknowledgeAiTasks',
 			tags: ['AiTasks'],
 			description:
-				"Mark resolved AI tasks as seen, clearing their unread state. Omit `ids` to acknowledge every unacknowledged task. With `replies: true` it also marks Claude's answers in `claudeThread` as read (on the tasks in `ids`, or on all) and reports how many in `repliesAcknowledged`; without it those stay unread. `acknowledgedAt` keeps its meaning either way: it only tracks dismissals.",
+				'Mark resolved AI tasks as seen, clearing their unread state. Omit `ids` to acknowledge every unacknowledged task. `replyIds` marks exactly those answers of Claude in `claudeThread` as read (send the ids of the unread answers the client has shown) and reports how many in `repliesAcknowledged`; answers not named stay unread. `acknowledgedAt` keeps its meaning either way: it only tracks dismissals.',
 			requestBody: {
 				required: false,
 				content: { 'application/json': { schema: aiTaskAcknowledgeSchema } }
@@ -2145,7 +2145,7 @@ export const apiPaths = {
 			operationId: 'replyToAiTask',
 			tags: ['AiTasks'],
 			description:
-				"Reply to Claude about a task it completed on the server (`processedByKind` claude), usually to say something is wrong. The reply joins `claudeThread` and starts a correction: Claude may change, remove or add the task's diary entries and change foods it created for the task, then answers in the thread. The task stays completed throughout. Online only: never queue it offline. Send an `Idempotency-Key` (one UUID per reply, reused for retries of the same reply) so a retried request returns the first response instead of adding the reply twice. Answers 201 with the task, whose `claudeThread.correctionState` is `queued`; poll the task list while it is queued, running or retrying. Rejections carry a machine-readable `code`: 404 `task_not_found`; 409 `not_processed_by_server` (MCP or device tasks), `not_completed`, `correction_in_flight`, `reply_limit_reached` (5 replies per task); 403 `processor_unavailable` (Claude is off, not configured or not granted), `budget_exhausted`; 429 `rate_limited` (20 replies per user in 24 hours) with `Retry-After`.",
+				"Reply to Claude about a task it completed on the server (`processedByKind` claude), usually to say something is wrong. The reply joins `claudeThread` and starts a correction: Claude may change, remove or add the task's diary entries and change foods it created for the task that nothing else uses, then answers in the thread. The task stays completed throughout. Online only: never queue it offline. Send an `Idempotency-Key` (one UUID per reply, reused for retries of the same reply): a retry after a 201 returns that first 201 instead of adding the reply twice, while a rejection is never stored, so a retry with the same key is decided again. Answers 201 with the task, whose `claudeThread.correctionState` is `queued`; poll the task list while it is queued, running or retrying. Rejections carry a machine-readable `code`: 404 `task_not_found`; 409 `not_processed_by_server` (MCP or device tasks), `not_completed`, `correction_in_flight`, `reply_limit_reached` (5 answered replies per task; a reply whose correction failed does not count); 403 `processor_unavailable` (Claude is off, not configured or not granted), `budget_exhausted`; 429 `rate_limited` (20 replies per user in 24 hours) with `Retry-After`.",
 			requestParams: { path: uuidPathId },
 			requestBody: {
 				required: true,

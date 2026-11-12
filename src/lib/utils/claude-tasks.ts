@@ -149,6 +149,15 @@ export function isCorrectionActive(task: ThreadTaskLike): boolean {
 	return state != null && !SETTLED_CORRECTION_STATES.includes(state);
 }
 
+// Polling only follows the states this build knows to end. An unknown one
+// still reads as in progress, and is refreshed on the next visit instead.
+const POLLED_CORRECTION_STATES: readonly string[] = ['queued', 'running', 'retrying'];
+
+export function isCorrectionPolled(task: ThreadTaskLike): boolean {
+	const state = task.claudeThread?.correctionState;
+	return state != null && POLLED_CORRECTION_STATES.includes(state);
+}
+
 export function hasUnreadReply(task: ThreadTaskLike): boolean {
 	return (task.claudeThread?.unreadReplies ?? 0) > 0;
 }
@@ -176,7 +185,7 @@ export function newChangingReplies<T extends ThreadTaskLike & { date: string }>(
 
 export function hasActiveClaudeWork(tasks: (TaskLike & ThreadTaskLike)[]): boolean {
 	return tasks.some((task) => {
-		if (isCorrectionActive(task)) return true;
+		if (isCorrectionPolled(task)) return true;
 		if (task.status !== 'pending') return false;
 		const state = claudeChipState(task);
 		return state !== null && ACTIVE_STATES.includes(state);
