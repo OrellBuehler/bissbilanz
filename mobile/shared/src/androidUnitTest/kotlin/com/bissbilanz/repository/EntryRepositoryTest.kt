@@ -180,6 +180,20 @@ class EntryRepositoryTest {
         }
 
     @Test
+    fun aBackgroundDayRefreshCachesTheDayWithoutChangingTheViewedDay() =
+        runTest {
+            coEvery { api.getEntries("2024-01-10") } returns emptyList()
+            coEvery { api.getEntries("2024-01-20") } returns listOf(TestFixtures.entry(id = "e2", date = "2024-01-20"))
+
+            repository.refresh("2024-01-10")
+            repository.refreshWithoutViewing("2024-01-20")
+            val uncached = repository.updateEntry("missing", EntryUpdate(servings = 2.0))
+
+            assertEquals("2024-01-10", uncached.date)
+            assertEquals(listOf("e2"), repository.entriesByDateOnce("2024-01-20").map { it.id })
+        }
+
+    @Test
     fun refreshDoesNotResurrectLocallyDeletedEntry() =
         runTest {
             val entry = TestFixtures.entry(id = "e1")

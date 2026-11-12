@@ -6,20 +6,27 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.aitasks.AiTaskReplyAlerts
 import com.bissbilanz.android.aitasks.AiTaskUploadQueue
 import com.bissbilanz.android.aitasks.QueuedAiTaskUpload
 import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.UnauthorizedException
 import com.bissbilanz.api.errorCode
 import com.bissbilanz.api.generated.model.AiTask
+import com.bissbilanz.api.isReplyBlocked
 import com.bissbilanz.repository.AiTaskRepository
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.sync.ConnectivityProvider
 import com.bissbilanz.util.AI_TASK_REPLY_MAX_CHARS
+import com.bissbilanz.util.ReplyAuthor
 import com.bissbilanz.util.ReplyBlock
+import com.bissbilanz.util.author
 import com.bissbilanz.util.hasActiveClaudeWork
+import com.bissbilanz.util.threadMessageIds
 import com.bissbilanz.util.unreadReplies
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -32,6 +39,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -87,6 +95,7 @@ class AiTasksViewModel(
     private val errorReporter: ErrorReporter,
     private val entryRepo: EntryRepository,
     private val connectivity: ConnectivityProvider,
+    private val replyAlerts: AiTaskReplyAlerts,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     enum class Filter(
@@ -132,8 +141,15 @@ class AiTasksViewModel(
     private val _loadFailed = MutableStateFlow(false)
     val loadFailed: StateFlow<Boolean> = _loadFailed.asStateFlow()
 
-    /** Initial load: pull, then clear the unread badge because the user is looking at it. */
+    private var loadStarted = false
+
+    /**
+     * Initial load: pull, then clear the unread badge because the user is looking at it. Runs
+     * once per ViewModel, so a configuration change keeps the list, its scroll and the composer.
+     */
     fun load() {
+        if (loadStarted) return
+        loadStarted = true
         viewModelScope.launch {
             _isLoading.value = true
             _loadFailed.value = false
@@ -204,30 +220,56 @@ class AiTasksViewModel(
 
     private val pollLock = Mutex()
 
+    suspend fun whileScreenVisible() =
+        replyAlerts.whileListVisible {
+            pollWhileClaudeWorks()
+            awaitCancellation()
+        }
+
     private val _newReplyIds = MutableStateFlow<Set<String>>(emptySet())
 
     val newReplyIds: StateFlow<Set<String>> = _newReplyIds.asStateFlow()
 
-    suspend fun markDisplayedRepliesRead(displayedTaskIds: Flow<Set<String>>) {
-        combine(displayedTaskIds, aiTaskRepo.tasks, connectivity.isOnline) { displayed, tasks, online ->
-            if (!online) {
-                emptySet()
-            } else {
-                tasks.filter { it.id in displayed }.flatMapTo(mutableSetOf()) { task -> task.unreadReplies().map { it.id } }
+    private val shownReplyIds = mutableSetOf<String>()
+
+    suspend fun markDisplayedRepliesRead(displayedMessageIds: Flow<Set<String>>) =
+        coroutineScope {
+            launch {
+                displayedMessageIds.collect { ids ->
+                    val fresh = ids - shownReplyIds
+                    if (fresh.isNotEmpty()) {
+                        shownReplyIds += fresh
+                        replyAlerts.shown(fresh)
+                    }
+                }
             }
-        }.distinctUntilChanged()
-            .collect { ids ->
-                if (ids.isEmpty()) return@collect
-                _newReplyIds.update { it + ids }
-                aiTaskRepo.markRepliesRead(ids)
-            }
-    }
+            combine(displayedMessageIds, aiTaskRepo.tasks) { displayed, tasks ->
+                tasks.flatMapTo(mutableSetOf()) { task -> task.unreadReplies().map { it.id }.filter { it in displayed } }
+            }.distinctUntilChanged()
+                .collectLatest { ids ->
+                    if (ids.isEmpty()) return@collectLatest
+                    _newReplyIds.update { it + ids }
+                    var quiet = false
+                    while (true) {
+                        connectivity.isOnline.first { it }
+                        if (aiTaskRepo.markRepliesRead(ids, quiet)) break
+                        quiet = true
+                        delay(POLL_INTERVAL_MS)
+                    }
+                }
+        }
 
     private val _replyDrafts = MutableStateFlow<Map<String, ReplyDraft>>(emptyMap())
 
     val replyDrafts: StateFlow<Map<String, ReplyDraft>> = _replyDrafts.asStateFlow()
 
-    private val replyKeys = mutableMapOf<String, Pair<String, String>>()
+    private class PendingReply(
+        val text: String,
+        val key: String,
+        val knownMessageIds: Set<String>,
+    )
+
+    private val pendingReplies = mutableMapOf<String, PendingReply>()
 
     private val replyWaits = mutableMapOf<String, Job>()
 
@@ -247,14 +289,26 @@ class AiTasksViewModel(
             updateDraft(taskId) { copy(failure = ReplyFailure.OFFLINE) }
             return
         }
-        val key = replyKeys[taskId]?.takeIf { it.first == text }?.second ?: Uuid.random().toString()
-        replyKeys[taskId] = text to key
+        val pending =
+            pendingReplies[taskId]?.takeIf { it.text == text }
+                ?: PendingReply(
+                    text = text,
+                    key = Uuid.random().toString(),
+                    knownMessageIds =
+                        aiTaskRepo.tasks.value
+                            .firstOrNull { it.id == taskId }
+                            ?.threadMessageIds()
+                            .orEmpty()
+                            .toSet(),
+                )
+        pendingReplies[taskId] = pending
         updateDraft(taskId) { copy(sending = true, failure = null, retryAfterSeconds = null) }
         viewModelScope.launch {
             try {
-                aiTaskRepo.reply(taskId, text, key)
-                replyKeys.remove(taskId)
+                aiTaskRepo.reply(taskId, text, pending.key)
+                pendingReplies.remove(taskId)
                 _replyDrafts.update { it - taskId }
+                replyAlerts.scheduleCheck()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 onReplyFailed(taskId, e)
@@ -270,13 +324,13 @@ class AiTasksViewModel(
         val status = api?.statusCode
         val code = api?.errorCode()
         if (status == 404) {
-            replyKeys.remove(taskId)
+            pendingReplies.remove(taskId)
             replyWaits.remove(taskId)?.cancel()
             _replyDrafts.update { it - taskId }
             _messages.emit(R.string.ai_tasks_reply_task_gone)
             return
         }
-        val blocked = status == 403 || status == 409 || (status == 429 && code in CODED_LIMITS)
+        val blocked = api?.isReplyBlocked() == true
         val failure =
             when {
                 blocked -> null
@@ -288,7 +342,7 @@ class AiTasksViewModel(
                 status != null && status >= 500 -> ReplyFailure.NETWORK
                 else -> ReplyFailure.UNKNOWN
             }
-        if (status == 422) replyKeys.remove(taskId)
+        if (status == 422) pendingReplies.remove(taskId)
         if (failure == ReplyFailure.INVALID || failure == ReplyFailure.UNKNOWN || (failure == ReplyFailure.NETWORK && api != null)) {
             errorReporter.captureException(e)
         }
@@ -305,6 +359,29 @@ class AiTasksViewModel(
                     replyWaits.remove(taskId)
                     updateDraft(taskId) { copy(waiting = false, failure = null, retryAfterSeconds = null) }
                 }
+        }
+        reconcileReplies(aiTaskRepo.tasks.value)
+    }
+
+    private fun reconcileReplies(tasks: List<AiTask>) {
+        for ((taskId, pending) in pendingReplies.toList()) {
+            if (_replyDrafts.value[taskId]?.sending == true) continue
+            val task = tasks.firstOrNull { it.id == taskId } ?: continue
+            val accepted =
+                task.claudeThread?.messages.orEmpty().any {
+                    it.author() == ReplyAuthor.USER && it.id !in pending.knownMessageIds && it.text.trim() == pending.text
+                }
+            if (!accepted) continue
+            pendingReplies.remove(taskId)
+            replyWaits.remove(taskId)?.cancel()
+            _replyDrafts.update { drafts ->
+                val draft = drafts[taskId] ?: return@update drafts
+                if (draft.text.trim() == pending.text) {
+                    drafts - taskId
+                } else {
+                    drafts + (taskId to draft.copy(failure = null, retryAfterSeconds = null, waiting = false))
+                }
+            }
         }
     }
 
@@ -408,12 +485,15 @@ class AiTasksViewModel(
         }
     }
 
+    init {
+        viewModelScope.launch { aiTaskRepo.tasks.collect { reconcileReplies(it) } }
+    }
+
     companion object {
         private const val KEY_FILTER = "ai_tasks_filter"
         private const val KEY_FILTER_CHOSEN = "ai_tasks_filter_chosen"
         const val POLL_INTERVAL_MS = 10_000L
         const val DEFAULT_IN_PROGRESS_WAIT_SECONDS = 2L
         private const val REQUEST_IN_PROGRESS = "request_in_progress"
-        private val CODED_LIMITS = setOf("rate_limited", "failed_too_often")
     }
 }

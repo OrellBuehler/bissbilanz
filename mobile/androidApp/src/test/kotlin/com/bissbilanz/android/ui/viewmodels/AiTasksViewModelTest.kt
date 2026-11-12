@@ -3,6 +3,7 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.SavedStateHandle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.aitasks.AiTaskReplyAlerts
 import com.bissbilanz.android.aitasks.AiTaskUploadQueue
 import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.generated.model.AiTask
@@ -75,7 +76,8 @@ class AiTasksViewModelTest {
                 every { items } returns MutableStateFlow(emptyList())
             }
         val connectivity: ConnectivityProvider = mockk { every { isOnline } returns online }
-        viewModel = AiTasksViewModel(aiTaskRepo, uploadQueue, errorReporter, entryRepo, connectivity, SavedStateHandle())
+        val replyAlerts: AiTaskReplyAlerts = mockk(relaxed = true)
+        viewModel = AiTasksViewModel(aiTaskRepo, uploadQueue, errorReporter, entryRepo, connectivity, replyAlerts, SavedStateHandle())
     }
 
     @AfterTest
@@ -123,6 +125,19 @@ class AiTasksViewModelTest {
             viewModel.refresh()
 
             assertEquals(false, viewModel.loadFailed.value)
+        }
+
+    @Test
+    fun aRecreatedScreenDoesNotLoadAgain() =
+        runTest {
+            viewModel.load()
+            assertEquals(false, viewModel.isLoading.value)
+
+            viewModel.load()
+
+            assertEquals(false, viewModel.isLoading.value)
+            coVerify(exactly = 1) { aiTaskRepo.refresh() }
+            coVerify(exactly = 1) { aiTaskRepo.acknowledgeAll() }
         }
 
     @Test

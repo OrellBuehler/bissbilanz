@@ -15,7 +15,7 @@ import com.bissbilanz.android.MainActivity
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.api.generated.model.AiTask
-import com.bissbilanz.repository.TaskReply
+import com.bissbilanz.util.TaskReply
 
 /**
  * Tells the user the assistant gave up on a meal they sent it, or that Claude answered a
@@ -101,6 +101,7 @@ object AiTaskNotifier {
                     .setStyle(NotificationCompat.BigTextStyle().bigText(reply.message.text))
                     .setAutoCancel(true)
                     .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                    .setOnlyAlertOnce(true)
                     .setGroup(REPLIES_GROUP_KEY)
                     .setContentIntent(openAiTasksIntent(context, id))
                     .build()
@@ -114,6 +115,7 @@ object AiTaskNotifier {
                 .setContentTitle(strings.getString(R.string.ai_tasks_reply_notification_summary))
                 .setGroup(REPLIES_GROUP_KEY)
                 .setGroupSummary(true)
+                .setOnlyAlertOnce(true)
                 .setAutoCancel(true)
                 .setContentIntent(openAiTasksIntent(context, REPLIES_SUMMARY_NOTIFICATION_ID))
                 .build(),
@@ -121,15 +123,23 @@ object AiTaskNotifier {
         return true
     }
 
-    fun announceReplies(
+    fun cancelReplies(
         context: Context,
-        prefs: AiTaskNotificationPreferences,
-        unread: List<TaskReply>,
-        knownMessageIds: Set<String>,
+        messageIds: Collection<String>,
     ) {
-        val fresh = prefs.unnotifiedReplies(unread.map { it.message.id }).toSet()
-        val shown = fresh.isNotEmpty() && showReplies(context, unread.filter { it.message.id in fresh })
-        prefs.markRepliesNotified(if (shown) fresh else emptySet(), knownMessageIds)
+        if (messageIds.isEmpty()) return
+        val manager = NotificationManagerCompat.from(context)
+        messageIds.forEach { manager.cancel(notificationId(it)) }
+        val active = context.getSystemService(NotificationManager::class.java)?.activeNotifications.orEmpty()
+        val replyStillShown =
+            active.any { it.id != REPLIES_SUMMARY_NOTIFICATION_ID && it.notification.group == REPLIES_GROUP_KEY }
+        if (!replyStillShown) manager.cancel(REPLIES_SUMMARY_NOTIFICATION_ID)
+    }
+
+    fun repliesEnabled(context: Context): Boolean {
+        if (!hasPermission(context) || !NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
+        val channel = context.getSystemService(NotificationManager::class.java)?.getNotificationChannel(CHANNEL_ID)
+        return channel == null || channel.importance != NotificationManager.IMPORTANCE_NONE
     }
 
     /**

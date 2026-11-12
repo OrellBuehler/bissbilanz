@@ -1,17 +1,28 @@
 package com.bissbilanz.android.ui.components
 
 import android.app.Application
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.ui.theme.BissbilanzTheme
 import com.bissbilanz.android.ui.viewmodels.ReplyDraft
 import com.bissbilanz.android.ui.viewmodels.ReplyFailure
@@ -203,10 +214,83 @@ class AiTaskThreadTest {
     }
 
     @Test
-    fun whileSendingTheButtonSaysSo() {
-        show(thread(), draft = ReplyDraft(text = "It was 3 eggs", sending = true))
+    fun whileSendingTheButtonKeepsItsLabelAndWidthAndSaysSoToAccessibility() {
+        var sending by mutableStateOf(false)
+        composeTestRule.setContent {
+            BissbilanzTheme {
+                AiTaskThread(thread(), ReplyDraft(text = "It was 3 eggs", sending = sending), emptySet(), {}, {})
+            }
+        }
+        val idleWidth =
+            composeTestRule
+                .onNodeWithText("Send reply")
+                .fetchSemanticsNode()
+                .size.width
 
-        composeTestRule.onNodeWithText("Sending reply").assertIsNotEnabled()
+        sending = true
+
+        val button = composeTestRule.onNodeWithText("Send reply")
+        button.assertIsNotEnabled()
+        button.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Sending reply"))
+        assertEquals(idleWidth, button.fetchSemanticsNode().size.width)
+    }
+
+    @Test
+    fun noSentenceForATaskThatIsNotCompletedOrHasNoReason() {
+        var reason by mutableStateOf<String?>("not_completed")
+        composeTestRule.setContent {
+            BissbilanzTheme {
+                AiTaskThread(thread(canReply = false, replyBlockedReason = reason), ReplyDraft(), emptySet(), {}, {})
+            }
+        }
+        composeTestRule.onAllNodesWithText("Replies are possible once this task is completed.").assertCountEqualsTo(0)
+
+        reason = null
+
+        composeTestRule.onAllNodesWithText("Replies are not possible for this task right now.").assertCountEqualsTo(0)
+        composeTestRule.onAllNodesWithText("Send reply").assertCountEqualsTo(0)
+    }
+
+    @Test
+    fun answersReportWhetherTheyAreOnScreenAndUserMessagesDoNot() {
+        val visible = mutableMapOf<String, Boolean>()
+        composeTestRule.setContent {
+            BissbilanzTheme {
+                Column(modifier = Modifier.height(140.dp).verticalScroll(rememberScrollState())) {
+                    AiTaskThread(
+                        thread(
+                            message("a1", "First answer"),
+                            message("u1", "A question", role = "user"),
+                            message("a2", "Second answer\nwith\nseveral\nlines\nof\ntext"),
+                        ),
+                        ReplyDraft(),
+                        emptySet(),
+                        {},
+                        {},
+                        onAnswerVisible = { id, shown -> visible[id] = shown },
+                    )
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        assertEquals(true, visible["a1"])
+        assertEquals(false, visible["a2"])
+        assertEquals(null, visible["u1"])
+    }
+
+    @Test
+    fun aFocusedComposerIsFocusedAgainAfterTheScreenIsRecreated() {
+        val restoration = StateRestorationTester(composeTestRule)
+        restoration.setContent {
+            BissbilanzTheme { AiTaskThread(thread(), ReplyDraft(text = "It was"), emptySet(), {}, {}) }
+        }
+        composeTestRule.onNodeWithText("Reply to Claude").performClick()
+        composeTestRule.onNodeWithText("Reply to Claude").assertIsFocused()
+
+        restoration.emulateSavedInstanceStateRestore()
+
+        composeTestRule.onNodeWithText("Reply to Claude").assertIsFocused()
     }
 
     @Test

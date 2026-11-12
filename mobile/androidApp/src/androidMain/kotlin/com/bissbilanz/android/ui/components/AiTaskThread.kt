@@ -28,15 +28,28 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,22 +79,29 @@ fun AiTaskThread(
     onTextChange: (String) -> Unit,
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
+    onAnswerVisible: (messageId: String, visible: Boolean) -> Unit = { _, _ -> },
 ) {
     val correction = thread.correction()
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         thread.messages.forEach { message ->
-            ThreadMessage(message = message, isNew = message.unread || message.id in newReplyIds)
+            ThreadMessage(
+                message = message,
+                isNew = message.unread || message.id in newReplyIds,
+                onAnswerVisible = onAnswerVisible,
+            )
         }
         when {
             correction.isInProgress() -> CorrectionInProgress(retrying = correction == CorrectionState.RETRYING)
             thread.canReply -> ReplyComposer(draft = draft, onTextChange = onTextChange, onSend = onSend)
             else -> {
-                Text(
-                    stringResource((thread.replyBlock() ?: ReplyBlock.OTHER).message()),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                thread.replyBlock()?.takeIf { thread.replyBlockedReason != null && it != ReplyBlock.NOT_COMPLETED }?.let {
+                    Text(
+                        stringResource(it.message()),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 RetryHint(draft)
             }
         }
@@ -93,12 +113,16 @@ fun AiTaskThread(
 private fun ThreadMessage(
     message: AiTaskThreadMessage,
     isNew: Boolean,
+    onAnswerVisible: (messageId: String, visible: Boolean) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     val fromUser = message.author() == ReplyAuthor.USER
     val outcome = message.replyOutcome()
     val failed = outcome == ReplyOutcome.FAILED
     val tint = if (LocalIsDarkTheme.current) 0.35f else 1f
+    if (!fromUser) {
+        DisposableEffect(message.id) { onDispose { onAnswerVisible(message.id, false) } }
+    }
     val container =
         when {
             fromUser -> colors.surfaceContainerLowest
@@ -120,7 +144,16 @@ private fun ThreadMessage(
             Modifier
                 .fillMaxWidth()
                 .padding(start = if (fromUser) 32.dp else 0.dp, end = if (fromUser) 0.dp else 32.dp)
-                .semantics(mergeDescendants = true) {},
+                .then(
+                    if (fromUser) {
+                        Modifier
+                    } else {
+                        Modifier.onGloballyPositioned { coordinates ->
+                            val shown = coordinates.boundsInWindow().height
+                            onAnswerVisible(message.id, coordinates.size.height > 0 && shown * 2 >= coordinates.size.height)
+                        }
+                    },
+                ).semantics(mergeDescendants = true) {},
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
             FlowRow(
@@ -198,6 +231,10 @@ private fun ReplyComposer(
 ) {
     val length = draft.text.trim().length
     val tooLong = length > AI_TASK_REPLY_MAX_CHARS
+    val focusRequester = remember { FocusRequester() }
+    var focused by rememberSaveable { mutableStateOf(false) }
+    val refocus = remember { focused }
+    LaunchedEffect(Unit) { if (refocus) focusRequester.requestFocus() }
     OutlinedTextField(
         value = draft.text,
         onValueChange = onTextChange,
@@ -218,7 +255,11 @@ private fun ReplyComposer(
         maxLines = 6,
         textStyle = MaterialTheme.typography.bodyMedium,
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester)
+                .onFocusChanged { focused = it.isFocused },
     )
     draft.failure?.let { failure ->
         Text(
@@ -236,7 +277,12 @@ private fun ReplyComposer(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
-        Button(onClick = onSend, enabled = draft.canSend) {
+        val sendingLabel = stringResource(R.string.ai_tasks_reply_sending)
+        Button(
+            onClick = onSend,
+            enabled = draft.canSend,
+            modifier = Modifier.semantics { if (draft.sending) stateDescription = sendingLabel },
+        ) {
             if (draft.sending) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp),
@@ -247,11 +293,7 @@ private fun ReplyComposer(
                 Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                stringResource(if (draft.sending) R.string.ai_tasks_reply_sending else R.string.ai_tasks_reply_send),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Text(stringResource(R.string.ai_tasks_reply_send), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

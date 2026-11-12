@@ -197,3 +197,8 @@ fun ApiException.errorCode(): String? {
         .map { it.code ?: it.error }
         .getOrNull()
 }
+
+val REPLY_LIMIT_CODES = setOf("rate_limited", "failed_too_often")
+
+fun ApiException.isReplyBlocked(): Boolean =
+    statusCode == 403 || statusCode == 409 || (statusCode == 429 && errorCode() in REPLY_LIMIT_CODES)

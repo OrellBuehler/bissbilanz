@@ -7,9 +7,11 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.aitasks.AiTaskDiaryRefresher
 import com.bissbilanz.android.aitasks.AiTaskNotificationPreferences
 import com.bissbilanz.android.aitasks.AiTaskNotifier
 import com.bissbilanz.android.aitasks.AiTaskPollWorker
+import com.bissbilanz.android.aitasks.AiTaskReplyAlerts
 import com.bissbilanz.android.aitasks.AiTaskUploadQueue
 import com.bissbilanz.android.aitasks.McpConnectionStore
 import com.bissbilanz.android.bulk.BulkImportScheduler
@@ -208,6 +210,8 @@ class BissbilanzApplication :
                 single { SupplementReminderPreferences(androidContext()) }
                 single { ReminderPreferences(androidContext()) }
                 single { AiTaskNotificationPreferences(androidContext()) }
+                single { AiTaskReplyAlerts(androidContext(), get()) }
+                single { AiTaskDiaryRefresher(get(), get()) }
                 single { AiTaskUploadQueue(androidContext()) }
                 single { McpConnectionStore(androidContext()) }
                 single { HealthImporter(get(), get(), get(), get(), get(), get()) }
@@ -433,13 +437,10 @@ class BissbilanzApplication :
             // id a concurrent refresh had already recorded, re-alerting the user.
             aiTaskNotificationPrefs.markNotified(if (shown) fresh else emptyList(), knownIds)
         }
-        koin.get<AiTaskRepository>().onUnreadReplies = { unread, knownMessageIds ->
-            AiTaskNotifier.announceReplies(this@BissbilanzApplication, aiTaskNotificationPrefs, unread, knownMessageIds)
-        }
-        val entryRepository = koin.get<EntryRepository>()
-        koin.get<AiTaskRepository>().onRepliesChangedDiary = { dates ->
-            dates.forEach { entryRepository.refresh(it) }
-        }
+        val replyAlerts = koin.get<AiTaskReplyAlerts>()
+        koin.get<AiTaskRepository>().onUnreadReplies = { replyAlerts.announce(it) }
+        val diaryRefresher = koin.get<AiTaskDiaryRefresher>()
+        koin.get<AiTaskRepository>().onChangedReplies = { diaryRefresher.refresh(it) }
         // Nothing else pulls AI tasks while the app is closed — there is no push
         // channel, and the only other periodic work exists solely for the widgets.
         AiTaskPollWorker.enqueue(this)

@@ -22,6 +22,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -78,7 +79,7 @@ import kotlin.time.Instant
 fun AiTasksScreen(navController: NavController) {
     val viewModel: AiTasksViewModel = koinViewModel()
     val context = LocalContext.current
-    val tasks by viewModel.visibleTasks.collectAsStateWithLifecycle(emptyList())
+    val tasks by viewModel.visibleTasks.collectAsStateWithLifecycle()
     val queuedUploads by viewModel.queuedUploads.collectAsStateWithLifecycle()
     val selectedFilter by viewModel.filter.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -92,6 +93,9 @@ fun AiTasksScreen(navController: NavController) {
     val taskUpdatedMessage = stringResource(R.string.ai_tasks_updated)
     var taskToDelete by remember { mutableStateOf<AiTask?>(null) }
     var taskToEdit by remember { mutableStateOf<AiTask?>(null) }
+    var gallery by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
+    var permissionAsked by rememberSaveable { mutableStateOf(false) }
+    val visibleAnswers = remember { mutableStateMapOf<String, Boolean>() }
 
     val filters =
         listOf(
@@ -115,13 +119,15 @@ fun AiTasksScreen(navController: NavController) {
 
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(lifecycleOwner) {
-        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.pollWhileClaudeWorks() }
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.whileScreenVisible() }
     }
 
     LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        if (!permissionAsked &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             !AiTaskNotifier.hasPermission(context)
         ) {
+            permissionAsked = true
             permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
         // Opening the list is what marks the outcomes as read — posting a
@@ -190,11 +196,12 @@ fun AiTasksScreen(navController: NavController) {
                         EmptyState(stringResource(selectedFilter.emptyMessage), Icons.Default.AutoAwesome)
                     } else {
                         val listState = rememberLazyListState()
-                        LaunchedEffect(listState, lifecycleOwner) {
-                            lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                        LaunchedEffect(lifecycleOwner) {
+                            lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                                 viewModel.markDisplayedRepliesRead(
                                     snapshotFlow {
-                                        listState.layoutInfo.visibleItemsInfo.mapNotNullTo(mutableSetOf()) { it.key as? String }
+                                        val covered = taskToDelete != null || taskToEdit != null || gallery != null
+                                        if (covered) emptySet() else visibleAnswers.filterValues { it }.keys.toSet()
                                     },
                                 )
                             }
@@ -231,6 +238,10 @@ fun AiTasksScreen(navController: NavController) {
                                     newReplyIds = newReplyIds,
                                     onReplyTextChange = { viewModel.updateReplyText(task.id, it) },
                                     onSendReply = { viewModel.sendReply(task.id) },
+                                    onAnswerVisible = { id, visible ->
+                                        if (visibleAnswers[id] != visible) visibleAnswers[id] = visible
+                                    },
+                                    onOpenPhoto = { gallery = task.photoUrls to it },
                                     modifier = Modifier.animateItem(),
                                 )
                             }
@@ -239,6 +250,14 @@ fun AiTasksScreen(navController: NavController) {
                 }
             }
         }
+    }
+
+    gallery?.let { (urls, index) ->
+        AiTaskImageViewer(
+            imageUrls = urls,
+            initialIndex = index,
+            onDismiss = { gallery = null },
+        )
     }
 
     taskToEdit?.let { task ->
@@ -351,6 +370,8 @@ private fun AiTaskListItem(
     newReplyIds: Set<String>,
     onReplyTextChange: (String) -> Unit,
     onSendReply: () -> Unit,
+    onAnswerVisible: (messageId: String, visible: Boolean) -> Unit,
+    onOpenPhoto: (index: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val thread = task.claudeThread
@@ -358,8 +379,6 @@ private fun AiTaskListItem(
         task.isUnreadDismissal() ||
             task.hasUnreadReply() ||
             thread?.messages.orEmpty().any { it.id in newReplyIds }
-    var galleryIndex by remember(task.id) { mutableStateOf<Int?>(null) }
-
     Card(
         modifier = modifier.fillMaxWidth(),
         colors =
@@ -388,7 +407,7 @@ private fun AiTaskListItem(
                                 Modifier
                                     .size(64.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .clickable { galleryIndex = index },
+                                    .clickable { onOpenPhoto(index) },
                             contentScale = ContentScale.Crop,
                         )
                     }
@@ -540,17 +559,10 @@ private fun AiTaskListItem(
                     newReplyIds = newReplyIds,
                     onTextChange = onReplyTextChange,
                     onSend = onSendReply,
+                    onAnswerVisible = onAnswerVisible,
                 )
             }
         }
-    }
-
-    galleryIndex?.let { index ->
-        AiTaskImageViewer(
-            imageUrls = task.photoUrls,
-            initialIndex = index,
-            onDismiss = { galleryIndex = null },
-        )
     }
 }
 

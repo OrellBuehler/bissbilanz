@@ -3,6 +3,7 @@ package com.bissbilanz.android.ui.viewmodels
 import androidx.lifecycle.SavedStateHandle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.aitasks.AiTaskReplyAlerts
 import com.bissbilanz.android.aitasks.AiTaskUploadQueue
 import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.UnauthorizedException
@@ -46,6 +47,7 @@ class AiTasksViewModelRepliesTest {
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var aiTaskRepo: AiTaskRepository
     private lateinit var errorReporter: ErrorReporter
+    private lateinit var replyAlerts: AiTaskReplyAlerts
     private lateinit var viewModel: AiTasksViewModel
     private val tasks = MutableStateFlow<List<AiTask>>(emptyList())
     private val online = MutableStateFlow(true)
@@ -105,11 +107,13 @@ class AiTasksViewModelRepliesTest {
                 every { tasks } returns this@AiTasksViewModelRepliesTest.tasks
             }
         coEvery { aiTaskRepo.reply(any(), any(), any()) } returns task(correctionState = "queued")
+        coEvery { aiTaskRepo.markRepliesRead(any(), any()) } returns true
         errorReporter = mockk(relaxed = true)
+        replyAlerts = mockk(relaxed = true)
         val uploadQueue: AiTaskUploadQueue = mockk(relaxed = true) { every { items } returns MutableStateFlow(emptyList()) }
         val entryRepo: EntryRepository = mockk(relaxed = true)
         val connectivity: ConnectivityProvider = mockk { every { isOnline } returns online }
-        viewModel = AiTasksViewModel(aiTaskRepo, uploadQueue, errorReporter, entryRepo, connectivity, SavedStateHandle())
+        viewModel = AiTasksViewModel(aiTaskRepo, uploadQueue, errorReporter, entryRepo, connectivity, replyAlerts, SavedStateHandle())
     }
 
     @AfterTest
@@ -124,6 +128,8 @@ class AiTasksViewModelRepliesTest {
     }
 
     private fun draft(taskId: String = "t1") = viewModel.replyDrafts.value[taskId]
+
+    private fun AiTaskThreadMessage.withText(text: String) = copy(text = text)
 
     private fun failWith(
         status: Int,
@@ -426,51 +432,200 @@ class AiTasksViewModelRepliesTest {
         }
 
     @Test
-    fun displayedUnreadAnswersAreMarkedReadAndStayNewForTheVisit() =
+    fun onlyAnswersActuallyOnScreenAreMarkedReadAndTheyStayNewForTheVisit() =
         runTest {
             tasks.value =
                 listOf(
                     task("t1", "idle", listOf(message("u1", role = "user"), message("a1", unread = true), message("a2"))),
                     task("t2", "idle", listOf(message("a3", unread = true))),
                 )
-            val displayed = MutableStateFlow(setOf("t1"))
+            val displayed = MutableStateFlow(setOf("a1"))
             backgroundScope.launch(testDispatcher) { viewModel.markDisplayedRepliesRead(displayed) }
 
-            coVerify(exactly = 1) { aiTaskRepo.markRepliesRead(setOf("a1")) }
+            coVerify(exactly = 1) { aiTaskRepo.markRepliesRead(setOf("a1"), false) }
             assertEquals(setOf("a1"), viewModel.newReplyIds.value)
 
-            displayed.value = setOf("t1", "t2", "upload-x")
+            displayed.value = setOf("a1", "a2", "a3")
 
-            coVerify(exactly = 1) { aiTaskRepo.markRepliesRead(setOf("a1", "a3")) }
+            coVerify(exactly = 1) { aiTaskRepo.markRepliesRead(setOf("a1", "a3"), false) }
             assertEquals(setOf("a1", "a3"), viewModel.newReplyIds.value)
             coVerify(exactly = 0) { aiTaskRepo.acknowledgeAll(any()) }
         }
 
     @Test
-    fun answersAreNotMarkedReadWhileOffline() =
+    fun answersOnScreenCancelTheirNotificationOnceEvenWhileOffline() =
         runTest {
             online.value = false
-            tasks.value = listOf(task("t1", "idle", listOf(message("a1", unread = true))))
-            backgroundScope.launch(testDispatcher) { viewModel.markDisplayedRepliesRead(MutableStateFlow(setOf("t1"))) }
+            tasks.value = listOf(task("t1", "idle", listOf(message("a1", unread = true), message("a2"))))
+            val displayed = MutableStateFlow(setOf("a1", "a2"))
+            backgroundScope.launch(testDispatcher) { viewModel.markDisplayedRepliesRead(displayed) }
 
-            coVerify(exactly = 0) { aiTaskRepo.markRepliesRead(any()) }
+            verify(exactly = 1) { replyAlerts.shown(setOf("a1", "a2")) }
+            coVerify(exactly = 0) { aiTaskRepo.markRepliesRead(any(), any()) }
 
-            online.value = true
+            displayed.value = emptySet()
+            displayed.value = setOf("a1", "a2")
 
-            coVerify(exactly = 1) { aiTaskRepo.markRepliesRead(setOf("a1")) }
+            verify(exactly = 1) { replyAlerts.shown(any()) }
         }
 
     @Test
-    fun aNewAnswerOnADisplayedTaskIsMarkedReadWhenItArrives() =
+    fun answersAreMarkedReadOnceTheDeviceIsBackOnline() =
+        runTest {
+            online.value = false
+            tasks.value = listOf(task("t1", "idle", listOf(message("a1", unread = true))))
+            backgroundScope.launch(testDispatcher) { viewModel.markDisplayedRepliesRead(MutableStateFlow(setOf("a1"))) }
+
+            coVerify(exactly = 0) { aiTaskRepo.markRepliesRead(any(), any()) }
+
+            online.value = true
+
+            coVerify(exactly = 1) { aiTaskRepo.markRepliesRead(setOf("a1"), false) }
+        }
+
+    @Test
+    fun aFailedReadMarkIsRetriedQuietlyWhileTheAnswerStaysOnScreen() =
+        runTest {
+            coEvery { aiTaskRepo.markRepliesRead(any(), any()) } returns false andThen false andThen true
+            tasks.value = listOf(task("t1", "idle", listOf(message("a1", unread = true))))
+            backgroundScope.launch(testDispatcher) { viewModel.markDisplayedRepliesRead(MutableStateFlow(setOf("a1"))) }
+
+            coVerify(exactly = 1) { aiTaskRepo.markRepliesRead(setOf("a1"), false) }
+            advanceTimeBy(AiTasksViewModel.POLL_INTERVAL_MS + 1)
+            advanceTimeBy(AiTasksViewModel.POLL_INTERVAL_MS)
+            coVerify(exactly = 2) { aiTaskRepo.markRepliesRead(setOf("a1"), true) }
+            advanceTimeBy(AiTasksViewModel.POLL_INTERVAL_MS * 3)
+            coVerify(exactly = 3) { aiTaskRepo.markRepliesRead(any(), any()) }
+        }
+
+    @Test
+    fun aNewAnswerOnScreenIsMarkedReadWhenItArrives() =
         runTest {
             tasks.value = listOf(task("t1", "running", listOf(message("u1", role = "user"))))
-            backgroundScope.launch(testDispatcher) { viewModel.markDisplayedRepliesRead(MutableStateFlow(setOf("t1"))) }
-            coVerify(exactly = 0) { aiTaskRepo.markRepliesRead(any()) }
+            val displayed = MutableStateFlow(emptySet<String>())
+            backgroundScope.launch(testDispatcher) { viewModel.markDisplayedRepliesRead(displayed) }
+            coVerify(exactly = 0) { aiTaskRepo.markRepliesRead(any(), any()) }
 
             tasks.value =
                 listOf(task("t1", "idle", listOf(message("u1", role = "user"), message("a1", outcome = "changed", unread = true))))
+            displayed.value = setOf("a1")
 
-            coVerify(exactly = 1) { aiTaskRepo.markRepliesRead(setOf("a1")) }
+            coVerify(exactly = 1) { aiTaskRepo.markRepliesRead(setOf("a1"), false) }
+        }
+
+    @Test
+    fun theScreenStaysMarkedVisibleForAsLongAsItIsShownAndPollsOnce() =
+        runTest {
+            var visible = 0
+            coEvery { replyAlerts.whileListVisible(any()) } coAnswers {
+                visible++
+                try {
+                    firstArg<suspend () -> Unit>().invoke()
+                } finally {
+                    visible--
+                }
+            }
+            tasks.value = listOf(task(correctionState = "running"))
+
+            val first = backgroundScope.launch(testDispatcher) { viewModel.whileScreenVisible() }
+            val second = backgroundScope.launch(testDispatcher) { viewModel.whileScreenVisible() }
+            advanceTimeBy(AiTasksViewModel.POLL_INTERVAL_MS + 1)
+
+            assertEquals(2, visible)
+            coVerify(exactly = 1) { aiTaskRepo.refresh() }
+            first.cancel()
+            second.cancel()
+            assertEquals(0, visible)
+        }
+
+    @Test
+    fun aSentReplySchedulesAFollowUpCheck() =
+        runTest {
+            viewModel.updateReplyText("t1", "It was 3 eggs")
+            viewModel.sendReply("t1")
+
+            verify(exactly = 1) { replyAlerts.scheduleCheck() }
+
+            coEvery { aiTaskRepo.reply(any(), any(), any()) } throws IOException("offline")
+            viewModel.updateReplyText("t1", "Again")
+            viewModel.sendReply("t1")
+
+            verify(exactly = 1) { replyAlerts.scheduleCheck() }
+        }
+
+    @Test
+    fun aReplyTheServerTookDespiteALostResponseClearsTheDraftOnceTheThreadShowsIt() =
+        runTest {
+            tasks.value = listOf(task("t1", "idle", listOf(message("u0", role = "user"), message("a0"))))
+            coEvery { aiTaskRepo.reply(any(), any(), any()) } throws IOException("timeout")
+            viewModel.updateReplyText("t1", "It was 3 eggs")
+            viewModel.sendReply("t1")
+            assertEquals(ReplyFailure.NETWORK, draft()?.failure)
+
+            tasks.value =
+                listOf(
+                    task(
+                        "t1",
+                        "running",
+                        listOf(message("u0", role = "user"), message("a0"), message("u1", role = "user").withText("It was 3 eggs")),
+                    ),
+                )
+
+            assertNull(draft())
+            coEvery { aiTaskRepo.reply(any(), any(), any()) } returns task(correctionState = "queued")
+            viewModel.updateReplyText("t1", "It was 3 eggs")
+            viewModel.sendReply("t1")
+            val keys = sentKeys()
+            assertNotEquals(keys[0], keys[1])
+        }
+
+    @Test
+    fun anOlderMessageWithTheSameTextDoesNotCountAsTheReply() =
+        runTest {
+            tasks.value = listOf(task("t1", "idle", listOf(message("u0", role = "user").withText("Try again"), message("a0"))))
+            coEvery { aiTaskRepo.reply(any(), any(), any()) } throws IOException("timeout")
+            viewModel.updateReplyText("t1", "Try again")
+            viewModel.sendReply("t1")
+
+            tasks.value = tasks.value.map { it.copy(resultSummary = "touched") }
+
+            assertEquals("Try again", draft()?.text)
+            assertEquals(ReplyFailure.NETWORK, draft()?.failure)
+        }
+
+    @Test
+    fun anEditedDraftSurvivesTheReplyBeingFoundButLosesTheStaleFailure() =
+        runTest {
+            tasks.value = listOf(task("t1", "idle"))
+            coEvery { aiTaskRepo.reply(any(), any(), any()) } throws failWith(503, """{"error":"request_in_progress"}""", retryAfter = 30)
+            viewModel.updateReplyText("t1", "It was 3 eggs")
+            viewModel.sendReply("t1")
+            viewModel.updateReplyText("t1", "Also the toast")
+            assertEquals(ReplyFailure.STILL_SENDING, draft()?.failure)
+
+            tasks.value = listOf(task("t1", "running", listOf(message("u1", role = "user").withText("It was 3 eggs"))))
+
+            assertEquals("Also the toast", draft()?.text)
+            assertNull(draft()?.failure)
+            assertEquals(false, draft()?.waiting)
+            assertTrue(draft()?.canSend ?: false)
+        }
+
+    @Test
+    fun aReadDuringTheSendDoesNotDropTheDraftButAFailureAfterwardsDoes() =
+        runTest {
+            tasks.value = listOf(task("t1", "idle"))
+            val gate = CompletableDeferred<AiTask>()
+            coEvery { aiTaskRepo.reply(any(), any(), any()) } coAnswers { gate.await() }
+            viewModel.updateReplyText("t1", "It was 3 eggs")
+            viewModel.sendReply("t1")
+
+            tasks.value = listOf(task("t1", "queued", listOf(message("u1", role = "user").withText("It was 3 eggs"))))
+            assertEquals(true, draft()?.sending)
+
+            gate.completeExceptionally(IOException("timeout"))
+
+            assertNull(draft())
         }
 
     @Test

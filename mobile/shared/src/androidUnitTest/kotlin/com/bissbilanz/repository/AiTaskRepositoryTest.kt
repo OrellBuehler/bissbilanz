@@ -25,6 +25,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class AiTaskRepositoryTest {
@@ -317,7 +318,7 @@ class AiTaskRepositoryTest {
         }
 
     @Test
-    fun aReplayedReplyReReadsTheList() =
+    fun aReplayedReplyReReadsTheListInsteadOfApplyingItsOldBody() =
         runTest {
             val snapshot = answered(messages = listOf(TestFixtures.threadMessage("u1", role = "user")), correctionState = "queued")
             val current =
@@ -334,20 +335,24 @@ class AiTaskRepositoryTest {
         }
 
     @Test
-    fun aFailedReReadAfterAReplayKeepsTheSnapshotAndReportsWithoutFailingTheReply() =
+    fun aFailedReReadAfterAReplayKeepsTheFresherCopyAndFailsTheSend() =
         runTest {
             val reporter: ErrorReporter = mockk(relaxed = true)
             val repo = AiTaskRepository(api, reporter, appModeManager())
-            val snapshot = answered(correctionState = "queued")
-            coEvery { api.listAiTasks(limit = 100) } returns list(answered())
+            val fresher =
+                answered(
+                    messages = listOf(TestFixtures.threadMessage("u1", role = "user"), TestFixtures.threadMessage("a1", unread = true)),
+                )
+            coEvery { api.listAiTasks(limit = 100) } returns list(fresher)
             repo.refresh()
-            coEvery { api.replyToAiTask("1", "x", "key-1") } returns AiTaskReplyResult(snapshot, replayed = true)
+            coEvery { api.replyToAiTask("1", "x", "key-1") } returns
+                AiTaskReplyResult(answered(correctionState = "queued"), replayed = true)
             coEvery { api.listAiTasks(limit = 100) } throws java.io.IOException("offline")
 
-            repo.reply("1", "x", "key-1")
+            assertFailsWith<java.io.IOException> { repo.reply("1", "x", "key-1") }
 
-            assertEquals(listOf(snapshot), repo.tasks.value)
-            verify(exactly = 1) { reporter.captureException(any()) }
+            assertEquals(listOf(fresher), repo.tasks.value)
+            verify(exactly = 0) { reporter.captureException(any()) }
         }
 
     @Test
@@ -399,10 +404,10 @@ class AiTaskRepositoryTest {
         }
 
     @Test
-    fun refreshAnnouncesUnreadAnswersWithEveryKnownMessageId() =
+    fun refreshAnnouncesUnreadAnswers() =
         runTest {
-            val announced = mutableListOf<Pair<List<String>, Set<String>>>()
-            repository.onUnreadReplies = { unread, known -> announced += unread.map { it.message.id } to known }
+            val announced = mutableListOf<List<String>>()
+            repository.onUnreadReplies = { unread -> announced += unread.map { it.message.id } }
             coEvery { api.listAiTasks(limit = 100) } returns
                 list(
                     answered(
@@ -419,7 +424,7 @@ class AiTaskRepositoryTest {
 
             repository.refresh()
 
-            assertEquals(listOf(listOf("a1") to setOf("u1", "a1", "a2")), announced)
+            assertEquals(listOf(listOf("a1")), announced)
             assertEquals(1, repository.unreadReplyCount())
         }
 
@@ -427,7 +432,7 @@ class AiTaskRepositoryTest {
     fun refreshWithoutUnreadAnswersAnnouncesNothing() =
         runTest {
             var calls = 0
-            repository.onUnreadReplies = { _, _ -> calls++ }
+            repository.onUnreadReplies = { calls++ }
             coEvery { api.listAiTasks(limit = 100) } returns list(answered(messages = listOf(TestFixtures.threadMessage("a1"))))
 
             repository.refresh()
@@ -437,33 +442,33 @@ class AiTaskRepositoryTest {
         }
 
     @Test
-    fun anAnswerThatChangedTheDiaryRefreshesItsDay() =
+    fun anAnswerThatChangedTheDiaryIsHandedOnWithItsTask() =
         runTest {
-            val refreshed = mutableListOf<Set<String>>()
-            repository.onRepliesChangedDiary = { refreshed += it }
+            val handed = mutableListOf<List<Pair<String, String>>>()
+            repository.onChangedReplies = { changed -> handed += changed.map { it.message.id to it.task.date } }
             val user = TestFixtures.threadMessage("u1", role = "user")
             coEvery { api.listAiTasks(limit = 100) } returns list(answered(messages = listOf(user), correctionState = "running"))
             repository.refresh()
-            val changed = TestFixtures.threadMessage("a1", outcome = "changed", unread = true)
+            val changed = TestFixtures.threadMessage("a1", outcome = "changed")
             coEvery { api.listAiTasks(limit = 100) } returns list(answered(date = "2024-01-15", messages = listOf(user, changed)))
 
             repository.refresh()
             repository.refresh()
 
-            assertEquals(listOf(setOf("2024-01-15")), refreshed)
+            assertEquals(listOf(listOf("a1" to "2024-01-15")), handed)
         }
 
     @Test
-    fun theFirstReadRefreshesTheDaysOfUnreadChanges() =
+    fun theFirstReadHandsOnUnreadChanges() =
         runTest {
-            val refreshed = mutableListOf<Set<String>>()
-            repository.onRepliesChangedDiary = { refreshed += it }
+            val handed = mutableListOf<List<String>>()
+            repository.onChangedReplies = { changed -> handed += changed.map { it.message.id } }
             coEvery { api.listAiTasks(limit = 100) } returns
                 list(answered(date = "2024-01-20", messages = listOf(TestFixtures.threadMessage("a1", outcome = "changed", unread = true))))
 
             repository.refresh()
 
-            assertEquals(listOf(setOf("2024-01-20")), refreshed)
+            assertEquals(listOf(listOf("a1")), handed)
         }
 
     @Test
@@ -471,7 +476,7 @@ class AiTaskRepositoryTest {
         runTest {
             val reporter: ErrorReporter = mockk(relaxed = true)
             val repo = AiTaskRepository(api, reporter, appModeManager())
-            repo.onRepliesChangedDiary = { throw RuntimeException("entries offline") }
+            repo.onChangedReplies = { throw RuntimeException("entries offline") }
             val task = answered(messages = listOf(TestFixtures.threadMessage("a1", outcome = "changed", unread = true)))
             coEvery { api.listAiTasks(limit = 100) } returns list(task)
 
@@ -499,7 +504,7 @@ class AiTaskRepositoryTest {
             repository.refresh()
             coEvery { api.acknowledgeAiTaskReplies(any()) } returns 1
 
-            repository.markRepliesRead(listOf("a1", "a2", "u1", "missing", "a1"))
+            assertTrue(repository.markRepliesRead(listOf("a1", "a2", "u1", "missing", "a1")))
 
             coVerify(exactly = 1) { api.acknowledgeAiTaskReplies(listOf("a1")) }
             coVerify(exactly = 0) { api.acknowledgeAiTasks(any()) }
@@ -518,7 +523,7 @@ class AiTaskRepositoryTest {
                     ?.unreadReplies,
             )
 
-            repository.markRepliesRead(listOf("a1"))
+            assertTrue(repository.markRepliesRead(listOf("a1")))
 
             coVerify(exactly = 1) { api.acknowledgeAiTaskReplies(any()) }
         }
@@ -563,12 +568,13 @@ class AiTaskRepositoryTest {
             repo.refresh()
             coEvery { api.acknowledgeAiTaskReplies(any()) } throws java.io.IOException("offline")
 
-            repo.markRepliesRead(listOf("a1"))
+            assertFalse(repo.markRepliesRead(listOf("a1")))
+            assertFalse(repo.markRepliesRead(listOf("a1"), quiet = true))
 
             assertEquals(1, repo.unreadReplyCount())
             verify(exactly = 1) { reporter.captureException(any()) }
             coEvery { api.acknowledgeAiTaskReplies(any()) } returns 1
-            repo.markRepliesRead(listOf("a1"))
+            assertTrue(repo.markRepliesRead(listOf("a1")))
             assertEquals(0, repo.unreadReplyCount())
         }
 

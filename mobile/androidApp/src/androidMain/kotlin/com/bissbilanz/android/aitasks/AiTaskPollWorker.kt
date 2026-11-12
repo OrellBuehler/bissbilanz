@@ -4,7 +4,9 @@ import android.content.Context
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -44,6 +46,19 @@ class AiTaskPollWorker(
 
     companion object {
         private const val WORK_NAME = "ai_task_poll"
+        const val REPLY_CHECK_WORK_NAME = "ai_task_reply_check"
+        const val REPLY_CHECK_DELAY_SECONDS = 60L
+
+        private fun constraints() = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+
+        fun scheduleReplyCheck(context: Context) {
+            val work =
+                OneTimeWorkRequestBuilder<AiTaskPollWorker>()
+                    .setInitialDelay(REPLY_CHECK_DELAY_SECONDS, TimeUnit.SECONDS)
+                    .setConstraints(constraints())
+                    .build()
+            WorkManager.getInstance(context).enqueueUniqueWork(REPLY_CHECK_WORK_NAME, ExistingWorkPolicy.REPLACE, work)
+        }
 
         fun enqueue(context: Context) {
             val work =
@@ -52,9 +67,8 @@ class AiTaskPollWorker(
                     TimeUnit.MINUTES,
                     15,
                     TimeUnit.MINUTES,
-                ).setConstraints(
-                    Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build(),
-                ).build()
+                ).setConstraints(constraints())
+                    .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,
                 // KEEP so an app restart doesn't reset the interval and effectively

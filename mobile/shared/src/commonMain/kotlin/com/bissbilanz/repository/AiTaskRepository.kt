@@ -3,15 +3,15 @@ package com.bissbilanz.repository
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.BissbilanzApi
-import com.bissbilanz.api.errorCode
 import com.bissbilanz.api.generated.model.AiTask
-import com.bissbilanz.api.generated.model.AiTaskThreadMessage
 import com.bissbilanz.api.generated.model.AiTaskUpdate
+import com.bissbilanz.api.isReplyBlocked
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.util.AI_TASK_ACKNOWLEDGE_MAX_IDS
-import com.bissbilanz.util.changedReplyDates
-import com.bissbilanz.util.threadMessageIds
+import com.bissbilanz.util.TaskReply
+import com.bissbilanz.util.changedReplies
 import com.bissbilanz.util.unreadReplies
+import com.bissbilanz.util.unreadTaskReplies
 import com.bissbilanz.util.withRepliesRead
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,9 +52,9 @@ class AiTaskRepository(
      */
     var onUnreadDismissals: ((unread: List<AiTask>, knownIds: Set<String>) -> Unit)? = null
 
-    var onUnreadReplies: ((unread: List<TaskReply>, knownMessageIds: Set<String>) -> Unit)? = null
+    var onUnreadReplies: ((unread: List<TaskReply>) -> Unit)? = null
 
-    var onRepliesChangedDiary: (suspend (dates: Set<String>) -> Unit)? = null
+    var onChangedReplies: (suspend (changed: List<TaskReply>) -> Unit)? = null
 
     @Volatile
     private var loaded = false
@@ -69,7 +69,7 @@ class AiTaskRepository(
      */
     suspend fun refresh() {
         if (appModeManager.isLocal) return
-        val changedDates =
+        val changed =
             try {
                 read()
             } catch (e: Exception) {
@@ -77,13 +77,13 @@ class AiTaskRepository(
                 errorReporter.captureException(e)
                 throw e
             }
-        refreshChangedDiary(changedDates)
+        handleChangedReplies(changed)
     }
 
-    private suspend fun read(): Set<String> {
+    private suspend fun read(): List<TaskReply> {
         val generation = mutationGeneration
         val response = api.listAiTasks(limit = 100)
-        if (generation != mutationGeneration) return emptySet()
+        if (generation != mutationGeneration) return emptyList()
         val previous = if (loaded) _tasks.value else null
         _tasks.value = response.tasks
         loaded = true
@@ -91,17 +91,15 @@ class AiTaskRepository(
         if (unread.isNotEmpty()) {
             onUnreadDismissals?.invoke(unread, response.tasks.mapTo(mutableSetOf()) { it.id })
         }
-        val replies = response.tasks.flatMap { task -> task.unreadReplies().map { TaskReply(task, it) } }
-        if (replies.isNotEmpty()) {
-            onUnreadReplies?.invoke(replies, response.tasks.flatMapTo(mutableSetOf()) { it.threadMessageIds() })
-        }
-        return changedReplyDates(previous, response.tasks)
+        val replies = response.tasks.flatMap { it.unreadTaskReplies() }
+        if (replies.isNotEmpty()) onUnreadReplies?.invoke(replies)
+        return changedReplies(previous, response.tasks)
     }
 
-    private suspend fun refreshChangedDiary(dates: Set<String>) {
-        if (dates.isEmpty()) return
+    private suspend fun handleChangedReplies(changed: List<TaskReply>) {
+        if (changed.isEmpty()) return
         try {
-            onRepliesChangedDiary?.invoke(dates)
+            onChangedReplies?.invoke(changed)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)
@@ -117,7 +115,7 @@ class AiTaskRepository(
             try {
                 api.replyToAiTask(id, text, idempotencyKey)
             } catch (e: ApiException) {
-                if (e.isReplyRejection()) {
+                if (e.isReplyBlocked() || e.statusCode == 404) {
                     try {
                         refresh()
                     } catch (refreshError: Exception) {
@@ -128,27 +126,22 @@ class AiTaskRepository(
                 throw e
             }
         mutationGeneration++
-        _tasks.update { tasks -> tasks.map { if (it.id == id) result.task else it } }
         if (result.replayed) {
-            val changedDates =
-                try {
-                    read()
-                } catch (e: Exception) {
-                    if (e is kotlinx.coroutines.CancellationException) throw e
-                    errorReporter.captureException(e)
-                    emptySet()
-                }
-            refreshChangedDiary(changedDates)
+            handleChangedReplies(read())
+        } else {
+            _tasks.update { tasks -> tasks.map { if (it.id == id) result.task else it } }
         }
         return result.task
     }
 
-    suspend fun markRepliesRead(ids: Collection<String>) {
-        if (appModeManager.isLocal) return
+    suspend fun markRepliesRead(
+        ids: Collection<String>,
+        quiet: Boolean = false,
+    ): Boolean {
+        if (appModeManager.isLocal) return true
         replyAckMutex.withLock {
             val unread = _tasks.value.flatMapTo(mutableSetOf()) { task -> task.unreadReplies().map { it.id } }
             val pending = ids.distinct().filter { it in unread && it !in acknowledgedReplyIds }
-            if (pending.isEmpty()) return
             try {
                 for (chunk in pending.chunked(AI_TASK_ACKNOWLEDGE_MAX_IDS)) {
                     api.acknowledgeAiTaskReplies(chunk)
@@ -156,9 +149,11 @@ class AiTaskRepository(
                     val read = chunk.toSet()
                     _tasks.update { tasks -> tasks.map { it.withRepliesRead(read) } }
                 }
+                return true
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                errorReporter.captureException(e)
+                if (!quiet) errorReporter.captureException(e)
+                return false
             }
         }
     }
@@ -244,13 +239,3 @@ class AiTaskRepository(
 }
 
 fun AiTask.isUnreadDismissal(): Boolean = status == AiTask.Status.dismissed && acknowledgedAt == null
-
-data class TaskReply(
-    val task: AiTask,
-    val message: AiTaskThreadMessage,
-)
-
-private val CODED_REPLY_LIMITS = setOf("rate_limited", "failed_too_often")
-
-private fun ApiException.isReplyRejection(): Boolean =
-    statusCode == 403 || statusCode == 404 || statusCode == 409 || (statusCode == 429 && errorCode() in CODED_REPLY_LIMITS)

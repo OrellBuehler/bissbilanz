@@ -91,16 +91,23 @@ fun List<AiTask>.hasActiveClaudeWork(): Boolean =
         task.claudeTaskState() in POLLED_TASK_STATES || task.claudeThread?.correction()?.isPolled() == true
     }
 
-fun changedReplyDates(
+data class TaskReply(
+    val task: AiTask,
+    val message: AiTaskThreadMessage,
+)
+
+fun AiTask.unreadTaskReplies(): List<TaskReply> = unreadReplies().map { TaskReply(this, it) }
+
+fun changedReplies(
     previous: List<AiTask>?,
     next: List<AiTask>,
-): Set<String> {
+): List<TaskReply> {
     val known = previous?.flatMapTo(mutableSetOf()) { it.threadMessageIds() }
-    return next
-        .filter { task ->
-            task.claudeThread?.messages.orEmpty().any { message ->
-                message.replyOutcome() == ReplyOutcome.CHANGED &&
-                    if (known == null) message.unread else message.id !in known
-            }
-        }.mapTo(mutableSetOf()) { it.date }
+    return next.flatMap { task ->
+        task.claudeThread
+            ?.messages
+            .orEmpty()
+            .filter { it.replyOutcome() == ReplyOutcome.CHANGED && (it.unread || (known != null && it.id !in known)) }
+            .map { TaskReply(task, it) }
+    }
 }

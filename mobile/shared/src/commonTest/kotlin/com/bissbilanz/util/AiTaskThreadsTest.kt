@@ -148,7 +148,7 @@ class AiTaskThreadsTest {
     }
 
     @Test
-    fun onTheFirstReadTheDaysOfUnreadChangesAreRefreshed() {
+    fun onTheFirstReadOnlyUnreadChangesAreCandidates() {
         val next =
             listOf(
                 completed("t1", "2024-01-15", claudeThread(threadMessage("a1", outcome = "changed", unread = true))),
@@ -156,22 +156,34 @@ class AiTaskThreadsTest {
                 completed("t3", "2024-01-17", claudeThread(threadMessage("a3", outcome = "answered", unread = true))),
             )
 
-        assertEquals(setOf("2024-01-15"), changedReplyDates(null, next))
+        val changed = changedReplies(null, next)
+
+        assertEquals(listOf("a1"), changed.map { it.message.id })
+        assertEquals(listOf("2024-01-15"), changed.map { it.task.date })
     }
 
     @Test
-    fun laterReadsRefreshTheDaysOfChangesTheyHadNotSeen() {
+    fun laterReadsAddChangesTheyHadNotSeenAndStillUnreadOnes() {
         val seen = threadMessage("a1", outcome = "changed")
-        val previous = listOf(completed("t1", "2024-01-15", claudeThread(seen)))
+        val seenUnread = threadMessage("a5", outcome = "changed", unread = true)
+        val previous = listOf(completed("t1", "2024-01-15", claudeThread(seen, seenUnread)))
         val next =
             listOf(
-                completed("t1", "2024-01-15", claudeThread(seen)),
+                completed("t1", "2024-01-15", claudeThread(seen, seenUnread)),
                 completed("t2", "2024-01-16", claudeThread(threadMessage("a2", outcome = "changed"))),
                 completed("t3", "2024-01-17", claudeThread(threadMessage("a3", outcome = "failed"))),
                 completed("t4", "2024-01-18", claudeThread(threadMessage("u4", role = "user"))),
             )
 
-        assertEquals(setOf("2024-01-16"), changedReplyDates(previous, next))
-        assertEquals(emptySet(), changedReplyDates(next, next))
+        assertEquals(listOf("a5", "a2"), changedReplies(previous, next).map { it.message.id })
+        assertEquals(listOf("a5"), changedReplies(next, next).map { it.message.id })
+    }
+
+    @Test
+    fun unreadTaskRepliesPairTheAnswerWithItsTask() {
+        val task = completed(thread = claudeThread(threadMessage("u1", role = "user"), threadMessage("a1", unread = true)))
+
+        assertEquals(listOf(TaskReply(task, task.claudeThread!!.messages[1])), task.unreadTaskReplies())
+        assertEquals(listOf("u1", "a1"), task.threadMessageIds())
     }
 }

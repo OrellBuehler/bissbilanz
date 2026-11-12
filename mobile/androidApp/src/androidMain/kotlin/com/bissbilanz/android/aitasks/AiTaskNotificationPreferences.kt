@@ -3,7 +3,8 @@ package com.bissbilanz.android.aitasks
 import android.content.Context
 
 /**
- * Which dismissals this device has already announced.
+ * Which dismissals and answers this device has already announced, and which changed
+ * answers have already refreshed the diary.
  *
  * Server-side acknowledgement is what clears the badge, and that only happens when the
  * user opens the list — so without a device-local record every refresh in between would
@@ -12,6 +13,7 @@ import android.content.Context
  */
 class AiTaskNotificationPreferences(
     context: Context,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val prefs = context.getSharedPreferences("ai_task_notifications", Context.MODE_PRIVATE)
 
@@ -38,24 +40,46 @@ class AiTaskNotificationPreferences(
         return ids.filterNot { it in seen }
     }
 
-    var notifiedReplies: Set<String>
-        get() = prefs.getStringSet(KEY_NOTIFIED_REPLIES, emptySet()).orEmpty()
-        set(value) = prefs.edit().putStringSet(KEY_NOTIFIED_REPLIES, value.toSet()).apply()
+    fun unannouncedReplies(ids: Collection<String>): List<String> = unrecorded(KEY_ANNOUNCED_REPLIES, ids)
 
-    fun markRepliesNotified(
+    fun markRepliesAnnounced(ids: Collection<String>) = record(KEY_ANNOUNCED_REPLIES, ids)
+
+    fun unrefreshedChanges(ids: Collection<String>): List<String> = unrecorded(KEY_REFRESHED_CHANGES, ids)
+
+    fun markChangesRefreshed(ids: Collection<String>) = record(KEY_REFRESHED_CHANGES, ids)
+
+    @Synchronized
+    private fun unrecorded(
+        key: String,
         ids: Collection<String>,
-        knownMessageIds: Set<String>,
-    ) {
-        notifiedReplies = (notifiedReplies + ids).filterTo(mutableSetOf()) { it in knownMessageIds }
+    ): List<String> {
+        val recorded = timestamps(key)
+        return ids.filterNot { it in recorded }
     }
 
-    fun unnotifiedReplies(ids: Collection<String>): List<String> {
-        val seen = notifiedReplies
-        return ids.filterNot { it in seen }
+    @Synchronized
+    private fun record(
+        key: String,
+        ids: Collection<String>,
+    ) {
+        if (ids.isEmpty()) return
+        val now = clock()
+        val kept = timestamps(key).filterValues { now - it < RETENTION_MS }
+        val updated = kept + ids.filterNot { it in kept }.associateWith { now }
+        prefs.edit().putStringSet(key, updated.mapTo(mutableSetOf()) { (id, at) -> "$id$SEPARATOR$at" }).apply()
     }
+
+    private fun timestamps(key: String): Map<String, Long> =
+        prefs.getStringSet(key, emptySet()).orEmpty().associate { entry ->
+            val split = entry.lastIndexOf(SEPARATOR)
+            if (split < 0) entry to 0L else entry.substring(0, split) to (entry.substring(split + 1).toLongOrNull() ?: 0L)
+        }
 
     private companion object {
         const val KEY_NOTIFIED = "notified_ids"
-        const val KEY_NOTIFIED_REPLIES = "notified_reply_ids"
+        const val KEY_ANNOUNCED_REPLIES = "announced_reply_ids"
+        const val KEY_REFRESHED_CHANGES = "refreshed_change_ids"
+        const val SEPARATOR = '|'
+        const val RETENTION_MS = 45L * 24 * 60 * 60 * 1000
     }
 }
