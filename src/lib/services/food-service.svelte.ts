@@ -8,7 +8,7 @@ import { withOfflineFallback } from './base';
 import { refreshFoodsDelta } from './food-delta';
 import { favoriteFoods, getFoodsByIds, regularFoodsPage, searchFoods } from './food-search';
 import { normalizeLabels } from '$lib/labels';
-import { pickNonNullNutrients } from '$lib/nutrients';
+import { NO_QUEUE_HEADER } from '$lib/utils/api';
 import type { paths } from '$lib/api/generated/schema';
 
 type FoodCreate = paths['/api/foods']['post']['requestBody']['content']['application/json'];
@@ -364,19 +364,66 @@ function searchOff(q: string) {
 	return api.GET('/api/openfoodfacts/search', { params: { query: { q } } });
 }
 
-async function enrichFromOff(id: string, barcode: string) {
-	const { data, error } = await fetchOffProduct(barcode);
-	if (error || !data) return;
-	const { product } = data;
-	await updateOnline(id, {
-		nutriScore: product.nutriScore,
-		novaGroup: product.novaGroup,
-		additives: product.additives,
-		ingredientsText: product.ingredientsText,
-		imageUrl: product.imageUrl,
-		...pickNonNullNutrients(product)
+const noQueue = { [NO_QUEUE_HEADER]: '1' };
+
+export type EnrichFromOffResult = 'updated' | 'unchanged' | 'not_found' | 'offline' | 'failed';
+
+async function enrichFromOff(id: string): Promise<EnrichFromOffResult> {
+	if (browser && !navigator.onLine) return 'offline';
+	const { data, error, response } = await api.POST('/api/foods/{id}/enrich', {
+		params: { path: { id } },
+		headers: noQueue
 	});
-	await refreshById(id);
+	if (data) {
+		await db.foods.put(data.food as unknown as DexieFood);
+		if (data.outcome === 'updated' || data.outcome === 'not_found') return data.outcome;
+		return 'unchanged';
+	}
+	Sentry.addBreadcrumb({
+		category: 'food-enrichment',
+		level: 'warning',
+		message: 'enrich food rejected',
+		data: { status: response.status, code: error && 'code' in error ? error.code : undefined }
+	});
+	return 'failed';
+}
+
+export type FoodEnrichmentStatus =
+	paths['/api/foods/enrichment']['get']['responses']['200']['content']['application/json'];
+
+export class FoodEnrichmentRequestError extends Error {
+	constructor(
+		readonly status: number,
+		options?: ErrorOptions
+	) {
+		super(`food enrichment request failed: ${status}`, options);
+		this.name = 'FoodEnrichmentRequestError';
+	}
+}
+
+async function enrichmentRequest(
+	send: () => Promise<{ data?: FoodEnrichmentStatus; response: Response }>
+): Promise<FoodEnrichmentStatus> {
+	let result: { data?: FoodEnrichmentStatus; response: Response };
+	try {
+		result = await send();
+	} catch (error) {
+		throw new FoodEnrichmentRequestError(0, { cause: error });
+	}
+	if (!result.data) throw new FoodEnrichmentRequestError(result.response.status);
+	return result.data;
+}
+
+function enrichmentStatus(): Promise<FoodEnrichmentStatus> {
+	return enrichmentRequest(() => api.GET('/api/foods/enrichment'));
+}
+
+function startEnrichment(): Promise<FoodEnrichmentStatus> {
+	return enrichmentRequest(() => api.POST('/api/foods/enrichment', { headers: noQueue }));
+}
+
+function cancelEnrichment(): Promise<FoodEnrichmentStatus> {
+	return enrichmentRequest(() => api.DELETE('/api/foods/enrichment', { headers: noQueue }));
 }
 
 export const foodService = {
@@ -406,5 +453,8 @@ export const foodService = {
 	deleteOnline,
 	fetchOffProduct,
 	searchOff,
-	enrichFromOff
+	enrichFromOff,
+	enrichmentStatus,
+	startEnrichment,
+	cancelEnrichment
 };

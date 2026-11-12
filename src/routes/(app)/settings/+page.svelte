@@ -35,6 +35,7 @@
 	import WidgetOrderEditor, { type WidgetVisibility } from './WidgetOrderEditor.svelte';
 	import ConnectedAccounts from './ConnectedAccounts.svelte';
 	import DataImport from './DataImport.svelte';
+	import FoodEnrichment from './FoodEnrichment.svelte';
 
 	let mealTypes: Array<{ id: string; name: string; sortOrder: number }> = $state([]);
 	let deleteAccountOpen = $state(false);
@@ -400,6 +401,8 @@
 		initialVisible={cachedPrefs.value?.visibleNutrients}
 		onSave={saveVisibleNutrients}
 	/>
+
+	<FoodEnrichment />
 
 	<AiTaskProcessorSelector
 		initialProcessor={cachedPrefs.value ? effectiveProcessor(cachedPrefs.value) : undefined}
