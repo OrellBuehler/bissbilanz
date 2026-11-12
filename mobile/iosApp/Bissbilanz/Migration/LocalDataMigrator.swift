@@ -196,6 +196,7 @@ final class LocalDataMigrator {
         defaults.removeObject(forKey: PreferencesRepository.claudeCapabilityKey)
         FoodMirrorState.reset(defaults)
         BulkUploadState.reset(defaults)
+        FoodEnrichmentState.reset(defaults)
     }
 
     /// A failed delete is reported and the wipe carries on with the other models: a
