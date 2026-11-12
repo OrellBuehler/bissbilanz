@@ -9,7 +9,9 @@ const h = vi.hoisted(() => ({
 		model: 'claude-opus-5-5',
 		configured: true,
 		globalMonthlyBudgetUsd: 90,
-		defaultUserBudgetUsd: 10
+		defaultUserBudgetUsd: 10,
+		maxWebSearches: 3,
+		maxWebFetches: 3
 	}
 }));
 
@@ -56,7 +58,9 @@ beforeEach(() => {
 		model: 'claude-opus-5-5',
 		configured: true,
 		globalMonthlyBudgetUsd: 90,
-		defaultUserBudgetUsd: 10
+		defaultUserBudgetUsd: 10,
+		maxWebSearches: 3,
+		maxWebFetches: 3
 	});
 	spend(0, 0);
 });
@@ -207,26 +211,26 @@ describe('capability', () => {
 	});
 
 	test('measures the minimum task call cost with the model of the user', async () => {
-		expect(capability.minTaskCallUsd('claude-haiku-5-5')).toBe(0.0105);
-		access([{ enabled: true, monthlyBudgetUsd: 0.05, model: 'claude-haiku-5-5' }]);
+		expect(capability.minTaskCallUsd('claude-haiku-5-5')).toBe(0.139725);
+		access([{ enabled: true, monthlyBudgetUsd: 0.14, model: 'claude-haiku-5-5' }]);
 		expect(await capability.getClaudeCapability('user-1')).toEqual({
 			available: true,
-			remainingBudgetUsd: 0.05
+			remainingBudgetUsd: 0.14
 		});
-		access([{ enabled: true, monthlyBudgetUsd: 0.05, model: null }]);
+		access([{ enabled: true, monthlyBudgetUsd: 0.14, model: null }]);
 		expect(await capability.getClaudeCapability('user-1')).toEqual({ available: false });
-		access([{ enabled: true, monthlyBudgetUsd: 0.05, model: 'claude-retired-9' }]);
+		access([{ enabled: true, monthlyBudgetUsd: 0.14, model: 'claude-retired-9' }]);
 		expect(await capability.getClaudeCapability('user-1')).toEqual({ available: false });
 	});
 
 	test('is unavailable below the minimum task call cost and never reports negative', async () => {
-		expect(capability.minTaskCallUsd('claude-opus-5-5')).toBe(0.42);
-		access([{ enabled: true, monthlyBudgetUsd: 0.41 }]);
+		expect(capability.minTaskCallUsd('claude-opus-5-5')).toBe(1.034);
+		access([{ enabled: true, monthlyBudgetUsd: 1.03 }]);
 		expect(await capability.getClaudeCapability('user-1')).toEqual({ available: false });
-		access([{ enabled: true, monthlyBudgetUsd: 0.42 }]);
+		access([{ enabled: true, monthlyBudgetUsd: 1.04 }]);
 		expect(await capability.getClaudeCapability('user-1')).toEqual({
 			available: true,
-			remainingBudgetUsd: 0.42
+			remainingBudgetUsd: 1.04
 		});
 	});
 

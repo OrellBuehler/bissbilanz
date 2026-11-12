@@ -223,13 +223,16 @@
 			>.
 		</li>
 		<li>
-			<strong>USDA FoodData Central (nutrient lookups):</strong> When the server-side AI processor
-			creates a food for a meal you queued, the server sends the food's name (for example "pear,
-			raw") to the FoodData Central API of the U.S. Department of Agriculture to look up its
-			nutrients, such as vitamins and minerals. No personal data or account identifier is sent.
+			<strong>USDA FoodData Central (nutrient lookups):</strong> When a meal you queued for AI
+			logging is processed on the Bissbilanz server, the AI can look foods up in this nutrient
+			database. Every lookup sends a food name (for example "pear, raw") to the FoodData Central API
+			of the U.S. Department of Agriculture. No personal data or account identifier is sent.
 			FoodData Central is a public nutrient database whose data is in the public domain. Their
 			privacy policy is available at
-			<a href="https://www.usda.gov/privacy-policy" class="underline">usda.gov</a>.
+			<a href="https://www.usda.gov/privacy-policy" class="underline">usda.gov</a>. While
+			researching nutrition facts for such a meal, the AI provider may also search the web and fetch
+			third-party pages, such as a manufacturer's product page; those sites see a request from the
+			AI provider, not from you.
 		</li>
 		<li>
 			<strong>Sentry (crash reporting):</strong> The web, Android, Wear OS and iOS apps use Sentry

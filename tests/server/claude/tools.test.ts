@@ -66,7 +66,7 @@ vi.mock('$lib/server/fooddata-central', async (importOriginal) => ({
 const { runTaskTool, taskTools } = await import('$lib/server/claude/tasks/tools');
 const { NutrientDatabaseError, toFdcFood } = await import('$lib/server/fooddata-central');
 const { ApiError, McpUserError } = await import('$lib/server/errors');
-const { LeaseLostError } = await import('$lib/server/claude/errors');
+const { ClaudeAbortedError, LeaseLostError } = await import('$lib/server/claude/errors');
 
 const FOOD_ID = '11111111-1111-4111-8111-111111111111';
 const RECIPE_ID = '22222222-2222-4222-8222-222222222222';
@@ -82,6 +82,7 @@ const makeCtx = (overrides: Record<string, unknown> = {}) => ({
 	seen: new Map<string, number>(),
 	foods: new Map<string, Record<string, unknown>>(),
 	createdFoods: new Map<string, Record<string, unknown>>(),
+	nutrientRecords: new Set<number>([169118, 1]),
 	...overrides
 });
 
@@ -808,7 +809,7 @@ describe('search_nutrient_database', () => {
 		const result = await parsed(
 			runTaskTool('search_nutrient_database', { query: 'pear raw' }, makeCtx())
 		);
-		expect(h.searchFdcFoods).toHaveBeenCalledWith('user-1', 'pear raw');
+		expect(h.searchFdcFoods).toHaveBeenCalledWith('user-1', 'pear raw', undefined);
 		expect(result.isError).toBe(false);
 		expect(result.body).toEqual({
 			foods: [
@@ -861,7 +862,7 @@ describe('create_food with a nutrient database record', () => {
 
 	test('auto log stores every nutrient the model did not pass, scaled to the serving', async () => {
 		const result = await parsed(runTaskTool('create_food', pearInput(), makeCtx()));
-		expect(h.getFdcFood).toHaveBeenCalledWith('user-1', 169118);
+		expect(h.getFdcFood).toHaveBeenCalledWith('user-1', 169118, undefined);
 		const payload = h.handleCreateFood.mock.calls[0]![1];
 		expect(payload).toMatchObject({
 			calories: 101,
@@ -940,13 +941,61 @@ describe('create_food with a nutrient database record', () => {
 		expect(item.food).toMatchObject({ name: 'Pear', vitaminC: 7.654, sodium: 5 });
 	});
 
-	test('refuses a record whose energy does not fit the food', async () => {
+	test('refuses a serving that carries per-100 g values and returns the record values', async () => {
 		const result = await parsed(
-			runTaskTool('create_food', pearInput({ calories: 450 }), makeCtx())
+			runTaskTool(
+				'create_food',
+				pearInput({ calories: 57, protein: 0.36, carbs: 15.23, fat: 0.14, fiber: 3.1 }),
+				makeCtx()
+			)
 		);
 		expect(result.isError).toBe(true);
-		expect(result.body.error).toContain('not the same food');
+		expect(result.body.error).toContain('calories, carbs for 178 g do not match record 169118');
+		expect(result.body.recordPerServing).toEqual({
+			calories: 101,
+			protein: 0.6,
+			carbs: 27.1,
+			carbsWithoutFiber: 21.6,
+			fat: 0.2,
+			fiber: 5.5
+		});
 		expect(h.handleCreateFood).not.toHaveBeenCalled();
+	});
+
+	test('refuses another food in review mode as well and stores nothing', async () => {
+		const ctx = makeCtx({ mode: 'review' });
+		const result = await parsed(
+			runTaskTool(
+				'create_food',
+				pearInput({ servingSize: 100, calories: 41, protein: 0.73, carbs: 9.57, fat: 0.51 }),
+				ctx
+			)
+		);
+		expect(result.isError).toBe(true);
+		expect(ctx.foods.size).toBe(0);
+	});
+
+	test('accepts only records the search returned in this task', async () => {
+		const ctx = makeCtx({ nutrientRecords: new Set<number>() });
+		const refused = await parsed(runTaskTool('create_food', pearInput(), ctx));
+		expect(refused.isError).toBe(true);
+		expect(refused.body.error).toContain('did not come from search_nutrient_database');
+		expect(h.getFdcFood).not.toHaveBeenCalled();
+		h.searchFdcFoods.mockResolvedValue([SR_PEAR]);
+		await runTaskTool('search_nutrient_database', { query: 'pear raw' }, ctx);
+		expect([...ctx.nutrientRecords]).toEqual([169118]);
+		expect((await parsed(runTaskTool('create_food', pearInput(), ctx))).isError).toBe(false);
+	});
+
+	test('a task abort during a lookup ends the run instead of becoming a tool error', async () => {
+		const controller = new AbortController();
+		h.getFdcFood.mockImplementation(async () => {
+			controller.abort();
+			throw new DOMException('aborted', 'AbortError');
+		});
+		await expect(
+			runTaskTool('create_food', pearInput(), makeCtx({ signal: controller.signal }))
+		).rejects.toBeInstanceOf(ClaudeAbortedError);
 	});
 
 	test('a database failure becomes a tool error and creates nothing', async () => {

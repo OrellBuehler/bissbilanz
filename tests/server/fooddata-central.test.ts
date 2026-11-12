@@ -91,6 +91,23 @@ describe('nutrient mapping', () => {
 		expect(food.nutrients.vitaminC).toBeGreaterThan(0);
 	});
 
+	test('prefers folate DFE and falls back to total folate', () => {
+		const folate = (rows: { id: number; amount: number }[]) =>
+			fdc.toFdcFood({
+				fdcId: 1,
+				description: 'Bread',
+				dataType: 'SR Legacy',
+				foodNutrients: rows.map(({ id, amount }) => ({ nutrient: { id, unitName: 'µg' }, amount }))
+			}).nutrients.vitaminB9;
+		expect(
+			folate([
+				{ id: 1177, amount: 85 },
+				{ id: 1190, amount: 120 }
+			])
+		).toBe(120);
+		expect(folate([{ id: 1177, amount: 85 }])).toBe(85);
+	});
+
 	test('falls back to the Atwater energy when the record has no 1008 energy', () => {
 		const food = fdc.toFdcFood({
 			fdcId: 1,
@@ -328,5 +345,177 @@ describe('failures', () => {
 		);
 		expect(h.captureException).not.toHaveBeenCalled();
 		await expect(fdc.searchFdcFoods(nextUser(), 'other user')).resolves.toEqual([]);
+	});
+
+	test('an abort of the task is passed on and is not reported', async () => {
+		const controller = new AbortController();
+		fetchSpy.mockImplementationOnce(async (_url: unknown, init?: RequestInit) => {
+			controller.abort();
+			throw init!.signal!.reason;
+		});
+		await expect(
+			fdc.searchFdcFoods(nextUser(), 'pear', controller.signal)
+		).rejects.not.toBeInstanceOf(fdc.NutrientDatabaseError);
+		expect(h.addBreadcrumb).not.toHaveBeenCalled();
+		expect(h.captureException).not.toHaveBeenCalled();
+	});
+
+	test('combines the task signal with the request timeout', async () => {
+		const controller = new AbortController();
+		fetchSpy.mockResolvedValueOnce(json({ foods: [] }));
+		await fdc.searchFdcFoods(nextUser(), 'pear', controller.signal);
+		const signal = (fetchSpy.mock.calls[0]![1] as RequestInit).signal!;
+		expect(signal.aborted).toBe(false);
+		controller.abort();
+		expect(signal.aborted).toBe(true);
+	});
+});
+
+describe('query syntax', () => {
+	test.each([
+		['ground beef 80/20 raw', 'ground beef 80 20 raw'],
+		['"pear raw', 'pear raw'],
+		['pear) OR (apple', 'pear or apple'],
+		['+candy -chocolate *berry', 'candy chocolate berry'],
+		['description:skor', 'description skor'],
+		['Crème fraîche, 35%', 'crème fraîche, 35'],
+		["McDonald's fries", "mcdonald's fries"]
+	])('sends %j as %j', async (query, plain) => {
+		fetchSpy.mockResolvedValueOnce(json({ foods: [] }));
+		await fdc.searchFdcFoods(nextUser(), query);
+		expect(JSON.parse(String((fetchSpy.mock.calls[0]![1] as RequestInit).body)).query).toBe(plain);
+	});
+
+	test('asks for plain words without a request when nothing is left', async () => {
+		await expect(fdc.searchFdcFoods(nextUser(), '"()" *')).rejects.toThrow('plain words');
+		expect(fetchSpy).not.toHaveBeenCalled();
+	});
+
+	test('a rejected search is an invalid query, not an outage', async () => {
+		fetchSpy.mockResolvedValueOnce(new Response('', { status: 400 }));
+		await expect(fdc.searchFdcFoods(nextUser(), 'pear raw')).rejects.toThrow(
+			'Rephrase it with plain words'
+		);
+		expect(h.addBreadcrumb).toHaveBeenCalledWith(
+			expect.objectContaining({ category: 'fdc', data: expect.objectContaining({ status: 400 }) })
+		);
+		expect(h.captureException).not.toHaveBeenCalled();
+	});
+
+	test('a 400 on a record lookup is still reported', async () => {
+		fetchSpy.mockResolvedValueOnce(new Response('', { status: 400 }));
+		await expect(fdc.getFdcFood(nextUser(), 1)).rejects.toThrow('unavailable');
+		expect(h.captureException).toHaveBeenCalledTimes(1);
+	});
+});
+
+const PAIRS = fixture('guard-pairs.json') as {
+	records: Record<
+		string,
+		{ description: string; dataType: string; per100g: Record<string, number> }
+	>;
+	accept: PairCase[];
+	refuse: PairCase[];
+};
+
+type PairCase = {
+	case: string;
+	fdcId: number;
+	grams: number;
+	valuesForGrams?: number;
+	per100g: { calories: number; protein: number; carbs: number; fat: number };
+};
+
+const recordOf = (fdcId: number): import('$lib/server/fooddata-central').FdcFood => {
+	const record = PAIRS.records[String(fdcId)]!;
+	return {
+		fdcId,
+		description: record.description,
+		dataType: record.dataType,
+		per100g: {
+			calories: record.per100g.calories ?? null,
+			protein: record.per100g.protein ?? null,
+			carbs: record.per100g.carbs ?? null,
+			fat: record.per100g.fat ?? null,
+			fiber: record.per100g.fiber ?? null
+		},
+		nutrients: {}
+	};
+};
+
+const compare = (pair: PairCase) => {
+	const factor = (pair.valuesForGrams ?? pair.grams) / 100;
+	const food = {
+		calories: pair.per100g.calories * factor,
+		protein: pair.per100g.protein * factor,
+		carbs: pair.per100g.carbs * factor,
+		fat: pair.per100g.fat * factor
+	};
+	return fdc.compareWithRecord(recordOf(pair.fdcId), food, pair.grams / 100);
+};
+
+describe('record check', () => {
+	test.each(PAIRS.accept.map((pair) => [pair.case, pair] as const))('accepts %s', (_name, pair) => {
+		expect(compare(pair)).toMatchObject({ matches: true, mismatched: [] });
+	});
+
+	test.each(PAIRS.refuse.map((pair) => [pair.case, pair] as const))('refuses %s', (_name, pair) => {
+		expect(compare(pair).matches).toBe(false);
+	});
+
+	test('names what differs and gives the record values for the serving', () => {
+		const result = compare(PAIRS.refuse[0]!);
+		expect(result.mismatched).toEqual(['calories', 'carbs']);
+		expect(result.recordPerServing).toEqual({
+			calories: 101,
+			protein: 0.6,
+			carbs: 27.1,
+			carbsWithoutFiber: 21.6,
+			fat: 0.2,
+			fiber: 5.5
+		});
+	});
+
+	test('compares carbs with the record with and without fiber', () => {
+		const record = recordOf(170567);
+		const at = (carbs: number) =>
+			fdc.compareWithRecord(record, { calories: 579, protein: 21.2, carbs, fat: 49.9 }, 1);
+		expect(at(9.1).matches).toBe(true);
+		expect(at(21.6).matches).toBe(true);
+		expect(at(15).matches).toBe(true);
+		expect(at(45).mismatched).toEqual(['carbs']);
+	});
+
+	test('calories may differ by 25% or 10 kcal, macros by 15% of the energy or 1 g', () => {
+		const record = recordOf(169118);
+		const pear = { calories: 57, protein: 0.36, carbs: 15.23, fat: 0.14 };
+		const check = (food: Partial<typeof pear>) =>
+			fdc.compareWithRecord(record, { ...pear, ...food }, 1).mismatched;
+		expect(check({ calories: 57 + 14 })).toEqual([]);
+		expect(check({ calories: 57 + 15 })).toEqual(['calories']);
+		expect(check({ protein: 2.49 })).toEqual([]);
+		expect(check({ protein: 2.5 })).toEqual(['protein']);
+		const cucumber = recordOf(168409);
+		const salad = { calories: 15, protein: 0.65, carbs: 3.63, fat: 0.11 };
+		expect(fdc.compareWithRecord(cucumber, { ...salad, protein: 1.65 }, 1).mismatched).toEqual([]);
+		expect(fdc.compareWithRecord(cucumber, { ...salad, protein: 1.7 }, 1).mismatched).toEqual([
+			'protein'
+		]);
+		const almonds = recordOf(170567);
+		const nuts = { calories: 579, protein: 21.2, carbs: 21.6, fat: 49.9 };
+		expect(fdc.compareWithRecord(almonds, { ...nuts, fat: 49.9 + 9.6 }, 1).mismatched).toEqual([]);
+		expect(fdc.compareWithRecord(almonds, { ...nuts, fat: 49.9 + 9.7 }, 1).mismatched).toEqual([
+			'fat'
+		]);
+	});
+
+	test('skips what the record does not give', () => {
+		const record = {
+			...recordOf(169118),
+			per100g: { calories: null, protein: null, carbs: null, fat: null, fiber: null }
+		};
+		expect(
+			fdc.compareWithRecord(record, { calories: 900, protein: 50, carbs: 1, fat: 1 }, 1)
+		).toEqual({ matches: true, mismatched: [], recordPerServing: {} });
 	});
 });

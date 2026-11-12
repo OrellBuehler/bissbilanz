@@ -1,0 +1,174 @@
+{
+	"records": {
+		"169118": {
+			"description": "Pears, raw",
+			"dataType": "SR Legacy",
+			"per100g": { "calories": 57, "protein": 0.36, "carbs": 15.23, "fat": 0.14, "fiber": 3.1 }
+		},
+		"173904": {
+			"description": "Cereals, oats, regular and quick, not fortified, dry",
+			"dataType": "SR Legacy",
+			"per100g": { "calories": 379, "protein": 13.2, "carbs": 67.7, "fat": 6.52, "fiber": 10.1 }
+		},
+		"169705": {
+			"description": "Oats",
+			"dataType": "SR Legacy",
+			"per100g": { "calories": 389, "protein": 16.9, "carbs": 66.3, "fat": 6.9, "fiber": 10.6 }
+		},
+		"2346396": {
+			"description": "Oats, whole grain, rolled, old fashioned",
+			"dataType": "Foundation",
+			"per100g": { "calories": 379, "protein": 13.5, "carbs": 68.7, "fat": 5.89, "fiber": 10.4 }
+		},
+		"170567": {
+			"description": "Nuts, almonds",
+			"dataType": "SR Legacy",
+			"per100g": { "calories": 579, "protein": 21.2, "carbs": 21.6, "fat": 49.9, "fiber": 12.5 }
+		},
+		"171265": {
+			"description": "Milk, whole, 3.25% milkfat, with added vitamin D",
+			"dataType": "SR Legacy",
+			"per100g": { "calories": 61, "protein": 3.15, "carbs": 4.8, "fat": 3.25, "fiber": 0 }
+		},
+		"174036": {
+			"description": "Beef, ground, 80% lean meat / 20% fat, raw",
+			"dataType": "SR Legacy",
+			"per100g": { "calories": 254, "protein": 17.2, "carbs": 0, "fat": 20, "fiber": 0 }
+		},
+		"170894": {
+			"description": "Yogurt, Greek, plain, nonfat",
+			"dataType": "SR Legacy",
+			"per100g": { "calories": 59, "protein": 10.2, "carbs": 3.6, "fat": 0.39, "fiber": 0 }
+		},
+		"168409": {
+			"description": "Cucumber, with peel, raw",
+			"dataType": "SR Legacy",
+			"per100g": { "calories": 15, "protein": 0.65, "carbs": 3.63, "fat": 0.11, "fiber": 0.5 }
+		},
+		"168421": {
+			"description": "Kale, raw",
+			"dataType": "SR Legacy",
+			"per100g": { "calories": 35, "protein": 2.92, "carbs": 4.42, "fat": 1.49, "fiber": 4.1 }
+		},
+		"168877": {
+			"description": "Rice, white, long-grain, regular, raw, enriched",
+			"dataType": "SR Legacy",
+			"per100g": { "calories": 365, "protein": 7.13, "carbs": 80, "fat": 0.66, "fiber": 1.3 }
+		}
+	},
+	"accept": [
+		{
+			"case": "Crownfield oats label (Open Food Facts 20003166)",
+			"fdcId": 173904,
+			"grams": 40,
+			"per100g": { "calories": 372, "protein": 13.5, "carbs": 58.7, "fat": 7 }
+		},
+		{
+			"case": "Koelln oats label (Open Food Facts 4000540000108)",
+			"fdcId": 169705,
+			"grams": 40,
+			"per100g": { "calories": 361, "protein": 14, "carbs": 56, "fat": 6.7 }
+		},
+		{
+			"case": "ja! oats label (Open Food Facts 4337256415965)",
+			"fdcId": 2346396,
+			"grams": 50,
+			"per100g": { "calories": 373.09, "protein": 13.2, "carbs": 59.5, "fat": 6.7 }
+		},
+		{
+			"case": "Seeberger almonds label (Open Food Facts 4008258065013)",
+			"fdcId": 170567,
+			"grams": 30,
+			"per100g": { "calories": 619, "protein": 24, "carbs": 5.7, "fat": 53 }
+		},
+		{
+			"case": "Foundation bartlett pear (FDC 746773)",
+			"fdcId": 169118,
+			"grams": 178,
+			"per100g": { "calories": 57, "protein": 0.38, "carbs": 15.1, "fat": 0.16 }
+		},
+		{
+			"case": "Survey pear (FDC 2709254)",
+			"fdcId": 169118,
+			"grams": 178,
+			"per100g": { "calories": 59, "protein": 0.37, "carbs": 15.2, "fat": 0.15 }
+		},
+		{
+			"case": "Foundation whole milk (FDC 746782)",
+			"fdcId": 171265,
+			"grams": 250,
+			"per100g": { "calories": 60, "protein": 3.27, "carbs": 4.63, "fat": 3.2 }
+		},
+		{
+			"case": "Foundation ground beef 80/20 (FDC 2514744)",
+			"fdcId": 174036,
+			"grams": 125,
+			"per100g": { "calories": 248, "protein": 17.5, "carbs": 0, "fat": 19.4 }
+		},
+		{
+			"case": "Foundation Greek yogurt, nonfat (FDC 330137)",
+			"fdcId": 170894,
+			"grams": 150,
+			"per100g": { "calories": 61, "protein": 10.3, "carbs": 3.64, "fat": 0.37 }
+		},
+		{
+			"case": "Foundation cucumber (FDC 2346406)",
+			"fdcId": 168409,
+			"grams": 100,
+			"per100g": { "calories": 13.9, "protein": 0.625, "carbs": 2.95, "fat": 0.178 }
+		}
+	],
+	"refuse": [
+		{
+			"case": "1 pear (178 g) with the per-100 g values of FDC 169118",
+			"fdcId": 169118,
+			"grams": 178,
+			"valuesForGrams": 100,
+			"per100g": { "calories": 57, "protein": 0.36, "carbs": 15.23, "fat": 0.14 }
+		},
+		{
+			"case": "a 100 g serving carrying the values of a 178 g pear",
+			"fdcId": 169118,
+			"grams": 100,
+			"valuesForGrams": 178,
+			"per100g": { "calories": 57, "protein": 0.36, "carbs": 15.23, "fat": 0.14 }
+		},
+		{
+			"case": "30 g of almonds with the per-100 g label values",
+			"fdcId": 170567,
+			"grams": 30,
+			"valuesForGrams": 100,
+			"per100g": { "calories": 619, "protein": 24, "carbs": 5.7, "fat": 53 }
+		},
+		{
+			"case": "prickly pear (FDC 167750) on the pear record",
+			"fdcId": 169118,
+			"grams": 100,
+			"per100g": { "calories": 41, "protein": 0.73, "carbs": 9.57, "fat": 0.51 }
+		},
+		{
+			"case": "cucumber (FDC 168409) on the kale record",
+			"fdcId": 168421,
+			"grams": 100,
+			"per100g": { "calories": 15, "protein": 0.65, "carbs": 3.63, "fat": 0.11 }
+		},
+		{
+			"case": "skim milk (FDC 173432) on the whole milk record",
+			"fdcId": 171265,
+			"grams": 250,
+			"per100g": { "calories": 35, "protein": 3.37, "carbs": 4.86, "fat": 0.18 }
+		},
+		{
+			"case": "ground beef 95/5 (FDC 171790) on the 80/20 record",
+			"fdcId": 174036,
+			"grams": 125,
+			"per100g": { "calories": 137, "protein": 21.4, "carbs": 0, "fat": 5 }
+		},
+		{
+			"case": "Crownfield oats label on the white rice record",
+			"fdcId": 168877,
+			"grams": 40,
+			"per100g": { "calories": 372, "protein": 13.5, "carbs": 58.7, "fat": 7 }
+		}
+	]
+}

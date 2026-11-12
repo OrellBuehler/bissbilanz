@@ -20,6 +20,7 @@ const h = vi.hoisted(() => ({
 	getUserTimeZone: vi.fn(),
 	loadTaskPhotos: vi.fn(),
 	captureException: vi.fn(),
+	captureMessage: vi.fn(),
 	config: { model: 'claude-sonnet-5-5', maxIterations: 5, maxWebSearches: 3, maxWebFetches: 3 },
 	fdc: { configured: false }
 }));
@@ -28,6 +29,7 @@ const { db, queueResults, reset, getCalls } = createMockDB();
 
 vi.mock('@sentry/sveltekit', () => ({
 	captureException: h.captureException,
+	captureMessage: h.captureMessage,
 	addBreadcrumb: vi.fn(),
 	logger: { info: vi.fn() }
 }));
@@ -66,7 +68,8 @@ vi.mock('$lib/server/fooddata-central', () => ({ isFdcConfigured: () => h.fdc.co
 
 const { processTask } = await import('$lib/server/claude/tasks/processor');
 const errors = await import('$lib/server/claude/errors');
-const { CLAUDE_MODELS } = await import('$lib/server/claude/models');
+const { CLAUDE_MODELS, isWebFetchRejected, resetWebFetchForTests } =
+	await import('$lib/server/claude/models');
 const { claudeAccess } = await import('$lib/server/schema');
 
 const TASK_ID = 'task-1';
@@ -108,6 +111,7 @@ beforeEach(() => {
 	h.config.maxWebSearches = 3;
 	h.config.maxWebFetches = 3;
 	h.fdc.configured = false;
+	resetWebFetchForTests();
 	for (const fn of Object.values(h)) if (typeof fn === 'function') fn.mockReset();
 	queueResults([[{ locale: 'de' }], [{ autoLog: true }]]);
 	h.claimRun.mockResolvedValue(run());
@@ -160,7 +164,8 @@ describe('server tools', () => {
 		type,
 		name: 'web_fetch',
 		max_uses: 3,
-		max_content_tokens: 10_000
+		max_content_tokens: 10_000,
+		url_sources: { client_tool_results: { type: 'none' } }
 	});
 
 	test('puts the capped web search and web fetch in front of the task tools', async () => {
@@ -188,14 +193,27 @@ describe('server tools', () => {
 		]);
 	});
 
-	test('uses the basic web search and web fetch for Haiku 5.5', async () => {
+	test('gives Haiku 5.5 the basic web search and no web fetch', async () => {
 		queueResults([[{ locale: 'de' }], [{ autoLog: true }], [{ model: 'claude-haiku-5-5' }]]);
 		finish();
 		await processTask(TASK_ID, options());
-		expect(toolsOfFirstCall().slice(0, 2)).toEqual([
+		expect(toolsOfFirstCall()).toEqual([
 			{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 },
-			webFetch('web_fetch_20250910')
+			{ name: 'tool' }
 		]);
+	});
+
+	test('hands the task tools the run signal and a fresh record list', async () => {
+		h.callClaude
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_a')]))
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
+		h.runTaskTool
+			.mockResolvedValueOnce({ content: 'one', isError: false })
+			.mockResolvedValueOnce({ content: '{}', isError: false, outcome: 'completed' });
+		await processTask(TASK_ID, options());
+		const ctx = h.runTaskTool.mock.calls[0]![2];
+		expect(ctx.signal).toBeInstanceOf(AbortSignal);
+		expect(ctx.nutrientRecords).toEqual(new Set());
 	});
 
 	test('declares the nutrient database tools only when FoodData Central is configured', async () => {
@@ -269,6 +287,148 @@ describe('server tools', () => {
 		]);
 		const third = h.callClaude.mock.calls[2]![0].params.messages;
 		expect(third[3]).toEqual({ role: 'assistant', content: fetched });
+	});
+});
+
+describe('when the API rejects web fetch', () => {
+	const rejected = () =>
+		new errors.ClaudeApiError({ kind: 'invalid_request', status: 400, retryable: false });
+	const toolNames = (call: number) =>
+		h.callClaude.mock.calls[call]![0].params.tools.map((tool: { name: string }) => tool.name);
+	const finished = () =>
+		h.runTaskTool.mockResolvedValue({ content: '{}', isError: false, outcome: 'completed' });
+
+	test('retries the call once without web fetch or container and keeps it off', async () => {
+		h.callClaude
+			.mockResolvedValueOnce({ ...response('pause_turn'), container: { id: 'container_1' } })
+			.mockRejectedValueOnce(rejected())
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
+		finished();
+		await processTask(TASK_ID, options());
+		expect(toolNames(1)).toEqual(['web_search', 'web_fetch', 'tool']);
+		expect(h.callClaude.mock.calls[1]![0].params.container).toBe('container_1');
+		expect(toolNames(2)).toEqual(['web_search', 'tool']);
+		expect(h.callClaude.mock.calls[2]![0].params).not.toHaveProperty('container');
+		expect(h.dismissRun).not.toHaveBeenCalled();
+		expect(isWebFetchRejected()).toBe(true);
+		expect(h.captureMessage).toHaveBeenCalledTimes(1);
+		expect(h.captureMessage).toHaveBeenCalledWith(
+			expect.stringContaining('web_fetch_20260209'),
+			expect.objectContaining({ level: 'warning' })
+		);
+
+		reset();
+		queueResults([[{ locale: 'de' }], [{ autoLog: true }]]);
+		h.callClaude.mockResolvedValueOnce(
+			response('tool_use', [toolUse('toolu_c', 'complete_ai_task')])
+		);
+		await processTask(TASK_ID, options());
+		expect(toolNames(3)).toEqual(['web_search', 'tool']);
+		expect(h.captureMessage).toHaveBeenCalledTimes(1);
+	});
+
+	test('behaves as before when the call fails without web fetch too', async () => {
+		h.callClaude.mockRejectedValueOnce(rejected()).mockRejectedValueOnce(rejected());
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(2);
+		expect(h.dismissRun).toHaveBeenCalledWith(
+			expect.anything(),
+			'claude_error',
+			'invalid_request 400'
+		);
+		expect(isWebFetchRejected()).toBe(false);
+		expect(h.captureMessage).not.toHaveBeenCalled();
+	});
+
+	test.each([
+		[
+			'a retryable failure',
+			new errors.ClaudeApiError({ kind: 'server', status: 529, retryable: true })
+		],
+		[
+			'a 404',
+			new errors.ClaudeApiError({ kind: 'invalid_request', status: 404, retryable: false })
+		],
+		['an auth failure', new errors.ClaudeApiError({ kind: 'auth', status: 401, retryable: false })]
+	])('does not retry %s', async (_label, error) => {
+		h.callClaude.mockRejectedValueOnce(error);
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(1);
+		expect(isWebFetchRejected()).toBe(false);
+	});
+
+	test('does not retry a rejected call that declared no web fetch', async () => {
+		h.config.maxWebFetches = 0;
+		h.callClaude.mockRejectedValueOnce(rejected());
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(1);
+		expect(h.dismissRun).toHaveBeenCalledWith(
+			expect.anything(),
+			'claude_error',
+			'invalid_request 400'
+		);
+	});
+});
+
+describe('limits', () => {
+	test('refuses a sixth new food in one run', async () => {
+		const creates = Array.from({ length: 6 }, (_, i) => toolUse(`toolu_${i}`, 'create_food'));
+		h.callClaude
+			.mockResolvedValueOnce(response('tool_use', creates))
+			.mockResolvedValueOnce(response('refusal'));
+		h.runTaskTool.mockImplementation(
+			async (_name: string, _input: unknown, ctx: { createdFoods: Map<string, unknown> }) => {
+				ctx.createdFoods.set(`food-${ctx.createdFoods.size}`, {});
+				return { content: '{}', isError: false };
+			}
+		);
+		await processTask(TASK_ID, options());
+		expect(h.runTaskTool).toHaveBeenCalledTimes(5);
+		const results = h.callClaude.mock.calls[1]![0].params.messages[2].content;
+		expect(results[5]).toMatchObject({ tool_use_id: 'toolu_5', is_error: true });
+		expect(results[5].content).toContain('Too many new foods');
+	});
+
+	test('re-sends the request when a reply is cut off inside a server tool call', async () => {
+		const cutOff = [
+			{ type: 'text', text: 'Looking it up' },
+			{ type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_fetch', input: { url: 'https://ex' } }
+		];
+		h.callClaude
+			.mockResolvedValueOnce(response('max_tokens', cutOff))
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
+		h.runTaskTool.mockResolvedValue({ content: '{}', isError: false, outcome: 'completed' });
+		await processTask(TASK_ID, options());
+		const [first, second] = h.callClaude.mock.calls.map((call) => call[0].params.messages);
+		expect(second).toEqual(first);
+		expect(second).toHaveLength(1);
+		expect(h.dismissRun).not.toHaveBeenCalled();
+	});
+
+	test('gives up when the re-sent request is cut off the same way', async () => {
+		const cutOff = [
+			{ type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: { query: 'x' } }
+		];
+		h.callClaude.mockResolvedValue(response('max_tokens', cutOff));
+		await processTask(TASK_ID, options());
+		expect(h.callClaude).toHaveBeenCalledTimes(2);
+		expect(h.dismissRun).toHaveBeenCalledWith(expect.anything(), 'claude_incomplete');
+	});
+
+	test('a cut-off reply whose server tool calls all have results is nudged as before', async () => {
+		const complete = [
+			{ type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: { query: 'x' } },
+			{ type: 'web_search_tool_result', tool_use_id: 'srvtoolu_1', content: [] },
+			{ type: 'text', text: 'long' }
+		];
+		h.callClaude
+			.mockResolvedValueOnce(response('max_tokens', complete))
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
+		h.runTaskTool.mockResolvedValue({ content: '{}', isError: false, outcome: 'completed' });
+		await processTask(TASK_ID, options());
+		const messages = h.callClaude.mock.calls[1]![0].params.messages;
+		expect(messages[1]).toEqual({ role: 'assistant', content: complete });
+		expect(messages[2].content[0].text).toContain('cut off');
 	});
 });
 

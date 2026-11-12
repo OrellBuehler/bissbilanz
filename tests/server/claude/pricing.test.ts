@@ -189,10 +189,11 @@ describe('web fetch billing', () => {
 		).toBe(priceUsage('claude-opus-5-5', base));
 	});
 
-	test('each row names a web search and a web fetch version', () => {
+	test('each row names a web search version and a web fetch version or none', () => {
 		for (const row of Object.values(CLAUDE_PRICING_USD_PER_MTOK)) {
 			expect(row.webSearch).toMatch(/^web_search_\d{8}$/);
-			expect(row.webFetch).toMatch(/^web_fetch_\d{8}$/);
+			if (row.webFetch !== null) expect(row.webFetch).toMatch(/^web_fetch_\d{8}$/);
 		}
+		expect(CLAUDE_PRICING_USD_PER_MTOK['claude-haiku-5-5']!.webFetch).toBeNull();
 	});
 });

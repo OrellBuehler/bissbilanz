@@ -55,7 +55,7 @@ export const FDC_NUTRIENT_IDS: Record<string, readonly number[]> = {
 	vitaminB5: [1170],
 	vitaminB6: [1175],
 	vitaminB7: [1176],
-	vitaminB9: [1177],
+	vitaminB9: [1190, 1177],
 	vitaminB12: [1178],
 	caffeine: [1057],
 	alcohol: [1018],
@@ -211,6 +211,65 @@ export function scaleFdcNutrients(food: FdcFood, scale: number): Record<string, 
 	);
 }
 
+export type ServingMacros = { calories: number; protein: number; carbs: number; fat: number };
+
+export type RecordComparison = {
+	matches: boolean;
+	mismatched: (keyof ServingMacros)[];
+	recordPerServing: Record<string, number>;
+};
+
+const CALORIE_FLOOR_KCAL = 10;
+const CALORIE_SHARE = 0.25;
+const MACRO_FLOOR_G = 1;
+const MACRO_ENERGY_SHARE = 0.15;
+const KCAL_PER_GRAM = { protein: 4, carbs: 4, fat: 9 } as const;
+
+export function compareWithRecord(
+	record: FdcFood,
+	food: ServingMacros,
+	scale: number
+): RecordComparison {
+	const per = record.per100g;
+	const at = (value: number | null) => (value === null ? null : value * scale);
+	const expected = {
+		calories: at(per.calories),
+		protein: at(per.protein),
+		carbs: at(per.carbs),
+		fat: at(per.fat),
+		fiber: at(per.fiber)
+	};
+	const netCarbs =
+		expected.carbs !== null && expected.fiber !== null
+			? Math.max(0, expected.carbs - expected.fiber)
+			: null;
+	const mismatched: (keyof ServingMacros)[] = [];
+	if (
+		expected.calories !== null &&
+		Math.abs(food.calories - expected.calories) >
+			Math.max(CALORIE_FLOOR_KCAL, CALORIE_SHARE * expected.calories)
+	) {
+		mismatched.push('calories');
+	}
+	const energy = Math.max(food.calories, expected.calories ?? 0);
+	for (const macro of ['protein', 'carbs', 'fat'] as const) {
+		const high = expected[macro];
+		if (high === null) continue;
+		const low = macro === 'carbs' && netCarbs !== null ? netCarbs : high;
+		const value = food[macro];
+		const gap = value < low ? low - value : value > high ? value - high : 0;
+		if (gap > Math.max(MACRO_FLOOR_G, (MACRO_ENERGY_SHARE * energy) / KCAL_PER_GRAM[macro])) {
+			mismatched.push(macro);
+		}
+	}
+	const recordPerServing = Object.fromEntries(
+		Object.entries({ ...expected, carbsWithoutFiber: netCarbs })
+			.filter((entry): entry is [string, number] => entry[1] !== null)
+			.map(([key, value]) => [key, round(value, key === 'calories' ? 0 : 1)])
+	);
+	return { matches: mismatched.length === 0, mismatched, recordPerServing };
+}
+
 const cache = new Map<string, { value: unknown; expiresAt: number }>();
 
 function cacheGet<T>(key: string): T | undefined {
@@ -236,8 +295,17 @@ export function resetFdcCacheForTests() {
 export const isFdcConfigured = () => Boolean(config.fdc.apiKey);
 
 const UNAVAILABLE = 'The nutrient database is unavailable right now. Use another source.';
+const INVALID_QUERY =
+	'The nutrient database could not read that query. Rephrase it with plain words, for example "ground beef raw".';
 
-async function request(userId: string, path: string, body?: unknown): Promise<unknown> {
+type RequestOptions = { body?: unknown; signal?: AbortSignal; badRequest?: string };
+
+async function request(
+	userId: string,
+	path: string,
+	options: RequestOptions = {}
+): Promise<unknown> {
+	const { body, signal, badRequest } = options;
 	const apiKey = config.fdc.apiKey;
 	if (!apiKey) throw new NutrientDatabaseError('The nutrient database is not configured.');
 	try {
@@ -250,6 +318,7 @@ async function request(userId: string, path: string, body?: unknown): Promise<un
 		);
 	}
 
+	const timeout = AbortSignal.timeout(FDC_TIMEOUT_MS);
 	let response: Response;
 	try {
 		response = await fetch(`${FDC_API_BASE}${path}`, {
@@ -260,9 +329,10 @@ async function request(userId: string, path: string, body?: unknown): Promise<un
 				...(body === undefined ? {} : { 'Content-Type': 'application/json' })
 			},
 			body: body === undefined ? undefined : JSON.stringify(body),
-			signal: AbortSignal.timeout(FDC_TIMEOUT_MS)
+			signal: signal ? AbortSignal.any([signal, timeout]) : timeout
 		});
 	} catch (error) {
+		if (signal?.aborted) throw error;
 		Sentry.addBreadcrumb({
 			category: 'fdc',
 			level: 'warning',
@@ -273,6 +343,15 @@ async function request(userId: string, path: string, body?: unknown): Promise<un
 	}
 
 	if (response.status === 404) return null;
+	if (response.status === 400 && badRequest) {
+		Sentry.addBreadcrumb({
+			category: 'fdc',
+			level: 'info',
+			message: 'FoodData Central rejected a query',
+			data: { path, status: 400 }
+		});
+		throw new NutrientDatabaseError(badRequest);
+	}
 	if (!response.ok) {
 		const expected = response.status === 429 || response.status >= 500;
 		if (expected) {
@@ -307,17 +386,30 @@ function unexpectedAnswer(path: string, error: z.ZodError): never {
 	throw new NutrientDatabaseError(UNAVAILABLE);
 }
 
-export async function searchFdcFoods(userId: string, query: string): Promise<FdcFood[]> {
-	const key = `search:${query.trim().toLowerCase()}`;
+export const plainFdcQuery = (query: string) =>
+	query
+		.toLowerCase()
+		.replace(/[^\p{L}\p{N}\s.,']/gu, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+
+export async function searchFdcFoods(
+	userId: string,
+	query: string,
+	signal?: AbortSignal
+): Promise<FdcFood[]> {
+	const plain = plainFdcQuery(query);
+	if (!plain) throw new NutrientDatabaseError(INVALID_QUERY);
+	const key = `search:${plain}`;
 	const cached = cacheGet<FdcFood[]>(key);
 	if (cached) return cached;
 
 	const path = '/foods/search';
 	const parsed = searchResponseSchema.safeParse(
 		await request(userId, path, {
-			query: query.trim(),
-			dataType: FDC_DATA_TYPES,
-			pageSize: FDC_SEARCH_PAGE_SIZE
+			body: { query: plain, dataType: FDC_DATA_TYPES, pageSize: FDC_SEARCH_PAGE_SIZE },
+			signal,
+			badRequest: INVALID_QUERY
 		})
 	);
 	if (!parsed.success) unexpectedAnswer(path, parsed.error);
@@ -334,13 +426,17 @@ export async function searchFdcFoods(userId: string, query: string): Promise<Fdc
 	return ranked;
 }
 
-export async function getFdcFood(userId: string, fdcId: number): Promise<FdcFood> {
+export async function getFdcFood(
+	userId: string,
+	fdcId: number,
+	signal?: AbortSignal
+): Promise<FdcFood> {
 	const key = `food:${fdcId}`;
 	const cached = cacheGet<FdcFood>(key);
 	if (cached) return cached;
 
 	const path = `/food/${fdcId}`;
-	const answer = await request(userId, path);
+	const answer = await request(userId, path, { signal });
 	if (answer === null) {
 		throw new NutrientDatabaseError(`FoodData Central has no record ${fdcId}.`);
 	}

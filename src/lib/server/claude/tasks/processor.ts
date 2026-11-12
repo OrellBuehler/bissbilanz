@@ -11,7 +11,7 @@ import { assertClaudeAllowed } from '../capability';
 import { callClaude } from '../call';
 import { claudeConfig } from '../config';
 import { isFdcConfigured } from '../../fooddata-central';
-import { resolveClaudeModel, serverTools } from '../models';
+import { isWebFetchTool, rejectWebFetch, resolveClaudeModel, taskServerTools } from '../models';
 import { AI_TASK_FEATURE } from '../constants';
 import {
 	ClaudeAbortedError,
@@ -44,6 +44,20 @@ import type { ClaudeRun, Fence, TaskMode } from './types';
 export const HEARTBEAT_INTERVAL_MS = 60_000;
 export const MAX_TOOL_CALLS_PER_RESPONSE = 20;
 export const MAX_LOG_CALLS_PER_RUN = 30;
+export const MAX_FOODS_CREATED_PER_RUN = 5;
+
+const hasUnansweredServerTool = (content: Anthropic.ContentBlock[]): boolean => {
+	const answered = new Set(
+		content.flatMap((block) => ('tool_use_id' in block ? [block.tool_use_id] : []))
+	);
+	return content.some((block) => block.type === 'server_tool_use' && !answered.has(block.id));
+};
+
+const rejectsWebFetch = (error: unknown, tools: Anthropic.ToolUnion[]): boolean =>
+	error instanceof ClaudeApiError &&
+	error.kind === 'invalid_request' &&
+	error.status === 400 &&
+	tools.some(isWebFetchTool);
 
 const NUDGE =
 	'Your reply was cut off. Keep it short: call complete_ai_task or dismiss_ai_task now.';
@@ -171,7 +185,9 @@ async function runLoop(
 		fence: ctx.fence,
 		seen: new Map(),
 		foods: new Map(),
-		createdFoods: new Map()
+		createdFoods: new Map(),
+		nutrientRecords: new Set(),
+		signal
 	};
 	let nudged = false;
 	let logCalls = 0;
@@ -183,34 +199,59 @@ async function runLoop(
 		return false;
 	};
 
-	const { maxIterations, maxWebSearches, maxWebFetches } = claudeConfig();
-	const tools: Anthropic.ToolUnion[] = [
-		...serverTools(loaded.model, { webSearches: maxWebSearches, webFetches: maxWebFetches }),
+	const { maxIterations } = claudeConfig();
+	let tools: Anthropic.ToolUnion[] = [
+		...taskServerTools(loaded.model),
 		...taskTools(isFdcConfigured())
 	];
 	let container: string | undefined;
-	for (let iteration = 0; iteration < maxIterations; iteration++) {
-		if (!(await regate())) return;
-
-		const response = await callClaude({
+	const call = (requestTools: Anthropic.ToolUnion[], requestContainer: string | undefined) =>
+		callClaude({
 			userId: run.userId,
 			feature: AI_TASK_FEATURE,
 			model: loaded.model,
 			aiTaskId: task.id,
 			params: {
 				system: TASK_SYSTEM,
-				tools,
+				tools: requestTools,
 				messages: withCacheBreakpoint(messages),
-				...(container ? { container } : {})
+				...(requestContainer ? { container: requestContainer } : {})
 			},
 			imageCount: loaded.imageCount,
 			signal
 		});
+
+	for (let iteration = 0; iteration < maxIterations; iteration++) {
+		if (!(await regate())) return;
+
+		let response: Anthropic.Message;
+		try {
+			response = await call(tools, container);
+		} catch (error) {
+			if (!rejectsWebFetch(error, tools)) throw error;
+			const dropped = tools.filter(isWebFetchTool);
+			const withoutFetch = tools.filter((tool) => !isWebFetchTool(tool));
+			response = await call(withoutFetch, undefined);
+			tools = withoutFetch;
+			container = undefined;
+			if (rejectWebFetch()) {
+				Sentry.captureMessage(
+					`The API rejected a request with ${dropped.map((tool) => ('type' in tool ? tool.type : tool.name)).join(', ')}; web fetch is off until the next restart`,
+					{ level: 'warning', tags: { job: 'claude-task' }, extra: { model: loaded.model } }
+				);
+			}
+		}
 		container = response.container?.id ?? container;
 
 		if (response.stop_reason === 'refusal') {
 			await dismissRun(ctx, 'claude_refused');
 			return;
+		}
+
+		if (response.stop_reason === 'max_tokens' && hasUnansweredServerTool(response.content)) {
+			if (nudged) break;
+			nudged = true;
+			continue;
 		}
 
 		if (response.content.length > 0) {
@@ -234,9 +275,12 @@ async function runLoop(
 						? 'Too many tool calls in one response. Make fewer calls per turn.'
 						: block.name === 'log_food' && logCalls >= MAX_LOG_CALLS_PER_RUN
 							? 'Too many log_food calls for this meal. Finish with complete_ai_task or dismiss_ai_task.'
-							: isTerminalTool(block.name) && failed
-								? 'Fix the failed call first, then finish.'
-								: null;
+							: block.name === 'create_food' &&
+								  toolCtx.createdFoods.size >= MAX_FOODS_CREATED_PER_RUN
+								? 'Too many new foods for one meal. Log the rest as quick entries.'
+								: isTerminalTool(block.name) && failed
+									? 'Fix the failed call first, then finish.'
+									: null;
 				if (rejection) {
 					failed = true;
 					results.push({

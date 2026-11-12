@@ -9,6 +9,7 @@ import { findFoodByBarcode, getFood } from '../../foods';
 import {
 	FDC_SOURCE_NAME,
 	NutrientDatabaseError,
+	compareWithRecord,
 	fdcServingScale,
 	getFdcFood,
 	scaleFdcNutrients,
@@ -26,7 +27,7 @@ import {
 import { ALL_NUTRIENTS } from '$lib/nutrients';
 import { servingUnitValues } from '$lib/units';
 import { entryCreateSchema, foodCreateSchema } from '../../validation';
-import { LeaseLostError } from '../errors';
+import { ClaudeAbortedError, LeaseLostError } from '../errors';
 import { completeByModel, dismissByModel, type OutcomeContext } from './outcomes';
 import { ledgerGetOrCreate, loadRun, transitionFenced, withFence } from './runs';
 import type { Fence, Proposal, ProposalItem, TaskMode, TaskOutcome } from './types';
@@ -56,10 +57,18 @@ const strictTool = (
 	}
 });
 
-const CREATE_FOOD_DESCRIPTION =
-	"Create a new food in the user's food database, with nutrition per serving. Use it only after search_foods, find_food_by_barcode and search_openfoodfacts found nothing that fits, the user will likely eat the item again, and you have real nutrition data (label photo, Open Food Facts, or a web page). Pass barcode whenever one is visible. Returns foodId, which log_food accepts. In REVIEW mode the food is created only if the user accepts the logged item.";
+const createFoodDescription = (sources: string, extra: string) =>
+	`Create a new food in the user's food database, with nutrition per serving. Use it when nothing in the user's own foods fits, the user will likely eat the item again, and you have real nutrition data: ${sources}. Pass barcode whenever one is visible. Returns foodId, which log_food accepts. In REVIEW mode the food is created only if the user accepts the logged item.${extra}`;
 
-const CREATE_FOOD_WITH_DATABASE_DESCRIPTION = `${CREATE_FOOD_DESCRIPTION} With fdcId the server fills every nutrient you did not list from that nutrient database record, scaled to the serving, and the result reports how many it filled.`;
+const CREATE_FOOD_DESCRIPTION = createFoodDescription(
+	'a label photo, Open Food Facts or a web page',
+	''
+);
+
+const CREATE_FOOD_WITH_DATABASE_DESCRIPTION = createFoodDescription(
+	'a label photo, Open Food Facts, a nutrient database record or a web page',
+	' With fdcId from search_nutrient_database in this task, the server checks your calories and macros against that record scaled to the serving, refuses a mismatch with the record values, and otherwise fills every nutrient you did not list.'
+);
 
 const NUTRIENT_KEYS = ALL_NUTRIENTS.map((n) => n.key);
 const NUTRIENT_LIST = ALL_NUTRIENTS.map((n) => `${n.key} (${n.unit})`).join(', ');
@@ -99,7 +108,7 @@ const createFoodTool = (nutrientDatabase: boolean) =>
 				? {
 						fdcId: nullable(
 							'integer',
-							'fdcId from search_nutrient_database of the record that describes this food, or null. It fills nutrients only when servingUnit is g, kg, oz or lb.'
+							'fdcId of the search_nutrient_database result in this task that describes this food, or null. It fills nutrients only when servingUnit is g, kg, oz or lb.'
 						)
 					}
 				: {}),
@@ -258,6 +267,8 @@ export type TaskToolContext = {
 	seen: Map<string, number>;
 	foods: Map<string, ProvisionalFood>;
 	createdFoods: Map<string, FoodToolResult>;
+	nutrientRecords: Set<number>;
+	signal?: AbortSignal;
 };
 
 type ProvisionalFood = Record<string, unknown>;
@@ -268,7 +279,14 @@ export type ToolResult = { content: string; isError: boolean; outcome?: TaskOutc
 export const isTerminalTool = (name: string) =>
 	name === 'complete_ai_task' || name === 'dismiss_ai_task';
 
-class ToolInputError extends Error {}
+class ToolInputError extends Error {
+	constructor(
+		message: string,
+		readonly details: Record<string, unknown> = {}
+	) {
+		super(message);
+	}
+}
 
 const FOOD_FIELDS = [
 	'id',
@@ -370,16 +388,18 @@ const FOOD_RESULT_FIELDS = [
 
 type FoodCreateInput = z.infer<typeof foodCreateSchema>;
 
-const CALORIE_MISMATCH_KCAL = 40;
-const CALORIE_MISMATCH_SHARE = 0.5;
-
 async function fillFromDatabase(
 	data: FoodCreateInput,
 	fdcId: number,
 	explicit: Set<string>,
 	ctx: TaskToolContext
 ): Promise<{ data: FoodCreateInput; source: Record<string, unknown> }> {
-	const record = await getFdcFood(ctx.userId, fdcId);
+	if (!ctx.nutrientRecords.has(fdcId)) {
+		throw new ToolInputError(
+			`fdcId ${fdcId} did not come from search_nutrient_database in this task. Search first and pass one of its fdcIds, or pass null.`
+		);
+	}
+	const record = await getFdcFood(ctx.userId, fdcId, ctx.signal);
 	const base = {
 		database: FDC_SOURCE_NAME,
 		fdcId,
@@ -397,16 +417,11 @@ async function fillFromDatabase(
 			}
 		};
 	}
-	const recordKcal = record.per100g.calories;
-	const foodKcal = Math.round(data.calories / scale);
-	const gap = recordKcal === null ? 0 : Math.abs(foodKcal - recordKcal);
-	if (
-		recordKcal !== null &&
-		gap > CALORIE_MISMATCH_KCAL &&
-		gap > CALORIE_MISMATCH_SHARE * Math.max(foodKcal, recordKcal)
-	) {
+	const comparison = compareWithRecord(record, data, scale);
+	if (!comparison.matches) {
 		throw new ToolInputError(
-			`Record ${fdcId} "${record.description}" has ${recordKcal} kcal per 100 g but this food has ${foodKcal}, so it is not the same food. Pass the fdcId of a matching record, or null.`
+			`Your ${comparison.mismatched.join(', ')} for ${data.servingSize} ${data.servingUnit} do not match record ${fdcId} "${record.description}" scaled to that serving. If the record is the right food, take your values from recordPerServing (carbs on European labels exclude fiber, see carbsWithoutFiber); otherwise pass the fdcId of a matching record, or null.`,
+			{ recordPerServing: comparison.recordPerServing }
 		);
 	}
 	const filled = Object.fromEntries(
@@ -630,7 +645,8 @@ async function execute(name: string, input: unknown, ctx: TaskToolContext): Prom
 		}
 		case 'search_nutrient_database': {
 			const args = inputSchemas.search_nutrient_database.parse(input);
-			const foods = await searchFdcFoods(ctx.userId, args.query);
+			const foods = await searchFdcFoods(ctx.userId, args.query, ctx.signal);
+			for (const food of foods) ctx.nutrientRecords.add(food.fdcId);
 			return {
 				foods: foods.map((food) => ({
 					fdcId: food.fdcId,
@@ -656,8 +672,8 @@ async function execute(name: string, input: unknown, ctx: TaskToolContext): Prom
 const truncate = (value: string) =>
 	value.length > TOOL_RESULT_MAX_CHARS ? value.slice(0, TOOL_RESULT_MAX_CHARS) : value;
 
-const failure = (message: string): ToolResult => ({
-	content: truncate(JSON.stringify({ error: message })),
+const failure = (message: string, details: Record<string, unknown> = {}): ToolResult => ({
+	content: truncate(JSON.stringify({ error: message, ...details })),
 	isError: true
 });
 
@@ -687,6 +703,7 @@ export async function runTaskTool(
 		return { content: truncate(JSON.stringify(await execute(name, input, ctx))), isError: false };
 	} catch (error) {
 		if (error instanceof LeaseLostError) throw error;
+		if (ctx.signal?.aborted) throw new ClaudeAbortedError();
 		if (isZodError(error)) {
 			return {
 				content: truncate(
@@ -701,11 +718,8 @@ export async function runTaskTool(
 				isError: true
 			};
 		}
-		if (
-			error instanceof ToolInputError ||
-			error instanceof McpUserError ||
-			error instanceof NutrientDatabaseError
-		) {
+		if (error instanceof ToolInputError) return failure(error.message, error.details);
+		if (error instanceof McpUserError || error instanceof NutrientDatabaseError) {
 			return failure(error.message);
 		}
 		if (error instanceof ApiError && error.status < 500) return failure(error.message);

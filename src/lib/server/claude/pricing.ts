@@ -4,7 +4,7 @@ type ModelRow = ModelPricing & {
 	label: string;
 	selectable: boolean;
 	webSearch: 'web_search_20250305' | 'web_search_20260209';
-	webFetch: 'web_fetch_20250910' | 'web_fetch_20260209';
+	webFetch: 'web_fetch_20260209' | null;
 	longPrompt?: ModelPricing & { aboveTokens: number };
 };
 
@@ -44,7 +44,7 @@ export const CLAUDE_PRICING_USD_PER_MTOK: Record<string, ModelRow> = {
 		label: 'Claude Haiku 5.5',
 		selectable: true,
 		webSearch: 'web_search_20250305',
-		webFetch: 'web_fetch_20250910',
+		webFetch: null,
 		input: 0.1,
 		output: 0.5,
 		cacheWrite: 0.125,

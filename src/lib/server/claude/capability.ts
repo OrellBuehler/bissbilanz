@@ -2,20 +2,26 @@ import * as Sentry from '@sentry/sveltekit';
 import { eq } from 'drizzle-orm';
 import { getDB } from '../db';
 import { claudeAccess, userPreferences } from '../schema';
+import { serverToolAllowanceOf } from './call';
 import { claudeConfig } from './config';
 import { TASK_MAX_TOKENS } from './constants';
 import { ClaudeGateError, ClaudeProcessorChangedError } from './errors';
-import { resolveClaudeModel } from './models';
+import { resolveClaudeModel, taskServerTools } from './models';
 import { maxCallCostUsd } from './pricing';
 import { getClaudeEnabled } from './settings';
 import { effectiveUserBudgetUsd, getMonthSpend } from './usage';
 
-const MIN_TASK_INPUT_TOKENS = 20_000;
+export const FIRST_CALL_INPUT_TOKENS = 21_000;
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
 export const minTaskCallUsd = (model: string) =>
-	maxCallCostUsd(model, MIN_TASK_INPUT_TOKENS, TASK_MAX_TOKENS);
+	maxCallCostUsd(
+		model,
+		FIRST_CALL_INPUT_TOKENS,
+		TASK_MAX_TOKENS,
+		serverToolAllowanceOf(taskServerTools(model))
+	);
 
 export type ClaudeCapability = { available: boolean; remainingBudgetUsd?: number };
 

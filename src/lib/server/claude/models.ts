@@ -32,22 +32,51 @@ export function webSearchTool(model: string, maxUses: number): Anthropic.ToolUni
 	return { type, name: 'web_search', max_uses: maxUses };
 }
 
-export function webFetchTool(model: string, maxUses: number): Anthropic.ToolUnion {
-	const type = CLAUDE_PRICING_USD_PER_MTOK[model]?.webFetch ?? 'web_fetch_20260209';
+export function webFetchTool(model: string, maxUses: number): Anthropic.ToolUnion | null {
+	const row = CLAUDE_PRICING_USD_PER_MTOK[model];
+	const type = row ? row.webFetch : 'web_fetch_20260209';
+	if (!type) return null;
 	return {
 		type,
 		name: 'web_fetch',
 		max_uses: maxUses,
-		max_content_tokens: WEB_FETCH_MAX_CONTENT_TOKENS
+		max_content_tokens: WEB_FETCH_MAX_CONTENT_TOKENS,
+		url_sources: { client_tool_results: { type: 'none' } }
 	};
 }
+
+export const isWebFetchTool = (tool: Anthropic.ToolUnion): boolean =>
+	'type' in tool && typeof tool.type === 'string' && tool.type.startsWith('web_fetch');
 
 export function serverTools(
 	model: string,
 	limits: { webSearches: number; webFetches: number }
 ): Anthropic.ToolUnion[] {
+	const fetch = limits.webFetches > 0 ? webFetchTool(model, limits.webFetches) : null;
 	return [
 		...(limits.webSearches > 0 ? [webSearchTool(model, limits.webSearches)] : []),
-		...(limits.webFetches > 0 ? [webFetchTool(model, limits.webFetches)] : [])
+		...(fetch ? [fetch] : [])
 	];
+}
+
+let webFetchRejected = false;
+
+export const isWebFetchRejected = () => webFetchRejected;
+
+export function rejectWebFetch(): boolean {
+	if (webFetchRejected) return false;
+	webFetchRejected = true;
+	return true;
+}
+
+export function resetWebFetchForTests() {
+	webFetchRejected = false;
+}
+
+export function taskServerTools(model: string): Anthropic.ToolUnion[] {
+	const { maxWebSearches, maxWebFetches } = claudeConfig();
+	return serverTools(model, {
+		webSearches: maxWebSearches,
+		webFetches: webFetchRejected ? 0 : maxWebFetches
+	});
 }

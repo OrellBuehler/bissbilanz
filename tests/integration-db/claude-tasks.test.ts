@@ -44,6 +44,7 @@ import {
 vi.mock('@sentry/sveltekit', async (importOriginal) => ({
 	...(await importOriginal<typeof import('@sentry/sveltekit')>()),
 	captureException: vi.fn(),
+	captureMessage: vi.fn(),
 	addBreadcrumb: vi.fn()
 }));
 
@@ -60,6 +61,7 @@ let executor: typeof import('$lib/server/claude/tasks/executor');
 let tools: typeof import('$lib/server/claude/tasks/tools');
 let events: typeof import('$lib/server/claude/events');
 let fooddataCentral: typeof import('$lib/server/fooddata-central');
+let models: typeof import('$lib/server/claude/models');
 const fdcConfig: { apiKey: string | undefined } = { apiKey: undefined };
 
 beforeAll(async () => {
@@ -86,6 +88,7 @@ beforeAll(async () => {
 	tools = await import('$lib/server/claude/tasks/tools');
 	events = await import('$lib/server/claude/events');
 	fooddataCentral = await import('$lib/server/fooddata-central');
+	models = await import('$lib/server/claude/models');
 });
 
 afterAll(async () => {
@@ -244,7 +247,13 @@ describe('auto mode', () => {
 		expect(firstCall).not.toHaveProperty('temperature');
 		expect(firstCall!.tools!.slice(0, 2)).toEqual([
 			{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 },
-			{ type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 3, max_content_tokens: 10_000 }
+			{
+				type: 'web_fetch_20260209',
+				name: 'web_fetch',
+				max_uses: 3,
+				max_content_tokens: 10_000,
+				url_sources: { client_tool_results: { type: 'none' } }
+			}
 		]);
 		expect(
 			(firstCall!.tools as Anthropic.Tool[]).some(
@@ -712,6 +721,74 @@ describe('web search', () => {
 });
 
 describe('web fetch', () => {
+	afterEach(() => {
+		models.resetWebFetchForTests();
+	});
+
+	it('drops web fetch when the API rejects the request and keeps it off', async () => {
+		vi.mocked(Sentry.captureMessage).mockClear();
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		const rejected = new Anthropic.BadRequestError(
+			400,
+			{ type: 'error', error: { type: 'invalid_request_error', message: 'not enabled' } },
+			undefined,
+			new Headers()
+		);
+		const fake = startFake([rejected, quickLog(), completeStep('Logged toast')]);
+		await execute(user.id, task.id);
+
+		const fetchDeclared = (call: number) =>
+			fake.calls[call]!.tools!.some((tool) => 'type' in tool && tool.type?.startsWith('web_fetch'));
+		expect(fake.calls).toHaveLength(3);
+		expect(fetchDeclared(0)).toBe(true);
+		expect(fetchDeclared(1)).toBe(false);
+		expect(fetchDeclared(2)).toBe(false);
+		expect((await taskOf(task.id)).status).toBe('completed');
+		expect(vi.mocked(Sentry.captureMessage)).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(Sentry.captureMessage)).toHaveBeenCalledWith(
+			expect.stringContaining('web_fetch_20260209'),
+			expect.objectContaining({ level: 'warning' })
+		);
+		const rows = (await db.select().from(claudeUsage)).sort(
+			(a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+		);
+		expect(rows.map((row) => [row.status, row.costUsd])).toEqual([
+			['failed', 0],
+			['succeeded', (1000 * 4 + 200 * 20) / 1e6],
+			['succeeded', (1000 * 4 + 200 * 20) / 1e6]
+		]);
+
+		const next = await seedTask(db, user.id);
+		const after = startFake([completeStep('nothing to log')]);
+		await execute(user.id, next.id);
+		expect(
+			after.calls[0]!.tools!.some((tool) => 'type' in tool && tool.type?.startsWith('web_fetch'))
+		).toBe(false);
+		expect(vi.mocked(Sentry.captureMessage)).toHaveBeenCalledTimes(1);
+	});
+
+	it('dismisses as before when the request fails without web fetch too', async () => {
+		const user = await seedUser(db);
+		const task = await seedTask(db, user.id);
+		const rejected = () =>
+			new Anthropic.BadRequestError(
+				400,
+				{ type: 'error', error: { type: 'invalid_request_error', message: 'bad' } },
+				undefined,
+				new Headers()
+			);
+		const fake = startFake([rejected(), rejected()]);
+		await execute(user.id, task.id);
+		expect(fake.calls).toHaveLength(2);
+		expect(await runOf(task.id)).toMatchObject({
+			state: 'dismissed',
+			failureCode: 'claude_error',
+			failureDetail: 'invalid_request 400'
+		});
+		expect(models.isWebFetchRejected()).toBe(false);
+	});
+
 	it('keeps a fetch that waited on a client tool and bills only its tokens', async () => {
 		const user = await seedUser(db);
 		const task = await seedTask(db, user.id);
@@ -861,24 +938,38 @@ describe('nutrient database', () => {
 		expect(fdcFetch).toHaveBeenCalledTimes(1);
 	});
 
-	it('carries the filled nutrients in the proposal and creates them on accept', async () => {
+	it('refuses mis-scaled macros with the record values, then carries the filled nutrients to accept', async () => {
 		const user = await seedUser(db, { autoLog: false });
 		const task = await seedTask(db, user.id, { description: 'A pear' });
-		startFake([
+		const perHundred = pearToolInput({ calories: 57, protein: 0.36, carbs: 15.2, fat: 0.14 });
+		const fake = startFake([
+			toolStep(toolUse('search_nutrient_database', { query: 'pear, raw' }, 'toolu_fdc')),
+			toolStep(toolUse('create_food', perHundred, 'toolu_wrong')),
 			toolStep(toolUse('create_food', pearToolInput(), 'toolu_create')),
 			(params) => logStep({ foodId: createdFoodId(params), servings: 1 }),
 			completeStep('Suggested a pear')
 		]);
 		await execute(user.id, task.id);
 
+		const refusal = (
+			fake.calls[2]!.messages.at(-1)!.content as Anthropic.ToolResultBlockParam[]
+		)[0]!;
+		expect(refusal.is_error).toBe(true);
+		expect(JSON.parse(String(refusal.content)).recordPerServing).toMatchObject({
+			calories: 101,
+			carbs: 27.1
+		});
+		expect(fdcFetch).toHaveBeenCalledTimes(1);
 		const [url, init] = fdcFetch.mock.calls[0]!;
-		expect(String(url)).toBe('https://api.nal.usda.gov/fdc/v1/food/169118');
+		expect(String(url)).toBe('https://api.nal.usda.gov/fdc/v1/foods/search');
 		expect(String(url)).not.toContain('fdc-test-key');
 		expect(new Headers(init!.headers).get('x-api-key')).toBe('fdc-test-key');
+		expect(JSON.parse(String(init!.body)).query).toBe('pear, raw');
 		expect(await userFoods(user.id)).toHaveLength(0);
 		const stored = (await runOf(task.id)).proposal as {
 			items: { food: Record<string, unknown> }[];
 		};
+		expect(stored.items).toHaveLength(1);
 		expect(stored.items[0]!.food).toMatchObject({ sodium: 5, vitaminC: 7.654, potassium: 206.48 });
 
 		await proposal.acceptProposal(user.id, task.id);
@@ -932,10 +1023,14 @@ describe('model per user', () => {
 
 		expect((await taskOf(task.id)).status).toBe('completed');
 		expect(fake.calls.map((call) => call.model)).toEqual(['claude-haiku-5-5', 'claude-haiku-5-5']);
-		expect(fake.calls[0]!.tools!.slice(0, 2)).toEqual([
-			{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 },
-			{ type: 'web_fetch_20250910', name: 'web_fetch', max_uses: 3, max_content_tokens: 10_000 }
-		]);
+		expect(fake.calls[0]!.tools![0]).toEqual({
+			type: 'web_search_20250305',
+			name: 'web_search',
+			max_uses: 3
+		});
+		expect(
+			fake.calls[0]!.tools!.some((tool) => 'type' in tool && tool.type?.startsWith('web_fetch'))
+		).toBe(false);
 		const rows = (await db.select().from(claudeUsage)).sort(
 			(a, b) => a.createdAt.getTime() - b.createdAt.getTime()
 		);
@@ -1288,7 +1383,8 @@ describe('leases and fencing', () => {
 			fence: stale,
 			seen: new Map<string, number>(),
 			foods: new Map<string, Record<string, unknown>>(),
-			createdFoods: new Map<string, Record<string, unknown>>()
+			createdFoods: new Map<string, Record<string, unknown>>(),
+			nutrientRecords: new Set<number>()
 		};
 		await expect(
 			tools.runTaskTool('log_food', logInput({ quickName: 'Toast', quickCalories: 100 }), context)
