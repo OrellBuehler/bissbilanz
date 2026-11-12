@@ -733,6 +733,44 @@
     <string name="food_detail_collapse">Einklappen</string>
     <string name="food_detail_expand">Ausklappen</string>
     <string name="food_detail_merge">Zusammenführen mit…</string>
+    <string name="food_detail_enrich_nothing_new">Open Food Facts hat nichts Neues für dieses Lebensmittel</string>
+    <string name="food_detail_enrich_not_found">Produkt nicht in Open Food Facts gefunden</string>
+    <string name="food_detail_enrich_offline">Zum Anreichern ist eine Internetverbindung nötig</string>
+    <string name="food_detail_enrich_no_barcode">Dieses Lebensmittel hat keinen Barcode. Füge einen hinzu, um es anzureichern.</string>
+    <string name="food_detail_enrich_food_gone">Dieses Lebensmittel gibt es nicht mehr. Es wurde wohl auf einem anderen Gerät gelöscht.</string>
+    <string name="food_detail_enrich_food_changed">Das Lebensmittel wurde während der Abfrage geändert. Bitte versuche es erneut.</string>
+    <string name="food_detail_enrich_rate_limited">Zu viele Abfragen. Bitte warte eine Minute und versuche es erneut.</string>
+    <string name="food_detail_enrich_off_unavailable">Open Food Facts ist gerade nicht erreichbar. Bitte versuche es später erneut.</string>
+    <plurals name="food_detail_enrich_off_unavailable_seconds">
+        <item quantity="one">Open Food Facts ist gerade nicht erreichbar. Bitte versuche es in %1$d Sekunde erneut.</item>
+        <item quantity="other">Open Food Facts ist gerade nicht erreichbar. Bitte versuche es in %1$d Sekunden erneut.</item>
+    </plurals>
+    <plurals name="food_detail_enrich_off_unavailable_minutes">
+        <item quantity="one">Open Food Facts ist gerade nicht erreichbar. Bitte versuche es in %1$d Minute erneut.</item>
+        <item quantity="other">Open Food Facts ist gerade nicht erreichbar. Bitte versuche es in %1$d Minuten erneut.</item>
+    </plurals>
+    <string name="food_detail_enrich_not_uploaded">Dieses Lebensmittel wurde noch nicht in dein Konto hochgeladen und kann deshalb nicht angereichert werden.</string>
+
+    <!-- Enhance foods screen (server-side Open Food Facts run) -->
+    <string name="enhance_foods_title">Lebensmittel anreichern</string>
+    <string name="enhance_foods_description">Sucht deine Lebensmittel mit Barcode bei Open Food Facts. Nutri-Score und NOVA-Gruppe werden durch die Werte von Open Food Facts ersetzt; Zutaten, Zusatzstoffe, detaillierte Nährwerte und ein Foto werden nur ergänzt, wo sie fehlen. Namen, Portionen, Kalorien und Makros bleiben unverändert.</string>
+    <string name="enhance_foods_candidates">Zu prüfende Lebensmittel: %1$s</string>
+    <string name="enhance_foods_none">Alle Lebensmittel mit Barcode wurden geprüft.</string>
+    <string name="enhance_foods_no_barcodes">Noch keines deiner Lebensmittel hat einen Barcode. Nur Lebensmittel mit Barcode können angereichert werden.</string>
+    <string name="enhance_foods_start">Starten</string>
+    <string name="enhance_foods_stop">Stoppen</string>
+    <string name="enhance_foods_queued">Wird gestartet…</string>
+    <string name="enhance_foods_progress">%1$s von %2$s geprüft</string>
+    <string name="enhance_foods_counts">%1$s angereichert · %2$s nicht gefunden · %3$s fehlgeschlagen</string>
+    <string name="enhance_foods_background">Läuft auf dem Server mit etwa einem Lebensmittel pro Sekunde, du kannst diese Ansicht also verlassen.</string>
+    <string name="enhance_foods_last_completed">Letzter Lauf %1$s: %2$s geprüft</string>
+    <string name="enhance_foods_last_cancelled">Gestoppt %1$s nach %2$s von %3$s</string>
+    <string name="enhance_foods_last_failed">Abgebrochen %1$s nach %2$s von %3$s wegen wiederholter Fehler. Versuche es später erneut.</string>
+    <string name="enhance_foods_load_failed">Der Status konnte nicht geladen werden.</string>
+    <string name="enhance_foods_action_failed">Das hat nicht geklappt. Bitte versuche es erneut.</string>
+    <string name="enhance_foods_offline">Zum Anreichern ist eine Internetverbindung nötig.</string>
+    <string name="enhance_foods_rate_limited">Zu viele Anfragen. Bitte warte eine Minute.</string>
+    <string name="enhance_foods_needs_account">Das Anreichern läuft auf dem Server und braucht deshalb ein Konto.</string>
 
     <!-- Food merge (shared by the food detail screen and the duplicates screen) -->
     <string name="food_merge_pick_keeper">Behaltenes Lebensmittel wählen</string>
