@@ -105,7 +105,7 @@ extension BissbilanzAPI {
     /// Throws `AiTaskReplyFailure` for every non-2xx answer and transport
     /// failure. Expected rejections leave a breadcrumb; anything else is
     /// reported here.
-    func replyToAiTask(id: String, text: String, idempotencyKey: String) async throws -> AiTask {
+    func replyToAiTask(id: String, text: String, idempotencyKey: String) async throws -> AiTaskReplyReceipt {
         var request = URLRequest(url: try makeURL("/api/ai-tasks/\(id)/replies"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -123,7 +123,7 @@ extension BissbilanzAPI {
         }
     }
 
-    private func sendAiTaskReply(_ request: URLRequest) async throws -> AiTask {
+    private func sendAiTaskReply(_ request: URLRequest) async throws -> AiTaskReplyReceipt {
         let path = request.url?.path ?? "/api/ai-tasks/replies"
         ErrorReporter.addBreadcrumb("POST \(path)", category: "http")
         let data: Data
@@ -145,11 +145,13 @@ extension BissbilanzAPI {
             recordAiTaskReplyFailure(failure, error: error, request: request)
             throw failure
         }
-        if response.value(forHTTPHeaderField: "x-idempotent-replay") == "true" {
+        let isReplay = response.value(forHTTPHeaderField: "x-idempotent-replay") == "true"
+        if isReplay {
             ErrorReporter.addBreadcrumb("AI task reply replayed", category: "ai-task")
         }
         do {
-            return try JSONDecoder().decode(AiTaskResponse.self, from: data).task
+            let task = try JSONDecoder().decode(AiTaskResponse.self, from: data).task
+            return AiTaskReplyReceipt(task: task, isReplay: isReplay)
         } catch {
             let decodingError = APIError.decodingError(
                 error,

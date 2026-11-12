@@ -23,6 +23,14 @@ struct AiTaskClaudeThread: Codable, Hashable {
         replyBlockedReason.map { AiTaskReplyBlockedReason(code: $0) }
     }
 
+    /// The reason the thread spells out. `not_completed` stays unsaid, as on
+    /// the web: on a dismissed task with a conversation, "possible once
+    /// completed" would promise something that is not going to happen.
+    var shownBlockedReason: AiTaskReplyBlockedReason? {
+        guard let reason = blockedReason, reason != .notCompleted else { return nil }
+        return reason
+    }
+
     var unreadAnswers: [AiTaskThreadMessage] {
         messages.filter(\.isUnreadAnswer)
     }
@@ -259,6 +267,34 @@ enum AiTaskReplyFailure: Error, Equatable {
         }
     }
 
+    /// No 201 arrived, but the server may still have stored the reply: the
+    /// response was lost, the first attempt is still running, or the server
+    /// failed after accepting it. The list is re-read to find out.
+    var mayHaveLanded: Bool {
+        switch self {
+        case .network, .requestInProgress:
+            true
+        case let .failed(status):
+            status == 0 || status >= 500 || (200 ..< 300).contains(status)
+        case .unauthorized, .updateRequired, .taskNotFound, .blocked, .tooManyRequests, .keyReused, .invalid,
+             .rejected:
+            false
+        }
+    }
+
+    /// How long the server asked not to try again, when it said.
+    var retryAfter: TimeInterval? {
+        switch self {
+        case let .tooManyRequests(delay):
+            delay
+        case let .blocked(_, delay):
+            delay
+        case .network, .unauthorized, .updateRequired, .taskNotFound, .requestInProgress, .keyReused, .invalid,
+             .rejected, .failed:
+            nil
+        }
+    }
+
     var telemetryReason: String {
         switch self {
         case .network: "network"
@@ -285,22 +321,58 @@ enum AiTaskReplySendResult: Equatable {
     case skipped
 }
 
+/// What `BissbilanzAPI.replyToAiTask` got back. A replay is the server
+/// answering a retry from the first attempt's stored 201, whose task is the
+/// task as it was back then.
+struct AiTaskReplyReceipt {
+    let task: AiTask
+    let isReplay: Bool
+}
+
 /// One reply's `Idempotency-Key`. Retrying the same text reuses it, so the
 /// server answers from the first attempt instead of recording the reply twice;
 /// a different text is a different reply and gets a new key.
 struct AiTaskReplyAttempt: Equatable {
     let key: String
     let text: String
+    /// The user's messages the thread held when this reply was first sent.
+    var baseline: Set<String> = []
 
     static func next(
         for text: String,
         previous: AiTaskReplyAttempt?,
+        baseline: Set<String> = [],
         makeKey: () -> String = { UUID().uuidString }
     ) -> AiTaskReplyAttempt {
         if let previous, previous.text == text {
             return previous
         }
-        return AiTaskReplyAttempt(key: makeKey(), text: text)
+        return AiTaskReplyAttempt(key: makeKey(), text: text, baseline: baseline)
+    }
+
+    /// The thread holds this reply: a user message the thread did not have
+    /// when it was sent, with the same text. How a send whose answer was lost
+    /// turns out to have landed after all.
+    func landed(in thread: AiTaskClaudeThread?) -> Bool {
+        let messages = thread?.messages ?? []
+        return messages.contains { message in
+            message.isFromUser && !baseline.contains(message.id) && AiTaskReplyDraft.trimmed(message.text) == text
+        }
+    }
+}
+
+/// What the reply box of one task holds. Kept by the store, keyed by task, so
+/// switching tabs or leaving the screen does not lose it.
+struct AiTaskReplyComposer: Equatable {
+    var text = ""
+    /// Why the last send failed, shown under the text it kept.
+    var failure: AiTaskReplyFailure?
+    /// Send stays off until then: the server answered with a `Retry-After`.
+    var blockedUntil: Date?
+
+    func isBlocked(at now: Date) -> Bool {
+        guard let until = blockedUntil else { return false }
+        return until > now
     }
 }
 
@@ -333,28 +405,52 @@ enum AiTaskReplyDraft {
     }
 }
 
+/// An answer that changed a meal, with the day whose entries it changed.
+struct AiTaskChangedAnswer: Equatable {
+    let messageId: String
+    let date: String
+}
+
 /// Unread answers, diary changes and the first tab to show, worked out from the list.
 enum AiTaskThreadChanges {
-    /// Dates of tasks with an answer that changed the diary and was not in the
-    /// previous read of the list, each once.
-    static func datesWithNewChanges(previous: [AiTask], next: [AiTask]) -> [String] {
-        var known = Set<String>()
-        for task in previous {
+    /// Answers that changed a meal and have not re-pulled its day on this
+    /// device yet: new since the previous read, or still unread. The unread
+    /// rule covers the first read of a launch, which has nothing earlier to
+    /// compare against — usually a background refresh that just started the app.
+    static func changedAnswersToRefresh(
+        previous: [AiTask],
+        next: [AiTask],
+        isFirstRead: Bool,
+        alreadyRefreshed: Set<String>
+    ) -> [AiTaskChangedAnswer] {
+        let known = Set(messageIds(in: previous))
+        var answers: [AiTaskChangedAnswer] = []
+        for task in next {
             for message in task.claudeThread?.messages ?? [] {
-                known.insert(message.id)
+                guard !message.isFromUser, message.replyOutcome == .changed,
+                      !alreadyRefreshed.contains(message.id)
+                else { continue }
+                let isNew = !isFirstRead && !known.contains(message.id)
+                if isNew || message.unread {
+                    answers.append(AiTaskChangedAnswer(messageId: message.id, date: task.date))
+                }
             }
         }
-        var dates: [String] = []
-        for task in next where !dates.contains(task.date) {
-            let messages = task.claudeThread?.messages ?? []
-            let changed = messages.contains { message in
-                !message.isFromUser && message.replyOutcome == .changed && !known.contains(message.id)
-            }
-            if changed {
-                dates.append(task.date)
-            }
+        return answers
+    }
+
+    static func messageIds(in tasks: [AiTask]) -> [String] {
+        tasks.flatMap { task in
+            (task.claudeThread?.messages ?? []).map(\.id)
         }
-        return dates
+    }
+
+    /// The ids kept from `ids` after the list was read: only those it still
+    /// holds — unless it is empty, which is what a failed refresh looks like —
+    /// and at most `cap`, newest last.
+    static func pruned(_ ids: [String], knownIds: Set<String>, cap: Int) -> [String] {
+        let kept = knownIds.isEmpty ? ids : ids.filter { knownIds.contains($0) }
+        return Array(kept.suffix(cap))
     }
 
     /// Ids of every unread answer in `tasks`, in list order.

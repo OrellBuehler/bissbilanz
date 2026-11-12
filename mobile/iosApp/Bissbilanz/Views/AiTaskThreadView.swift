@@ -9,20 +9,27 @@ struct AiTaskThreadView: View {
     let task: AiTask
     let thread: AiTaskClaudeThread
 
+    /// Mirrors the store's text for the field, so an over-long paste can be
+    /// cut back reliably; the store's copy is what survives the row.
     @State private var text = ""
-    @State private var sendError: String?
     /// Closed until the user asks to reply, so a list of finished meals is not
     /// a column of empty text fields.
     @State private var isComposing = false
     @State private var focusOnAppear = false
+    /// Re-read when a `Retry-After` wait ends, so Send turns back on.
+    @State private var now = Date()
     @FocusState private var isFocused: Bool
+
+    private var composerState: AiTaskReplyComposer {
+        store.replyComposer(for: task.id)
+    }
 
     private var isSending: Bool {
         store.sendingReplies.contains(task.id)
     }
 
     private var canSend: Bool {
-        !isSending && !AiTaskReplyDraft.trimmed(text).isEmpty
+        !isSending && !AiTaskReplyDraft.trimmed(text).isEmpty && !composerState.isBlocked(at: now)
     }
 
     private var hint: String {
@@ -38,6 +45,24 @@ struct AiTaskThreadView: View {
             }
             footer
         }
+        .onAppear { text = composerState.text }
+        // The store settles a reply a later read shows to have landed.
+        .onChange(of: composerState.text) { _, stored in
+            if stored != text {
+                text = stored
+            }
+        }
+        .task(id: composerState.blockedUntil) {
+            guard let until = composerState.blockedUntil else { return }
+            let wait = until.timeIntervalSinceNow
+            if wait > 0 {
+                // The sleep only throws on cancellation (the row went away or
+                // the wait changed), which the check below acts on.
+                try? await Task.sleep(for: .seconds(wait))
+                if Task.isCancelled { return }
+            }
+            now = Date()
+        }
     }
 
     /// A correction in flight wins over the reply box: the server takes no
@@ -48,7 +73,7 @@ struct AiTaskThreadView: View {
         if correction.isInFlight {
             working(correction)
         } else if thread.canReply {
-            if isComposing || !text.isEmpty || sendError != nil {
+            if isComposing || !composerState.text.isEmpty || composerState.failure != nil {
                 composer
             } else {
                 Button {
@@ -60,7 +85,7 @@ struct AiTaskThreadView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             }
-        } else if let reason = thread.blockedReason {
+        } else if let reason = thread.shownBlockedReason {
             Label(L10n.aiTasksReplyBlocked(reason), systemImage: "info.circle")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -96,10 +121,11 @@ struct AiTaskThreadView: View {
                 }
                 .onChange(of: text) { _, newValue in
                     let clamped = AiTaskReplyDraft.clamped(newValue)
-                    if clamped != newValue {
+                    guard clamped == newValue else {
                         text = clamped
+                        return
                     }
-                    sendError = nil
+                    store.setReplyText(newValue, for: task.id)
                 }
                 .onChange(of: isFocused) { _, focused in
                     // Left empty, the box folds back into the Reply button.
@@ -118,8 +144,8 @@ struct AiTaskThreadView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            if let sendError {
-                Text(sendError)
+            if let failure = composerState.failure {
+                Text(L10n.aiTasksReplyFailure(failure))
                     .font(.footnote)
                     .foregroundStyle(.red)
             }
@@ -143,16 +169,15 @@ struct AiTaskThreadView: View {
         }
     }
 
-    /// The typed text stays when the send fails, so the user can fix or resend it.
+    /// The store keeps the typed text and the reason when the send fails, so
+    /// the user can fix or resend it, and clears both once the reply is in.
     private func send() async {
-        sendError = nil
         switch await store.sendReply(taskId: task.id, text: text) {
         case .sent:
-            text = ""
             isFocused = false
             isComposing = false
-        case let .failed(failure):
-            sendError = L10n.aiTasksReplyFailure(failure)
+        case .failed:
+            now = Date()
         case .skipped:
             break
         }
