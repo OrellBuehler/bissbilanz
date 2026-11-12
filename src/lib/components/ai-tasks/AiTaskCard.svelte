@@ -13,7 +13,13 @@
 	import RotateCw from '@lucide/svelte/icons/rotate-cw';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import AiTaskProposal from './AiTaskProposal.svelte';
-	import { claudeChipState, isProcessedByClaude, type ClaudeState } from '$lib/utils/claude-tasks';
+	import AiTaskThread from './AiTaskThread.svelte';
+	import {
+		claudeChipState,
+		hasUnreadReply,
+		isProcessedByClaude,
+		type ClaudeState
+	} from '$lib/utils/claude-tasks';
 	import { formatDateLabel, formatTime } from '$lib/utils/dates';
 	import type { AiTask } from '$lib/services/ai-task-service.svelte';
 	import * as m from '$lib/paraglide/messages';
@@ -27,7 +33,9 @@
 
 	let { task, onEdit, onDismiss, onDelete }: Props = $props();
 
-	const isUnread = $derived(task.status === 'dismissed' && !task.acknowledgedAt);
+	const isUnread = $derived(
+		(task.status === 'dismissed' && !task.acknowledgedAt) || hasUnreadReply(task)
+	);
 
 	const statusLabel = $derived(
 		task.status === 'completed'
@@ -160,7 +168,13 @@
 							<p class="mt-1 text-sm break-words">{task.resultSummary}</p>
 						</div>
 					{:else}
-						<p class="line-clamp-2 text-xs text-muted-foreground">{task.resultSummary}</p>
+						<p
+							class="text-xs break-words text-muted-foreground {task.claudeThread
+								? ''
+								: 'line-clamp-2'}"
+						>
+							{task.resultSummary}
+						</p>
 					{/if}
 				{/if}
 
@@ -203,6 +217,10 @@
 
 		{#if proposal}
 			<AiTaskProposal taskId={task.id} {proposal} onDiscard={(id) => onDismiss?.(id)} />
+		{/if}
+
+		{#if task.claudeThread}
+			<AiTaskThread {task} />
 		{/if}
 	</Card.Content>
 </Card.Root>

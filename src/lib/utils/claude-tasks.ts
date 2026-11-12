@@ -124,8 +124,59 @@ export function acceptBody(
 
 const ACTIVE_STATES: readonly ClaudeState[] = ['queued', 'running', 'retrying'];
 
-export function hasActiveClaudeWork(tasks: TaskLike[]): boolean {
+type ThreadMessageLike = {
+	id: string;
+	role: string;
+	text: string;
+	outcome: string | null;
+	unread: boolean;
+};
+
+type ThreadTaskLike = {
+	claudeThread?: {
+		correctionState: string;
+		unreadReplies: number;
+		messages: ThreadMessageLike[];
+	} | null;
+};
+
+// Idle and failed are the settled states; anything else, including a state
+// this build does not know, means a correction may still change the task.
+const SETTLED_CORRECTION_STATES: readonly string[] = ['idle', 'failed'];
+
+export function isCorrectionActive(task: ThreadTaskLike): boolean {
+	const state = task.claudeThread?.correctionState;
+	return state != null && !SETTLED_CORRECTION_STATES.includes(state);
+}
+
+export function hasUnreadReply(task: ThreadTaskLike): boolean {
+	return (task.claudeThread?.unreadReplies ?? 0) > 0;
+}
+
+export function unreadReplies(task: ThreadTaskLike): ThreadMessageLike[] {
+	return (task.claudeThread?.messages ?? []).filter(
+		(message) => message.role !== 'user' && message.unread
+	);
+}
+
+/** Claude answers that changed the diary and were not in the previous read of the list. */
+export function newChangingReplies<T extends ThreadTaskLike & { date: string }>(
+	previous: ThreadTaskLike[],
+	next: T[]
+): T[] {
+	const known = new Set(
+		previous.flatMap((task) => (task.claudeThread?.messages ?? []).map((message) => message.id))
+	);
+	return next.filter((task) =>
+		(task.claudeThread?.messages ?? []).some(
+			(message) => message.outcome === 'changed' && !known.has(message.id)
+		)
+	);
+}
+
+export function hasActiveClaudeWork(tasks: (TaskLike & ThreadTaskLike)[]): boolean {
 	return tasks.some((task) => {
+		if (isCorrectionActive(task)) return true;
 		if (task.status !== 'pending') return false;
 		const state = claudeChipState(task);
 		return state !== null && ACTIVE_STATES.includes(state);

@@ -7,16 +7,20 @@ import {
 	claudeOption,
 	effectiveProcessor,
 	hasActiveClaudeWork,
+	hasUnreadReply,
 	initialSelection,
 	isClaudeAvailable,
+	isCorrectionActive,
 	isProcessedByClaude,
 	legacyProcessor,
+	newChangingReplies,
 	normalizeClaudeState,
 	proposalKey,
 	reconcileSelection,
 	selectedIds,
 	storedProcessorFields,
-	toggleSelection
+	toggleSelection,
+	unreadReplies
 } from '$lib/utils/claude-tasks';
 import { formatUsd } from '$lib/components/admin/format';
 
@@ -222,5 +226,75 @@ describe('remaining budget formatting', () => {
 		expect(formatUsd(8.31, 'en')).toBe('$8.31');
 		expect(formatUsd(8, 'en')).toBe('$8.00');
 		expect(formatUsd(8.31, 'de').replace(/\s/g, ' ')).toBe('8,31 $');
+	});
+});
+
+describe('reply threads', () => {
+	const message = (id: string, overrides: Record<string, unknown> = {}) => ({
+		id,
+		role: 'assistant',
+		text: 'answer',
+		outcome: 'answered' as string | null,
+		unread: false,
+		...overrides
+	});
+	const withThread = (
+		correctionState: string,
+		messages = [message('m1')],
+		date = '2026-10-12'
+	) => ({
+		status: 'completed',
+		date,
+		claudeThread: {
+			correctionState,
+			unreadReplies: messages.filter((item) => item.unread).length,
+			messages
+		}
+	});
+
+	test('a correction is active unless it is idle or failed, unknown states included', () => {
+		for (const state of ['queued', 'running', 'retrying', 'paused']) {
+			expect(isCorrectionActive(withThread(state))).toBe(true);
+		}
+		for (const state of ['idle', 'failed']) {
+			expect(isCorrectionActive(withThread(state))).toBe(false);
+		}
+		expect(isCorrectionActive({ claudeThread: null })).toBe(false);
+		expect(isCorrectionActive({})).toBe(false);
+	});
+
+	test('polls while a correction is active on a completed task', () => {
+		expect(hasActiveClaudeWork([withThread('running')])).toBe(true);
+		expect(hasActiveClaudeWork([withThread('idle')])).toBe(false);
+	});
+
+	test('lists unread answers but never the user’s own messages', () => {
+		const task = withThread('idle', [
+			message('u', { role: 'user', unread: true }),
+			message('a', { unread: true }),
+			message('b')
+		]);
+		expect(unreadReplies(task).map((item) => item.id)).toEqual(['a']);
+		expect(hasUnreadReply(task)).toBe(true);
+		expect(hasUnreadReply(withThread('idle'))).toBe(false);
+		expect(unreadReplies({})).toEqual([]);
+	});
+
+	test('finds answers that changed the diary since the last read', () => {
+		const before = [withThread('running', [message('old', { outcome: 'changed' })])];
+		const after: {
+			status: string;
+			date: string;
+			claudeThread?: ReturnType<typeof withThread>['claudeThread'];
+		}[] = [
+			withThread('idle', [
+				message('old', { outcome: 'changed' }),
+				message('new', { outcome: 'changed' })
+			]),
+			withThread('idle', [message('chat')], '2026-10-11'),
+			{ status: 'pending', date: '2026-10-10' }
+		];
+		expect(newChangingReplies(before, after)).toEqual([after[0]]);
+		expect(newChangingReplies(after, after)).toEqual([]);
 	});
 });

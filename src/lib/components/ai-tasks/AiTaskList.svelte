@@ -4,6 +4,7 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import type { AiTask } from '$lib/services/ai-task-service.svelte';
+	import { hasUnreadReply, isCorrectionActive } from '$lib/utils/claude-tasks';
 	import * as m from '$lib/paraglide/messages';
 	import ListPagination from '$lib/components/shared/ListPagination.svelte';
 
@@ -29,6 +30,13 @@
 		list.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
 	let completedOpen = $state(false);
+	// A reply in progress or an answer not read yet keeps its task in view.
+	const completedNews = $derived(
+		completed.some((task) => isCorrectionActive(task) || hasUnreadReply(task))
+	);
+	$effect(() => {
+		if (completedNews) completedOpen = true;
+	});
 	// A dismissal is news; it should not be hidden behind a closed section.
 	let dismissedOpen = $state(true);
 </script>

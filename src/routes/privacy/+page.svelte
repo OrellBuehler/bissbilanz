@@ -53,6 +53,10 @@
 			you submit is stored with the task while it is pending, and for up to 30 days after you log or dismiss
 			it, before it is automatically deleted.
 		</li>
+		<li>
+			<strong>Replies to Claude:</strong> If you reply to a meal Claude logged for you, your messages
+			and Claude's answers are stored with that task and deleted together with it.
+		</li>
 	</ul>
 	<p class="mb-6">
 		The app does not collect location data, advertising identifiers, or contact lists.
@@ -137,6 +141,20 @@
 		assistant) is processed by that provider, Anthropic or OpenAI respectively, under its own terms
 		and privacy policy. Bissbilanz only sends what the assistant asks for through the tools you
 		authorized, and stops as soon as you revoke the connection.
+	</p>
+
+	<h2 class="mb-3 mt-8 text-xl font-semibold">AI logging on the Bissbilanz server (optional)</h2>
+	<p class="mb-6">
+		If Claude is available for your account and you choose it in settings to process the meals you
+		queue, the Bissbilanz server sends each queued meal to Anthropic, the provider of Claude, to
+		have it logged: your description, the photos you attached, its date, time and meal type, your
+		language, time zone and meal type names, and the entries from your own foods and recipes that
+		Claude looks up for it (names, serving sizes and nutrition values). When you reply to a meal
+		Claude logged, your reply, the earlier conversation and that meal's diary entries and foods are
+		sent as well, so Claude can correct them. Nothing else from your account, such as your weight,
+		sleep or goals, is sent. Anthropic processes this data under its commercial terms and
+		<a href="https://www.anthropic.com/legal/privacy" class="underline">privacy policy</a>. You can
+		choose another processor at any time.
 	</p>
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">AI meal estimation (iOS)</h2>

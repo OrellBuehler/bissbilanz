@@ -3,7 +3,13 @@ import * as Sentry from '@sentry/sveltekit';
 import { api } from '$lib/api/client';
 import { apiFetch, NO_QUEUE_HEADER } from '$lib/utils/api';
 import { entryService } from '$lib/services/entry-service.svelte';
-import type { ProposalAcceptBody } from '$lib/utils/claude-tasks';
+import {
+	hasUnreadReply,
+	newChangingReplies,
+	unreadReplies,
+	type ProposalAcceptBody
+} from '$lib/utils/claude-tasks';
+import { IDEMPOTENCY_KEY_HEADER } from '$lib/sync/contract';
 import type { paths } from '$lib/api/generated/schema';
 
 type AiTasksResponse =
@@ -11,12 +17,17 @@ type AiTasksResponse =
 export type AiTask = AiTasksResponse['tasks'][number];
 export type AiTaskStatus = AiTask['status'];
 export type AcceptResult = 'logged' | 'conflict' | 'failed';
+// 'sent', 'offline', 'failed' (try again) or a rejection code from the server.
+export type ReplyResult = 'sent' | 'offline' | 'failed' | (string & {});
+export type NewReply = { task: AiTask; messageId: string; text: string };
 
 // Which dismissals this browser has already announced. Server-side
 // acknowledgement is what clears the badge, and it only happens when the user
 // actually opens the list — so without a device-local record every refresh in
 // the meantime would re-raise the same notification.
 const NOTIFIED_KEY = 'ai-task-notified';
+// The same for Claude's answers in a task's thread, by message id.
+const REPLIES_NOTIFIED_KEY = 'ai-task-replies-notified';
 
 let tasks = $state<AiTask[]>([]);
 let loading = $state(false);
@@ -29,10 +40,12 @@ let pollInFlight = false;
 
 const isUnread = (task: AiTask) => task.status === 'dismissed' && !task.acknowledgedAt;
 
-function readNotified(): Set<string> {
+const needsAttention = (task: AiTask) => isUnread(task) || hasUnreadReply(task);
+
+function readNotified(key = NOTIFIED_KEY): Set<string> {
 	if (!browser) return new Set();
 	try {
-		const raw = localStorage.getItem(NOTIFIED_KEY);
+		const raw = localStorage.getItem(key);
 		return new Set(raw ? (JSON.parse(raw) as string[]) : []);
 	} catch (err) {
 		Sentry.captureException(err, { level: 'warning', extra: { context: 'readNotified' } });
@@ -40,10 +53,10 @@ function readNotified(): Set<string> {
 	}
 }
 
-function writeNotified(ids: Set<string>): void {
+function writeNotified(ids: Set<string>, key = NOTIFIED_KEY): void {
 	if (!browser) return;
 	try {
-		localStorage.setItem(NOTIFIED_KEY, JSON.stringify([...ids]));
+		localStorage.setItem(key, JSON.stringify([...ids]));
 	} catch (err) {
 		// Private mode or blocked storage — worst case a notification repeats.
 		Sentry.captureException(err, { level: 'warning', extra: { context: 'writeNotified' } });
@@ -52,7 +65,7 @@ function writeNotified(ids: Set<string>): void {
 
 function syncAppBadge(): void {
 	if (!browser) return;
-	const count = tasks.filter(isUnread).length;
+	const count = tasks.filter(needsAttention).length;
 	try {
 		if (count > 0) void navigator.setAppBadge?.(count);
 		else void navigator.clearAppBadge?.();
@@ -111,13 +124,41 @@ async function collectNewDismissals(): Promise<AiTask[]> {
 	return fresh;
 }
 
+/**
+ * Claude answers this browser has not announced yet, like collectNewDismissals.
+ * Known message ids are pruned against the list so the set cannot grow forever.
+ */
+function collectNewReplies(): NewReply[] {
+	if (!browser) return [];
+	const notified = readNotified(REPLIES_NOTIFIED_KEY);
+	const fresh = tasks.flatMap((task) =>
+		unreadReplies(task)
+			.filter((message) => !notified.has(message.id))
+			.map((message) => ({ task, messageId: message.id, text: message.text }))
+	);
+	const known = new Set(
+		tasks.flatMap((task) => (task.claudeThread?.messages ?? []).map((message) => message.id))
+	);
+	const kept = tasks.length > 0 ? [...notified].filter((id) => known.has(id)) : [...notified];
+	writeNotified(new Set([...kept, ...fresh.map((reply) => reply.messageId)]), REPLIES_NOTIFIED_KEY);
+	return fresh;
+}
+
 async function refresh(options: { quiet?: boolean } = {}): Promise<void> {
 	if (!browser) return;
 	loading = true;
 	const generation = mutationGeneration;
 	try {
 		const { data } = await api.GET('/api/ai-tasks', { params: { query: { limit: 100 } } });
-		if (data && generation === mutationGeneration) tasks = data.tasks;
+		if (data && generation === mutationGeneration) {
+			// A correction that changed the diary is news for the day's entries too.
+			if (loaded) {
+				for (const task of newChangingReplies(tasks, data.tasks)) {
+					void entryService.refresh(task.date);
+				}
+			}
+			tasks = data.tasks;
+		}
 	} catch (err) {
 		// fire-and-forget — offline or network error; keep showing stale state
 		if (options.quiet) {
@@ -310,11 +351,22 @@ async function poll(): Promise<void> {
 }
 
 async function acknowledgeAll(options: { quiet?: boolean } = {}): Promise<void> {
-	if (!browser || !tasks.some(isUnread)) return;
+	if (!browser || !tasks.some(needsAttention)) return;
 	try {
-		await api.POST('/api/ai-tasks/acknowledge', { body: {} });
+		await api.POST('/api/ai-tasks/acknowledge', { body: { replies: true } });
 		const seenAt = new Date().toISOString();
-		tasks = tasks.map((t) => (isUnread(t) ? { ...t, acknowledgedAt: seenAt } : t));
+		tasks = tasks.map((t) => {
+			const seen = isUnread(t) ? { ...t, acknowledgedAt: seenAt } : t;
+			if (!seen.claudeThread || !hasUnreadReply(seen)) return seen;
+			return {
+				...seen,
+				claudeThread: {
+					...seen.claudeThread,
+					unreadReplies: 0,
+					messages: seen.claudeThread.messages.map((m) => ({ ...m, unread: false }))
+				}
+			};
+		});
 	} catch (err) {
 		// Leave the badge up rather than pretending it was read.
 		if (options.quiet) {
@@ -329,6 +381,45 @@ async function acknowledgeAll(options: { quiet?: boolean } = {}): Promise<void> 
 		}
 	} finally {
 		syncAppBadge();
+	}
+}
+
+const REJECTION_STATUSES = new Set([403, 404, 409, 429]);
+
+/**
+ * Sends a reply to Claude about a task it processed. Online only: a reply is a
+ * request to Claude, not an edit to replay later. `idempotencyKey` stays the
+ * same for retries of one reply so the server never records it twice.
+ */
+async function reply(id: string, text: string, idempotencyKey: string): Promise<ReplyResult> {
+	if (browser && !navigator.onLine) return 'offline';
+	try {
+		const { data, error, response } = await api.POST('/api/ai-tasks/{id}/replies', {
+			params: { path: { id } },
+			body: { text },
+			headers: { ...noQueue, [IDEMPOTENCY_KEY_HEADER]: idempotencyKey }
+		});
+		if (data?.task) {
+			mutationGeneration++;
+			tasks = tasks.map((t) => (t.id === id ? data.task : t));
+			return 'sent';
+		}
+		if (REJECTION_STATUSES.has(response.status)) {
+			Sentry.addBreadcrumb({
+				category: 'ai-task',
+				level: 'info',
+				message: 'ai task reply rejected',
+				data: { status: response.status }
+			});
+			void refresh({ quiet: true });
+			const code = (error as { code?: unknown } | undefined)?.code;
+			return typeof code === 'string' ? code : 'failed';
+		}
+		return 'failed';
+	} catch (err) {
+		if (browser && !navigator.onLine) return 'offline';
+		Sentry.captureException(err, { extra: { context: 'ai-task-service.reply' } });
+		return 'failed';
 	}
 }
 
@@ -355,10 +446,12 @@ export const aiTaskService = {
 		return loaded;
 	},
 	get unreadCount() {
-		return tasks.filter(isUnread).length;
+		return tasks.filter(needsAttention).length;
 	},
 	isUnread,
 	refresh,
+	reply,
+	collectNewReplies,
 	poll,
 	create,
 	update,
