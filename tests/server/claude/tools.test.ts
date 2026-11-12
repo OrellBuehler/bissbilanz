@@ -23,7 +23,8 @@ const h = vi.hoisted(() => ({
 	completeByModel: vi.fn(),
 	dismissByModel: vi.fn(),
 	searchFdcFoods: vi.fn(),
-	getFdcFood: vi.fn()
+	getFdcFood: vi.fn(),
+	addOff: vi.fn()
 }));
 
 const TX = { tx: true };
@@ -57,6 +58,7 @@ vi.mock('$lib/server/claude/tasks/outcomes', () => ({
 	completeByModel: h.completeByModel,
 	dismissByModel: h.dismissByModel
 }));
+vi.mock('$lib/server/claude/tasks/off-detail', () => ({ addOpenFoodFactsDetail: h.addOff }));
 vi.mock('$lib/server/fooddata-central', async (importOriginal) => ({
 	...(await importOriginal<typeof import('$lib/server/fooddata-central')>()),
 	searchFdcFoods: h.searchFdcFoods,
@@ -662,6 +664,20 @@ describe('create_food', () => {
 		expect(payload).toMatchObject({ name: 'Skyr', sodium: 40, servingSize: 150 });
 		expect(payload).not.toHaveProperty('barcode');
 		expect(payload).not.toHaveProperty('ingredientsText');
+		expect(h.addOff).toHaveBeenCalledWith('user-1', [{ id: FOOD_ID, barcode: undefined }]);
+	});
+
+	test('auto log adds Open Food Facts detail to a new barcode food', async () => {
+		h.handleCreateFood.mockResolvedValue({
+			success: true,
+			foodId: FOOD_ID,
+			food: { id: FOOD_ID, name: 'Skyr', barcode: '7610000000017' }
+		});
+		const result = await parsed(
+			runTaskTool('create_food', foodInput({ barcode: '7610000000017' }), makeCtx())
+		);
+		expect(result.isError).toBe(false);
+		expect(h.addOff).toHaveBeenCalledWith('user-1', [{ id: FOOD_ID, barcode: '7610000000017' }]);
 	});
 
 	test('auto log creates an identical food only once per run', async () => {
@@ -711,6 +727,7 @@ describe('create_food', () => {
 		expect(result.body.note).toContain('only if the user accepts');
 		expect(h.handleCreateFood).not.toHaveBeenCalled();
 		expect(h.transitionFenced).not.toHaveBeenCalled();
+		expect(h.addOff).not.toHaveBeenCalled();
 		expect(ctx.foods.get(result.body.foodId)).toMatchObject({ name: 'Skyr', sodium: 40 });
 	});
 

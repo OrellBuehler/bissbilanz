@@ -28,6 +28,7 @@ import { ALL_NUTRIENTS } from '$lib/nutrients';
 import { servingUnitValues } from '$lib/units';
 import { entryCreateSchema, foodCreateSchema } from '../../validation';
 import { ClaudeAbortedError, LeaseLostError } from '../errors';
+import { addOpenFoodFactsDetail } from './off-detail';
 import { completeByModel, dismissByModel, type OutcomeContext } from './outcomes';
 import { ledgerGetOrCreate, loadRun, transitionFenced, withFence } from './runs';
 import type { Fence, Proposal, ProposalItem, TaskMode, TaskOutcome } from './types';
@@ -478,6 +479,9 @@ async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<
 		if (!created.success) {
 			throw new ToolInputError(String(created.error ?? 'Could not create the food'));
 		}
+		await addOpenFoodFactsDetail(ctx.userId, [
+			{ id: String(created.foodId), barcode: asRecord(created.food).barcode as string | null }
+		]);
 		result = {
 			foodId: created.foodId,
 			...pick(asRecord(created.food), FOOD_RESULT_FIELDS),

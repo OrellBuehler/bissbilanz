@@ -6,7 +6,8 @@ const h = vi.hoisted(() => ({
 	completeAiTaskBy: vi.fn(),
 	dropStale: vi.fn(),
 	createFood: vi.fn(),
-	findFoodByBarcode: vi.fn()
+	findFoodByBarcode: vi.fn(),
+	addOff: vi.fn()
 }));
 
 const { db, queueResults, reset, getCalls } = createMockDB();
@@ -21,6 +22,7 @@ vi.mock('$lib/server/claude/tasks/proposal-stale', () => ({
 	dropStaleProposalItems: h.dropStale
 }));
 vi.mock('$lib/server/ai-tasks', () => ({ completeAiTaskBy: h.completeAiTaskBy }));
+vi.mock('$lib/server/claude/tasks/off-detail', () => ({ addOpenFoodFactsDetail: h.addOff }));
 
 const { ApiError } = await import('$lib/server/errors');
 const { acceptProposal, serializeClaudeProcessing } =
@@ -56,6 +58,7 @@ beforeEach(() => {
 	h.dropStale.mockReset().mockResolvedValue(undefined);
 	h.createFood.mockReset().mockResolvedValue({ success: true, data: { id: 'new-food' } });
 	h.findFoodByBarcode.mockReset().mockResolvedValue(null);
+	h.addOff.mockReset().mockResolvedValue(undefined);
 });
 
 describe('serializeClaudeProcessing', () => {
@@ -257,6 +260,13 @@ describe('acceptProposal', () => {
 			]);
 		});
 
+		test('adds Open Food Facts detail to the new food after the commit', async () => {
+			queueNew();
+			h.createFood.mockResolvedValue({ success: true, data: { id: 'new-food', barcode: '761' } });
+			await acceptProposal('user-1', 'task-1');
+			expect(h.addOff).toHaveBeenCalledWith('user-1', [{ id: 'new-food', barcode: '761' }]);
+		});
+
 		test('creates nothing for items that were not selected', async () => {
 			queueNew();
 			await acceptProposal('user-1', 'task-1', ['c']);
@@ -269,6 +279,7 @@ describe('acceptProposal', () => {
 			await acceptProposal('user-1', 'task-1', ['a']);
 			expect(h.createFood).not.toHaveBeenCalled();
 			expect(h.createEntry.mock.calls[0]![1].foodId).toBe('existing');
+			expect(h.addOff).toHaveBeenCalledWith('user-1', []);
 		});
 
 		test('treats a food that cannot be created as a stale proposal', async () => {
@@ -277,6 +288,7 @@ describe('acceptProposal', () => {
 			await expect(acceptProposal('user-1', 'task-1')).rejects.toMatchObject({ status: 409 });
 			expect(h.createEntry).not.toHaveBeenCalled();
 			expect(h.dropStale).toHaveBeenCalledWith('user-1', 'task-1', 2, 'a');
+			expect(h.addOff).not.toHaveBeenCalled();
 		});
 
 		test('rethrows an unexpected food failure', async () => {
