@@ -245,6 +245,7 @@
 	"amount_mode_unit": "Amount",
 	"amount_preview_equals": "= {amount} {unit}",
 	"amount_preview_kcal": "{kcal} kcal",
+	"amount_estimated_hint": "Estimated from the ingredient weights",
 	"add_food_time": "Time (optional)",
 	"edit_entry_date": "Date",
 	"edit_entry_time": "Time",

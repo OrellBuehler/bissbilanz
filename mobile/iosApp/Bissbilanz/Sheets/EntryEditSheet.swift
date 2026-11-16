@@ -3,6 +3,7 @@ import SwiftUI
 struct EntryEditSheet: View {
     @Environment(EntryRepository.self) private var entryRepository
     @Environment(PreferencesRepository.self) private var preferencesRepository
+    @Environment(RecipeRepository.self) private var recipeRepository
     @Environment(\.dismiss) private var dismiss
 
     let entry: Entry
@@ -20,6 +21,9 @@ struct EntryEditSheet: View {
     @State private var notes: String
     @State private var isSaving = false
     @State private var errorMessage: String?
+    /// The logged recipe, for the serving amount. Starts from the cached copy and
+    /// is replaced once the detail with its ingredients has loaded.
+    @State private var recipe: Recipe?
 
     /// Per-serving quick macros, editable only for entries with no food or
     /// recipe behind them — a food-backed entry's nutrition belongs to the food.
@@ -82,16 +86,35 @@ struct EntryEditSheet: View {
         return (Double.parseUserInput(calories) ?? 0) > 0
     }
 
+    /// A recipe entry's serving amount, from the cooked weight or estimated from
+    /// the ingredients. `nil` for a food entry (it has its own serving size), a
+    /// quick entry, or while the recipe has nothing to work it out from.
+    private var recipeServingAmount: RecipeServingAmount? {
+        guard entry.servingSize == nil || entry.servingUnit == nil else { return nil }
+        return recipe?.servingAmount
+    }
+
     /// "0.75 × 50 g = 37.5 g" — the food's serving size with the amount the
     /// picked serving count works out to, so the user can judge the quantity
-    /// without remembering the food. `nil` for quick entries and recipes,
-    /// which carry no serving size.
+    /// without remembering the food. A recipe gets the same line from its
+    /// cooked weight, or rounded to whole numbers when estimated from the
+    /// ingredients. `nil` for quick entries.
     private var servingSizeText: String? {
-        guard let size = entry.servingSize, let unit = entry.servingUnit else { return nil }
         let count = MacroFormat.servings(servings)
-        let perServing = "\(MacroFormat.nutrient(size)) \(unit.displayName)"
-        let total = "\(MacroFormat.nutrient(size * servings)) \(unit.displayName)"
+        if let size = entry.servingSize, let unit = entry.servingUnit {
+            let perServing = "\(MacroFormat.nutrient(size)) \(unit.displayName)"
+            let total = "\(MacroFormat.nutrient(size * servings)) \(unit.displayName)"
+            return "\(count) × \(perServing) = \(total)"
+        }
+        guard let amount = recipeServingAmount else { return nil }
+        let unit = amount.unit.displayName
+        let perServing = "\(Self.amountText(amount.amount, estimated: amount.isEstimated)) \(unit)"
+        let total = "\(Self.amountText(amount.amount * servings, estimated: amount.isEstimated)) \(unit)"
         return "\(count) × \(perServing) = \(total)"
+    }
+
+    private static func amountText(_ value: Double, estimated: Bool) -> String {
+        estimated ? MacroFormat.kcal(value) : MacroFormat.nutrient(value)
     }
 
     /// Per-serving macros resolved server-side (food/recipe) or stored on the
@@ -124,12 +147,19 @@ struct EntryEditSheet: View {
                 Section {
                     ServingsField(servings: $servings)
                     if let servingSizeText {
-                        HStack {
-                            Text(L10n.servingSize)
-                            Spacer()
-                            Text(servingSizeText)
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(L10n.servingSize)
+                                Spacer()
+                                Text(servingSizeText)
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+                            if recipeServingAmount?.isEstimated == true {
+                                Text(L10n.servingSizeEstimated)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         .accessibilityElement(children: .combine)
                     }
@@ -192,6 +222,7 @@ struct EntryEditSheet: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .task { loadVisibleNutrients() }
+        .task { await loadRecipe() }
     }
 
     @ViewBuilder
@@ -253,6 +284,24 @@ struct EntryEditSheet: View {
         for index in offsets {
             additionalValues[specs[index].key] = nil
         }
+    }
+
+    /// The list endpoint caches recipes without their ingredients, so a recipe with
+    /// no cooked weight needs its detail once before an amount can be worked out.
+    /// A failed load leaves the row out; `ErrorReporter.capture` drops the
+    /// offline and transient cases.
+    private func loadRecipe() async {
+        guard let recipeId = entry.recipeId else { return }
+        let cached = recipeRepository.recipe(id: recipeId)
+        recipe = cached
+        guard (cached?.cookedWeight ?? 0) <= 0, (cached?.ingredients ?? []).isEmpty else { return }
+        do {
+            try await recipeRepository.refreshRecipe(id: recipeId)
+        } catch {
+            ErrorReporter.capture(error, context: ["operation": "EntryEditSheet.loadRecipe", "recipeId": recipeId])
+            return
+        }
+        recipe = recipeRepository.recipe(id: recipeId)
     }
 
     private func loadVisibleNutrients() {
