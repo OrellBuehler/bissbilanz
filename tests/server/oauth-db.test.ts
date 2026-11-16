@@ -3,7 +3,7 @@ import { createMockDB } from '../helpers/mock-db';
 import { TEST_USER, TEST_OAUTH_CLIENT } from '../helpers/fixtures';
 
 // Create mock DB
-const { db, setResult, getCalls, reset } = createMockDB();
+const { db, setResult, queueResults, getCalls, reset } = createMockDB();
 
 // Mock env first
 vi.mock('$lib/server/env', () => {
@@ -554,6 +554,78 @@ describe('oauth-db', () => {
 		});
 	});
 
+	describe('refreshAccessToken replay of a rotated token', () => {
+		const MINUTE = 60_000;
+		const rotated = (consumedMsAgo: number) => ({
+			id: 'token-123',
+			refreshTokenHash: 'hash',
+			clientId: 'test-client',
+			userId: TEST_USER.id,
+			scopes: ['mcp:access'],
+			familyId: '20000000-0000-4000-8000-000000000001',
+			familyExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+			createdAt: new Date(),
+			expiresAt: new Date(Date.now() + MINUTE),
+			refreshTokenExpiresAt: new Date(Date.now() + MINUTE),
+			refreshTokenConsumedAt: new Date(Date.now() - consumedMsAgo)
+		});
+		const methods = () => getCalls().map((c) => c.method);
+		const setArgs = () =>
+			getCalls()
+				.filter((c) => c.method === 'set')
+				.map((c) => c.args[0]);
+
+		test('rotates again inside the grace window without looking at the family', async () => {
+			queueResults([[], [rotated(5_000)]]);
+
+			expect(await refreshAccessToken('refresh-token', 'test-client')).toBeTruthy();
+
+			expect(methods()).not.toContain('delete');
+			expect(setArgs()).toHaveLength(1);
+		});
+
+		test('rotates again after the grace window when nothing issued since was used', async () => {
+			const previous = rotated(30 * MINUTE);
+			queueResults([[], [previous], [{ consumedAt: null, usedAt: null }]]);
+
+			expect(await refreshAccessToken('refresh-token', 'test-client')).toBeTruthy();
+
+			expect(methods()).not.toContain('delete');
+			const [, retire, reconsume] = setArgs();
+			expect(retire.refreshTokenConsumedAt).toEqual(previous.refreshTokenConsumedAt);
+			expect(reconsume.refreshTokenConsumedAt.getTime()).toBeGreaterThan(
+				previous.refreshTokenConsumedAt.getTime()
+			);
+		});
+
+		test('ignores family tokens that were rotated before the replayed one', async () => {
+			const previous = rotated(30 * MINUTE);
+			const earlier = new Date(previous.refreshTokenConsumedAt.getTime() - MINUTE);
+			queueResults([[], [previous], [{ consumedAt: earlier, usedAt: new Date() }]]);
+
+			expect(await refreshAccessToken('refresh-token', 'test-client')).toBeTruthy();
+		});
+
+		test('revokes the family when a live token issued since was used', async () => {
+			queueResults([[], [rotated(30 * MINUTE)], [{ consumedAt: null, usedAt: new Date() }]]);
+
+			expect(await refreshAccessToken('refresh-token', 'test-client')).toBeUndefined();
+
+			expect(methods()).toContain('delete');
+			expect(methods()).not.toContain('values');
+		});
+
+		test('revokes the family when a later token was rotated in turn', async () => {
+			const previous = rotated(30 * MINUTE);
+			const later = new Date(previous.refreshTokenConsumedAt.getTime() + MINUTE);
+			queueResults([[], [previous], [{ consumedAt: later, usedAt: null }]]);
+
+			expect(await refreshAccessToken('refresh-token', 'test-client')).toBeUndefined();
+
+			expect(methods()).toContain('delete');
+		});
+	});
+
 	describe('createAccessToken', () => {
 		test('starts a new family capped at 90 days for third-party clients', async () => {
 			setResult([]);
@@ -605,6 +677,36 @@ describe('oauth-db', () => {
 			const result = await validateAccessToken('access-token');
 
 			expect(result).toBeUndefined();
+		});
+
+		test('records the first use of the access token', async () => {
+			setResult({
+				id: 'token-123',
+				userId: TEST_USER.id,
+				clientId: 'test-client',
+				scopes: ['mcp:access'],
+				accessTokenUsedAt: null
+			});
+
+			expect(await validateAccessToken('access-token')).toBeTruthy();
+
+			const sets = getCalls().filter((c) => c.method === 'set');
+			expect(sets).toHaveLength(1);
+			expect(sets[0].args[0].accessTokenUsedAt).toBeInstanceOf(Date);
+		});
+
+		test('does not write again once the first use is recorded', async () => {
+			setResult({
+				id: 'token-123',
+				userId: TEST_USER.id,
+				clientId: 'test-client',
+				scopes: ['mcp:access'],
+				accessTokenUsedAt: new Date()
+			});
+
+			expect(await validateAccessToken('access-token')).toBeTruthy();
+
+			expect(getCalls().some((c) => c.method === 'update')).toBe(false);
 		});
 	});
 
