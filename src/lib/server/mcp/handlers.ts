@@ -61,7 +61,7 @@ import {
 	getSupplementById,
 	getSupplementChecklist
 } from '$lib/server/supplements';
-import { fetchProduct, searchProducts } from '$lib/server/openfoodfacts';
+import { fetchProduct, searchProductsResult } from '$lib/server/openfoodfacts';
 import { discardImportedImages, importImageFromUrl } from '$lib/server/image-download';
 import {
 	createSleepEntry,
@@ -229,7 +229,7 @@ export const {
 	fetchProduct,
 	importImageFromUrl,
 	discardImportedImages,
-	searchProducts,
+	searchProductsResult,
 	createSleepEntry,
 	getSleepEntriesByDateRange,
 	getLatestSleep,

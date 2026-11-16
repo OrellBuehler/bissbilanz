@@ -72,6 +72,7 @@ let mockSetLabelCalls: Array<{
 let mockLabelFoodMissing = false;
 let mockOFFProduct: any = null;
 let mockOFFSearchResults: any[] = [];
+let mockOFFSearchUnavailable = false;
 let mockCreateSleepResult: any = null;
 let mockSleepEntries: any[] = [];
 let mockLatestSleep: any = null;
@@ -248,7 +249,10 @@ const mockDeps = {
 		}));
 	},
 	fetchProduct: async () => mockOFFProduct,
-	searchProducts: async () => mockOFFSearchResults,
+	searchProductsResult: async () => ({
+		products: mockOFFSearchResults,
+		unavailable: mockOFFSearchUnavailable
+	}),
 	createSleepEntry: async () =>
 		mockCreateSleepResult
 			? { success: true, data: mockCreateSleepResult }
@@ -468,6 +472,7 @@ describe('MCP handlers', () => {
 		mockUpdateSupplementResult = null;
 		mockOFFProduct = null;
 		mockOFFSearchResults = [];
+		mockOFFSearchUnavailable = false;
 		mockCreateSleepResult = null;
 		mockSleepEntries = [];
 		mockLatestSleep = null;
@@ -1667,6 +1672,13 @@ describe('MCP handlers', () => {
 			const result = await handleSearchOpenFoodFacts('xyznonexistent');
 			expect(result.products).toEqual([]);
 			expect(result.count).toBe(0);
+		});
+
+		test('says so when Open Food Facts did not answer', async () => {
+			mockOFFSearchUnavailable = true;
+			const result = await handleSearchOpenFoodFacts('frischhefe');
+			expect(result).toMatchObject({ products: [], count: 0, unavailable: true });
+			expect(result.hint).toContain('not an empty result');
 		});
 
 		test('respects limit parameter', async () => {

@@ -243,7 +243,17 @@ export async function lookupProduct(barcode: string): Promise<OFFLookup> {
 	return { status: 'not_found' };
 }
 
-export async function searchProducts(query: string, limit?: number): Promise<OFFProduct[]> {
+export type ProductSearchResult = { products: OFFProduct[]; unavailable: boolean };
+
+/**
+ * Text search that tells an empty result apart from Open Food Facts not answering
+ * (timeout, network error, non-2xx), so a caller does not read an outage as "no such
+ * product".
+ */
+export async function searchProductsResult(
+	query: string,
+	limit?: number
+): Promise<ProductSearchResult> {
 	const pageSize = Math.min(limit ?? 5, 20);
 	const params = new URLSearchParams({
 		search_terms: query,
@@ -260,18 +270,35 @@ export async function searchProducts(query: string, limit?: number): Promise<OFF
 			signal: AbortSignal.timeout(OFF_TIMEOUT_MS)
 		});
 
-		if (!response.ok) return [];
+		if (!response.ok) return { products: [], unavailable: true };
 
 		const json = await response.json();
 		const parsed = offSearchResponseSchema.safeParse(json);
-		if (!parsed.success) return [];
+		if (!parsed.success) return { products: [], unavailable: false };
 
-		return parsed.data.products
-			.filter((p) => p.product_name.length > 0)
-			.map((p) => mapSearchProduct(p, p.code ?? ''));
+		return {
+			products: parsed.data.products
+				.filter((p) => p.product_name.length > 0)
+				.map((p) => mapSearchProduct(p, p.code ?? '')),
+			unavailable: false
+		};
 	} catch (err) {
-		const timedOut = err instanceof DOMException && err.name === 'TimeoutError';
-		Sentry.captureException(err, { level: timedOut ? 'warning' : 'error', extra: { query } });
-		return [];
+		// Their search endpoint is slow often enough that a timeout is expected; the
+		// caller is told, so it only leaves a breadcrumb (BISSBILANZ-3R).
+		if (err instanceof DOMException && err.name === 'TimeoutError') {
+			Sentry.addBreadcrumb({
+				category: 'openfoodfacts',
+				level: 'warning',
+				message: 'Open Food Facts search timed out',
+				data: { query }
+			});
+		} else {
+			Sentry.captureException(err, { extra: { query } });
+		}
+		return { products: [], unavailable: true };
 	}
+}
+
+export async function searchProducts(query: string, limit?: number): Promise<OFFProduct[]> {
+	return (await searchProductsResult(query, limit)).products;
 }
