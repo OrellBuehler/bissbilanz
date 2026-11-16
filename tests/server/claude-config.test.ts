@@ -156,8 +156,8 @@ describe('claude config', () => {
 			model: 'claude-sonnet-5-5',
 			effort: 'medium',
 			maxIterations: 20,
-			maxWebSearches: 3,
-			maxWebFetches: 3,
+			maxWebSearches: 8,
+			maxWebFetches: 5,
 			globalMonthlyBudgetUsd: 90,
 			defaultUserBudgetUsd: 10,
 			configured: false
