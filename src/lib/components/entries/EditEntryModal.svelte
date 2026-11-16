@@ -15,11 +15,15 @@
 	import X from '@lucide/svelte/icons/x';
 	import { round2 } from '$lib/utils/number';
 	import { timeToIsoString, formatTime24h } from '$lib/utils/dates';
+	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 	import FoodThumbnail from '$lib/components/shared/FoodThumbnail.svelte';
 	import NutrientCategoryInputs from '$lib/components/foods/NutrientCategoryInputs.svelte';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { preferencesService } from '$lib/services/preferences-service.svelte';
+	import { recipeService } from '$lib/services/recipe-service.svelte';
+	import { recipeServingAmount } from '$lib/utils/recipe-yield';
+	import type { ServingUnit } from '$lib/units';
 	import { DEFAULT_VISIBLE_NUTRIENTS } from '$lib/nutrients';
 
 	const formId = $props.id();
@@ -32,6 +36,7 @@
 			servings: number;
 			mealType: string;
 			foodName?: string;
+			recipeId?: string | null;
 			servingSize?: number | null;
 			servingUnit?: string | null;
 			calories?: number | null;
@@ -89,6 +94,43 @@
 
 	const cachedPrefs = useLiveQuery(() => preferencesService.preferences(), undefined);
 	let visibleNutrients = $derived(cachedPrefs.value?.visibleNutrients ?? DEFAULT_VISIBLE_NUTRIENTS);
+
+	const recipeQuery = useLiveQuery(() => recipeService.recipeById(entry?.recipeId ?? ''));
+
+	// The recipe list is cached without ingredients; without a cooked weight the
+	// serving amount needs them, so fetch the detail once per opened entry.
+	let requestedRecipeId: string | null = null;
+	$effect(() => {
+		const id = entry?.recipeId ?? null;
+		if (!id) {
+			requestedRecipeId = null;
+			return;
+		}
+		if (recipeQuery.loading || requestedRecipeId === id) return;
+		const cached = recipeQuery.value;
+		if (cached && cached.recipe.id !== id) return;
+		if ((cached?.recipe.cookedWeight ?? 0) > 0 || (cached?.ingredients.length ?? 0) > 0) return;
+		requestedRecipeId = id;
+		recipeService.refreshById(id).catch((err) =>
+			Sentry.captureException(err, {
+				extra: { context: 'EditEntryModal.refreshRecipe', recipeId: id }
+			})
+		);
+	});
+
+	const servingInfo = $derived.by(() => {
+		if (entry?.servingSize && entry.servingUnit) {
+			return { size: entry.servingSize, unit: entry.servingUnit, estimated: false };
+		}
+		const detail = recipeQuery.value;
+		if (!entry?.recipeId || detail?.recipe.id !== entry.recipeId) return null;
+		const amount = recipeServingAmount(
+			detail.recipe.cookedWeight,
+			detail.recipe.totalServings,
+			detail.ingredients as { quantity: number; servingUnit: ServingUnit }[]
+		);
+		return amount && { size: amount.amount, unit: amount.unit, estimated: amount.estimated };
+	});
 
 	const setQuickNutrient = (key: string, value: number | null) => {
 		if (value == null) {
@@ -250,8 +292,9 @@
 		{:else}
 			<AmountInput
 				servings={editServings}
-				servingSize={entry?.servingSize}
-				servingUnit={entry?.servingUnit}
+				servingSize={servingInfo?.size}
+				servingUnit={servingInfo?.unit}
+				estimated={servingInfo?.estimated}
 				caloriesPerServing={entry?.calories}
 				onServingsChange={(v) => (editServings = v)}
 			/>

@@ -377,6 +377,14 @@ enum L10n {
         localized("serving_size", en: "Serving Size", de: "Portionsgröße")
     }
 
+    static var servingSizeEstimated: String {
+        localized(
+            "serving_size_estimated",
+            en: "Estimated from the ingredient weights",
+            de: "Aus den Zutatengewichten geschätzt"
+        )
+    }
+
     static var brand: String {
         localized("brand", en: "Brand", de: "Marke")
     }

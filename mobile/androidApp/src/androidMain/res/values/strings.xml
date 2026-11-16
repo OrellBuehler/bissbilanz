@@ -1185,6 +1185,7 @@
     <string name="entry_edit_save_failed">Failed to save entry</string>
     <string name="entry_edit_calories_required">A quick entry needs calories.</string>
     <string name="entry_edit_servings_invalid">Enter servings greater than 0.</string>
+    <string name="entry_edit_serving_estimated">Estimated from the ingredient weights</string>
     <string name="entry_edit_delete_title">Delete Entry</string>
     <string name="entry_edit_delete_text">Remove \"%1$s\" from your log?</string>
     <string name="entry_edit_title">Edit Entry</string>

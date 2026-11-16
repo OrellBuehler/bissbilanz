@@ -21,8 +21,10 @@ import com.bissbilanz.util.gramsToServings
 import com.bissbilanz.util.mealForCurrentTime
 import com.bissbilanz.util.normalizeMealType
 import com.bissbilanz.util.recipeScaleFactor
+import com.bissbilanz.util.recipeServingAmount
 import com.bissbilanz.util.scaleIngredients
 import com.bissbilanz.util.serverTotalsToPerServing
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -223,6 +225,31 @@ class SharedFixturesTest {
                                 put("servingUnit", ing.servingUnit.value)
                             },
                         )
+                    }
+                }
+            }
+
+            "recipeServingAmount" -> {
+                val ingredients =
+                    (i.getValue("ingredients") as? JsonArray).orEmpty().map { element ->
+                        val row = element.jsonObject
+                        fixtureJson.decodeFromJsonElement<RecipeIngredient>(
+                            buildJsonObject {
+                                put("foodId", "f")
+                                put("quantity", row.double("quantity"))
+                                put("servingUnit", row.string("servingUnit"))
+                                put("sortOrder", 0)
+                            },
+                        )
+                    }
+                val amount = recipeServingAmount(i.doubleOrNull("cookedWeight"), i.double("totalServings"), ingredients)
+                if (amount == null) {
+                    JsonNull
+                } else {
+                    buildJsonObject {
+                        put("amount", amount.amount)
+                        put("unit", amount.unit)
+                        put("estimated", amount.isEstimated)
                     }
                 }
             }
