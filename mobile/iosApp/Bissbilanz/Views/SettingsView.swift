@@ -22,6 +22,7 @@ struct SettingsView: View {
     @Environment(MealEstimator.self) private var mealEstimator
 
     @State private var signInSession: ASWebAuthenticationSession?
+    @State private var signInPrompt: SignInPrompt?
     @State private var goals: Goals = .defaults
     @State private var preferences: Preferences = .defaults
     @State private var mealTypes: [MealType] = []
@@ -524,6 +525,9 @@ struct SettingsView: View {
             .sheet(isPresented: $isEditingGoals) {
                 goalsEditor
             }
+            .sheet(item: $signInPrompt) { prompt in
+                SignInProviderSheet(prompt: prompt)
+            }
             .task { await loadData() }
             .task { await foodEnrichment.refreshForSettings() }
             .alert(
@@ -634,6 +638,15 @@ struct SettingsView: View {
 
     // MARK: - Account
 
+    private func beginSignIn() {
+        switch SignInPlan.resolve(lastProvider: authManager.lastProvider, isLocalMode: appModeManager.isLocal) {
+        case let .web(provider):
+            signInSession = SignInFlow.start(authManager: authManager, provider: provider)
+        case let .prompt(prompt):
+            signInPrompt = prompt
+        }
+    }
+
     @ViewBuilder
     private var accountStatusRows: some View {
         if appModeManager.isLocal {
@@ -646,7 +659,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
             Button {
-                signInSession = SignInFlow.start(authManager: authManager)
+                beginSignIn()
             } label: {
                 Label(L10n.signInToSync, systemImage: "person.crop.circle")
             }
@@ -661,7 +674,7 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 Button {
-                    signInSession = SignInFlow.start(authManager: authManager)
+                    beginSignIn()
                 } label: {
                     Label(L10n.signIn, systemImage: "person.crop.circle")
                 }
