@@ -1544,6 +1544,10 @@ enum L10n {
         localized("custom", en: "Custom", de: "Benutzerdefiniert")
     }
 
+    static var supplementDaysRequired: String {
+        localized("supplement_days_required", en: "Pick at least one day.", de: "Mindestens einen Tag auswählen.")
+    }
+
     static var morning: String {
         localized("morning", en: "Morning", de: "Morgens")
     }
