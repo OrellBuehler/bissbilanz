@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { CircleAlert } from '@lucide/svelte';
 	import * as m from '$lib/paraglide/messages';
 
-	const errorCode = $derived($page.url.searchParams.get('code') ?? 'unknown');
-	const detail = $derived($page.url.searchParams.get('detail'));
+	const errorCode = $derived(page.url.searchParams.get('code') ?? 'unknown');
+	const detail = $derived(page.url.searchParams.get('detail'));
 
 	const errorMessages: Record<string, () => string> = {
 		missing_params: m.oauth_error_missing_params,

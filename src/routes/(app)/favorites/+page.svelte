@@ -11,7 +11,7 @@
 	import { toast } from 'svelte-sonner';
 	import Heart from '@lucide/svelte/icons/heart';
 	import * as m from '$lib/paraglide/messages';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { favoritesService } from '$lib/services/favorites-service.svelte';
 	import * as Sentry from '@sentry/sveltekit';

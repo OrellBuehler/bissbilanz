@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
-import { building } from '$app/environment';
+import { building } from '$app/env';
 import { isPushEnabled } from './config';
 import { dispatchReminders } from './dispatch';
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { aiTaskService } from '$lib/services/ai-task-service.svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { beforeNavigate } from '$app/navigation';
 	import { getNavGroups } from '$lib/config/navigation';
 	import { getUser } from '$lib/stores/auth.svelte';
@@ -118,9 +118,9 @@
 						{#each group.items as item (item.href)}
 							<Sidebar.MenuItem>
 								<Sidebar.MenuButton
-									isActive={isActive(item.href, $page.url.pathname)}
+									isActive={isActive(item.href, page.url.pathname)}
 									tooltipContent={item.title()}
-									class={menuButtonClass(item, $page.url.pathname)}
+									class={menuButtonClass(item, page.url.pathname)}
 								>
 									{#snippet child({ props })}
 										<a href={item.href} {...withMobileCloseClick(props)}>

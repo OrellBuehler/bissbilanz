@@ -15,7 +15,7 @@
 	import { recipeMatchTier } from '$lib/components/foods/foodFilters';
 	import { api } from '$lib/api/client';
 	import type { DexieFood, DexieRecipe } from '$lib/db/types';
-	import { dev } from '$app/environment';
+	import { dev } from '$app/env';
 	import * as m from '$lib/paraglide/messages';
 	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 	import CookingPot from '@lucide/svelte/icons/cooking-pot';

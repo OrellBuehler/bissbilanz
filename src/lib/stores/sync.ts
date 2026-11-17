@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import {
 	DRAIN_BATCH_SIZE,
 	drainQueue,

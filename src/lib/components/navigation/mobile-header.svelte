@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { ChevronLeft } from '@lucide/svelte';
 	import CommandPaletteButton from '$lib/components/command/CommandPaletteButton.svelte';
@@ -33,10 +33,10 @@
 		admin: () => m.nav_admin()
 	};
 
-	const isHome = $derived(deLocalizeHref($page.url.pathname) === '/home');
+	const isHome = $derived(deLocalizeHref(page.url.pathname) === '/home');
 
 	const pageTitle = $derived.by(() => {
-		const pathname = deLocalizeHref($page.url.pathname);
+		const pathname = deLocalizeHref(page.url.pathname);
 		const segments = pathname.split('/').filter(Boolean);
 		const last = segments[segments.length - 1];
 		const guide = segments[0] === 'help' && segments.length === 2 ? getHelpGuide(last) : undefined;
@@ -47,7 +47,7 @@
 	const tabPaths = new Set(['/home', '/favorites', '/foods', '/insights', '/settings']);
 
 	const canGoBack = $derived.by(() => {
-		const pathname = deLocalizeHref($page.url.pathname);
+		const pathname = deLocalizeHref(page.url.pathname);
 		return !tabPaths.has(pathname);
 	});
 </script>

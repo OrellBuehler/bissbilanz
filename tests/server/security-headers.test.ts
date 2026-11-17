@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { securityHeaders } from '../../src/lib/server/security';
-import svelteConfig from '../../svelte.config.js';
+import { cspDirectives as directives } from '../../csp.config';
 
 describe('securityHeaders', () => {
 	test('includes HSTS', () => {
@@ -8,7 +8,7 @@ describe('securityHeaders', () => {
 		expect(headers['strict-transport-security']).toBeTruthy();
 	});
 
-	test('does not set content-security-policy directly (owned by svelte.config.js kit.csp)', () => {
+	test('does not set content-security-policy directly (owned by the csp option in vite.config.ts)', () => {
 		const headers: Record<string, string> = securityHeaders();
 		expect(headers['content-security-policy']).toBeUndefined();
 	});
@@ -33,9 +33,7 @@ describe('securityHeaders', () => {
 	});
 });
 
-describe('kit.csp (svelte.config.js)', () => {
-	const directives = svelteConfig.kit!.csp!.directives!;
-
+describe('csp directives (csp.config.ts)', () => {
 	test('script-src has no unsafe-inline', () => {
 		expect(directives['script-src']).not.toContain('unsafe-inline');
 	});

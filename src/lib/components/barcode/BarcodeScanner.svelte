@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Sentry from '@sentry/sveltekit';
 	import { onMount, onDestroy } from 'svelte';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { startCamera, stopCamera, mapCameraError } from '$lib/utils/camera';
 	import * as m from '$lib/paraglide/messages';
 

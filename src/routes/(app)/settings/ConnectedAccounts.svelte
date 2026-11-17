@@ -69,7 +69,7 @@
 		if (linkError) toast.error(m.connected_accounts_conflict(), { id: LINK_TOAST_ID });
 		// Drop the outcome params so a reload does not re-toast.
 		if (linked || linkError) {
-			goto(page.url.pathname, { replaceState: true, noScroll: true });
+			goto(page.url.pathname, { replace: true, reset: false });
 		}
 
 		load();

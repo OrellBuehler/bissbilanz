@@ -4,14 +4,12 @@
 	import { beforeNavigate, onNavigate } from '$app/navigation';
 	import { updated } from '$app/state';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte.js';
-	import { pwaInfo } from 'virtual:pwa-info';
 
 	let { children } = $props();
 
 	const isMobile = new IsMobile();
-	const webManifestLink = pwaInfo?.webManifest.linkTag ?? '';
 
-	// Once a newer build is live (svelte.config.js polls version.json), leave
+	// Once a newer build is live (vite.config.ts sets the version poll interval), leave
 	// the stale bundle with a full-page navigation instead of importing chunks
 	// the deploy has already deleted.
 	beforeNavigate(({ willUnload, to }) => {
@@ -37,7 +35,7 @@
 </script>
 
 <svelte:head>
-	{@html webManifestLink}
+	<link rel="manifest" href="/manifest.webmanifest" />
 </svelte:head>
 
 {@render children()}

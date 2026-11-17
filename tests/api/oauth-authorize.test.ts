@@ -40,7 +40,7 @@ const call = async (scope?: string) => {
 			request: new Request(url, { headers: { cookie: 'session=abc' } })
 		} as unknown as Parameters<typeof GET>[0]);
 	} catch (err) {
-		if (isRedirect(err)) return new URL(err.location);
+		if (isRedirect(err)) return new URL(err.location, 'http://localhost');
 		throw err;
 	}
 	throw new Error('expected a redirect');
