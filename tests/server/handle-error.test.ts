@@ -74,7 +74,7 @@ describe('handleError', () => {
 			event,
 			status: 403,
 			message: 'Forbidden'
-		} as Input);
+		} as unknown as Input);
 
 		expect(consoleError).not.toHaveBeenCalled();
 	});
