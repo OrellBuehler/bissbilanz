@@ -25,9 +25,9 @@
 	import * as m from '$lib/paraglide/messages';
 	import { removeImage, uploadImage, uploadImageFile } from '$lib/utils/image-upload';
 	import type { RecipeFormPayload } from '$lib/components/recipes/RecipeForm.svelte';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { db } from '$lib/db';
 	import { useLiveQuery } from '$lib/db/live.svelte';
@@ -97,10 +97,10 @@
 	// A recipe linked from a "where it's used" list opens straight into its editor.
 	$effect(() => {
 		if (!browser) return;
-		const editId = $page.url.searchParams.get('edit');
+		const editId = page.url.searchParams.get('edit');
 		if (!editId) return;
 		untrack(() => openEdit(editId));
-		goto('/recipes', { replaceState: true });
+		goto('/recipes', { replace: true });
 	});
 
 	// "New recipe" from the command palette.

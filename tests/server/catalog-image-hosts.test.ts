@@ -33,7 +33,7 @@ describe('allowedImageUrl', () => {
 	});
 
 	test('every allowed host is in the CSP img-src directive', async () => {
-		const config = await readFile(new URL('../../svelte.config.js', import.meta.url), 'utf-8');
+		const config = await readFile(new URL('../../csp.config.ts', import.meta.url), 'utf-8');
 		const imgSrc = config.match(/'img-src':\s*\[([^\]]*)\]/)?.[1] ?? '';
 		for (const host of ALLOWED_IMAGE_HOSTS) {
 			expect(imgSrc).toContain(`https://${host}`);

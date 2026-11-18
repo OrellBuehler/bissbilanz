@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { getBottomNavTabs, DEFAULT_NAV_TABS } from '$lib/config/navigation';
 	import { aiTaskService } from '$lib/services/ai-task-service.svelte';
 	import * as m from '$lib/paraglide/messages';
@@ -17,7 +17,7 @@
 	class="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-border/50 bg-background/80 px-2 pb-[env(safe-area-inset-bottom)] pt-1 backdrop-blur-xl md:hidden"
 >
 	{#each tabs as tab (tab.id)}
-		{@const active = isActive(tab.href, $page.url.pathname)}
+		{@const active = isActive(tab.href, page.url.pathname)}
 		<a
 			href={tab.href}
 			class="flex min-w-0 flex-1 flex-col items-center gap-0.5 py-1.5 transition-colors {active

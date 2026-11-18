@@ -1,16 +1,16 @@
 <script lang="ts">
-	import { useRegisterSW } from 'virtual:pwa-register/svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { browser } from '$app/environment';
+	import { browser, dev } from '$app/env';
+	import { registerServiceWorker } from '$lib/pwa/register';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 	import X from '@lucide/svelte/icons/x';
 
-	useRegisterSW();
-
 	let updated = $state(false);
 
 	if (browser) {
+		if (!dev) registerServiceWorker();
+
 		$effect(() => {
 			let currentController = navigator.serviceWorker?.controller;
 			const handler = () => {

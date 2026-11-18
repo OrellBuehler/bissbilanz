@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import type { UserProfile } from '$lib/server/types';
 import { clearAllData, clearCacheStorage } from '$lib/db';
 import { getSyncState } from '$lib/stores/sync-state.svelte';
