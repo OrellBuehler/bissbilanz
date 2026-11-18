@@ -7,7 +7,7 @@
 	import BellRing from '@lucide/svelte/icons/bell-ring';
 	import { toast } from 'svelte-sonner';
 	import * as Sentry from '@sentry/sveltekit';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import * as m from '$lib/paraglide/messages';
 
 	type Status = 'loading' | 'unavailable' | 'unsupported' | 'blocked' | 'ready';

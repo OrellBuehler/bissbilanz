@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import * as Sentry from '@sentry/sveltekit';
 	import { toast } from 'svelte-sonner';
 	import * as Avatar from '$lib/components/ui/avatar/index.js';
@@ -42,7 +42,7 @@
 	const RANGES = [7, 30, 90];
 	const DEFAULT_MODEL = 'default';
 
-	const id = $derived($page.params.id ?? '');
+	const id = $derived(page.params.id ?? '');
 
 	let detail = $state<AdminUserDetail | null>(null);
 	let days = $state(30);

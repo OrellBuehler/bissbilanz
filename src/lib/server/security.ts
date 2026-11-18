@@ -3,7 +3,7 @@ export const assertSameOrigin = (origin: string | null, expected: string) => {
 	if (origin !== expected) throw new Error('Invalid origin');
 };
 
-// Content-Security-Policy is set via svelte.config.js kit.csp so SvelteKit can
+// Content-Security-Policy is set via the csp option in vite.config.ts (csp.config.ts) so SvelteKit can
 // attach nonces/hashes for its own inline scripts (script-src has no 'unsafe-inline').
 export const securityHeaders = () => ({
 	'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',

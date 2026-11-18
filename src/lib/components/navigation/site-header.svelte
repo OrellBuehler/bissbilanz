@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { logout, getUser } from '$lib/stores/auth.svelte';
 	import { getSyncState } from '$lib/stores/sync-state.svelte';
 	import { Separator } from '$lib/components/ui/separator/index.js';
@@ -63,7 +63,7 @@
 	const UUID_RE = /^[0-9a-f]{8}-/i;
 
 	const breadcrumbs = $derived.by(() => {
-		const pathname = deLocalizeHref($page.url.pathname);
+		const pathname = deLocalizeHref(page.url.pathname);
 		const segments = pathname.split('/').filter(Boolean);
 		const crumbs: Array<{ label: string; href: string; isId: boolean }> = [];
 
