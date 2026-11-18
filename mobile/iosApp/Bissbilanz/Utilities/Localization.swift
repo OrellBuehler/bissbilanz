@@ -2713,6 +2713,26 @@ enum L10n {
         )
     }
 
+    static var barcodeLookupFailed: String {
+        localized(
+            "barcode_lookup_failed",
+            en: "Couldn't look up the barcode",
+            de: "Barcode konnte nicht nachgeschlagen werden"
+        )
+    }
+
+    static var barcodeLookupFailedHint: String {
+        localized(
+            "barcode_lookup_failed_hint",
+            en: "Check your connection and try again",
+            de: "Verbindung prüfen und erneut versuchen"
+        )
+    }
+
+    static var scanAgain: String {
+        localized("scan_again", en: "Scan again", de: "Erneut scannen")
+    }
+
     static var cameraRequired: String {
         localized(
             "camera_required",
