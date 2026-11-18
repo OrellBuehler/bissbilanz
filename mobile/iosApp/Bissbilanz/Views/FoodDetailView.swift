@@ -253,7 +253,7 @@ struct FoodDetailView: View {
                 HStack {
                     Text(L10n.servingSize)
                     Spacer()
-                    Text("\(Int(food.servingSize)) \(food.servingUnit.displayName)")
+                    Text("\(MacroFormat.nutrient(food.servingSize)) \(food.servingUnit.displayName)")
                         .foregroundStyle(.secondary)
                 }
                 .accessibilityElement(children: .combine)
