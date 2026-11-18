@@ -1,5 +1,5 @@
 import type { Observable } from 'dexie';
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
 type LiveQueryResult<T> = {
 	readonly value: T;

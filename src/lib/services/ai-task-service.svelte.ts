@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import * as Sentry from '@sentry/sveltekit';
 import { api } from '$lib/api/client';
 import { apiFetch, NO_QUEUE_HEADER } from '$lib/utils/api';

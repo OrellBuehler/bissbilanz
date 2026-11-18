@@ -115,7 +115,7 @@
 		// Check start page preference from cache
 		const prefs = prefsQuery.value;
 		if (prefs?.startPage === 'favorites') {
-			goto('/favorites', { replaceState: true });
+			goto('/favorites', { replace: true });
 			return;
 		}
 		ready = true;
@@ -140,10 +140,10 @@
 		const params = new URLSearchParams(window.location.search);
 		if (params.get('scan') === 'true') {
 			scanModalOpen = true;
-			goto('/home', { replaceState: true });
+			goto('/home', { replace: true });
 		} else if (params.get('add') === 'true') {
 			addModalOpen = true;
-			goto('/home', { replaceState: true });
+			goto('/home', { replace: true });
 		}
 	});
 
@@ -153,7 +153,7 @@
 	$effect(() => {
 		const prefs = prefsQuery.value;
 		if (prefs?.startPage === 'favorites' && !ready) {
-			goto('/favorites', { replaceState: true });
+			goto('/favorites', { replace: true });
 		}
 		if (prefs && !ready) ready = true;
 	});

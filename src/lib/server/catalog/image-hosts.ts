@@ -3,7 +3,7 @@
  *
  * A dataset carries whatever absolute URL its crawler found — the Migros
  * adapter emits `https://image.migros.ch/...` — but the page's CSP `img-src`
- * (svelte.config.js) only allows the Open Food Facts hosts. An image from
+ * (csp.config.ts) only allows the Open Food Facts hosts. An image from
  * anywhere else renders as a broken tile plus a console violation, so it is
  * dropped server-side instead of widening the CSP to every crawled host.
  */

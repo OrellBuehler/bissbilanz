@@ -1,7 +1,7 @@
 /**
  * Tests for the sync queue processing logic.
  *
- * Since sync.ts imports SvelteKit-specific modules ($app/environment,
+ * Since sync.ts imports SvelteKit-specific modules ($app/env,
  * sync-state.svelte), we test the core logic patterns directly against Dexie
  * rather than importing the module.
  */

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { env } from '$env/dynamic/public';
+	import { PUBLIC_STRIPE_BUY_BUTTON_ID, PUBLIC_STRIPE_PUBLISHABLE_KEY } from '$app/env/public';
 	import { DONATION_URL } from '$lib/seo';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as m from '$lib/paraglide/messages';
@@ -9,8 +9,8 @@
 	// this is safe in client-side markup. It lives in the environment rather than
 	// the repo so it can be rotated without a deploy, and so secret scanning
 	// doesn't have to learn the difference between key prefixes.
-	const buttonId = env.PUBLIC_STRIPE_BUY_BUTTON_ID;
-	const publishableKey = env.PUBLIC_STRIPE_PUBLISHABLE_KEY;
+	const buttonId = PUBLIC_STRIPE_BUY_BUTTON_ID;
+	const publishableKey = PUBLIC_STRIPE_PUBLISHABLE_KEY;
 	const configured = Boolean(buttonId && publishableKey);
 
 	// Loaded on mount rather than from <svelte:head> so Stripe's script only

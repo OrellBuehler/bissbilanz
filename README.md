@@ -136,8 +136,8 @@ everywhere (`bread` finds `Vollkornbrot`) and how the phone matches a food from 
 
 | Layer   | Choice                                                                                  |
 | ------- | --------------------------------------------------------------------------------------- |
-| Web     | SvelteKit 2 · Svelte 5 runes · Tailwind CSS 4 · shadcn-svelte · layerchart              |
-| Runtime | Bun (dev and production, via `svelte-adapter-bun`)                                      |
+| Web     | SvelteKit 3 · Svelte 5 runes · Tailwind CSS 4 · shadcn-svelte · layerchart              |
+| Runtime | Bun (dev and production, via `@sveltejs/adapter-bun`)                                   |
 | Data    | PostgreSQL · Drizzle ORM · versioned migrations applied on boot                         |
 | Mobile  | Kotlin Multiplatform shared core · Jetpack Compose · SwiftUI · Ktor · SQLDelight · Koin |
 | Offline | Dexie (web) · SQLDelight (Android) · SwiftData (iOS) · idempotent sync queue            |

@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import { db } from '$lib/db';
 import type { DexieFood } from '$lib/db/types';
 import { api } from '$lib/api/client';

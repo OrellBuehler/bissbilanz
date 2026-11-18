@@ -23,12 +23,12 @@ Bissbilanz is a food tracking application that allows users to:
 
 ### Core
 
-- **Frontend:** SvelteKit 2.x with Svelte 5 (runes)
+- **Frontend:** SvelteKit 3.x with Svelte 5 (runes)
 - **Runtime:** Bun (development and production)
 - **Database:** PostgreSQL
 - **ORM:** Drizzle ORM with drizzle-kit
 - **Authentication:** OIDC (Infomaniak, Google, Apple)
-- **Deployment:** svelte-adapter-bun
+- **Deployment:** @sveltejs/adapter-bun (config lives in `vite.config.ts`, there is no `svelte.config.js`; CSP directives in `csp.config.ts`; public env vars declared in `src/env.ts`). It assumes https and reads the host from the `Host` header, so set `ORIGIN` when running `bun build/index.js` over plain http; `BODY_SIZE_LIMIT` and `CONNECTION_IDLE_TIMEOUT` are its env names
 
 ### UI & Styling
 
@@ -38,7 +38,7 @@ Bissbilanz is a food tracking application that allows users to:
 
 ### Features
 
-- **PWA:** @vite-pwa/sveltekit
+- **PWA:** SvelteKit service worker (`src/service-worker/`) with workbox-precaching and workbox-window
 - **Barcode Scanning:** @zxing/browser + @zxing/library (pure TypeScript)
 - **AI Integration:** @modelcontextprotocol/sdk (MCP TypeScript SDK)
 - **i18n:** @inlang/paraglide-js (en, de locales)
