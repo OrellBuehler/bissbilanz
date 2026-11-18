@@ -1,3 +1,4 @@
+import path from 'node:path';
 import adapter from '@sveltejs/adapter-bun';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
@@ -20,6 +21,13 @@ export default defineConfig({
 	define: {
 		__OCR_ASSET_BASE__: JSON.stringify(ocrBase)
 	},
+	resolve: {
+		// SvelteKit 3 no longer generates $lib, and its own `alias` option is
+		// deprecated in favour of #lib subpath imports. A plain Vite alias keeps
+		// the existing `$lib/...` imports working without a codebase-wide rename;
+		// tsconfig.json declares the matching paths for the type checker and Bun.
+		alias: { $lib: path.resolve(import.meta.dirname, 'src/lib') }
+	},
 	ssr: {
 		// CSS-only package (a `style` export and nothing else): the server build's
 		// externalisation check resolves it like Node would and fails.
@@ -36,8 +44,6 @@ export default defineConfig({
 		}),
 		sveltekit({
 			preprocess: vitePreprocess(),
-			// SvelteKit 3 no longer generates the $lib alias.
-			alias: { $lib: 'src/lib', '$lib/*': 'src/lib/*' },
 			adapter: adapter({ precompress: true }),
 			serviceWorker: { register: false },
 			// Poll for a newer deploy so `updated.current` flips while a PWA tab
