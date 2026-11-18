@@ -446,6 +446,159 @@ struct RecipeStepsTests {
         #expect(refreshed.stepCount == 1)
     }
 
+    @Test("A detail fetch followed by list refreshes keeps ingredients and steps for offline use")
+    func detailSurvivesListRefreshes() async throws {
+        let harness = try RepositoryHarness()
+        let repo = harness.recipeRepository
+        harness.stub("GET", "/api/recipes/r1", json: """
+        {"recipe": {
+            "id": "r1", "userId": "u1", "name": "Bowl", "totalServings": 2, "isFavorite": false,
+            "calories": 500, "protein": 1, "carbs": 1, "fat": 1, "fiber": 1,
+            "createdAt": "2026-08-01T10:00:00.000Z", "updatedAt": "2026-09-01T10:00:00.000Z",
+            "ingredients": [{"foodId": "f1", "quantity": 100, "servingUnit": "g", "sortOrder": 0}],
+            "steps": [
+                {"id": "s0", "sortOrder": 0, "text": "Chop", "imageUrl": null},
+                {"id": "s1", "sortOrder": 1, "text": "Fry", "imageUrl": null}
+            ]
+        }}
+        """)
+        harness.stub("GET", "/api/recipes", json: """
+        {"recipes": [{
+            "id": "r1", "name": "Bowl", "totalServings": 2, "isFavorite": false,
+            "calories": 640, "protein": 1, "carbs": 1, "fat": 1, "fiber": 1, "stepCount": 2
+        }], "total": 1}
+        """)
+        try await repo.refreshRecipe(id: "r1")
+        #expect(repo.recipe(id: "r1")?.updatedAt == "2026-09-01T10:00:00.000Z")
+
+        try await repo.refresh()
+        try await repo.refresh()
+
+        let offline = try #require(repo.recipe(id: "r1"))
+        #expect(offline.ingredients?.map(\.foodId) == ["f1"])
+        #expect(offline.orderedSteps.map(\.text) == ["Chop", "Fry"])
+        #expect(offline.calories == 640)
+    }
+
+    // MARK: - preservingDetail
+
+    private func summary(updatedAt: String? = nil, stepCount: Int? = 2) throws -> Recipe {
+        var dict: [String: Any] = ["id": "r1", "name": "Bowl", "totalServings": 2, "isFavorite": false]
+        dict["calories"] = 640
+        if let updatedAt { dict["updatedAt"] = updatedAt }
+        if let stepCount { dict["stepCount"] = stepCount }
+        return try JSONPatch.decode(Recipe.self, from: dict)
+    }
+
+    private func detail(
+        updatedAt: String? = "2026-09-01T10:00:00.000Z",
+        stepTexts: [String] = ["Chop", "Fry"]
+    ) throws -> Recipe {
+        var dict: [String: Any] = ["id": "r1", "userId": "u1", "name": "Bowl", "totalServings": 2, "isFavorite": false]
+        dict["calories"] = 500
+        let ingredient: [String: Any] = ["foodId": "f1", "quantity": 100, "servingUnit": "g", "sortOrder": 0]
+        dict["ingredients"] = [ingredient]
+        var steps: [[String: Any]] = []
+        for (index, text) in stepTexts.enumerated() {
+            steps.append(["id": "s\(index)", "sortOrder": index, "text": text])
+        }
+        dict["steps"] = steps
+        if let updatedAt { dict["updatedAt"] = updatedAt }
+        return try JSONPatch.decode(Recipe.self, from: dict)
+    }
+
+    @Test("A list copy without updatedAt keeps the cached detail, whatever the cached stamp")
+    func summaryWithoutStampKeepsDetail() throws {
+        let cachedStamps: [String?] = ["2026-09-01T10:00:00.000Z", nil]
+        for cachedStamp in cachedStamps {
+            let merged = try RecipeRepository.preservingDetail(summary(), existing: detail(updatedAt: cachedStamp))
+
+            #expect(merged.ingredients?.map(\.foodId) == ["f1"])
+            #expect(merged.steps?.map(\.text) == ["Chop", "Fry"])
+            #expect(merged.calories == 640)
+        }
+    }
+
+    @Test("A list copy with the same updatedAt keeps the cached detail")
+    func summaryWithEqualStampKeepsDetail() throws {
+        let stamp = "2026-09-01T10:00:00.000Z"
+
+        let merged = try RecipeRepository.preservingDetail(
+            summary(updatedAt: stamp),
+            existing: detail(updatedAt: stamp)
+        )
+
+        #expect(merged.ingredients?.map(\.foodId) == ["f1"])
+        #expect(merged.steps?.map(\.text) == ["Chop", "Fry"])
+    }
+
+    @Test("A list copy with a different updatedAt drops the cached detail")
+    func summaryWithDifferentStampDropsDetail() throws {
+        let merged = try RecipeRepository.preservingDetail(
+            summary(updatedAt: "2026-09-02T10:00:00.000Z"),
+            existing: detail()
+        )
+
+        #expect(merged.ingredients == nil)
+        #expect(merged.steps == nil)
+        #expect(merged.stepCount == 2)
+    }
+
+    @Test("A list copy with an updatedAt cannot prove an edit against an unstamped cache")
+    func summaryStampAgainstUnstampedCacheKeepsDetail() throws {
+        let merged = try RecipeRepository.preservingDetail(
+            summary(updatedAt: "2026-09-02T10:00:00.000Z"),
+            existing: detail(updatedAt: nil)
+        )
+
+        #expect(merged.ingredients?.map(\.foodId) == ["f1"])
+        #expect(merged.steps?.map(\.text) == ["Chop", "Fry"])
+    }
+
+    @Test("A step count that no longer matches drops only the steps")
+    func mismatchedStepCountKeepsIngredients() throws {
+        let merged = try RecipeRepository.preservingDetail(summary(stepCount: 3), existing: detail())
+
+        #expect(merged.ingredients?.map(\.foodId) == ["f1"])
+        #expect(merged.steps == nil)
+        #expect(merged.stepCount == 3)
+    }
+
+    @Test("A step count of zero clears the steps and keeps the ingredients")
+    func zeroStepCountClearsSteps() throws {
+        let merged = try RecipeRepository.preservingDetail(summary(stepCount: 0), existing: detail())
+
+        #expect(merged.ingredients?.map(\.foodId) == ["f1"])
+        #expect(merged.steps == [])
+    }
+
+    @Test("A list copy without a step count keeps the cached steps")
+    func missingStepCountKeepsSteps() throws {
+        let merged = try RecipeRepository.preservingDetail(summary(stepCount: nil), existing: detail())
+
+        #expect(merged.steps?.map(\.text) == ["Chop", "Fry"])
+    }
+
+    @Test("An incoming copy that carries detail replaces the cached one")
+    func incomingDetailReplacesCache() throws {
+        let merged = try RecipeRepository.preservingDetail(
+            detail(updatedAt: "2026-09-02T10:00:00.000Z", stepTexts: ["Boil"]),
+            existing: detail()
+        )
+
+        #expect(merged.steps?.map(\.text) == ["Boil"])
+        #expect(merged.updatedAt == "2026-09-02T10:00:00.000Z")
+    }
+
+    @Test("Without a cached copy a list copy is taken as is")
+    func noCachedCopyTakesIncoming() throws {
+        let merged = try RecipeRepository.preservingDetail(summary(), existing: nil)
+
+        #expect(merged.ingredients == nil)
+        #expect(merged.steps == nil)
+        #expect(merged.stepCount == 2)
+    }
+
     // MARK: - Duplicate
 
     @Test("Duplicating copies the steps in order and shares server-hosted photos")
