@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import DayLog from '$lib/components/entries/DayLog.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Popover from '$lib/components/ui/popover/index.js';
@@ -16,7 +16,7 @@
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import type { DexieFoodEntry } from '$lib/db/types';
 
-	const date = $derived($page.params.date ?? '');
+	const date = $derived(page.params.date ?? '');
 	let scanModalOpen = $state(false);
 	let copyOpen = $state(false);
 	let copying = $state(false);

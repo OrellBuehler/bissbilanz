@@ -2987,6 +2987,18 @@ enum L10n {
         localized("sign_in_with_google", en: "Continue with Google", de: "Mit Google fortfahren")
     }
 
+    static var signInChooseProvider: String {
+        localized("sign_in_choose_provider", en: "Choose sign-in method", de: "Anmeldemethode wählen")
+    }
+
+    static var signInChooseProviderHint: String {
+        localized(
+            "sign_in_choose_provider_hint",
+            en: "Use the same method as your existing account. A different method opens a separate account.",
+            de: "Verwende dieselbe Methode wie bei deinem bestehenden Konto. Eine andere Methode öffnet ein separates Konto."
+        )
+    }
+
     static var appleSignInUnavailable: String {
         localized(
             "apple_sign_in_unavailable",

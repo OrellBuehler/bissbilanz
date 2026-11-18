@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Sentry from '@sentry/sveltekit';
 	import { onDestroy } from 'svelte';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { ResponsiveModal } from '$lib/components/ui/responsive-modal/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';

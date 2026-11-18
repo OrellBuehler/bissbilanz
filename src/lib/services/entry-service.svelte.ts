@@ -1,6 +1,6 @@
 import { liveQuery } from 'dexie';
 import * as Sentry from '@sentry/sveltekit';
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import { db } from '$lib/db';
 import { api } from '$lib/api/client';
 import { withOfflineFallback } from './base';

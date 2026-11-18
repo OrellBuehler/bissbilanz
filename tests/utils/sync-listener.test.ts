@@ -1,7 +1,7 @@
 /**
  * Tests for the sync listener and refreshPendingCount patterns.
  *
- * Since sync.ts imports SvelteKit-specific modules ($app/environment,
+ * Since sync.ts imports SvelteKit-specific modules ($app/env,
  * sync-state.svelte), we test the core listener patterns directly
  * rather than importing the module.
  */

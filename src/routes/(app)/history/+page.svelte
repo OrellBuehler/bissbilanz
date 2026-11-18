@@ -11,7 +11,7 @@
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/api/client';
 	import * as m from '$lib/paraglide/messages';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import * as Sentry from '@sentry/sveltekit';
 	import HintCard from '$lib/components/help/HintCard.svelte';
 	import { isDismissed } from '$lib/stores/hints.svelte';
