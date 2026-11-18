@@ -29,9 +29,11 @@ export default defineConfig({
 		alias: { $lib: path.resolve(import.meta.dirname, 'src/lib') }
 	},
 	ssr: {
-		// CSS-only package (a `style` export and nothing else): the server build's
-		// externalisation check resolves it like Node would and fails.
-		noExternal: ['tw-animate-css']
+		// tw-animate-css is CSS-only (a `style` export and nothing else): the server
+		// build's externalisation check resolves it like Node would and fails.
+		// postgres must stay bundled: Sentry instruments it at bundle time, but
+		// adapter-bun externalises every package listed in `dependencies`.
+		noExternal: ['tw-animate-css', 'postgres']
 	},
 	plugins: [
 		ocrAssets(),
