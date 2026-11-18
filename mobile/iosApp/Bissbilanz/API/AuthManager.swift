@@ -42,6 +42,7 @@ final class AuthManager {
     private let now: () -> Date
     private var pendingState: String?
     private var pendingCodeVerifier: String?
+    private var pendingProvider: String?
     /// In-flight refresh, shared by concurrent callers. Refresh tokens rotate
     /// on use, so two parallel refreshes would invalidate each other and kill
     /// the session.
@@ -63,6 +64,7 @@ final class AuthManager {
 
     nonisolated static let accessTokenKey = "bissbilanz_access_token"
     nonisolated static let refreshTokenKey = "bissbilanz_refresh_token"
+    nonisolated static let providerKey = "bissbilanz_auth_provider"
 
     private static let refreshBackoffBase: TimeInterval = 2
     private static let refreshBackoffCap: TimeInterval = 60
@@ -131,6 +133,10 @@ final class AuthManager {
         return expiry.timeIntervalSinceNow <= Self.expiryLeewaySeconds
     }
 
+    var lastProvider: String? {
+        tokenStorage.load(Self.providerKey)
+    }
+
     private func storeAccessToken(_ token: String) {
         tokenStorage.save(Self.accessTokenKey, token)
         accessTokenCache = token
@@ -197,6 +203,7 @@ final class AuthManager {
         let verifier = Self.generateCodeVerifier()
         pendingState = state
         pendingCodeVerifier = verifier
+        pendingProvider = provider
         let challenge = Self.codeChallenge(for: verifier)
         return URL(string: "\(baseURL)/api/auth/mobile/login?state=\(state)&provider=\(provider)&code_challenge=\(challenge)&code_challenge_method=S256")
     }
@@ -225,8 +232,10 @@ final class AuthManager {
             return false
         }
         let codeVerifier = pendingCodeVerifier
+        let provider = pendingProvider
         pendingState = nil
         pendingCodeVerifier = nil
+        pendingProvider = nil
 
         guard let tokenURL = URL(string: "\(baseURL)/api/auth/mobile/token") else { return false }
 
@@ -244,6 +253,7 @@ final class AuthManager {
             guard !flagIfUpdateRequired(response, data: data) else { return false }
             let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
             storeTokens(tokenResponse)
+            if let provider { tokenStorage.save(Self.providerKey, provider) }
             resetRefreshState()
             authState = .authenticated
             return true
@@ -279,6 +289,7 @@ final class AuthManager {
             }
             let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
             storeTokens(tokenResponse)
+            tokenStorage.save(Self.providerKey, SignInPlan.appleProviderID)
             resetRefreshState()
             authState = .authenticated
             return true
@@ -419,6 +430,7 @@ final class AuthManager {
     func logout() {
         tokenStorage.delete(Self.accessTokenKey)
         tokenStorage.delete(Self.refreshTokenKey)
+        tokenStorage.delete(Self.providerKey)
         resetRefreshState()
         accessTokenCache = nil
         accessTokenCacheLoaded = true
