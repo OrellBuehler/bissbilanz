@@ -550,37 +550,44 @@ final class FoodRepository {
 
     /// Copy-on-use for an Open Food Facts search hit: the user's own food with
     /// that barcode if one exists, else a new food created from the OFF
-    /// product (mirroring the barcode scanner). Nil when OFF no longer knows
-    /// the barcode.
+    /// product (mirroring the barcode scanner). Nil when OFF definitively no
+    /// longer knows the barcode; a failed lookup throws.
     func findOrCreateFromOpenFoodFacts(barcode: String) async throws -> Food? {
+        switch try await resolveScannedBarcode(barcode) {
+        case let .existing(food):
+            return food
+        case let .imported(food):
+            return food
+        case .notFound:
+            return nil
+        }
+    }
+
+    /// Resolves a scanned barcode: the user's own food, else a food created
+    /// from the Open Food Facts product (photo and extended nutrients
+    /// included), else `.notFound` — only when the lookup definitively says the
+    /// product is unknown. Any failure (offline, timeout, 429, 5xx, unreadable
+    /// response) throws instead, so it is never mistaken for an unknown product.
+    func resolveScannedBarcode(_ barcode: String) async throws -> ScannedBarcodeResolution {
         if let existing = try await findByBarcode(barcode) {
-            return existing
+            return .existing(existing)
         }
-        let hit: BissbilanzAPI.OpenFoodFactsHit? = if appMode.isLocal {
-            try await OpenFoodFactsClient().lookupBarcode(barcode)
-                .map { BissbilanzAPI.OpenFoodFactsHit(food: $0, categoriesTags: nil) }
-        } else {
-            try await api.lookupBarcode(barcode)
+        guard let hit = try await lookupOpenFoodFacts(barcode: barcode) else {
+            return .notFound
         }
-        guard let hit else { return nil }
-        let food = hit.food
-        return try await createFood(FoodCreate(
-            name: food.name,
-            brand: food.brand,
-            servingSize: food.servingSize,
-            servingUnit: food.servingUnit,
-            calories: food.calories,
-            protein: food.protein,
-            carbs: food.carbs,
-            fat: food.fat,
-            fiber: food.fiber,
-            barcode: barcode,
-            nutriScore: food.nutriScore,
-            novaGroup: food.novaGroup,
-            additives: food.additives,
-            ingredientsText: food.ingredientsText,
-            categoriesTags: hit.categoriesTags
-        ))
+        let created = try await createFood(FoodCreate(openFoodFacts: hit, barcode: barcode))
+        return .imported(created)
+    }
+
+    /// Local mode has no backend session — query Open Food Facts directly;
+    /// Synced mode keeps using the authenticated server proxy. Only the proxy
+    /// carries categories: Local mode has no server to seed labels from them.
+    func lookupOpenFoodFacts(barcode: String) async throws -> BissbilanzAPI.OpenFoodFactsHit? {
+        if appMode.isLocal {
+            let food = try await openFoodFacts.lookupBarcode(barcode)
+            return food.map { BissbilanzAPI.OpenFoodFactsHit(food: $0, categoriesTags: nil) }
+        }
+        return try await api.lookupBarcode(barcode)
     }
 
     func enrichFood(id: String) async throws -> FoodEnrichResult {

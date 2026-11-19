@@ -185,4 +185,152 @@ struct AiTaskProcessorTests {
         #expect(!AiTaskProcessor.matches(base, Self.task(mealType: "dinner")))
         #expect(!AiTaskProcessor.matches(base, Self.task(eatenAt: "2026-06-01T12:00:00Z")))
     }
+
+    // MARK: - Barcode lookup failures
+
+    @Test("An unreadable product and a refused request are permanent")
+    func barcodeLookupPermanentFailures() {
+        let corrupted = DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "broken"))
+        let permanent: [Error] = [
+            OpenFoodFactsLookupFailure.invalidResponse,
+            APIError.decodingError(corrupted, statusCode: 200, body: nil),
+            APIError.badRequest(nil),
+            APIError.notFound,
+            APIError.gone,
+            APIError.conflict(serverNewer: false, body: nil),
+            APIError.serverError(404, nil),
+            APIError.serverError(422, nil),
+        ]
+        for error in permanent {
+            #expect(AiTaskProcessor.barcodeLookupFailureKind(error) == .permanent, "\(error)")
+        }
+    }
+
+    @Test("A missing connection, a timeout, a rate limit and a server error are transient")
+    func barcodeLookupTransientFailures() {
+        let transient: [Error] = [
+            OpenFoodFactsLookupFailure.unavailable(retryAfter: nil),
+            OpenFoodFactsLookupFailure.unavailable(retryAfter: 30),
+            APIError.networkError(URLError(.notConnectedToInternet)),
+            APIError.networkError(URLError(.timedOut)),
+            APIError.serverError(408, nil),
+            APIError.serverError(429, nil),
+            APIError.serverError(500, nil),
+            APIError.serverError(503, nil),
+            APIError.unauthorized,
+            APIError.updateRequired(minVersion: "9.9.9"),
+            URLError(.timedOut),
+        ]
+        for error in transient {
+            #expect(AiTaskProcessor.barcodeLookupFailureKind(error) == .transient, "\(error)")
+        }
+    }
+
+    @Test("A cancellation is never read as a lookup failure")
+    func barcodeLookupCancellation() {
+        #expect(AiTaskProcessor.barcodeLookupFailureKind(CancellationError()) == .cancelled)
+        #expect(AiTaskProcessor.barcodeLookupFailureKind(URLError(.cancelled)) == .cancelled)
+        #expect(AiTaskProcessor.barcodeLookupFailureKind(APIError.networkError(URLError(.cancelled))) == .cancelled)
+    }
+}
+
+@Suite("AI task barcode resolution")
+@MainActor
+struct AiTaskBarcodeResolutionTests {
+    private func resolve(_ harness: RepositoryHarness, _ barcode: String) async throws -> Food? {
+        try await AiTaskProcessor.resolveBarcode(barcode, taskId: "task-1", foodRepository: harness.foodRepository)
+    }
+
+    @Test("The user's own food is used without asking Open Food Facts")
+    func ownFoodWins() async throws {
+        let harness = try RepositoryHarness()
+        try harness.context.insert(LocalFood(food: harness.food(id: "f1", name: "Cola", barcode: "5000000000001")))
+        try harness.context.save()
+
+        let food = try await resolve(harness, "5000000000001")
+
+        #expect(food?.id == "f1")
+        #expect(harness.recordedRequests.isEmpty)
+    }
+
+    @Test("A product Open Food Facts knows is created, photo and nutrients included")
+    func knownProductIsCreated() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("GET", "/api/foods", json: #"{"foods": []}"#)
+        harness.stub("GET", "/api/openfoodfacts/5000000000002", json: """
+        {"product": {
+            "name": "Oat Drink", "servingSize": 100, "servingUnit": "ml",
+            "calories": 45, "protein": 1, "carbs": 6.5, "fat": 1.5, "fiber": 0.8,
+            "imageUrl": "https://images.openfoodfacts.org/images/products/500/000/000/0002/front.jpg",
+            "calcium": 120
+        }}
+        """)
+
+        let food = try #require(try await resolve(harness, "5000000000002"))
+
+        #expect(food.name == "Oat Drink")
+        #expect(food.barcode == "5000000000002")
+        #expect(food.calcium == 120)
+        #expect(food.imageUrl == "https://images.openfoodfacts.org/images/products/500/000/000/0002/front.jpg")
+    }
+
+    @Test("A barcode Open Food Facts does not know resolves to nothing")
+    func unknownBarcodeResolvesToNil() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("GET", "/api/foods", json: #"{"foods": []}"#)
+        harness.stub("GET", "/api/openfoodfacts/5000000000003", status: 404, json: #"{"error": "Product not found"}"#)
+
+        #expect(try await resolve(harness, "5000000000003") == nil)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+    }
+
+    @Test("An unreadable product falls back to nothing, so the label and meal passes still run")
+    func unreadableProductFallsBack() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("GET", "/api/foods", json: #"{"foods": []}"#)
+        harness.stub("GET", "/api/openfoodfacts/5000000000004", json: #"{"product": {"name": 5}}"#)
+
+        #expect(try await resolve(harness, "5000000000004") == nil)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+    }
+
+    @Test("A rate limit, a server error or a missing connection to Open Food Facts falls back to nothing")
+    func unavailableLookupFallsBack() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("GET", "/api/foods", json: #"{"foods": []}"#)
+        harness.stub("GET", "/api/openfoodfacts/5000000000005", status: 429, json: "{}")
+        harness.stub("GET", "/api/openfoodfacts/5000000000006", status: 503, json: "{}")
+        harness.stubError("GET", "/api/openfoodfacts/5000000000007", code: .notConnectedToInternet)
+
+        #expect(try await resolve(harness, "5000000000005") == nil)
+        #expect(try await resolve(harness, "5000000000006") == nil)
+        #expect(try await resolve(harness, "5000000000007") == nil)
+        #expect(harness.syncManager.queuedRows().isEmpty)
+    }
+
+    @Test("A failed look through the user's own foods still leaves the task pending")
+    func ownFoodsFailureStillThrows() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("GET", "/api/foods", status: 500, json: #"{"error": "boom"}"#)
+        harness.stubError("GET", "/api/openfoodfacts/5000000000008", code: .notConnectedToInternet)
+
+        await #expect(throws: APIError.self) {
+            try await resolve(harness, "5000000000008")
+        }
+        #expect(harness.recordedRequests == ["GET /api/foods"])
+    }
+
+    @Test("A cancelled lookup is rethrown instead of being read as nothing")
+    func cancelledLookupIsRethrown() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("GET", "/api/foods", json: #"{"foods": []}"#)
+        harness.stubError("GET", "/api/openfoodfacts/5000000000009", code: .cancelled)
+
+        do {
+            _ = try await resolve(harness, "5000000000009")
+            Issue.record("a cancelled lookup must not resolve")
+        } catch {
+            #expect(AiTaskProcessor.barcodeLookupFailureKind(error) == .cancelled)
+        }
+    }
 }
