@@ -15,8 +15,8 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -25,7 +25,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -42,6 +41,7 @@ import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.ui.components.SyncConflictBanner
 import com.bissbilanz.android.ui.theme.Motion
 import com.bissbilanz.android.ui.util.rememberPreference
+import com.bissbilanz.api.generated.model.AiTask
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.repository.AiTaskRepository
@@ -131,9 +131,10 @@ fun NavController.selectTab(route: String) {
 }
 
 /**
- * Opens [route] from outside its tab — a Settings row, a notification, a shortcut or a
- * widget. A destination that is on the bar is switched to instead of being pushed a
- * second time; anything else is pushed.
+ * Opens [route] from anywhere but the bar itself — a Settings row, a link on another
+ * screen, a notification, a shortcut or a widget. A destination on the bar is switched to
+ * and shown at its root (a deeper screen left open in that tab is dropped), never pushed
+ * a second time; anything else is pushed.
  */
 fun NavController.openDestination(
     route: String,
@@ -141,14 +142,17 @@ fun NavController.openDestination(
 ) {
     if (route in barRoutes) {
         selectTab(route)
+        popBackStack(route, inclusive = false)
     } else {
         navigate(route) { launchSingleTop = true }
     }
 }
 
-/** The route under [entry], known only while it is on top: an entry is first composed there. */
-private fun NavController.routeBelow(entry: NavBackStackEntry): String? =
-    if (currentBackStackEntry?.id == entry.id) previousBackStackEntry?.destination?.route else null
+/** Everything on the bar right now, for screens that link to a destination that may be a tab. */
+val LocalBarRoutes = compositionLocalOf { NavTabs.barRoutes(emptyList()) }
+
+/** What opening the AI task list clears: dismissals and assistant replies not seen yet. */
+fun aiTaskAttentionCount(tasks: List<AiTask>): Int = tasks.count { it.isUnreadDismissal() } + tasks.sumOf { it.unreadReplies().size }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -163,24 +167,29 @@ fun AppNavigation() {
     val visibleTabs by remember { derivedStateOf { NavTabs.visible(tabConfig.tabs, mode != AppMode.LOCAL) } }
     val barRoutes by remember { derivedStateOf { NavTabs.barRoutes(visibleTabs) } }
 
-    // Only a fresh start opens on the chosen tab; a recreated activity keeps its restored back stack.
-    var landingHandled by rememberSaveable { mutableStateOf(false) }
-    PendingNavigationHandler(
-        navController,
-        barRoutes = { barRoutes },
-        takeLandingRoute = {
-            if (landingHandled) {
-                null
-            } else {
-                landingHandled = true
-                NavTabs.landingTab(tabConfig.landing, visibleTabs).takeIf { it != NavTabs.HOME }
-            }
-        },
-    )
+    val landing = rememberLandingTab { NavTabs.landingTab(tabConfig.landing, visibleTabs) }
+    PendingNavigationHandler(navController, barRoutes = { barRoutes }, landing = landing)
 
     val bottomNavItems = listOf(Screen.Dashboard) + visibleTabs.map(::tabScreen) + Screen.Settings
 
+    CompositionLocalProvider(LocalBarRoutes provides barRoutes) {
+        AppScaffold(navController, landing, bottomNavItems, visibleTabs = { visibleTabs })
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AppScaffold(
+    navController: NavHostController,
+    landing: LandingTab,
+    bottomNavItems: List<Screen>,
+    visibleTabs: () -> List<String>,
+) {
     Scaffold(
+        // Kept invisible until the landing tab is on screen, so a cold start does not show
+        // Home for a frame before switching. Home still composes underneath: its view model
+        // loads today's data on launch whichever tab the app opens on.
+        modifier = Modifier.alpha(if (landing.pending) 0f else 1f),
         // The shell only reserves room for the bottom bar. Top insets are left to
         // each screen's own Scaffold so its TopAppBar draws under the status bar
         // the way Material intends, instead of sitting below a bare coloured gap.
@@ -194,13 +203,12 @@ fun AppNavigation() {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentDestination = navBackStackEntry?.destination
             val currentRoute = currentDestination?.route
-            val routeBelow = navController.previousBackStackEntry?.destination?.route
 
-            // A tab destination keeps the bar only as its tab's root; pushed from anywhere
-            // else it is an ordinary pushed screen with a back arrow.
+            // A tab destination keeps the bar only as its tab's root; off the bar it is an
+            // ordinary pushed screen with a back arrow. Same rule as its own back arrow.
             val hideBottomBar =
                 currentRoute in pushedRoutes ||
-                    (currentRoute in NavTabs.CANDIDATES && !NavTabs.isTabRoot(currentRoute, routeBelow, visibleTabs)) ||
+                    (currentRoute in NavTabs.CANDIDATES && !NavTabs.isTabRoot(currentRoute, visibleTabs())) ||
                     currentRoute?.startsWith("food/") == true ||
                     currentRoute?.startsWith("daylog/") == true ||
                     currentRoute?.startsWith("recipe/") == true
@@ -228,9 +236,7 @@ fun AppNavigation() {
                 val foodLoggedCount by tipStore.foodLoggedCount.collectAsStateWithLifecycle()
                 val aiTaskRepo: AiTaskRepository = koinInject()
                 val aiTasks by aiTaskRepo.tasks.collectAsStateWithLifecycle()
-                // What opening the list clears: dismissals and assistant replies not seen yet.
-                val aiTaskAttention =
-                    remember(aiTasks) { aiTasks.count { it.isUnreadDismissal() } + aiTasks.sumOf { it.unreadReplies().size } }
+                val aiTaskAttention = remember(aiTasks) { aiTaskAttentionCount(aiTasks) }
                 NavigationBar {
                     bottomNavItems.forEach { screen ->
                         NavigationBarItem(
@@ -290,14 +296,23 @@ fun AppNavigation() {
                 navController = navController,
                 startDestination = Screen.Dashboard.route,
                 modifier = Modifier.weight(1f).imePadding(),
+                // Opening on the landing tab is where the app starts, not a step from Home.
                 enterTransition = {
-                    fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
-                        slideInHorizontally(
-                            spring(dampingRatio = Motion.DEFAULT_DAMPING, stiffness = Motion.DEFAULT_STIFFNESS),
-                        ) { it / 5 }
+                    if (targetState.id == landing.entryId) {
+                        EnterTransition.None
+                    } else {
+                        fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
+                            slideInHorizontally(
+                                spring(dampingRatio = Motion.DEFAULT_DAMPING, stiffness = Motion.DEFAULT_STIFFNESS),
+                            ) { it / 5 }
+                    }
                 },
                 exitTransition = {
-                    fadeOut(spring(stiffness = Spring.StiffnessHigh))
+                    if (targetState.id == landing.entryId) {
+                        ExitTransition.None
+                    } else {
+                        fadeOut(spring(stiffness = Spring.StiffnessHigh))
+                    }
                 },
                 popEnterTransition = {
                     fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
@@ -312,7 +327,7 @@ fun AppNavigation() {
                         ) { it / 5 }
                 },
             ) {
-                bissbilanzDestinations(navController) { visibleTabs }
+                bissbilanzDestinations(navController, visibleTabs)
             }
         }
     }
@@ -328,15 +343,13 @@ internal fun NavGraphBuilder.bissbilanzDestinations(
     tabRoutes: () -> List<String>,
 ) {
     // A destination that can be on the bar: no back arrow while it is its tab's root,
-    // a pushed screen with one everywhere else. Saved with the entry, because it is also
-    // composed when it is not on top: revealed by a back gesture, or after process death.
+    // a pushed screen with one everywhere else. Same rule as the bar's own visibility.
     fun tabCandidate(
         screen: Screen,
         content: @Composable (showBack: Boolean) -> Unit,
     ) {
-        composable(screen.route) { entry ->
-            val routeBelow by rememberSaveable { mutableStateOf(navController.routeBelow(entry)) }
-            content(!NavTabs.isTabRoot(screen.route, routeBelow, tabRoutes()))
+        composable(screen.route) {
+            content(!NavTabs.isTabRoot(screen.route, tabRoutes()))
         }
     }
 

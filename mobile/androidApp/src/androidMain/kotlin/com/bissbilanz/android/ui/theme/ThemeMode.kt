@@ -1,8 +1,10 @@
 package com.bissbilanz.android.ui.theme
 
+import android.app.UiModeManager
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Color
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.LocalActivity
@@ -34,11 +36,26 @@ enum class ThemeMode(
 
         fun read(prefs: SharedPreferences): ThemeMode = fromKey(prefs.getString(KEY_THEME, null))
 
+        /**
+         * Stores [mode] and, on API 31+, hands it to the platform as the app's own night
+         * mode, so what Compose cannot reach follows it too: the platform time picker
+         * dialogs and the window background of a cold start. Below 31 the Compose theme
+         * ([isAppInDarkTheme]) is the only place the override applies.
+         */
         fun save(
-            prefs: SharedPreferences,
+            context: Context,
             mode: ThemeMode,
         ) {
-            prefs.edit().putString(KEY_THEME, mode.key).apply()
+            prefs(context).edit().putString(KEY_THEME, mode.key).apply()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                context.getSystemService(UiModeManager::class.java)?.setApplicationNightMode(
+                    when (mode) {
+                        SYSTEM -> UiModeManager.MODE_NIGHT_AUTO
+                        LIGHT -> UiModeManager.MODE_NIGHT_NO
+                        DARK -> UiModeManager.MODE_NIGHT_YES
+                    },
+                )
+            }
         }
     }
 }

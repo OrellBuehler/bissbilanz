@@ -19,8 +19,8 @@ import androidx.navigation.NavController
 import com.bissbilanz.android.R
 import com.bissbilanz.android.bulk.formatCount
 import com.bissbilanz.android.health.HealthConnectService
+import com.bissbilanz.android.navigation.LocalBarRoutes
 import com.bissbilanz.android.navigation.NavTabPrefs
-import com.bissbilanz.android.navigation.NavTabs
 import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.ui.components.AppTopBar
@@ -82,7 +82,7 @@ fun SettingsScreen(navController: NavController) {
     val tipsResetMessage = stringResource(R.string.settings_tips_reset_message)
     val tabPrefs = remember(context) { NavTabPrefs(context) }
     val tabConfig by rememberPreference(tabPrefs.prefs) { tabPrefs.read() }
-    val barRoutes = NavTabs.barRoutes(NavTabs.visible(tabConfig.tabs, signedIn = !isLocalMode))
+    val barRoutes = LocalBarRoutes.current
     UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     val exportingData by viewModel.exportingData.collectAsStateWithLifecycle()

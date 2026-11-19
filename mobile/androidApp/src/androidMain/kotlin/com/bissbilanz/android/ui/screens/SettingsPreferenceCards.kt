@@ -373,7 +373,7 @@ internal fun AppearanceCard() {
             ChoiceDropdown(
                 selectedLabel = options.first { it.second == mode }.first,
                 options = options,
-                onSelect = { ThemeMode.save(prefs, it) },
+                onSelect = { ThemeMode.save(context, it) },
                 label = stringResource(R.string.settings_theme),
             )
         }

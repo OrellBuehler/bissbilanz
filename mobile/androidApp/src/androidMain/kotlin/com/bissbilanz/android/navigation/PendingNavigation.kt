@@ -2,10 +2,18 @@ package com.bissbilanz.android.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -91,26 +99,59 @@ object PendingLogConfirmation {
 }
 
 /**
+ * The tab a fresh start opens on ("Open app on"). It is taken once; the flag is saved, so a
+ * recreated activity (rotation, process death) keeps the back stack it restored instead.
+ */
+@Stable
+class LandingTab internal constructor(
+    private val taken: MutableState<Boolean>,
+    private val route: String,
+) {
+    /** Until it is taken, the app would show Home first: the shell stays hidden meanwhile. */
+    val pending: Boolean get() = !taken.value && route != NavTabs.HOME
+
+    /** The landing entry while switching to it is the transition on screen, run without animation. */
+    var entryId: String? by mutableStateOf(null)
+        internal set
+
+    internal fun take(): String? {
+        if (taken.value) return null
+        taken.value = true
+        return route.takeIf { it != NavTabs.HOME }
+    }
+}
+
+@Composable
+fun rememberLandingTab(route: () -> String): LandingTab {
+    val taken = rememberSaveable { mutableStateOf(false) }
+    return remember { LandingTab(taken, if (taken.value) NavTabs.HOME else route()) }
+}
+
+/**
  * Sends the app to any route [PendingNavigation] is holding, once [navController] can
  * take it. A route on the bar ([barRoutes]) selects its tab rather than stacking a copy.
  *
- * [takeLandingRoute] is asked once the host is up: the tab a fresh start opens on, or null
- * to stay on Home. A route an entry point already asked for wins over it.
+ * The [landing] tab is applied first, unless an entry point already asked for a route.
  */
 @Composable
 fun PendingNavigationHandler(
     navController: NavController,
     barRoutes: () -> List<String> = { emptyList() },
-    takeLandingRoute: () -> String? = { null },
+    landing: LandingTab? = null,
 ) {
     LaunchedEffect(navController) {
         // Material's Scaffold subcomposes its body during layout, so the nav host — and
         // with it the graph — does not exist yet when this effect first runs. Navigating
         // then throws. The first back stack entry is the signal that the host is up.
         navController.currentBackStackEntryFlow.first()
-        val landing = takeLandingRoute()
-        if (landing != null && PendingNavigation.route.value == null) {
-            navController.selectTab(landing)
+        val landingRoute = landing?.take()
+        if (landing != null && landingRoute != null && PendingNavigation.route.value == null) {
+            navController.selectTab(landingRoute)
+            landing.entryId = navController.currentBackStackEntry?.id
+            launch {
+                navController.currentBackStackEntryFlow.drop(1).first()
+                landing.entryId = null
+            }
         }
         // A shared food package: the import screen claims the request itself once it is up.
         launch {

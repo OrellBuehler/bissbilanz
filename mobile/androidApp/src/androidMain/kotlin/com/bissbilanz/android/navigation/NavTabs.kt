@@ -90,15 +90,21 @@ object NavTabs {
         signedIn: Boolean,
     ): List<String> = if (canAdd(ids, id, signedIn)) ids + id else ids
 
+    /** Hidden tabs do not count toward the minimum: the bar must keep a tab it can show. */
     fun canRemove(
         ids: List<String>,
         id: String,
-    ): Boolean = id in ids && ids.size > MIN
+        signedIn: Boolean,
+    ): Boolean {
+        if (id !in ids || ids.size <= MIN) return false
+        return !isAllowed(id, signedIn) || visible(ids - id, signedIn).size >= MIN
+    }
 
     fun remove(
         ids: List<String>,
         id: String,
-    ): List<String> = if (canRemove(ids, id)) ids - id else ids
+        signedIn: Boolean,
+    ): List<String> = if (canRemove(ids, id, signedIn)) ids - id else ids
 
     fun move(
         ids: List<String>,
@@ -116,12 +122,12 @@ object NavTabs {
     ): String = stored?.takeIf { it in visibleTabs } ?: HOME
 
     /**
-     * Whether a [route] on screen is its tab's root rather than a pushed copy: it is on the
-     * bar and sits directly on Home, which is where switching tabs puts it.
+     * Whether a tab destination on screen is its tab's root: no back arrow, bar shown. A
+     * destination on the bar is only ever reached by switching to its tab ([openDestination]),
+     * never pushed, so being on the bar is enough; anything else is a pushed screen.
      */
     fun isTabRoot(
         route: String?,
-        routeBelow: String?,
         visibleTabs: List<String>,
-    ): Boolean = route in visibleTabs && routeBelow == HOME
+    ): Boolean = route in visibleTabs
 }

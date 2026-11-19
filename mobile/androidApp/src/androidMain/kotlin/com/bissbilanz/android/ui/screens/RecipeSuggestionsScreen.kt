@@ -25,6 +25,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.analytics.MacroBudget
 import com.bissbilanz.android.R
+import com.bissbilanz.android.navigation.LocalBarRoutes
+import com.bissbilanz.android.navigation.openDestination
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
@@ -52,6 +54,7 @@ fun RecipeSuggestionsScreen(
     showBack: Boolean = false,
 ) {
     val viewModel: RecipeSuggestionsViewModel = koinViewModel()
+    val barRoutes = LocalBarRoutes.current
     val refreshManager: RefreshManager = koinInject()
     val goals by viewModel.goals.collectAsStateWithLifecycle()
     val recipes by viewModel.recipes.collectAsStateWithLifecycle()
@@ -121,7 +124,7 @@ fun RecipeSuggestionsScreen(
                             message = stringResource(R.string.recipe_suggestions_no_recipes),
                             icon = Icons.AutoMirrored.Filled.MenuBook,
                             action = {
-                                Button(onClick = { navController.navigate("recipes") }) {
+                                Button(onClick = { navController.openDestination("recipes", barRoutes) }) {
                                     Text(stringResource(R.string.recipe_suggestions_browse_recipes))
                                 }
                             },

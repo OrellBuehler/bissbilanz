@@ -20,6 +20,7 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.Hyphens
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
@@ -160,17 +161,21 @@ internal fun NavigationTabsCard(
                                 IconButton(
                                     onClick = {
                                         haptic(HapticFeedbackType.LongPress)
-                                        onTabsChange(NavTabs.remove(tabs, id))
+                                        onTabsChange(NavTabs.remove(tabs, id, signedIn))
                                     },
-                                    enabled = NavTabs.canRemove(tabs, id),
+                                    enabled = NavTabs.canRemove(tabs, id, signedIn),
                                 ) {
                                     Icon(
                                         Icons.Outlined.RemoveCircleOutline,
                                         stringResource(R.string.settings_nav_tabs_remove, label),
                                     )
                                 }
-                                IconButton(onClick = {}, modifier = dragHandle) {
-                                    Icon(Icons.Default.DragHandle, stringResource(R.string.dashboard_layout_drag_handle))
+                                // Touch only: TalkBack reorders through the row's Move up/down actions.
+                                Box(
+                                    modifier = dragHandle.minimumInteractiveComponentSize(),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(Icons.Default.DragHandle, contentDescription = null)
                                 }
                             }
                         }
@@ -253,14 +258,16 @@ private fun NavTabRow(
                 tint = if (dimmed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
             )
         },
+        // Wrapped and hyphenated: next to two 48dp buttons a German label such as
+        // "Nahrungsergänzungsmittel" does not fit one line on a ~411dp phone.
         headlineContent = {
             Text(
                 label,
-                maxLines = 1,
                 color = if (dimmed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                style = LocalTextStyle.current.copy(hyphens = Hyphens.Auto),
             )
         },
-        supportingContent = hint?.let { { Text(it, maxLines = 1) } },
+        supportingContent = hint?.let { { Text(it, style = LocalTextStyle.current.copy(hyphens = Hyphens.Auto)) } },
         trailingContent = { Row(verticalAlignment = Alignment.CenterVertically, content = actions) },
         modifier = modifier,
     )

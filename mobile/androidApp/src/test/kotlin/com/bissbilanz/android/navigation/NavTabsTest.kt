@@ -90,10 +90,21 @@ class NavTabsTest {
 
     @Test
     fun removeKeepsAtLeastOneTab() {
-        assertEquals(listOf("weight"), NavTabs.remove(listOf("foods", "weight"), "foods"))
+        assertEquals(listOf("weight"), NavTabs.remove(listOf("foods", "weight"), "foods", signedIn = true))
 
-        assertFalse(NavTabs.canRemove(listOf("weight"), "weight"))
-        assertEquals(listOf("weight"), NavTabs.remove(listOf("weight"), "weight"))
+        assertFalse(NavTabs.canRemove(listOf("weight"), "weight", signedIn = true))
+        assertEquals(listOf("weight"), NavTabs.remove(listOf("weight"), "weight", signedIn = true))
+    }
+
+    @Test
+    fun inLocalModeTheLastVisibleTabCannotBeRemovedNextToAHiddenOne() {
+        val stored = listOf("foods", "ai-tasks")
+
+        assertFalse(NavTabs.canRemove(stored, "foods", signedIn = false))
+        assertEquals(stored, NavTabs.remove(stored, "foods", signedIn = false))
+        // The hidden one can go, and signed in both count.
+        assertEquals(listOf("foods"), NavTabs.remove(stored, "ai-tasks", signedIn = false))
+        assertEquals(listOf("ai-tasks"), NavTabs.remove(stored, "foods", signedIn = true))
     }
 
     @Test
@@ -119,13 +130,12 @@ class NavTabsTest {
     }
 
     @Test
-    fun aTabDestinationIsItsTabsRootOnlyDirectlyOnHome() {
+    fun aTabDestinationIsItsTabsRootWhileItIsOnTheBar() {
         val visible = listOf("weight", "sleep")
 
-        assertTrue(NavTabs.isTabRoot("weight", "dashboard", visible))
-        assertFalse(NavTabs.isTabRoot("weight", "food/{foodId}", visible))
-        assertFalse(NavTabs.isTabRoot("weight", "settings", visible))
-        assertFalse(NavTabs.isTabRoot("fasting", "dashboard", visible))
+        assertTrue(NavTabs.isTabRoot("weight", visible))
+        assertFalse(NavTabs.isTabRoot("fasting", visible))
+        assertFalse(NavTabs.isTabRoot(null, visible))
     }
 
     @Test
