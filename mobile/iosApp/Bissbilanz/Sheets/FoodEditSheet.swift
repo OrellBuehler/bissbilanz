@@ -223,9 +223,9 @@ struct FoodEditForm: View {
                 Toggle(L10n.favorite, isOn: $isFavorite)
             }
 
-            if let errorMessage {
+            if let inlineMessage {
                 Section {
-                    Text(errorMessage)
+                    Text(inlineMessage)
                         .foregroundStyle(.red)
                         .font(.caption)
                 }
@@ -239,7 +239,7 @@ struct FoodEditForm: View {
                 Button(L10n.save) {
                     Task { await save() }
                 }
-                .disabled(name.isEmpty || isSaving)
+                .disabled(formIssue != nil || isSaving)
                 .fontWeight(.semibold)
             }
         }
@@ -265,6 +265,32 @@ struct FoodEditForm: View {
                 .frame(width: 35, alignment: .leading)
                 .accessibilityHidden(true)
         }
+    }
+
+    private var formInput: FoodFormValidator.Input {
+        FoodFormValidator.Input(
+            name: name,
+            brand: brand,
+            barcode: barcode,
+            servingSize: servingSize,
+            calories: calories,
+            protein: protein,
+            carbs: carbs,
+            fat: fat,
+            fiber: fiber,
+            additionalValues: additionalValues
+        )
+    }
+
+    private var formIssue: FoodFormValidator.Issue? {
+        FoodFormValidator.issue(for: formInput)
+    }
+
+    private var inlineMessage: String? {
+        if let issue = formIssue, issue != .nameRequired {
+            return issue.message
+        }
+        return errorMessage
     }
 
     /// Catalog rows the user has added a value row for, in catalog order.
@@ -384,18 +410,27 @@ struct FoodEditForm: View {
 
     private func save() async {
         errorMessage = nil
+        let values: FoodFormValidator.Values
+        switch FoodFormValidator.validate(formInput) {
+        case let .success(validated):
+            values = validated
+        case let .failure(issue):
+            errorMessage = issue.message
+            return
+        }
+        let barcodeText = values.barcode ?? ""
         // A barcode another food already owns would only come back as a parked 409
         // after the upload; say so now. An unchanged barcode is left alone, so a
         // food that already shares one locally can still be edited.
-        if barcode != (existingFood?.barcode ?? ""),
-           let other = foodRepository.foodWithBarcode(barcode, excluding: existingFood?.id)
+        if barcodeText != (existingFood?.barcode ?? ""),
+           let other = foodRepository.foodWithBarcode(barcodeText, excluding: existingFood?.id)
         {
             errorMessage = L10n.syncBarcodeInUse(by: other.name)
             return
         }
         isSaving = true
 
-        let serving = Double.parseUserInput(servingSize) ?? 100
+        let serving = values.servingSize
         // The food record stores per-serving values. When the user entered the
         // per-100 g/ml basis, normalize the serving to grams/milliliters first
         // (e.g. 33 cl = 330 ml) and scale by servingInBase/100; per-serving
@@ -404,27 +439,25 @@ struct FoodEditForm: View {
         let factor = perHundredBasis && servingInBase > 0 ? servingInBase / 100 : 1
 
         var foodData = FoodCreate(
-            name: name,
-            brand: brand.isEmpty ? nil : brand,
+            name: values.name,
+            brand: values.brand,
             servingSize: serving,
             servingUnit: servingUnit,
-            calories: (Double.parseUserInput(calories) ?? 0) * factor,
-            protein: (Double.parseUserInput(protein) ?? 0) * factor,
-            carbs: (Double.parseUserInput(carbs) ?? 0) * factor,
-            fat: (Double.parseUserInput(fat) ?? 0) * factor,
-            fiber: (Double.parseUserInput(fiber) ?? 0) * factor,
-            barcode: barcode.isEmpty ? nil : barcode,
+            calories: values.calories * factor,
+            protein: values.protein * factor,
+            carbs: values.carbs * factor,
+            fat: values.fat * factor,
+            fiber: values.fiber * factor,
+            barcode: values.barcode,
             isFavorite: isFavorite
         )
 
         // Overlay the additional nutrient values onto the matching FoodCreate
-        // fields by their JSON key, scaled by the same basis factor. Blank or
-        // unparseable rows are skipped.
+        // fields by their JSON key, scaled by the same basis factor. Blank rows
+        // are skipped.
         var patch: [String: Any] = [:]
-        for (key, text) in additionalValues {
-            if let value = Double.parseUserInput(text) {
-                patch[key] = value * factor
-            }
+        for (key, value) in values.additional {
+            patch[key] = value * factor
         }
         if !patch.isEmpty {
             foodData = (try? JSONPatch.merged(FoodCreate.self, base: foodData, patch: patch)) ?? foodData
