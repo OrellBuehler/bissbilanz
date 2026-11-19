@@ -14,6 +14,7 @@ export type ReserveInput = {
 	feature: string;
 	model: string;
 	aiTaskId?: string;
+	chatConversationId?: string;
 	reservedUsd: number;
 	requireClaudeProcessor: boolean;
 };
@@ -55,7 +56,8 @@ export async function reserveCall(input: ReserveInput): Promise<string> {
 				model: input.model,
 				status: 'reserved',
 				reservedUsd: input.reservedUsd,
-				aiTaskId: input.aiTaskId ?? null
+				aiTaskId: input.aiTaskId ?? null,
+				chatConversationId: input.chatConversationId ?? null
 			})
 			.returning({ id: claudeUsage.id });
 		if (!row) throw new Error('Failed to reserve Claude usage');

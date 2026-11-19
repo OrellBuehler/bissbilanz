@@ -21,6 +21,7 @@ import { cleanupAiTasks } from '$lib/server/ai-tasks';
 import { cleanupOrphanedImages } from '$lib/server/image-cleanup';
 import { startReminderScheduler } from '$lib/server/push/scheduler';
 import { startClaudeWorker } from '$lib/server/claude/tasks/executor';
+import { startChatWorker } from '$lib/server/claude/chat/executor';
 import { startFoodEnrichmentWorker } from '$lib/server/food-enrichment/worker';
 import { acceptsBearerAuth } from '$lib/server/auth-paths';
 import { readIdempotencyKey } from '$lib/server/sync/headers';
@@ -87,6 +88,7 @@ export async function init() {
 	setInterval(runCleanup, 3600000);
 	startReminderScheduler();
 	startClaudeWorker();
+	startChatWorker();
 	startFoodEnrichmentWorker();
 }
 

@@ -7,6 +7,8 @@ import { getDB } from './db';
 import {
 	aiTasks,
 	claudeTaskMessages,
+	chatConversations,
+	chatMessages,
 	customMealTypes,
 	dayProperties,
 	fastingSessions,
@@ -85,7 +87,9 @@ async function gatherData(userId: string) {
 		mealTypeRows,
 		timeframeRows,
 		aiTaskRows,
-		aiTaskMessageRows
+		aiTaskMessageRows,
+		chatConversationRows,
+		chatMessageRows
 	] = await Promise.all([
 		db
 			.select({
@@ -245,7 +249,31 @@ async function gatherData(userId: string) {
 			})
 			.from(claudeTaskMessages)
 			.where(eq(claudeTaskMessages.userId, userId))
-			.orderBy(asc(claudeTaskMessages.createdAt))
+			.orderBy(asc(claudeTaskMessages.createdAt)),
+		db
+			.select({
+				id: chatConversations.id,
+				title: chatConversations.title,
+				createdAt: chatConversations.createdAt,
+				lastMessageAt: chatConversations.lastMessageAt
+			})
+			.from(chatConversations)
+			.where(eq(chatConversations.userId, userId))
+			.orderBy(asc(chatConversations.createdAt)),
+		db
+			.select({
+				id: chatMessages.id,
+				conversationId: chatMessages.conversationId,
+				role: chatMessages.role,
+				status: chatMessages.status,
+				reason: chatMessages.reason,
+				parts: chatMessages.parts,
+				imageUrls: chatMessages.imageUrls,
+				createdAt: chatMessages.createdAt
+			})
+			.from(chatMessages)
+			.where(eq(chatMessages.userId, userId))
+			.orderBy(asc(chatMessages.createdAt), asc(chatMessages.id))
 	]);
 
 	return {
@@ -269,7 +297,10 @@ async function gatherData(userId: string) {
 		favoriteMealTimeframes: stripUserId(timeframeRows),
 		aiTasks: stripUserId(aiTaskRows),
 		// Replies to Claude on processed tasks and Claude's answers, oldest first.
-		aiTaskMessages: aiTaskMessageRows
+		aiTaskMessages: aiTaskMessageRows,
+		// Assistant chat: conversations and their messages in display form.
+		chatConversations: chatConversationRows,
+		chatMessages: chatMessageRows
 	};
 }
 
@@ -535,6 +566,11 @@ async function gatherImages(data: ExportData): Promise<Record<string, Uint8Array
 			if (photoUrl.startsWith('/uploads/')) urls.add(photoUrl);
 		}
 	}
+	for (const message of data.chatMessages) {
+		for (const imageUrl of message.imageUrls ?? []) {
+			if (imageUrl.startsWith('/uploads/')) urls.add(imageUrl);
+		}
+	}
 
 	const images: Record<string, Uint8Array> = {};
 	await Promise.all(
@@ -560,7 +596,7 @@ bissbilanz.json   Complete export of your data (canonical, machine-readable).
 csv/              The same data as spreadsheet-friendly CSV files.
                   food-entries.csv is denormalized: each row carries the food
                   name and the calories/macros computed for that entry.
-images/           Your uploaded food, recipe and recipe step photos.
+images/           Your uploaded food, recipe, recipe step, meal and chat photos.
 
 All times are ISO 8601 (UTC). CSV files are UTF-8 with BOM, comma-separated.
 `;

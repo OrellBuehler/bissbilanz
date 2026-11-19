@@ -1,5 +1,6 @@
 import 'zod-openapi';
 import { z } from 'zod';
+import { chatCapabilitySchema } from './chat';
 import { aiTaskProcessorKindValues, aiTaskProcessorValues } from '$lib/server/schema';
 
 const favoriteMealTimeframeSchema = z
@@ -64,7 +65,11 @@ const preferencesSchema = z
 const claudeCapabilitySchema = z
 	.object({
 		available: z.boolean(),
-		remainingBudgetUsd: z.number().optional()
+		remainingBudgetUsd: z.number().optional(),
+		chat: chatCapabilitySchema.optional().meta({
+			description:
+				'Whether the assistant chat (/api/chat) can take a message now. Sent on GET; a chat call needs more budget headroom than an AI task, so it can be unavailable while available is true.'
+		})
 	})
 	.meta({
 		id: 'ClaudeCapability',
