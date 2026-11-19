@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -20,7 +20,7 @@
 	import { removeImage, uploadImage } from '$lib/utils/image-upload';
 	import { round2 } from '$lib/utils/number';
 	import * as m from '$lib/paraglide/messages';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { foodService } from '$lib/services/food-service.svelte';
 	import type { components } from '$lib/api/generated/schema';
@@ -53,7 +53,7 @@
 	let additives = $state<string[] | null>(null);
 	let ingredientsText = $state<string | null>(null);
 
-	const foodId = $derived($page.params.id!);
+	const foodId = $derived(page.params.id!);
 	const foodQuery = useLiveQuery(() => foodService.foodById(foodId));
 	const food = $derived(foodQuery.value);
 

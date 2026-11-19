@@ -136,7 +136,8 @@ class BissbilanzApplication :
                 options.environment = if (BuildConfig.DEBUG) "development" else "production"
                 options.setBeforeSend { event, _ ->
                     val throwable = event.throwable
-                    if (throwable != null && throwable.isAuthOrTransient()) null else event
+                    val dropped = throwable != null && (throwable.isAuthOrTransient() || throwable.isCoroutineCancellation())
+                    if (dropped) null else event
                 }
             }
         }

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import FoodList from '$lib/components/foods/FoodList.svelte';
 	import FoodsToolbar from '$lib/components/foods/FoodsToolbar.svelte';
@@ -28,7 +28,7 @@
 
 	import type { DexieFood } from '$lib/db/types';
 	import { toast } from 'svelte-sonner';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import * as Sentry from '@sentry/sveltekit';
 	import * as m from '$lib/paraglide/messages';
 	import { removeImage, uploadImage, uploadImageFile } from '$lib/utils/image-upload';
@@ -377,8 +377,8 @@
 		offNotFound = false;
 		activeBarcode = '';
 		qualityOpen = false;
-		if ($page.url.searchParams.has('barcode')) {
-			goto('/foods', { replaceState: true });
+		if (page.url.searchParams.has('barcode')) {
+			goto('/foods', { replace: true });
 		}
 	};
 
@@ -487,7 +487,7 @@
 
 	$effect(() => {
 		if (browser) {
-			const urlBarcode = $page.url.searchParams.get('barcode');
+			const urlBarcode = page.url.searchParams.get('barcode');
 			if (urlBarcode && !untrack(() => showForm)) {
 				// A dismissed edit form leaves `editingFood`/`formImageUrl` behind,
 				// which would turn the scanner's create into an edit of that food.

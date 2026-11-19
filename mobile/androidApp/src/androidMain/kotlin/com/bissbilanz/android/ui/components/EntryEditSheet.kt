@@ -28,16 +28,25 @@ import com.bissbilanz.android.util.toEditableString
 import com.bissbilanz.model.Entry
 import com.bissbilanz.model.EntryCreate
 import com.bissbilanz.model.EntryUpdate
+import com.bissbilanz.model.Recipe
 import com.bissbilanz.repository.EntryRepository
 import com.bissbilanz.repository.PreferencesRepository
+import com.bissbilanz.repository.RecipeRepository
 import com.bissbilanz.util.EntryField
+import com.bissbilanz.util.RecipeServingAmount
+import com.bissbilanz.util.formatAsInt
+import com.bissbilanz.util.formatNutrient
 import com.bissbilanz.util.mealForCurrentTime
 import com.bissbilanz.util.normalizeMealType
+import com.bissbilanz.util.recipeServingAmount
 import com.bissbilanz.util.resolvedName
+import com.bissbilanz.util.toDisplayString
 import com.bissbilanz.util.toLocalizedDoubleOrNull
 import com.bissbilanz.util.toNutrientDoubles
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -107,6 +116,7 @@ private fun EntryEditForm(
 ) {
     val entryRepo: EntryRepository = koinInject()
     val prefsRepo: PreferencesRepository = koinInject()
+    val recipeRepo: RecipeRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
     val scope = rememberCoroutineScope()
     var isSaving by remember { mutableStateOf(false) }
@@ -116,6 +126,24 @@ private fun EntryEditForm(
     val visibleNutrientKeys = prefs?.visibleNutrients?.toSet()
 
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString()
+
+    // The recipe list is cached without ingredients; without a cooked weight the serving
+    // amount needs them, so the detail is fetched once and the row appears when it lands.
+    val recipeId = entry?.recipeId
+    var recipe by remember(recipeId) { mutableStateOf<Recipe?>(null) }
+    LaunchedEffect(recipeId) {
+        if (recipeId == null) return@LaunchedEffect
+        val cached = withContext(Dispatchers.IO) { recipeRepo.getRecipeCached(recipeId) }
+        recipe = cached
+        if ((cached?.cookedWeight ?: 0.0) > 0.0 || !cached?.ingredients.isNullOrEmpty()) return@LaunchedEffect
+        try {
+            recipe = recipeRepo.getRecipe(recipeId)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Log.e("EntryEditSheet", "Failed to load recipe", e)
+            errorReporter.captureException(e)
+        }
+    }
 
     val seedTime =
         entry
@@ -336,6 +364,13 @@ private fun EntryEditForm(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
+            val servingAmount = if (entry != null && !isQuickEntry) entryServingAmount(entry, recipe) else null
+            if (servingAmount != null) {
+                ServingAmountRow(
+                    text = servingAmountText(servingAmount, servings.toLocalizedDoubleOrNull()),
+                    isEstimated = servingAmount.isEstimated,
+                )
+            }
         }
 
         // Date (edit mode) — lets a wrong-day AI log get moved to the right day.
@@ -533,6 +568,64 @@ private fun EntryEditForm(
 
         Spacer(modifier = Modifier.height(16.dp))
     }
+}
+
+@Composable
+private fun ServingAmountRow(
+    text: String,
+    isEstimated: Boolean,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(R.string.food_form_serving_size),
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (isEstimated) {
+            Text(
+                stringResource(R.string.entry_edit_serving_estimated),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/**
+ * What one serving of the entry's food or recipe weighs or measures: the food's serving
+ * size, or for a recipe its cooked-weight or ingredient-based amount. Null when unknown.
+ */
+internal fun entryServingAmount(
+    entry: Entry,
+    recipe: Recipe?,
+): RecipeServingAmount? {
+    val size = entry.servingSize ?: entry.food?.servingSize
+    val unit = entry.servingUnit ?: entry.food?.servingUnit?.value
+    if (size != null && unit != null) return RecipeServingAmount(size, unit.replace('_', ' '), isEstimated = false)
+    return recipe?.let { recipeServingAmount(it.cookedWeight, it.totalServings, it.ingredients) }
+}
+
+/**
+ * "0.75 × 50 g = 37.5 g", or just the per-serving amount while the servings field holds
+ * no usable number. An estimate is rounded to whole numbers.
+ */
+internal fun servingAmountText(
+    amount: RecipeServingAmount,
+    servings: Double?,
+): String {
+    val format: (Double) -> String = if (amount.isEstimated) ({ it.formatAsInt() }) else ({ it.formatNutrient() })
+    val perServing = "${format(amount.amount)} ${amount.unit}"
+    if (servings == null || servings <= 0.0) return perServing
+    return "${servings.toDisplayString()} × $perServing = ${format(amount.amount * servings)} ${amount.unit}"
 }
 
 /** Locale-aware short time-of-day (e.g. "1:30 PM" / "13:30"), or a placeholder when unset. */

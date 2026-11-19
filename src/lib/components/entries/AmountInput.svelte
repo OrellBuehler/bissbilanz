@@ -12,11 +12,18 @@
 		servingSize?: number | null;
 		servingUnit?: string | null;
 		caloriesPerServing?: number | null;
+		estimated?: boolean;
 		onServingsChange: (servings: number) => void;
 	};
 
-	let { servings, servingSize, servingUnit, caloriesPerServing, onServingsChange }: Props =
-		$props();
+	let {
+		servings,
+		servingSize,
+		servingUnit,
+		caloriesPerServing,
+		estimated = false,
+		onServingsChange
+	}: Props = $props();
 
 	let mode: 'servings' | 'unit' = $state('servings');
 	let unitAmount = $state<number | null>(0);
@@ -33,7 +40,9 @@
 		servingsValue = servings;
 	});
 
-	const hasServingInfo = $derived(!!servingSize && !!servingUnit);
+	const hasServingSize = $derived(!!servingSize && !!servingUnit);
+	// An estimate only previews the amount: typing grams against it would log the wrong servings.
+	const hasServingInfo = $derived(hasServingSize && !estimated);
 
 	$effect(() => {
 		if (mode === 'servings' && hasServingInfo && servingSize) {
@@ -42,8 +51,10 @@
 	});
 
 	const previewAmount = $derived.by(() => {
-		if (!hasServingInfo || !servingSize || !servingUnit) return null;
-		const amount = Math.round(servings * servingSize * 10) / 10;
+		if (!hasServingSize || !servingSize || !servingUnit) return null;
+		const amount = estimated
+			? Math.round(servings * servingSize)
+			: Math.round(servings * servingSize * 10) / 10;
 		return m.amount_preview_equals({ amount: String(amount), unit: servingUnit });
 	});
 
@@ -93,7 +104,7 @@
 		<Label for={inputId}>{m.amount_mode_servings()}</Label>
 	{/if}
 
-	{#if mode === 'servings'}
+	{#if mode === 'servings' || !hasServingInfo}
 		<div class="flex items-center gap-2">
 			<NumberInput
 				id={inputId}
@@ -108,6 +119,9 @@
 				</span>
 			{/if}
 		</div>
+		{#if estimated && previewAmount}
+			<span class="text-xs text-muted-foreground">{m.amount_estimated_hint()}</span>
+		{/if}
 	{:else}
 		<div class="flex items-center gap-2">
 			<NumberInput

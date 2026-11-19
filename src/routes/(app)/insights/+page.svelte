@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { toast } from 'svelte-sonner';
 	import * as Sentry from '@sentry/sveltekit';
 	import { PieChart } from 'layerchart';
@@ -38,19 +38,19 @@
 	import { isDismissed } from '$lib/stores/hints.svelte';
 	import type { DexieWeightEntry } from '$lib/db/types';
 	import type { PageData } from './$types';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/api/client';
 
 	let { data: pageData }: { data: PageData } = $props();
 
 	type Tab = 'nutrition' | 'weight' | 'sleep';
-	const activeTab = $derived<Tab>(($page.url.searchParams.get('tab') as Tab) ?? 'nutrition');
+	const activeTab = $derived<Tab>((page.url.searchParams.get('tab') as Tab) ?? 'nutrition');
 
 	const setTab = (tab: Tab) => {
-		const url = new URL($page.url);
+		const url = new URL(page.url.href);
 		url.searchParams.set('tab', tab);
-		goto(url.toString(), { replaceState: false, noScroll: true });
+		goto(url.toString(), { reset: false });
 	};
 
 	const tabs = [

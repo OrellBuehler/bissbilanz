@@ -280,6 +280,15 @@ describe('read tools', () => {
 		).toEqual({
 			products: []
 		});
+		h.handleSearchOpenFoodFacts.mockResolvedValue({
+			products: [],
+			count: 0,
+			unavailable: true,
+			hint: 'not an empty result'
+		});
+		expect(
+			(await parsed(runTaskTool('search_openfoodfacts', { query: 'bar' }, makeCtx()))).body
+		).toEqual({ products: [], unavailable: true, hint: 'not an empty result' });
 	});
 });
 

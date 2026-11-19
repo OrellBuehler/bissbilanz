@@ -62,6 +62,36 @@ struct Recipe: Codable, Identifiable, Hashable {
         guard let cookedWeight, cookedWeight > 0, let calories else { return nil }
         return (calories / cookedWeight) * 100
     }
+
+    /// What one serving weighs or measures, matching `recipeServingAmount` on web and
+    /// Android. The cooked weight gives an exact grams figure; without one the
+    /// ingredient amounts are summed in grams (mass units) or millilitres (volume
+    /// units, counted as grams when mixed with mass) and divided by `totalServings`,
+    /// flagged as an estimate. `nil` when neither is available.
+    var servingAmount: RecipeServingAmount? {
+        guard totalServings > 0 else { return nil }
+        if let exact = cookedWeightServingSize {
+            return RecipeServingAmount(amount: exact, unit: .g, isEstimated: false)
+        }
+        guard let ingredients, !ingredients.isEmpty else { return nil }
+        var total = 0.0
+        var allVolume = true
+        for ingredient in ingredients {
+            let base: ServingUnit = ingredient.servingUnit.isVolume ? .ml : .g
+            if !ingredient.servingUnit.isVolume { allVolume = false }
+            total += convertQuantityForMacros(ingredient.quantity, from: ingredient.servingUnit, to: base)
+        }
+        guard total > 0 else { return nil }
+        return RecipeServingAmount(amount: total / totalServings, unit: allVolume ? .ml : .g, isEstimated: true)
+    }
+}
+
+/// One serving of a recipe in grams (`unit` is `.g`) or millilitres (`.ml`).
+/// `isEstimated` is false only when it comes from the recipe's cooked weight.
+struct RecipeServingAmount: Equatable {
+    let amount: Double
+    let unit: ServingUnit
+    let isEstimated: Bool
 }
 
 struct RecipeIngredient: Codable, Identifiable, Hashable {

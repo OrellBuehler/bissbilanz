@@ -13,8 +13,11 @@ extension BissbilanzAPI {
     /// The proxy returns `{product: {...}}` — the `Food` prefill shape minus
     /// the user-scoped fields (`userId`, `isFavorite`) and with nullable
     /// serving info, so the gaps are patched in before decoding, mirroring
-    /// the Local-mode `OpenFoodFactsClient`. Returns nil for unknown barcodes
-    /// or unparseable responses.
+    /// the Local-mode `OpenFoodFactsClient`. Returns nil only when the server
+    /// definitively has no such product (404, or 400 for a code that is not a
+    /// valid barcode); a failed request (offline, timeout, 429, 5xx) or a
+    /// response that cannot be read throws, so callers can tell "unknown
+    /// product" apart from "lookup failed".
     func lookupBarcode(_ barcode: String) async throws -> OpenFoodFactsHit? {
         // The barcode is untrusted external input: the scanner accepts Code 39
         // (whose charset includes the space) and Code 128 (full ASCII), so a
@@ -28,22 +31,31 @@ extension BissbilanzAPI {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        let result: (Data, HTTPURLResponse)
-        do {
-            result = try await executeRequestData(request)
-        } catch {
-            ErrorReporter.capture(error, context: ["endpoint": "/api/openfoodfacts/{barcode}"])
-            return nil
-        }
-        let (data, httpResponse) = result
-        guard httpResponse.statusCode == 200 else { return nil }
-        return Self.openFoodFactsHit(from: data, barcode: barcode)
+        let (data, httpResponse) = try await executeRequestData(request)
+        return try Self.openFoodFactsHit(status: httpResponse.statusCode, data: data, barcode: barcode)
     }
 
-    private static func openFoodFactsHit(from data: Data, barcode: String) -> OpenFoodFactsHit? {
+    nonisolated static func openFoodFactsHit(status: Int, data: Data, barcode: String) throws -> OpenFoodFactsHit? {
+        switch status {
+        case 200:
+            return try openFoodFactsHit(from: data, barcode: barcode)
+        case 400, 404:
+            return nil
+        default:
+            throw APIError.serverError(status, String(data: data, encoding: .utf8))
+        }
+    }
+
+    nonisolated static func openFoodFactsHit(from data: Data, barcode: String) throws -> OpenFoodFactsHit {
         guard let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               var product = root["product"] as? [String: Any]
-        else { return nil }
+        else {
+            throw APIError.decodingError(
+                DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Open Food Facts proxy response has no product")),
+                statusCode: 200,
+                body: String(data: data, encoding: .utf8)
+            )
+        }
 
         // `Food.id` is required; older servers omit `id` on this endpoint, so the
         // barcode stands in for it like the Local-mode client does.
@@ -66,8 +78,7 @@ extension BissbilanzAPI {
         do {
             food = try JSONPatch.decode(Food.self, from: product)
         } catch {
-            ErrorReporter.captureWarning("Open Food Facts proxy product decode failed", context: ["reason": ErrorReporter.reason(for: error)])
-            return nil
+            throw APIError.decodingError(error, statusCode: 200, body: String(data: data, encoding: .utf8))
         }
         return OpenFoodFactsHit(food: food, categoriesTags: product["categoriesTags"] as? [String])
     }

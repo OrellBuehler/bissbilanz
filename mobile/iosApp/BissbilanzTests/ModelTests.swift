@@ -615,6 +615,92 @@ struct RecipeModelTests {
         #expect(recipe.cookedWeightServingSize == nil)
     }
 
+    private static func ingredient(_ quantity: Double, _ unit: ServingUnit) -> RecipeIngredient {
+        RecipeIngredient(
+            id: nil,
+            recipeId: nil,
+            foodId: "f1",
+            quantity: quantity,
+            servingUnit: unit,
+            sortOrder: 0,
+            food: nil
+        )
+    }
+
+    private static func recipeWithIngredients(
+        totalServings: Double,
+        cookedWeight: Double? = nil,
+        ingredients: [RecipeIngredient]?
+    ) -> Recipe {
+        var recipe = Self.recipe(totalServings: totalServings, cookedWeight: cookedWeight)
+        recipe.ingredients = ingredients
+        return recipe
+    }
+
+    @Test("servingAmount takes the cooked weight and calls it exact")
+    func servingAmountPrefersCookedWeight() {
+        let recipe = Self.recipeWithIngredients(
+            totalServings: 7,
+            cookedWeight: 1400,
+            ingredients: [Self.ingredient(100, .g)]
+        )
+        #expect(recipe.servingAmount == RecipeServingAmount(amount: 200, unit: .g, isEstimated: false))
+    }
+
+    @Test("servingAmount estimates mixed grams and millilitres in grams")
+    func servingAmountEstimatesMixedUnits() throws {
+        let grams: [Double] = [500, 500, 80, 27, 10, 9, 25]
+        let rows = grams.map { Self.ingredient($0, .g) } + [Self.ingredient(215, .ml)]
+        let recipe = Self.recipeWithIngredients(totalServings: 7, ingredients: rows)
+
+        let amount = try #require(recipe.servingAmount)
+        #expect(abs(amount.amount - 1366.0 / 7.0) < 1e-9)
+        #expect(amount.unit == .g)
+        #expect(amount.isEstimated)
+    }
+
+    @Test("servingAmount answers in millilitres when every ingredient is a volume")
+    func servingAmountAllVolumeIsMillilitres() throws {
+        let rows = [Self.ingredient(250, .ml), Self.ingredient(2, .tbsp), Self.ingredient(1, .cup)]
+        let recipe = Self.recipeWithIngredients(totalServings: 5, ingredients: rows)
+
+        let amount = try #require(recipe.servingAmount)
+        #expect(abs(amount.amount - 104) < 1e-9)
+        #expect(amount.unit == .ml)
+        #expect(amount.isEstimated)
+    }
+
+    @Test("servingAmount converts non-base units to grams and millilitres first")
+    func servingAmountConvertsNonBaseUnits() throws {
+        let mass = Self.recipeWithIngredients(
+            totalServings: 4,
+            ingredients: [Self.ingredient(1.5, .kg), Self.ingredient(0.5, .l)]
+        )
+        let massAmount = try #require(mass.servingAmount)
+        #expect(abs(massAmount.amount - 500) < 1e-9)
+        #expect(massAmount.unit == .g)
+
+        let volume = Self.recipeWithIngredients(totalServings: 2, ingredients: [Self.ingredient(0.5, .l)])
+        let volumeAmount = try #require(volume.servingAmount)
+        #expect(abs(volumeAmount.amount - 250) < 1e-9)
+        #expect(volumeAmount.unit == .ml)
+    }
+
+    @Test("servingAmount is nil without a cooked weight and without ingredients")
+    func servingAmountNilWithoutAnySource() {
+        #expect(Self.recipeWithIngredients(totalServings: 4, ingredients: nil).servingAmount == nil)
+        #expect(Self.recipeWithIngredients(totalServings: 4, ingredients: []).servingAmount == nil)
+    }
+
+    @Test("servingAmount is nil for a non-positive totalServings or an empty sum")
+    func servingAmountNilForDegenerateInput() {
+        let rows = [Self.ingredient(100, .g)]
+        #expect(Self.recipeWithIngredients(totalServings: 0, cookedWeight: 800, ingredients: rows).servingAmount == nil)
+        #expect(Self.recipeWithIngredients(totalServings: -2, ingredients: rows).servingAmount == nil)
+        let empty = Self.recipeWithIngredients(totalServings: 4, ingredients: [Self.ingredient(0, .g)])
+        #expect(empty.servingAmount == nil)
+    }
+
     @Test("caloriesPerHundredGrams scales whole-recipe calories down to a per-100g rate")
     func caloriesPerHundredGramsScales() {
         let recipe = Self.recipe(totalServings: 4, calories: 1600, cookedWeight: 800)

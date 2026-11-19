@@ -16,7 +16,7 @@
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import type { DexieSupplement } from '$lib/db/types';
 	import * as m from '$lib/paraglide/messages';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import * as Sentry from '@sentry/sveltekit';
 
 	type IngredientInfo = {

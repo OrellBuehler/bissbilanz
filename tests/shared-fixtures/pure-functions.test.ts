@@ -6,7 +6,8 @@ import { convertQuantityForMacros, type ServingUnit } from '$lib/units';
 import {
 	caloriesPerHundredGrams,
 	cookedWeightServingSize,
-	gramsToServings
+	gramsToServings,
+	recipeServingAmount
 } from '$lib/utils/recipe-yield';
 import { recipeScaleFactor, scaleIngredients } from '$lib/utils/recipe-scaling';
 import { isVolumeBasis, parseDecimal, parseRows } from '$lib/label-parser';
@@ -71,6 +72,8 @@ function run(c: FixtureCase): unknown {
 			);
 		case 'scaleIngredients':
 			return scaleIngredients(i.ingredients, i.factor);
+		case 'recipeServingAmount':
+			return recipeServingAmount(i.cookedWeight, i.totalServings, i.ingredients);
 		case 'parseRows': {
 			const parsed = parseRows(i.rows);
 			return {

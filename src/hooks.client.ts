@@ -1,11 +1,11 @@
 import * as Sentry from '@sentry/sveltekit';
-import type { HandleClientError } from '@sveltejs/kit';
-import { env } from '$env/dynamic/public';
+import type { HandleClientError } from '@sveltejs/kit/hooks';
+import { PUBLIC_SENTRY_DSN, PUBLIC_SENTRY_ENVIRONMENT } from '$app/env/public';
 
-if (env.PUBLIC_SENTRY_DSN && env.PUBLIC_SENTRY_ENVIRONMENT) {
+if (PUBLIC_SENTRY_DSN && PUBLIC_SENTRY_ENVIRONMENT) {
 	Sentry.init({
-		dsn: env.PUBLIC_SENTRY_DSN,
-		environment: env.PUBLIC_SENTRY_ENVIRONMENT,
+		dsn: PUBLIC_SENTRY_DSN,
+		environment: PUBLIC_SENTRY_ENVIRONMENT,
 		tracesSampleRate: import.meta.env.DEV ? 1.0 : 0.2,
 		replaysSessionSampleRate: 0,
 		replaysOnErrorSampleRate: 1.0,

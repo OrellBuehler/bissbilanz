@@ -138,7 +138,7 @@ struct FoodSearchView: View {
         }
         .toast(message: $toastMessage)
         .sheet(item: $selectedFood, onDismiss: resignSearchKeyboard) { food in
-            LogFoodSheet(food: food, date: date ?? DateFormatting.today)
+            LogFoodSheet(food: food, date: date ?? DateFormatting.today, showsDetailsLink: true)
         }
         .sheet(item: $selectedRecipe, onDismiss: resignSearchKeyboard) { recipe in
             LogRecipeSheet(recipe: recipe, date: date ?? DateFormatting.today) {

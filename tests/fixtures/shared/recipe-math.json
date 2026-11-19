@@ -1,5 +1,5 @@
 {
-	"$comment": "Shared recipe math: unit conversion, ingredient macro aggregation, cooked-weight yield and whole-recipe to per-serving conversion.",
+	"$comment": "Shared recipe math: unit conversion, ingredient macro aggregation, cooked-weight yield, whole-recipe to per-serving conversion and the weight or volume of one serving.",
 	"tolerance": 1e-9,
 	"implementations": {
 		"convertQuantityForMacros": ["web", "kotlin", "swift"],
@@ -9,7 +9,8 @@
 		"caloriesPerHundredGrams": ["web", "kotlin", "swift"],
 		"wholeToPerServing": ["kotlin", "swift"],
 		"recipeScaleFactor": ["web", "kotlin", "swift"],
-		"scaleIngredients": ["web", "kotlin", "swift"]
+		"scaleIngredients": ["web", "kotlin", "swift"],
+		"recipeServingAmount": ["web", "kotlin", "swift"]
 	},
 	"cases": [
 		{
@@ -894,6 +895,297 @@
 					"servingUnit": "tsp"
 				}
 			]
+		},
+		{
+			"fn": "recipeServingAmount",
+			"name": "cooked_weight_wins_over_ingredients",
+			"input": {
+				"cookedWeight": 1400,
+				"totalServings": 7,
+				"ingredients": [
+					{
+						"quantity": 100,
+						"servingUnit": "g"
+					},
+					{
+						"quantity": 50,
+						"servingUnit": "ml"
+					}
+				]
+			},
+			"expected": {
+				"amount": 200,
+				"unit": "g",
+				"estimated": false
+			}
+		},
+		{
+			"fn": "recipeServingAmount",
+			"name": "cooked_weight_without_ingredients",
+			"input": {
+				"cookedWeight": 1000,
+				"totalServings": 3,
+				"ingredients": null
+			},
+			"expected": {
+				"amount": 333.3333333333333,
+				"unit": "g",
+				"estimated": false
+			}
+		},
+		{
+			"fn": "recipeServingAmount",
+			"name": "estimate_from_mixed_g_and_ml",
+			"input": {
+				"cookedWeight": null,
+				"totalServings": 7,
+				"ingredients": [
+					{
+						"quantity": 500,
+						"servingUnit": "g"
+					},
+					{
+						"quantity": 500,
+						"servingUnit": "g"
+					},
+					{
+						"quantity": 80,
+						"servingUnit": "g"
+					},
+					{
+						"quantity": 27,
+						"servingUnit": "g"
+					},
+					{
+						"quantity": 10,
+						"servingUnit": "g"
+					},
+					{
+						"quantity": 9,
+						"servingUnit": "g"
+					},
+					{
+						"quantity": 25,
+						"servingUnit": "g"
+					},
+					{
+						"quantity": 215,
+						"servingUnit": "ml"
+					}
+				]
+			},
+			"expected": {
+				"amount": 195.14285714285714,
+				"unit": "g",
+				"estimated": true
+			}
+		},
+		{
+			"fn": "recipeServingAmount",
+			"name": "zero_cooked_weight_falls_back_to_ingredients",
+			"input": {
+				"cookedWeight": 0,
+				"totalServings": 2,
+				"ingredients": [
+					{
+						"quantity": 100,
+						"servingUnit": "g"
+					},
+					{
+						"quantity": 50,
+						"servingUnit": "ml"
+					}
+				]
+			},
+			"expected": {
+				"amount": 75,
+				"unit": "g",
+				"estimated": true
+			}
+		},
+		{
+			"fn": "recipeServingAmount",
+			"name": "all_volume_ingredients_give_ml",
+			"input": {
+				"cookedWeight": null,
+				"totalServings": 5,
+				"ingredients": [
+					{
+						"quantity": 250,
+						"servingUnit": "ml"
+					},
+					{
+						"quantity": 2,
+						"servingUnit": "tbsp"
+					},
+					{
+						"quantity": 1,
+						"servingUnit": "cup"
+					}
+				]
+			},
+			"expected": {
+				"amount": 104,
+				"unit": "ml",
+				"estimated": true
+			}
+		},
+		{
+			"fn": "recipeServingAmount",
+			"name": "kg_and_l_convert_to_base_units",
+			"input": {
+				"cookedWeight": null,
+				"totalServings": 4,
+				"ingredients": [
+					{
+						"quantity": 1.5,
+						"servingUnit": "kg"
+					},
+					{
+						"quantity": 0.5,
+						"servingUnit": "l"
+					}
+				]
+			},
+			"expected": {
+				"amount": 500,
+				"unit": "g",
+				"estimated": true
+			}
+		},
+		{
+			"fn": "recipeServingAmount",
+			"name": "single_litre_ingredient",
+			"input": {
+				"cookedWeight": null,
+				"totalServings": 2,
+				"ingredients": [
+					{
+						"quantity": 0.5,
+						"servingUnit": "l"
+					}
+				]
+			},
+			"expected": {
+				"amount": 250,
+				"unit": "ml",
+				"estimated": true
+			}
+		},
+		{
+			"fn": "recipeServingAmount",
+			"name": "oz_and_lb_use_exact_factors",
+			"input": {
+				"cookedWeight": null,
+				"totalServings": 2,
+				"ingredients": [
+					{
+						"quantity": 4,
+						"servingUnit": "oz"
+					},
+					{
+						"quantity": 1,
+						"servingUnit": "lb"
+					}
+				]
+			},
+			"expected": {
+				"amount": 283.49523125,
+				"unit": "g",
+				"estimated": true
+			}
+		},
+		{
+			"fn": "recipeServingAmount",
+			"name": "fractional_total_servings",
+			"input": {
+				"cookedWeight": null,
+				"totalServings": 0.5,
+				"ingredients": [
+					{
+						"quantity": 100,
+						"servingUnit": "g"
+					}
+				]
+			},
+			"expected": {
+				"amount": 200,
+				"unit": "g",
+				"estimated": true
+			}
+		},
+		{
+			"fn": "recipeServingAmount",
+			"name": "no_ingredients_and_no_cooked_weight",
+			"input": {
+				"cookedWeight": null,
+				"totalServings": 4,
+				"ingredients": []
+			},
+			"expected": null
+		},
+		{
+			"fn": "recipeServingAmount",
+			"name": "ingredients_missing_and_no_cooked_weight",
+			"input": {
+				"cookedWeight": null,
+				"totalServings": 4,
+				"ingredients": null
+			},
+			"expected": null
+		},
+		{
+			"fn": "recipeServingAmount",
+			"name": "zero_total_servings",
+			"input": {
+				"cookedWeight": 800,
+				"totalServings": 0,
+				"ingredients": [
+					{
+						"quantity": 100,
+						"servingUnit": "g"
+					},
+					{
+						"quantity": 50,
+						"servingUnit": "ml"
+					}
+				]
+			},
+			"expected": null
+		},
+		{
+			"fn": "recipeServingAmount",
+			"name": "negative_total_servings",
+			"input": {
+				"cookedWeight": null,
+				"totalServings": -2,
+				"ingredients": [
+					{
+						"quantity": 100,
+						"servingUnit": "g"
+					},
+					{
+						"quantity": 50,
+						"servingUnit": "ml"
+					}
+				]
+			},
+			"expected": null
+		},
+		{
+			"fn": "recipeServingAmount",
+			"name": "zero_ingredient_sum",
+			"input": {
+				"cookedWeight": null,
+				"totalServings": 4,
+				"ingredients": [
+					{
+						"quantity": 0,
+						"servingUnit": "g"
+					}
+				]
+			},
+			"expected": null
 		}
 	]
 }

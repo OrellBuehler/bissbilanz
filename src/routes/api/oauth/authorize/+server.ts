@@ -73,14 +73,14 @@ export const GET: RequestHandler = async (event) => {
 	if (!sessionId) {
 		const loginUrl = new URL('/', url.origin);
 		loginUrl.searchParams.set('redirect', url.pathname + url.search);
-		throw redirect(302, loginUrl.toString());
+		throw redirect(302, loginUrl.pathname + loginUrl.search);
 	}
 
 	const sessionData = await getSessionWithUser(sessionId);
 	if (!sessionData) {
 		const loginUrl = new URL('/', url.origin);
 		loginUrl.searchParams.set('redirect', url.pathname + url.search);
-		throw redirect(302, loginUrl.toString());
+		throw redirect(302, loginUrl.pathname + loginUrl.search);
 	}
 
 	const userId = sessionData.user.id;
@@ -95,7 +95,7 @@ export const GET: RequestHandler = async (event) => {
 		consentUrl.searchParams.set('state', state);
 		consentUrl.searchParams.set('code_challenge', codeChallenge);
 		consentUrl.searchParams.set('code_challenge_method', codeChallengeMethod);
-		throw redirect(302, consentUrl.toString());
+		throw redirect(302, consentUrl.pathname + consentUrl.search);
 	}
 
 	// User has already authorized - create authorization code and redirect
@@ -106,5 +106,5 @@ export const GET: RequestHandler = async (event) => {
 	callbackUrl.searchParams.set('state', state);
 	callbackUrl.searchParams.set('iss', getIssuer(url));
 
-	throw redirect(302, callbackUrl.toString());
+	throw redirect(302, callbackUrl.toString(), { external: true });
 };

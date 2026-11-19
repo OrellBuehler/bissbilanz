@@ -206,7 +206,7 @@ struct RecipeListView: View {
                     Text("\(Int(cal)) \(L10n.calories.lowercased())/\(L10n.servings.lowercased())")
                         .foregroundStyle(accessibleColor(.calories))
                 }
-                Text("\(Int(recipe.totalServings)) \(L10n.servings.lowercased())")
+                Text("\(MacroFormat.servings(recipe.totalServings)) \(L10n.servings.lowercased())")
                     .foregroundStyle(.secondary)
             }
             .font(.caption)
@@ -234,7 +234,7 @@ struct RecipeListView: View {
         if let cal = recipe.caloriesPerServing {
             parts.append(L10n.caloriesAmount(Int(cal)) + "/\(L10n.servings.lowercased())")
         }
-        parts.append("\(Int(recipe.totalServings)) \(L10n.servings.lowercased())")
+        parts.append("\(MacroFormat.servings(recipe.totalServings)) \(L10n.servings.lowercased())")
         return parts.joined(separator: ", ")
     }
 

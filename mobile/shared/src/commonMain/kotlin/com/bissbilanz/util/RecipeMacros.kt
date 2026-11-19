@@ -106,3 +106,38 @@ fun caloriesPerHundredGrams(
     val servingSize = cookedWeightServingSize(cookedWeight, totalServings) ?: return null
     return (perServingCalories / servingSize) * 100.0
 }
+
+/** One recipe serving in grams ([unit] "g") or millilitres ([unit] "ml"); exact only when from the cooked weight. */
+data class RecipeServingAmount(
+    val amount: Double,
+    val unit: String,
+    val isEstimated: Boolean,
+)
+
+/**
+ * What one serving of a recipe weighs or measures, matching `recipeServingAmount` in
+ * `src/lib/utils/recipe-yield.ts`. The cooked weight gives an exact grams figure; without
+ * one, the ingredient amounts are summed in grams (mass units) or millilitres (volume
+ * units, counted as grams when mixed with mass) and divided by [totalServings], flagged as
+ * an estimate. Null when neither is available.
+ */
+fun recipeServingAmount(
+    cookedWeight: Double?,
+    totalServings: Double,
+    ingredients: List<RecipeIngredient>,
+): RecipeServingAmount? {
+    if (totalServings <= 0.0) return null
+    val exact = cookedWeightServingSize(cookedWeight, totalServings)
+    if (exact != null) return RecipeServingAmount(exact, "g", isEstimated = false)
+    if (ingredients.isEmpty()) return null
+    var total = 0.0
+    var allVolume = true
+    for (ingredient in ingredients) {
+        val unit = ingredient.servingUnit.value
+        val isVolume = unitDimensionOrNull(unit) == UnitDimension.VOLUME
+        if (!isVolume) allVolume = false
+        total += convertQuantityForMacros(ingredient.quantity, unit, if (isVolume) "ml" else "g")
+    }
+    if (total <= 0.0) return null
+    return RecipeServingAmount(total / totalServings, if (allVolume) "ml" else "g", isEstimated = true)
+}

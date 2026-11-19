@@ -1289,6 +1289,9 @@ export const oauthTokens = pgTable(
 		// Set when the refresh token was rotated. The row is kept so that presenting the
 		// token again can be told apart from an unknown one (reuse detection).
 		refreshTokenConsumedAt: timestamp('refresh_token_consumed_at', { withTimezone: true }),
+		// Set on the first request authenticated with the access token. A replayed refresh
+		// token whose replacement was never used is a lost response, not theft.
+		accessTokenUsedAt: timestamp('access_token_used_at', { withTimezone: true }),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow()
 	},
 	(table) => [
