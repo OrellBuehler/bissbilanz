@@ -116,6 +116,39 @@ export const foodEnrichmentJobStateValues = [
 	'failed'
 ] as const;
 export type FoodEnrichmentJobState = (typeof foodEnrichmentJobStateValues)[number];
+export const chatMessageRoleValues = ['user', 'assistant'] as const;
+export type ChatMessageRole = (typeof chatMessageRoleValues)[number];
+export const chatMessageStatusValues = [
+	'in_progress',
+	'completed',
+	'failed',
+	'cancelled',
+	'interrupted'
+] as const;
+export type ChatMessageStatus = (typeof chatMessageStatusValues)[number];
+export const chatRunStatusValues = [
+	'queued',
+	'running',
+	'awaiting_confirmation',
+	'completed',
+	'failed',
+	'cancelled',
+	'interrupted'
+] as const;
+export type ChatRunStatus = (typeof chatRunStatusValues)[number];
+export const chatActiveRunStatusValues = ['queued', 'running', 'awaiting_confirmation'] as const;
+export const chatToolKindValues = ['read', 'write', 'confirm'] as const;
+export type ChatToolKind = (typeof chatToolKindValues)[number];
+export const chatActionStatusValues = [
+	'pending',
+	'approved',
+	'rejected',
+	'expired',
+	'cancelled'
+] as const;
+export type ChatActionStatus = (typeof chatActionStatusValues)[number];
+export const chatToolExecutionValues = ['started', 'succeeded', 'failed', 'unknown'] as const;
+export type ChatToolExecution = (typeof chatToolExecutionValues)[number];
 
 const sqlInList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
 
@@ -979,6 +1012,9 @@ export const claudeUsage = pgTable(
 		errorCode: text('error_code'),
 		requestId: text('request_id'),
 		aiTaskId: uuid('ai_task_id').references(() => aiTasks.id, { onDelete: 'set null' }),
+		chatConversationId: uuid('chat_conversation_id').references(() => chatConversations.id, {
+			onDelete: 'set null'
+		}),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 		settledAt: timestamp('settled_at', { withTimezone: true })
 	},
@@ -986,6 +1022,7 @@ export const claudeUsage = pgTable(
 		index('idx_claude_usage_user_created').on(table.userId, table.createdAt),
 		index('idx_claude_usage_created').on(table.createdAt),
 		index('idx_claude_usage_ai_task').on(table.aiTaskId),
+		index('idx_claude_usage_chat_conversation').on(table.chatConversationId),
 		index('idx_claude_usage_reserved')
 			.on(table.createdAt)
 			.where(sql`${table.status} = 'reserved'`),
@@ -1218,6 +1255,224 @@ export const claudeTaskFoods = pgTable(
 		index('idx_claude_task_foods_food').on(table.foodId)
 	]
 );
+
+// The system prompt and tool set a chat conversation was started with, keyed
+// by their hash. A conversation keeps replaying the same snapshot while its
+// model stays the same, so a deploy that changes the prompt or the MCP tools
+// never edits the prefix of an existing conversation's thinking blocks.
+// system and tools are JSON text, not jsonb: jsonb reorders object keys, and
+// the replayed bytes must be exactly the ones first sent.
+export const chatPrompts = pgTable('chat_prompts', {
+	id: text('id').primaryKey(),
+	model: text('model').notNull(),
+	system: text('system').notNull(),
+	tools: text('tools').notNull(),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+});
+
+// nextSeq is the last event seq handed out for the conversation.
+export const chatConversations = pgTable(
+	'chat_conversations',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		title: text('title'),
+		nextSeq: integer('next_seq').notNull().default(0),
+		promptId: text('prompt_id').references(() => chatPrompts.id),
+		lastMessageAt: timestamp('last_message_at', { withTimezone: true }).notNull().defaultNow(),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [index('idx_chat_conversations_user_last').on(table.userId, table.lastMessageAt)]
+);
+
+export type ChatConversation = typeof chatConversations.$inferSelect;
+
+// The display form of a conversation: the user's messages and the assistant's
+// replies as ordered parts. The raw API transcript lives in chat_raw_messages.
+export const chatMessages = pgTable(
+	'chat_messages',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		conversationId: uuid('conversation_id')
+			.notNull()
+			.references(() => chatConversations.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		runId: uuid('run_id'),
+		role: text('role').notNull(),
+		status: text('status').notNull().default('completed'),
+		reason: text('reason'),
+		parts: jsonb('parts').notNull().default([]),
+		imageUrls: text('image_urls').array(),
+		context: jsonb('context'),
+		createdSeq: integer('created_seq'),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		index('idx_chat_messages_conversation').on(table.conversationId, table.createdAt),
+		index('idx_chat_messages_user_role').on(table.userId, table.role, table.createdAt),
+		check('chat_messages_role_valid', sql`${table.role} IN (${sqlInList(chatMessageRoleValues)})`),
+		check(
+			'chat_messages_status_valid',
+			sql`${table.status} IN (${sqlInList(chatMessageStatusValues)})`
+		)
+	]
+);
+
+export type ChatMessageRow = typeof chatMessages.$inferSelect;
+
+// The API transcript, append-only: content blocks exactly as Anthropic returned
+// them (thinking blocks included) and the user turns as sent, except that an
+// image is kept as { type: 'image', upload: '<filename>' } and read from disk
+// when the transcript is replayed. content is JSON text, not jsonb, so the
+// bytes replayed later are the ones first sent (jsonb reorders keys).
+export const chatRawMessages = pgTable(
+	'chat_raw_messages',
+	{
+		conversationId: uuid('conversation_id')
+			.notNull()
+			.references(() => chatConversations.id, { onDelete: 'cascade' }),
+		position: integer('position').notNull(),
+		role: text('role').notNull(),
+		content: text('content').notNull(),
+		runId: uuid('run_id'),
+		bytes: integer('bytes').notNull().default(0),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		primaryKey({ columns: [table.conversationId, table.position] }),
+		check(
+			'chat_raw_messages_role_valid',
+			sql`${table.role} IN (${sqlInList(chatMessageRoleValues)})`
+		)
+	]
+);
+
+// At most one queued, running or paused run per conversation (partial unique
+// index). heartbeatAt is refreshed while a process works on the run; a running
+// run whose heartbeat went stale was interrupted by a restart.
+export const chatRuns = pgTable(
+	'chat_runs',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		conversationId: uuid('conversation_id')
+			.notNull()
+			.references(() => chatConversations.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		userMessageId: uuid('user_message_id')
+			.notNull()
+			.references(() => chatMessages.id, { onDelete: 'cascade' }),
+		assistantMessageId: uuid('assistant_message_id').references(() => chatMessages.id, {
+			onDelete: 'set null'
+		}),
+		status: text('status').notNull().default('queued'),
+		reason: text('reason'),
+		model: text('model'),
+		iterations: integer('iterations').notNull().default(0),
+		changes: jsonb('changes').notNull().default([]),
+		leaseOwner: text('lease_owner'),
+		heartbeatAt: timestamp('heartbeat_at', { withTimezone: true }),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+		startedAt: timestamp('started_at', { withTimezone: true }),
+		finishedAt: timestamp('finished_at', { withTimezone: true })
+	},
+	(table) => [
+		uniqueIndex('idx_chat_runs_active_conversation')
+			.on(table.conversationId)
+			.where(sql`${table.status} IN (${sqlInList(chatActiveRunStatusValues)})`),
+		index('idx_chat_runs_status_heartbeat').on(table.status, table.heartbeatAt),
+		index('idx_chat_runs_conversation').on(table.conversationId, table.createdAt),
+		check('chat_runs_status_valid', sql`${table.status} IN (${sqlInList(chatRunStatusValues)})`)
+	]
+);
+
+export type ChatRun = typeof chatRuns.$inferSelect;
+
+// Everything a client renders, in order: seq increases by one per event within
+// a conversation. text_delta rows are pruned a day after they were written;
+// the finished message carries the full text.
+export const chatEvents = pgTable(
+	'chat_events',
+	{
+		conversationId: uuid('conversation_id')
+			.notNull()
+			.references(() => chatConversations.id, { onDelete: 'cascade' }),
+		seq: integer('seq').notNull(),
+		runId: uuid('run_id'),
+		type: text('type').notNull(),
+		payload: jsonb('payload').notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		primaryKey({ columns: [table.conversationId, table.seq] }),
+		index('idx_chat_events_delta_created')
+			.on(table.createdAt)
+			.where(sql`${table.type} = 'text_delta'`)
+	]
+);
+
+export type ChatEventRow = typeof chatEvents.$inferSelect;
+
+// One row per tool call of the assistant, keyed by the tool_use id: the ledger
+// that keeps a write from running twice, and, for tools that need the user's
+// confirmation, the pending action (its id is the action id).
+export const chatToolCalls = pgTable(
+	'chat_tool_calls',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		conversationId: uuid('conversation_id')
+			.notNull()
+			.references(() => chatConversations.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		runId: uuid('run_id')
+			.notNull()
+			.references(() => chatRuns.id, { onDelete: 'cascade' }),
+		messageId: uuid('message_id'),
+		toolUseId: text('tool_use_id').notNull(),
+		toolName: text('tool_name').notNull(),
+		kind: text('kind').notNull(),
+		input: jsonb('input').notNull(),
+		actionStatus: text('action_status'),
+		preview: jsonb('preview'),
+		partIndex: integer('part_index'),
+		expiresAt: timestamp('expires_at', { withTimezone: true }),
+		decidedAt: timestamp('decided_at', { withTimezone: true }),
+		execution: text('execution'),
+		resultText: text('result_text'),
+		isError: boolean('is_error').notNull().default(false),
+		changes: jsonb('changes').notNull().default([]),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		finishedAt: timestamp('finished_at', { withTimezone: true })
+	},
+	(table) => [
+		uniqueIndex('idx_chat_tool_calls_tool_use').on(table.conversationId, table.toolUseId),
+		index('idx_chat_tool_calls_run').on(table.runId),
+		index('idx_chat_tool_calls_pending')
+			.on(table.expiresAt)
+			.where(sql`${table.actionStatus} = 'pending'`),
+		check('chat_tool_calls_kind_valid', sql`${table.kind} IN (${sqlInList(chatToolKindValues)})`),
+		check(
+			'chat_tool_calls_action_status_valid',
+			sql`${table.actionStatus} IS NULL OR ${table.actionStatus} IN (${sqlInList(chatActionStatusValues)})`
+		),
+		check(
+			'chat_tool_calls_execution_valid',
+			sql`${table.execution} IS NULL OR ${table.execution} IN (${sqlInList(chatToolExecutionValues)})`
+		)
+	]
+);
+
+export type ChatToolCall = typeof chatToolCalls.$inferSelect;
 
 // OAuth Clients - per-user or dynamically registered (RFC 7591)
 export const oauthClients = pgTable(

@@ -3,7 +3,7 @@ import { readdir, stat, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { and, asc, gt, isNotNull } from 'drizzle-orm';
 import { getDB } from '$lib/server/db';
-import { foods, recipes, recipeSteps, aiTasks } from '$lib/server/schema';
+import { foods, recipes, recipeSteps, aiTasks, chatMessages } from '$lib/server/schema';
 import {
 	UPLOAD_DIR,
 	UPLOAD_FILENAME_PATTERN,
@@ -117,6 +117,18 @@ export const cleanupOrphanedImages = async (now = Date.now()): Promise<number> =
 					.from(aiTasks)
 					.where(and(isNotNull(aiTasks.photoUrls), after ? gt(aiTasks.id, after) : undefined))
 					.orderBy(asc(aiTasks.id))
+					.limit(PAGE_SIZE),
+			(row) => note(row.imageUrls ?? [])
+		),
+		forEachPage(
+			(after) =>
+				db
+					.select({ id: chatMessages.id, imageUrls: chatMessages.imageUrls })
+					.from(chatMessages)
+					.where(
+						and(isNotNull(chatMessages.imageUrls), after ? gt(chatMessages.id, after) : undefined)
+					)
+					.orderBy(asc(chatMessages.id))
 					.limit(PAGE_SIZE),
 			(row) => note(row.imageUrls ?? [])
 		)

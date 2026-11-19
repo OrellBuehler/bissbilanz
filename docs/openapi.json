@@ -4811,6 +4811,588 @@
 				}
 			}
 		},
+		"/api/chat/conversations": {
+			"get": {
+				"operationId": "listChatConversations",
+				"tags": ["Chat"],
+				"description": "List the user's chat conversations, most recently active first (by lastMessageAt), with the active run of each. First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403.",
+				"parameters": [
+					{
+						"in": "query",
+						"name": "limit",
+						"schema": {
+							"default": 100,
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 200
+						}
+					},
+					{
+						"in": "query",
+						"name": "offset",
+						"schema": {
+							"default": 0,
+							"type": "integer",
+							"minimum": 0,
+							"maximum": 9007199254740991
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatConversationsResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"403": {
+						"$ref": "#/components/responses/ForbiddenResponse"
+					}
+				}
+			},
+			"post": {
+				"operationId": "createChatConversation",
+				"tags": ["Chat"],
+				"description": "Create a conversation. The client may choose its id; creating the same id again returns the existing conversation with 200, so a retried create is safe. The body is optional. First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403.",
+				"requestBody": {
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ChatConversationCreate"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "The conversation already existed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatConversationResponse"
+								}
+							}
+						}
+					},
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatConversationResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"403": {
+						"$ref": "#/components/responses/ForbiddenResponse"
+					},
+					"409": {
+						"description": "The id belongs to another user's conversation (`conversation_exists`).",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatErrorResponse"
+								}
+							}
+						}
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimitedResponse"
+					}
+				}
+			}
+		},
+		"/api/chat/conversations/{id}": {
+			"get": {
+				"operationId": "getChatConversation",
+				"tags": ["Chat"],
+				"description": "A conversation with all its messages in display form (oldest first), its pending confirmations, its active run, lastSeq and the chat capability. The assistant message of an active run contains every event up to lastSeq; continue with the events endpoint after lastSeq. Runs left running by a server restart and expired confirmations are settled before the answer. First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatConversationDetailResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"403": {
+						"$ref": "#/components/responses/ForbiddenResponse"
+					},
+					"404": {
+						"description": "No conversation with this id for this user (`conversation_not_found`).",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"operationId": "renameChatConversation",
+				"tags": ["Chat"],
+				"description": "Rename a conversation (title null clears it). First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ChatConversationUpdate"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatConversationResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"403": {
+						"$ref": "#/components/responses/ForbiddenResponse"
+					},
+					"404": {
+						"description": "No conversation with this id for this user (`conversation_not_found`).",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatErrorResponse"
+								}
+							}
+						}
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimitedResponse"
+					}
+				}
+			},
+			"delete": {
+				"operationId": "deleteChatConversation",
+				"tags": ["Chat"],
+				"description": "Delete a conversation with its messages, runs and events. A run working on it is stopped first. Diary changes the assistant made stay. First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"204": {
+						"$ref": "#/components/responses/DeletedResponse"
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"403": {
+						"$ref": "#/components/responses/ForbiddenResponse"
+					},
+					"404": {
+						"description": "No conversation with this id for this user (`conversation_not_found`).",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatErrorResponse"
+								}
+							}
+						}
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimitedResponse"
+					}
+				}
+			}
+		},
+		"/api/chat/conversations/{id}/messages": {
+			"post": {
+				"operationId": "sendChatMessage",
+				"tags": ["Chat"],
+				"description": "Send a message and start the run that answers it. Answers 202 at once; the run continues on the server whether or not the client stays connected, and its progress arrives through the events endpoint. The message `id` is the idempotency key: sending the same id again returns the stored message and its run (202) and never starts a second run, so retry with the same id after a network error; no Idempotency-Key header is needed. A run waiting for a confirmation is cancelled by a new message (reason `superseded`, its action `cancelled`). Online only: never queue it offline for a later replay. First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ChatMessageCreate"
+							}
+						}
+					}
+				},
+				"responses": {
+					"202": {
+						"description": "Accepted: the message is stored and its run is queued",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatMessageAcceptedResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Validation error (with `details`, no `code`), or an image that is not one of the user's uploads (`invalid_image`).",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"403": {
+						"description": "The bearer token lacks the account:manage scope (no `code`), or chat is not available (`chat_unavailable`, `budget_exhausted`, with `capability`).",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No conversation with this id for this user (`conversation_not_found`).",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatErrorResponse"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "A run is still queued or running (`run_active`); the conversation reached its length limit (`conversation_too_long`, start a new conversation); or the message id is used by another conversation (`message_id_conflict`).",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatErrorResponse"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "The daily message limit (`daily_limit_reached`, 60 messages in 24 hours) or the write rate limit, with Retry-After",
+						"headers": {
+							"Retry-After": {
+								"description": "Seconds until the rate limit window resets; clients should not retry before then.",
+								"schema": {
+									"type": "integer",
+									"minimum": 1
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/chat/conversations/{id}/events": {
+			"get": {
+				"operationId": "listChatEvents",
+				"tags": ["Chat"],
+				"description": "The events of a conversation after `after` (exclusive), in seq order. With `Accept: text/event-stream` the response is a server-sent event stream: the stored events after `after` (or after `Last-Event-ID`, whichever is larger), then new events as they happen. Each SSE message has `id: <seq>`, `event: <type>` and `data: <ChatEvent JSON>`; a `: ping` comment line arrives every 20 seconds, the stream starts with `retry: 3000` and ends after 10 minutes (reconnect with Last-Event-ID). Any other Accept returns one JSON page for polling. Has its own rate limit (240 requests a minute per user), separate from the write limit. First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					},
+					{
+						"in": "query",
+						"name": "after",
+						"schema": {
+							"default": 0,
+							"type": "integer",
+							"minimum": 0,
+							"maximum": 9007199254740991
+						}
+					},
+					{
+						"in": "query",
+						"name": "limit",
+						"schema": {
+							"default": 500,
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 500
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatEventsResponse"
+								}
+							},
+							"text/event-stream": {
+								"schema": {
+									"type": "string",
+									"description": "Server-sent events; each data line is one ChatEvent (components/schemas/ChatEvent)."
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"403": {
+						"$ref": "#/components/responses/ForbiddenResponse"
+					},
+					"404": {
+						"description": "No conversation with this id for this user (`conversation_not_found`).",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatErrorResponse"
+								}
+							}
+						}
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimitedResponse"
+					}
+				}
+			}
+		},
+		"/api/chat/runs/{id}/cancel": {
+			"post": {
+				"operationId": "cancelChatRun",
+				"tags": ["Chat"],
+				"description": "Stop a queued, running or paused run. The partial answer is kept, tool calls that already ran stay done, a pending confirmation becomes `cancelled`, and the run finishes with status `cancelled`, reason `user_cancelled`. First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatRunResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"403": {
+						"$ref": "#/components/responses/ForbiddenResponse"
+					},
+					"404": {
+						"description": "No run with this id for this user (`run_not_found`).",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatErrorResponse"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "The run already finished (`run_not_active`, with `run`).",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatErrorResponse"
+								}
+							}
+						}
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimitedResponse"
+					}
+				}
+			}
+		},
+		"/api/chat/actions/{id}": {
+			"post": {
+				"operationId": "decideChatAction",
+				"tags": ["Chat"],
+				"description": "Approve or reject a pending confirmation. Approving runs the tool call and resumes the run; rejecting resumes it with \"the user declined\". Either way the run continues on the server and its events follow on the events endpoint. Pending actions expire after 60 minutes. First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403.",
+				"parameters": [
+					{
+						"in": "path",
+						"name": "id",
+						"schema": {
+							"type": "string",
+							"format": "uuid",
+							"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+						},
+						"required": true
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ChatActionDecision"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatActionDecisionResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/ValidationErrorResponse"
+					},
+					"401": {
+						"$ref": "#/components/responses/UnauthorizedResponse"
+					},
+					"403": {
+						"$ref": "#/components/responses/ForbiddenResponse"
+					},
+					"404": {
+						"description": "No action with this id for this user (`action_not_found`).",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatErrorResponse"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "The action was already decided or cancelled (`action_not_pending`) or has expired (`action_expired`); `action` shows its current state.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatErrorResponse"
+								}
+							}
+						}
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimitedResponse"
+					}
+				}
+			}
+		},
 		"/api/admin/users": {
 			"get": {
 				"operationId": "adminListUsers",
@@ -9442,6 +10024,110 @@
 					}
 				}
 			},
+			"ChatConversationCreate": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"description": "Client-generated id. Creating the same id again returns the existing conversation (200) instead of a second one.",
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"title": {
+						"description": "Optional title. Without one, the first message sets it (its first 60 characters).",
+						"anyOf": [
+							{
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 120
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				}
+			},
+			"ChatConversationUpdate": {
+				"type": "object",
+				"properties": {
+					"title": {
+						"anyOf": [
+							{
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 120
+							},
+							{
+								"type": "null"
+							}
+						],
+						"description": "New title, or null to clear it."
+					}
+				},
+				"required": ["title"]
+			},
+			"ChatMessageCreate": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+						"description": "Client-generated message id and idempotency key: sending the same id again returns the stored message and its run and never starts a second run."
+					},
+					"text": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 4000
+					},
+					"imageFilenames": {
+						"description": "Photos uploaded with POST /api/ai-tasks/photo (or /api/images/upload) by this user, as `<uuid>.webp` or `/uploads/<uuid>.webp`. At most 5; files over 4 MB are not sent to the model.",
+						"maxItems": 5,
+						"type": "array",
+						"items": {
+							"type": "string",
+							"pattern": "^(\\/uploads\\/)?[a-f0-9-]+\\.webp$"
+						}
+					},
+					"context": {
+						"$ref": "#/components/schemas/ChatMessageContext"
+					}
+				},
+				"required": ["id", "text"]
+			},
+			"ChatMessageContext": {
+				"type": "object",
+				"properties": {
+					"date": {
+						"description": "The diary day (YYYY-MM-DD) the user has open in the app.",
+						"type": "string",
+						"pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+					},
+					"timezone": {
+						"description": "The device's IANA time zone, e.g. Europe/Zurich. The diary keeps using the user's time zone preference; this only tells the assistant when the device differs.",
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 64
+					},
+					"locale": {
+						"description": "BCP 47 language of the app, e.g. de or en-US. The assistant replies in it; defaults to the account's locale.",
+						"type": "string",
+						"minLength": 2,
+						"maxLength": 35
+					}
+				}
+			},
+			"ChatActionDecision": {
+				"type": "object",
+				"properties": {
+					"decision": {
+						"type": "string",
+						"enum": ["approve", "reject"]
+					}
+				},
+				"required": ["decision"]
+			},
 			"AdminClaudeAccessUpdate": {
 				"type": "object",
 				"properties": {
@@ -13435,11 +14121,41 @@
 					},
 					"remainingBudgetUsd": {
 						"type": "number"
+					},
+					"chat": {
+						"description": "Whether the assistant chat (/api/chat) can take a message now. Sent on GET; a chat call needs more budget headroom than an AI task, so it can be unavailable while available is true.",
+						"$ref": "#/components/schemas/ChatCapability"
 					}
 				},
 				"required": ["available"],
 				"additionalProperties": false,
 				"description": "Whether server-side Claude processing can run for this user right now. remainingBudgetUsd (USD, 2 decimals) is only present when available."
+			},
+			"ChatCapability": {
+				"type": "object",
+				"properties": {
+					"available": {
+						"type": "boolean"
+					},
+					"blockedReason": {
+						"description": "Why chat is unavailable: not_configured, disabled, no_access, user_budget_exhausted, global_budget_exhausted. Absent when available. Clients must accept values not listed here.",
+						"x-extensible-enum": [
+							"not_configured",
+							"disabled",
+							"no_access",
+							"user_budget_exhausted",
+							"global_budget_exhausted"
+						],
+						"type": "string"
+					},
+					"remainingBudgetUsd": {
+						"description": "USD left this month (2 decimals), only when available.",
+						"type": "number"
+					}
+				},
+				"required": ["available"],
+				"additionalProperties": false,
+				"description": "Whether the user can send a chat message now. It needs more budget headroom than an AI task call."
 			},
 			"MealTypesListResponse": {
 				"type": "object",
@@ -15515,6 +16231,834 @@
 					}
 				},
 				"required": ["product"],
+				"additionalProperties": false
+			},
+			"ChatConversationsResponse": {
+				"type": "object",
+				"properties": {
+					"conversations": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ChatConversationListItem"
+						}
+					},
+					"total": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": ["conversations", "total"],
+				"additionalProperties": false
+			},
+			"ChatConversationListItem": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"title": {
+						"type": ["string", "null"]
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					},
+					"lastMessageAt": {
+						"type": "string"
+					},
+					"lastSeq": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991,
+						"description": "The newest event seq of the conversation; 0 before the first event."
+					},
+					"activeRun": {
+						"anyOf": [
+							{
+								"$ref": "#/components/schemas/ChatRun"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": [
+					"id",
+					"title",
+					"createdAt",
+					"updatedAt",
+					"lastMessageAt",
+					"lastSeq",
+					"activeRun"
+				],
+				"additionalProperties": false
+			},
+			"ChatRun": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"conversationId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"userMessageId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"assistantMessageId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"status": {
+						"type": "string",
+						"description": "queued, running and awaiting_confirmation are active; completed, failed, cancelled and interrupted are final. Clients must accept values not listed here.",
+						"x-extensible-enum": [
+							"queued",
+							"running",
+							"awaiting_confirmation",
+							"completed",
+							"failed",
+							"cancelled",
+							"interrupted"
+						]
+					},
+					"reason": {
+						"description": "Why the run ended, null while active and for a normal completion. completed: output_limit, iteration_limit. failed: not_configured, disabled, no_access, user_budget_exhausted, global_budget_exhausted, refusal, api_error, internal_error. cancelled: user_cancelled, superseded, action_expired. interrupted: server_restart. Clients must accept values not listed here.",
+						"x-extensible-enum": [
+							"output_limit",
+							"iteration_limit",
+							"not_configured",
+							"disabled",
+							"no_access",
+							"user_budget_exhausted",
+							"global_budget_exhausted",
+							"refusal",
+							"api_error",
+							"internal_error",
+							"user_cancelled",
+							"superseded",
+							"action_expired",
+							"server_restart"
+						],
+						"type": ["string", "null"]
+					},
+					"changed": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"description": "A data domain the assistant changed: refresh what you cache of it. Clients must accept values not listed here.",
+							"x-extensible-enum": [
+								"entries",
+								"foods",
+								"recipes",
+								"goals",
+								"weight",
+								"sleep",
+								"supplements",
+								"dayProperties",
+								"labels",
+								"preferences"
+							]
+						},
+						"description": "Every domain the run changed, so far."
+					},
+					"changes": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ChatChange"
+						}
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"startedAt": {
+						"type": ["string", "null"]
+					},
+					"finishedAt": {
+						"type": ["string", "null"]
+					}
+				},
+				"required": [
+					"id",
+					"conversationId",
+					"userMessageId",
+					"assistantMessageId",
+					"status",
+					"reason",
+					"changed",
+					"changes",
+					"createdAt",
+					"startedAt",
+					"finishedAt"
+				],
+				"additionalProperties": false
+			},
+			"ChatChange": {
+				"type": "object",
+				"properties": {
+					"domain": {
+						"type": "string",
+						"description": "A data domain the assistant changed: refresh what you cache of it. Clients must accept values not listed here.",
+						"x-extensible-enum": [
+							"entries",
+							"foods",
+							"recipes",
+							"goals",
+							"weight",
+							"sleep",
+							"supplements",
+							"dayProperties",
+							"labels",
+							"preferences"
+						]
+					},
+					"dates": {
+						"description": "Diary days (YYYY-MM-DD) that changed. Set for entries, dayProperties, sleep and weight when known.",
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"ids": {
+						"description": "Records that changed, e.g. food or recipe ids, when known.",
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					}
+				},
+				"required": ["domain"],
+				"additionalProperties": false,
+				"description": "What changed in one domain. Neither dates nor ids means anything in the domain may have changed: refresh it fully."
+			},
+			"ChatConversationResponse": {
+				"type": "object",
+				"properties": {
+					"conversation": {
+						"$ref": "#/components/schemas/ChatConversation"
+					}
+				},
+				"required": ["conversation"],
+				"additionalProperties": false
+			},
+			"ChatConversation": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"title": {
+						"type": ["string", "null"]
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					},
+					"lastMessageAt": {
+						"type": "string"
+					},
+					"lastSeq": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991,
+						"description": "The newest event seq of the conversation; 0 before the first event."
+					}
+				},
+				"required": ["id", "title", "createdAt", "updatedAt", "lastMessageAt", "lastSeq"],
+				"additionalProperties": false
+			},
+			"ChatErrorResponse": {
+				"type": "object",
+				"properties": {
+					"error": {
+						"type": "string"
+					},
+					"code": {
+						"description": "Machine-readable reason; absent on generic failures (invalid id, validation, scope). Clients must accept values not listed here.",
+						"x-extensible-enum": [
+							"conversation_not_found",
+							"conversation_exists",
+							"message_id_conflict",
+							"run_active",
+							"conversation_too_long",
+							"daily_limit_reached",
+							"chat_unavailable",
+							"budget_exhausted",
+							"invalid_image",
+							"run_not_found",
+							"run_not_active",
+							"action_not_found",
+							"action_not_pending",
+							"action_expired"
+						],
+						"type": "string"
+					},
+					"capability": {
+						"description": "chat_unavailable and budget_exhausted: the current capability.",
+						"$ref": "#/components/schemas/ChatCapability"
+					},
+					"action": {
+						"description": "action_not_pending and action_expired: the action as it is now.",
+						"$ref": "#/components/schemas/ChatAction"
+					},
+					"run": {
+						"description": "run_not_active: the run as it is now.",
+						"$ref": "#/components/schemas/ChatRun"
+					}
+				},
+				"required": ["error"],
+				"additionalProperties": false
+			},
+			"ChatAction": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"conversationId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"runId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"messageId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"toolUseId": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"label": {
+						"type": "string"
+					},
+					"status": {
+						"type": "string",
+						"description": "Clients must accept values not listed here.",
+						"x-extensible-enum": ["pending", "approved", "rejected", "expired", "cancelled"]
+					},
+					"preview": {
+						"$ref": "#/components/schemas/ChatActionPreview"
+					},
+					"expiresAt": {
+						"type": ["string", "null"]
+					},
+					"decidedAt": {
+						"type": ["string", "null"]
+					},
+					"createdAt": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"conversationId",
+					"runId",
+					"messageId",
+					"toolUseId",
+					"name",
+					"label",
+					"status",
+					"preview",
+					"expiresAt",
+					"decidedAt",
+					"createdAt"
+				],
+				"additionalProperties": false
+			},
+			"ChatActionPreview": {
+				"type": "object",
+				"properties": {
+					"summary": {
+						"type": "string",
+						"description": "One line in the user’s language, e.g. \"Delete “Greek yogurt” from Breakfast on 18 Nov 2026\"."
+					},
+					"details": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"description": "Extra lines, possibly empty."
+					}
+				},
+				"required": ["summary", "details"],
+				"additionalProperties": false
+			},
+			"ChatConversationDetailResponse": {
+				"type": "object",
+				"properties": {
+					"conversation": {
+						"$ref": "#/components/schemas/ChatConversation"
+					},
+					"messages": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ChatMessage"
+						},
+						"description": "Oldest first. The assistant message of an active run already contains every event up to lastSeq."
+					},
+					"pendingActions": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ChatAction"
+						}
+					},
+					"activeRun": {
+						"anyOf": [
+							{
+								"$ref": "#/components/schemas/ChatRun"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"lastSeq": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991,
+						"description": "Continue with GET …/events?after=lastSeq."
+					},
+					"capability": {
+						"$ref": "#/components/schemas/ChatCapability"
+					}
+				},
+				"required": [
+					"conversation",
+					"messages",
+					"pendingActions",
+					"activeRun",
+					"lastSeq",
+					"capability"
+				],
+				"additionalProperties": false
+			},
+			"ChatMessage": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"conversationId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"role": {
+						"type": "string",
+						"description": "Clients must accept values not listed here.",
+						"x-extensible-enum": ["user", "assistant"]
+					},
+					"status": {
+						"type": "string",
+						"description": "User messages are always completed. An assistant message is in_progress while its run works or waits for a confirmation, then takes the run's final status. Clients must accept values not listed here.",
+						"x-extensible-enum": ["in_progress", "completed", "failed", "cancelled", "interrupted"]
+					},
+					"reason": {
+						"description": "The run's reason code (see ChatRun.reason), null on user messages. Clients must accept values not listed here.",
+						"x-extensible-enum": [
+							"output_limit",
+							"iteration_limit",
+							"not_configured",
+							"disabled",
+							"no_access",
+							"user_budget_exhausted",
+							"global_budget_exhausted",
+							"refusal",
+							"api_error",
+							"internal_error",
+							"user_cancelled",
+							"superseded",
+							"action_expired",
+							"server_restart"
+						],
+						"type": ["string", "null"]
+					},
+					"runId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"parts": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ChatMessagePart"
+						}
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"updatedAt": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"conversationId",
+					"role",
+					"status",
+					"reason",
+					"runId",
+					"parts",
+					"createdAt",
+					"updatedAt"
+				],
+				"additionalProperties": false
+			},
+			"ChatMessagePart": {
+				"type": "object",
+				"properties": {
+					"type": {
+						"type": "string",
+						"description": "text, image, tool or action. Skip parts of an unknown type. Clients must accept values not listed here.",
+						"x-extensible-enum": ["text", "image", "tool", "action"]
+					},
+					"text": {
+						"description": "text parts: Markdown.",
+						"type": "string"
+					},
+					"url": {
+						"description": "image parts: /uploads/<uuid>.webp.",
+						"type": "string"
+					},
+					"toolUseId": {
+						"description": "tool and action parts.",
+						"type": "string"
+					},
+					"name": {
+						"description": "tool and action parts: the tool name.",
+						"type": "string"
+					},
+					"label": {
+						"description": "tool and action parts: a short label in the user’s language, e.g. \"Logging food\".",
+						"type": "string"
+					},
+					"status": {
+						"type": "string",
+						"description": "Tool parts: running, ok, error, declined. Action parts: pending, approved, rejected, expired, cancelled. Clients must accept values not listed here.",
+						"x-extensible-enum": [
+							"running",
+							"ok",
+							"error",
+							"declined",
+							"pending",
+							"approved",
+							"rejected",
+							"expired",
+							"cancelled"
+						]
+					},
+					"summary": {
+						"description": "tool parts: the error message when status is error, otherwise null.",
+						"type": ["string", "null"]
+					},
+					"changed": {
+						"description": "tool parts: domains the call changed.",
+						"type": "array",
+						"items": {
+							"type": "string",
+							"description": "A data domain the assistant changed: refresh what you cache of it. Clients must accept values not listed here.",
+							"x-extensible-enum": [
+								"entries",
+								"foods",
+								"recipes",
+								"goals",
+								"weight",
+								"sleep",
+								"supplements",
+								"dayProperties",
+								"labels",
+								"preferences"
+							]
+						}
+					},
+					"changes": {
+						"description": "tool parts.",
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ChatChange"
+						}
+					},
+					"actionId": {
+						"description": "action parts.",
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"preview": {
+						"description": "action parts.",
+						"$ref": "#/components/schemas/ChatActionPreview"
+					},
+					"expiresAt": {
+						"description": "action parts: when a pending action expires.",
+						"type": "string"
+					}
+				},
+				"required": ["type"],
+				"additionalProperties": false,
+				"description": "One block of a message, in display order. Which fields are set depends on type; see docs/ai-chat.md."
+			},
+			"ChatMessageAcceptedResponse": {
+				"type": "object",
+				"properties": {
+					"message": {
+						"$ref": "#/components/schemas/ChatMessage"
+					},
+					"run": {
+						"$ref": "#/components/schemas/ChatRun"
+					},
+					"seq": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991,
+						"description": "Seq of this message’s message_created event."
+					}
+				},
+				"required": ["message", "run", "seq"],
+				"additionalProperties": false
+			},
+			"ChatEventsResponse": {
+				"type": "object",
+				"properties": {
+					"events": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ChatEvent"
+						}
+					},
+					"nextAfter": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991,
+						"description": "Seq of the last returned event (or the after you sent): pass it as after next time."
+					},
+					"lastSeq": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991,
+						"description": "The newest seq at the time of the request."
+					},
+					"hasMore": {
+						"type": "boolean",
+						"description": "More events after nextAfter exist; fetch again at once."
+					},
+					"activeRun": {
+						"anyOf": [
+							{
+								"$ref": "#/components/schemas/ChatRun"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["events", "nextAfter", "lastSeq", "hasMore", "activeRun"],
+				"additionalProperties": false
+			},
+			"ChatEvent": {
+				"type": "object",
+				"properties": {
+					"seq": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991,
+						"description": "Increases by one per event within a conversation."
+					},
+					"type": {
+						"type": "string",
+						"description": "Ignore events of an unknown type (but still advance past their seq). Clients must accept values not listed here.",
+						"x-extensible-enum": [
+							"message_created",
+							"run_started",
+							"run_resumed",
+							"text_delta",
+							"tool_started",
+							"tool_finished",
+							"action_required",
+							"action_resolved",
+							"message_completed",
+							"run_finished",
+							"error"
+						]
+					},
+					"createdAt": {
+						"type": "string"
+					},
+					"runId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"messageId": {
+						"anyOf": [
+							{
+								"type": "string",
+								"format": "uuid",
+								"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"partIndex": {
+						"description": "Index of the assistant message part the event writes.",
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"text": {
+						"description": "text_delta: text to append.",
+						"type": "string"
+					},
+					"toolUseId": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"label": {
+						"type": "string"
+					},
+					"status": {
+						"description": "tool_finished: ok, error, declined. action_resolved: approved, rejected, expired, cancelled. run_finished: the run status. Clients must accept values not listed here.",
+						"type": "string"
+					},
+					"summary": {
+						"type": ["string", "null"]
+					},
+					"changed": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"description": "A data domain the assistant changed: refresh what you cache of it. Clients must accept values not listed here.",
+							"x-extensible-enum": [
+								"entries",
+								"foods",
+								"recipes",
+								"goals",
+								"weight",
+								"sleep",
+								"supplements",
+								"dayProperties",
+								"labels",
+								"preferences"
+							]
+						}
+					},
+					"changes": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ChatChange"
+						}
+					},
+					"reason": {
+						"description": "run_finished: ChatRun.reason.",
+						"type": ["string", "null"]
+					},
+					"actionId": {
+						"type": "string",
+						"format": "uuid",
+						"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+					},
+					"action": {
+						"$ref": "#/components/schemas/ChatAction"
+					},
+					"message": {
+						"description": "message_created and message_completed: the full message.",
+						"$ref": "#/components/schemas/ChatMessage"
+					},
+					"run": {
+						"$ref": "#/components/schemas/ChatRun"
+					},
+					"capability": {
+						"description": "run_finished: chat availability after the run.",
+						"$ref": "#/components/schemas/ChatCapability"
+					},
+					"code": {
+						"description": "error: the reason code.",
+						"type": "string"
+					},
+					"error": {
+						"description": "error: an English message for logs.",
+						"type": "string"
+					}
+				},
+				"required": ["seq", "type", "createdAt"],
+				"additionalProperties": false,
+				"description": "One event of a conversation. Fields depend on type; see docs/ai-chat.md for every type with an example."
+			},
+			"ChatRunResponse": {
+				"type": "object",
+				"properties": {
+					"run": {
+						"$ref": "#/components/schemas/ChatRun"
+					}
+				},
+				"required": ["run"],
+				"additionalProperties": false
+			},
+			"ChatActionDecisionResponse": {
+				"type": "object",
+				"properties": {
+					"action": {
+						"$ref": "#/components/schemas/ChatAction"
+					},
+					"run": {
+						"$ref": "#/components/schemas/ChatRun"
+					}
+				},
+				"required": ["action", "run"],
 				"additionalProperties": false
 			},
 			"AdminUsersResponse": {

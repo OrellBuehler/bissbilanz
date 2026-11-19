@@ -7,6 +7,7 @@ import { TEST_USER } from '../helpers/fixtures';
 let mockGetResult: any = null;
 let mockUpdateResult: any = null;
 let mockCapability: any = { available: false };
+let mockChatCapability: any = { available: false };
 
 const mockValidationError = new ZodError([
 	{
@@ -87,6 +88,10 @@ vi.mock('$lib/server/claude/capability', () => ({
 	getClaudeCapabilitySafe: async () => mockCapability
 }));
 
+vi.mock('$lib/server/claude/chat/capability', () => ({
+	getChatCapabilitySafe: async () => mockChatCapability
+}));
+
 const { GET, PATCH } = await import('../../src/routes/api/preferences/+server');
 
 describe('api/preferences', () => {
@@ -94,6 +99,7 @@ describe('api/preferences', () => {
 		mockGetResult = null;
 		mockUpdateResult = null;
 		mockCapability = { available: false };
+		mockChatCapability = { available: false, blockedReason: 'no_access' };
 	});
 
 	describe('GET /api/preferences', () => {
@@ -127,7 +133,10 @@ describe('api/preferences', () => {
 			const response = await GET(createMockEvent({ user: TEST_USER }));
 			await expectResponseContract('GET', '/api/preferences', response);
 			const data = await response.json();
-			expect(data.claude).toEqual({ available: false });
+			expect(data.claude).toEqual({
+				available: false,
+				chat: { available: false, blockedReason: 'no_access' }
+			});
 		});
 
 		test('reports claude as available with the remaining budget', async () => {
@@ -137,10 +146,15 @@ describe('api/preferences', () => {
 				aiTaskProcessorKind: 'claude'
 			};
 			mockCapability = { available: true, remainingBudgetUsd: 7.5 };
+			mockChatCapability = { available: true, remainingBudgetUsd: 7.5 };
 			const response = await GET(createMockEvent({ user: TEST_USER }));
 			await expectResponseContract('GET', '/api/preferences', response);
 			const data = await response.json();
-			expect(data.claude).toEqual({ available: true, remainingBudgetUsd: 7.5 });
+			expect(data.claude).toEqual({
+				available: true,
+				remainingBudgetUsd: 7.5,
+				chat: { available: true, remainingBudgetUsd: 7.5 }
+			});
 			expect(data.preferences.aiTaskProcessor).toBe('assistant');
 			expect(data.preferences.aiTaskProcessorKind).toBe('claude');
 		});

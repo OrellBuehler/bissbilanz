@@ -8,7 +8,7 @@
 <div class="mx-auto max-w-2xl px-6 py-12">
 	<h1 class="mb-2 text-3xl font-bold">{m.privacy_page_title()}</h1>
 	<p class="mb-8 text-sm text-muted-foreground">
-		{m.privacy_effective_date({ date: 'November 12, 2026' })}
+		{m.privacy_effective_date({ date: 'November 19, 2026' })}
 	</p>
 
 	<p class="mb-6">
@@ -57,6 +57,11 @@
 		<li>
 			<strong>Replies to Claude:</strong> If you reply to a meal Claude logged for you, your messages
 			and Claude's answers are stored with that task and deleted together with it.
+		</li>
+		<li>
+			<strong>Assistant chats:</strong> If you chat with the assistant, your messages, the photos you
+			attach, the assistant's answers and a record of what it looked up or changed are stored until you
+			delete the conversation or your account. They are part of your data export.
 		</li>
 	</ul>
 	<p class="mb-6">
@@ -152,10 +157,26 @@
 		language, time zone and meal type names, and the entries from your own foods and recipes that
 		Claude looks up for it (names, serving sizes and nutrition values). When you reply to a meal
 		Claude logged, your reply, the earlier conversation and that meal's diary entries and foods are
-		sent as well, so Claude can correct them. Nothing else from your account, such as your weight,
-		sleep or goals, is sent. Anthropic processes this data under its commercial terms and
+		sent as well, so Claude can correct them. For queued meals and replies, nothing else from your
+		account, such as your weight, sleep or goals, is sent. Anthropic processes this data under its
+		commercial terms and
 		<a href="https://www.anthropic.com/legal/privacy" class="underline">privacy policy</a>. You can
 		choose another processor at any time.
+	</p>
+
+	<h2 class="mb-3 mt-8 text-xl font-semibold">Assistant chat (optional)</h2>
+	<p class="mb-6">
+		If Claude is available for your account and you use the assistant chat, the Bissbilanz server
+		sends Anthropic, the provider of Claude, everything you write or attach in that chat, the
+		earlier messages of the conversation, your language, time zone and the day you have open, and
+		whatever data from your account the assistant looks up to answer you. Depending on what you ask,
+		that can be any of your data: food entries, foods, recipes, goals, weight, sleep, supplements,
+		day notes, statistics and the details of what it changes for you. To answer, the assistant can
+		also search the web and look products up in Open Food Facts. Anthropic processes this data under
+		its commercial terms and
+		<a href="https://www.anthropic.com/legal/privacy" class="underline">privacy policy</a>. The
+		assistant only acts on your account, deletions and other changes that cannot be undone wait for
+		your confirmation, and the conversations stay stored until you delete them.
 	</p>
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">AI meal estimation (iOS)</h2>

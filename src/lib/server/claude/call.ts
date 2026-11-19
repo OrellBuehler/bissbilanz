@@ -30,14 +30,22 @@ export type ClaudeCallParams = {
 	container?: string;
 };
 
+export type ClaudeStreamHandlers = {
+	onText?: (delta: string) => void;
+	onBlock?: (block: Anthropic.ContentBlock) => void;
+};
+
 export type ClaudeCallOptions = {
 	userId: string;
 	feature: string;
 	model: string;
 	aiTaskId?: string;
+	chatConversationId?: string;
 	params: ClaudeCallParams;
 	imageCount: number;
+	maxTokens?: number;
 	signal?: AbortSignal;
+	stream?: ClaudeStreamHandlers;
 	expectedRejection?: (error: ClaudeApiError) => boolean;
 };
 
@@ -46,6 +54,10 @@ export type ClaudeClient = {
 		create(
 			params: Anthropic.MessageCreateParamsNonStreaming,
 			options?: { signal?: AbortSignal }
+		): Promise<Anthropic.Message>;
+		stream?(
+			params: Anthropic.MessageCreateParamsNonStreaming,
+			options: { signal?: AbortSignal } & ClaudeStreamHandlers
 		): Promise<Anthropic.Message>;
 	};
 };
@@ -63,7 +75,19 @@ function getClient(): ClaudeClient {
 		const apiKey = claudeApiKey();
 		if (!apiKey) throw new ClaudeGateError('not_configured');
 		const real = new Anthropic({ apiKey, timeout: REQUEST_TIMEOUT_MS, maxRetries: 0 });
-		client = { messages: { create: (params, options) => real.messages.create(params, options) } };
+		client = {
+			messages: {
+				create: (params, options) => real.messages.create(params, options),
+				stream: async (params, { signal, onText, onBlock }) => {
+					const stream = real.messages.stream(params, { signal });
+					const final = stream.finalMessage();
+					if (onText) stream.on('text', (delta) => onText(delta));
+					if (onBlock) stream.on('contentBlock', (block) => onBlock(block));
+					const message = await final;
+					return Object.assign(message, { _request_id: stream.request_id ?? null });
+				}
+			}
+		};
 	}
 	return client;
 }
@@ -176,9 +200,10 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 	if (!isClaudeConfigured()) throw new ClaudeGateError('not_configured');
 	const { effort } = claudeConfig();
 	const { model, params, signal } = options;
+	const maxTokens = options.maxTokens ?? TASK_MAX_TOKENS;
 	const request: Anthropic.MessageCreateParamsNonStreaming = {
 		model,
-		max_tokens: TASK_MAX_TOKENS,
+		max_tokens: maxTokens,
 		output_config: { effort },
 		system: params.system,
 		tools: params.tools,
@@ -188,7 +213,7 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 	const reservedUsd = maxCallCostUsd(
 		model,
 		estimateInputTokens(params, options.imageCount),
-		TASK_MAX_TOKENS,
+		maxTokens,
 		serverToolAllowanceOf(params.tools)
 	);
 
@@ -199,6 +224,7 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 			feature: options.feature,
 			model,
 			aiTaskId: options.aiTaskId,
+			chatConversationId: options.chatConversationId,
 			reservedUsd,
 			requireClaudeProcessor: options.feature === 'ai_task'
 		});
@@ -219,11 +245,17 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 	let failure: unknown;
 	try {
 		if (signal?.aborted) throw new ClaudeAbortedError();
-		const claude = getClient();
+		const { messages } = getClient();
+		if (options.stream && !messages.stream) throw new Error('The Claude client cannot stream');
 		sent = true;
-		response = await claude.messages.create(request, { signal });
+		response =
+			options.stream && messages.stream
+				? await messages.stream(request, { signal, ...options.stream })
+				: await messages.create(request, { signal });
 		Sentry.logger.info('Claude call finished', {
+			feature: options.feature,
 			taskId: options.aiTaskId ?? '',
+			chatConversationId: options.chatConversationId ?? '',
 			model: response.model,
 			requestedModel: model,
 			inputTokens: response.usage.input_tokens,
@@ -244,6 +276,7 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 		if (mapped instanceof ClaudeApiError) {
 			if (mapped.retryable) {
 				Sentry.logger.info('Claude call failed', {
+					feature: options.feature,
 					taskId: options.aiTaskId ?? '',
 					requestedModel: model,
 					kind: mapped.kind,

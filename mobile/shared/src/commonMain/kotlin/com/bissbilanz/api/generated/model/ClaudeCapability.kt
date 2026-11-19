@@ -15,6 +15,7 @@
 
 package com.bissbilanz.api.generated.model
 
+import com.bissbilanz.api.generated.model.ChatCapability
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
@@ -24,9 +25,12 @@ import kotlinx.serialization.encoding.*
  *
  * @param available
  * @param remainingBudgetUsd
+ * @param chat Whether the assistant chat (/api/chat) can take a message now. Sent on GET; a chat call needs more budget headroom than an AI task, so it can be unavailable while available is true.
  */
 @Serializable
 data class ClaudeCapability(
     @SerialName(value = "available") @Required val available: kotlin.Boolean,
     @SerialName(value = "remainingBudgetUsd") val remainingBudgetUsd: kotlin.Double? = null,
+    // Whether the assistant chat (/api/chat) can take a message now. Sent on GET; a chat call needs more budget headroom than an AI task, so it can be unavailable while available is true.
+    @SerialName(value = "chat") val chat: ChatCapability? = null,
 )

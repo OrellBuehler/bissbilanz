@@ -67,7 +67,15 @@ export async function getClaudeHeadroom(userId: string): Promise<ClaudeHeadroom>
 export type ClaudeGateState = ClaudeHeadroom & { blockedBy: ClaudeGateCode | null };
 
 /** Headroom plus which gate is closed, when one is. */
-export async function getClaudeGateState(userId: string): Promise<ClaudeGateState> {
+export function getClaudeGateState(userId: string): Promise<ClaudeGateState> {
+	return gateStateFor(userId, minTaskCallUsd);
+}
+
+/** Headroom against the minimum cost of one call of a feature, priced with the user's model. */
+export async function gateStateFor(
+	userId: string,
+	minCallUsd: (model: string) => number
+): Promise<ClaudeGateState> {
 	let gates: Awaited<ReturnType<typeof checkAccessGates>>;
 	try {
 		gates = await checkAccessGates(userId);
@@ -82,7 +90,7 @@ export async function getClaudeGateState(userId: string): Promise<ClaudeGateStat
 	const userRemaining = effectiveUserBudgetUsd(access) - user.spendUsd;
 	const globalRemaining = config.globalMonthlyBudgetUsd - global.spendUsd;
 	const remainingUsd = Math.min(userRemaining, globalRemaining);
-	const available = remainingUsd >= minTaskCallUsd(resolveClaudeModel(access.model));
+	const available = remainingUsd >= minCallUsd(resolveClaudeModel(access.model));
 	return {
 		available,
 		remainingUsd,
