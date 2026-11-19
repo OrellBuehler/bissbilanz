@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { onMount } from 'svelte';
 	import { getSyncState } from '$lib/stores/sync-state.svelte';
 	import WifiOff from '@lucide/svelte/icons/wifi-off';

@@ -49,13 +49,26 @@ struct OpenFoodFactsClient {
         self.session = session
     }
 
-    /// Looks the barcode up on Open Food Facts. Returns nil for unknown
-    /// products or unparseable responses; throws on transport errors.
+    /// Looks the barcode up on Open Food Facts. Returns nil only when Open Food
+    /// Facts definitely does not know the product; transport errors, an
+    /// unavailable service (429, 5xx) and unparseable responses throw, so a
+    /// failed lookup is never mistaken for an unknown product.
     func lookupBarcode(_ barcode: String) async throws -> Food? {
-        if case let .found(food) = try await lookupProduct(barcode) {
+        let lookup = try await lookupProduct(barcode)
+        return try Self.food(from: lookup)
+    }
+
+    static func food(from lookup: OpenFoodFactsLookup) throws -> Food? {
+        switch lookup {
+        case let .found(food):
             return food
+        case .notFound:
+            return nil
+        case .invalid:
+            throw OpenFoodFactsLookupFailure.invalidResponse
+        case let .unavailable(retryAfter):
+            throw OpenFoodFactsLookupFailure.unavailable(retryAfter: retryAfter)
         }
-        return nil
     }
 
     func lookupProduct(_ barcode: String) async throws -> OpenFoodFactsLookup {
@@ -209,4 +222,21 @@ enum OpenFoodFactsLookup: Equatable {
     case notFound
     case invalid
     case unavailable(retryAfter: TimeInterval?)
+}
+
+enum OpenFoodFactsLookupFailure: Error, Equatable {
+    case unavailable(retryAfter: TimeInterval?)
+    case invalidResponse
+
+    static func reason(for error: Error) -> String {
+        switch error as? OpenFoodFactsLookupFailure {
+        case .unavailable: "off_unavailable"
+        case .invalidResponse: "off_invalid_response"
+        case nil: ErrorReporter.reason(for: error)
+        }
+    }
+
+    static func isExpected(reason: String) -> Bool {
+        reason == "off_unavailable" || reason == "server_error_429" || ErrorReporter.isExpectedFailureReason(reason)
+    }
 }

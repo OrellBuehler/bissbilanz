@@ -1,6 +1,6 @@
 import type { EntityTable, Table } from 'dexie';
 import * as Sentry from '@sentry/sveltekit';
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import { db } from '$lib/db';
 import { enqueue, pendingIdsFor } from '$lib/stores/offline-queue';
 import { isQueued, sentWriteHeaders } from '$lib/utils/api';

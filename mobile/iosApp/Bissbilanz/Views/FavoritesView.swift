@@ -47,7 +47,7 @@ struct FavoritesView: View {
             .refreshable { await loadFavorites() }
             .toast(message: $toastMessage)
             .sheet(item: $selectedFood) { food in
-                LogFoodSheet(food: food, date: DateFormatting.today)
+                LogFoodSheet(food: food, date: DateFormatting.today, showsDetailsLink: true)
             }
             .sheet(item: $editingFood) { food in
                 FoodEditSheet(food: food) { _ in

@@ -66,6 +66,7 @@
 		servings: number;
 		mealType: string;
 		foodName?: string;
+		recipeId?: string | null;
 		servingSize?: number | null;
 		servingUnit?: string | null;
 		calories?: number | null;
@@ -189,6 +190,7 @@
 		servings: number;
 		mealType: string;
 		foodName?: string;
+		recipeId?: string | null;
 		servingSize?: number | null;
 		servingUnit?: string | null;
 		calories?: number | null;

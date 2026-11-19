@@ -13,7 +13,7 @@ vi.hoisted(() => {
 	process.env.TEST_USER_ID = '10000000-0000-4000-8000-000000000001';
 });
 
-vi.mock('$env/dynamic/public', () => ({ env: {} }));
+vi.mock('$app/env/public', () => ({ PUBLIC_SENTRY_DSN: '', PUBLIC_SENTRY_ENVIRONMENT: '' }));
 vi.mock('@sveltejs/kit/hooks', () => {
 	type Resolve = (event: RequestEvent) => Promise<Response>;
 	type Handler = (input: { event: RequestEvent; resolve: Resolve }) => Promise<Response>;
@@ -74,8 +74,7 @@ function request(pathname: string, method = 'GET') {
 		headers: { authorization: `Bearer ${TEST_TOKEN}` },
 		body: method === 'GET' ? undefined : { enabled: true }
 	});
-	event.route = { id: pathname };
-	return event;
+	return Object.assign(event, { route: { id: pathname } });
 }
 
 describe('admin API with a bearer token (real hooks)', () => {

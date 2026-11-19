@@ -675,7 +675,10 @@ async function execute(name: string, input: unknown, ctx: TaskToolContext): Prom
 				await handleSearchOpenFoodFacts(args.query, Math.min(args.limit ?? 5, 5))
 			);
 			const products = (result.products as Record<string, unknown>[] | undefined) ?? [];
-			return { products: products.map(trimBarcodeResult) };
+			return {
+				products: products.map(trimBarcodeResult),
+				...(result.unavailable ? { unavailable: true, hint: result.hint } : {})
+			};
 		}
 		case 'search_nutrient_database': {
 			const args = inputSchemas.search_nutrient_database.parse(input);

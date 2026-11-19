@@ -80,7 +80,7 @@ import type {
 	getSupplementChecklist
 } from '$lib/server/supplements';
 import type { formatDailyStatus } from '$lib/server/mcp/format';
-import type { fetchProduct, searchProducts } from '$lib/server/openfoodfacts';
+import type { fetchProduct, searchProductsResult } from '$lib/server/openfoodfacts';
 import type {
 	createSleepEntry,
 	getSleepEntriesByDateRange,
@@ -238,7 +238,7 @@ export type HandlerDeps = {
 	discardImportedImages: typeof discardImportedImages;
 	// Open Food Facts
 	fetchProduct: typeof fetchProduct;
-	searchProducts: typeof searchProducts;
+	searchProductsResult: typeof searchProductsResult;
 };
 
 function errorPayload(e: unknown): {
@@ -1506,8 +1506,16 @@ export function createHandlers(d: HandlerDeps) {
 
 	const handleSearchOpenFoodFacts = async (query: string, limit?: number) => {
 		try {
-			const results = await d.searchProducts(query, limit ?? 5);
-			return { products: results, count: results.length };
+			const { products, unavailable } = await d.searchProductsResult(query, limit ?? 5);
+			if (unavailable) {
+				return {
+					products,
+					count: 0,
+					unavailable: true,
+					hint: 'Open Food Facts did not answer. This is not an empty result: search again, or use find_food_by_barcode when a barcode is known.'
+				};
+			}
+			return { products, count: products.length };
 		} catch (e) {
 			wrapError('search Open Food Facts', e);
 		}

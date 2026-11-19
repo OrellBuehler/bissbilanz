@@ -24,6 +24,7 @@
 			mealType: string;
 			eatenAt?: string | null;
 			createdAt?: string | null;
+			recipeId?: string | null;
 			servingSize?: number | null;
 			servingUnit?: string | null;
 			quickCalories?: number | null;
@@ -43,6 +44,7 @@
 			servings: number;
 			mealType: string;
 			foodName?: string;
+			recipeId?: string | null;
 			servingSize?: number | null;
 			servingUnit?: string | null;
 			calories?: number | null;
@@ -89,6 +91,7 @@
 						servings: entry.servings,
 						mealType: entry.mealType,
 						foodName: entry.foodName ?? undefined,
+						recipeId: entry.recipeId,
 						servingSize: entry.servingSize,
 						servingUnit: entry.servingUnit,
 						calories: entry.calories,

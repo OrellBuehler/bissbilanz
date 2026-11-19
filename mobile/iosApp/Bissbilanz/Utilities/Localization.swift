@@ -377,12 +377,56 @@ enum L10n {
         localized("serving_size", en: "Serving Size", de: "Portionsgröße")
     }
 
+    static var servingSizeEstimated: String {
+        localized(
+            "serving_size_estimated",
+            en: "Estimated from the ingredient weights",
+            de: "Aus den Zutatengewichten geschätzt"
+        )
+    }
+
     static var brand: String {
         localized("brand", en: "Brand", de: "Marke")
     }
 
     static var barcode: String {
         localized("barcode", en: "Barcode", de: "Barcode")
+    }
+
+    static var foodFormNameRequired: String {
+        localized("food_form_name_required", en: "Name is required", de: "Name ist erforderlich")
+    }
+
+    static var foodFormRequiredFields: String {
+        localized(
+            "food_form_required_fields",
+            en: "Calories, protein, carbs, fat, and serving size are required",
+            de: "Kalorien, Protein, Kohlenhydrate, Fett und Portionsgröße sind erforderlich"
+        )
+    }
+
+    static var foodFormNotANumber: String {
+        localized(
+            "food_form_not_a_number",
+            en: "Serving size and nutrient values must be numbers",
+            de: "Portionsgröße und Nährwerte müssen Zahlen sein"
+        )
+    }
+
+    static var foodFormInvalidValues: String {
+        localized(
+            "food_form_invalid_values",
+            en: "Serving size must be greater than 0 and nutrient values cannot be negative",
+            de: "Die Portionsgröße muss größer als 0 sein und Nährwerte dürfen nicht negativ sein"
+        )
+    }
+
+    static func fieldTooLong(_ field: String, max: Int) -> String {
+        localized(
+            "field_too_long",
+            en: "\(field) can be at most \(max) characters",
+            de: "\(field) darf höchstens \(max) Zeichen lang sein"
+        )
     }
 
     static var foodsMerge: String {
@@ -1044,6 +1088,42 @@ enum L10n {
         )
     }
 
+    static var recipeNameRequired: String {
+        localized("recipe_name_required", en: "Recipe name is required", de: "Rezeptname ist erforderlich")
+    }
+
+    static var recipeNeedsIngredient: String {
+        localized(
+            "recipe_needs_ingredient",
+            en: "Add at least one ingredient",
+            de: "Füge mindestens eine Zutat hinzu"
+        )
+    }
+
+    static var recipeServingsInvalid: String {
+        localized(
+            "recipe_servings_invalid",
+            en: "Total servings must be a number greater than 0",
+            de: "Die Gesamtportionen müssen eine Zahl größer als 0 sein"
+        )
+    }
+
+    static var recipeAmountInvalid: String {
+        localized(
+            "recipe_amount_invalid",
+            en: "Every ingredient needs an amount greater than 0",
+            de: "Jede Zutat braucht eine Menge größer als 0"
+        )
+    }
+
+    static var recipeCookedWeightInvalid: String {
+        localized(
+            "recipe_cooked_weight_invalid",
+            en: "Cooked weight must be a number greater than 0, or left empty",
+            de: "Das Fertiggewicht muss eine Zahl größer als 0 sein oder leer bleiben"
+        )
+    }
+
     /// Shown for a recipe ingredient whose food couldn't be resolved (deleted, or
     /// offline with nothing cached) — the ingredient is never dropped, only its name.
     static var unknownIngredient: String {
@@ -1534,6 +1614,10 @@ enum L10n {
 
     static var custom: String {
         localized("custom", en: "Custom", de: "Benutzerdefiniert")
+    }
+
+    static var supplementDaysRequired: String {
+        localized("supplement_days_required", en: "Pick at least one day.", de: "Mindestens einen Tag auswählen.")
     }
 
     static var morning: String {
@@ -2705,6 +2789,26 @@ enum L10n {
         )
     }
 
+    static var barcodeLookupFailed: String {
+        localized(
+            "barcode_lookup_failed",
+            en: "Couldn't look up the barcode",
+            de: "Barcode konnte nicht nachgeschlagen werden"
+        )
+    }
+
+    static var barcodeLookupFailedHint: String {
+        localized(
+            "barcode_lookup_failed_hint",
+            en: "Check your connection and try again",
+            de: "Verbindung prüfen und erneut versuchen"
+        )
+    }
+
+    static var scanAgain: String {
+        localized("scan_again", en: "Scan again", de: "Erneut scannen")
+    }
+
     static var cameraRequired: String {
         localized(
             "camera_required",
@@ -2901,6 +3005,18 @@ enum L10n {
 
     static var signInWithGoogle: String {
         localized("sign_in_with_google", en: "Continue with Google", de: "Mit Google fortfahren")
+    }
+
+    static var signInChooseProvider: String {
+        localized("sign_in_choose_provider", en: "Choose sign-in method", de: "Anmeldemethode wählen")
+    }
+
+    static var signInChooseProviderHint: String {
+        localized(
+            "sign_in_choose_provider_hint",
+            en: "Use the same method as your existing account. A different method opens a separate account.",
+            de: "Verwende dieselbe Methode wie bei deinem bestehenden Konto. Eine andere Methode öffnet ein separates Konto."
+        )
     }
 
     static var appleSignInUnavailable: String {

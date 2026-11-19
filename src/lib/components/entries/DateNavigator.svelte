@@ -21,12 +21,12 @@
 	const calendarValue = $derived(parseDate(date));
 
 	const navigate = (isoDate: string) => {
-		goto(`/home?date=${isoDate}`, { replaceState: true });
+		goto(`/home?date=${isoDate}`, { replace: true });
 	};
 
 	const prevDay = () => navigate(shiftDate(date, -1));
 	const nextDay = () => navigate(shiftDate(date, 1));
-	const goToday = () => goto('/home', { replaceState: true });
+	const goToday = () => goto('/home', { replace: true });
 
 	const onCalendarChange = (value: DateValue | undefined) => {
 		if (!value) return;

@@ -195,9 +195,11 @@ describe('refresh token reuse detection', () => {
 		const spy = vi.fn();
 		vi.doMock('@sentry/sveltekit', () => ({ captureMessage: spy, captureException: vi.fn() }));
 		vi.resetModules();
-		const { createAccessToken, refreshAccessToken } = await import('$lib/server/oauth');
+		const { createAccessToken, refreshAccessToken, validateAccessToken } =
+			await import('$lib/server/oauth');
 		const { refreshToken } = await createAccessToken(userId, 'third-party');
-		await refreshAccessToken(refreshToken, 'third-party');
+		const first = await refreshAccessToken(refreshToken, 'third-party');
+		await validateAccessToken(first!.accessToken);
 		await ageConsumption(120_000);
 		await refreshAccessToken(refreshToken, 'third-party');
 
@@ -227,7 +229,7 @@ describe('refresh token reuse detection', () => {
 	});
 
 	it('upgrades a pre-family token and revokes it by its own id on reuse', async () => {
-		const { refreshAccessToken } = await import('$lib/server/oauth');
+		const { refreshAccessToken, validateAccessToken } = await import('$lib/server/oauth');
 		const { createHash } = await import('crypto');
 		const db = getTestDB(dbUrl);
 		const hash = (t: string) => createHash('sha256').update(t).digest('hex');
@@ -239,10 +241,152 @@ describe('refresh token reuse detection', () => {
 			expiresAt: new Date(Date.now() + 1000),
 			refreshTokenExpiresAt: new Date(Date.now() + 100_000)
 		});
-		expect(await refreshAccessToken('r', 'third-party')).toBeTruthy();
+		const rotated = await refreshAccessToken('r', 'third-party');
+		expect(await validateAccessToken(rotated!.accessToken)).toBeTruthy();
 		await ageConsumption(120_000);
 		expect(await refreshAccessToken('r', 'third-party')).toBeUndefined();
 		expect(await db.select().from(oauthTokens)).toHaveLength(0);
+	});
+});
+
+// A refresh whose response never reached the client leaves it holding the rotated token.
+// On a bad mobile connection the retry comes minutes later, long after the grace window,
+// and used to sign the user out (BISSBILANZ-4H). Nothing issued since was used, so the
+// replay cannot come from anyone but the holder of the current token.
+describe('refresh token replay after a lost response', () => {
+	const ageConsumption = async (ms: number) => {
+		const db = getTestDB(dbUrl);
+		const rows = await db
+			.select()
+			.from(oauthTokens)
+			.where(isNotNull(oauthTokens.refreshTokenConsumedAt));
+		for (const row of rows) {
+			await db
+				.update(oauthTokens)
+				.set({ refreshTokenConsumedAt: new Date(row.refreshTokenConsumedAt!.getTime() - ms) })
+				.where(eq(oauthTokens.id, row.id));
+		}
+	};
+
+	it('rotates again when the replacement was never used', async () => {
+		const { createAccessToken, refreshAccessToken, validateAccessToken } =
+			await import('$lib/server/oauth');
+		const { refreshToken } = await createAccessToken(userId, 'bissbilanz-mobile');
+		const lost = await refreshAccessToken(refreshToken, 'bissbilanz-mobile');
+		await ageConsumption(30 * 60_000);
+
+		const retry = await refreshAccessToken(refreshToken, 'bissbilanz-mobile');
+
+		expect(retry).toBeTruthy();
+		expect(await validateAccessToken(retry!.accessToken)).toBeTruthy();
+		expect(await validateAccessToken(lost!.accessToken)).toBeUndefined();
+		const rows = await getTestDB(dbUrl).select().from(oauthTokens);
+		expect(new Set(rows.map((r) => r.familyId)).size).toBe(1);
+	});
+
+	it('survives the retry being lost as well', async () => {
+		const { createAccessToken, refreshAccessToken, validateAccessToken } =
+			await import('$lib/server/oauth');
+		const { refreshToken } = await createAccessToken(userId, 'bissbilanz-mobile');
+		await refreshAccessToken(refreshToken, 'bissbilanz-mobile');
+		await ageConsumption(30 * 60_000);
+		await refreshAccessToken(refreshToken, 'bissbilanz-mobile');
+		await ageConsumption(30 * 60_000);
+
+		const third = await refreshAccessToken(refreshToken, 'bissbilanz-mobile');
+
+		expect(await validateAccessToken(third!.accessToken)).toBeTruthy();
+	});
+
+	it('revokes the family when the replacement was used before the replay', async () => {
+		const { createAccessToken, refreshAccessToken, validateAccessToken } =
+			await import('$lib/server/oauth');
+		const { refreshToken } = await createAccessToken(userId, 'bissbilanz-mobile');
+		const current = await refreshAccessToken(refreshToken, 'bissbilanz-mobile');
+		expect(await validateAccessToken(current!.accessToken)).toBeTruthy();
+		await ageConsumption(30 * 60_000);
+
+		expect(await refreshAccessToken(refreshToken, 'bissbilanz-mobile')).toBeUndefined();
+		expect(await validateAccessToken(current!.accessToken)).toBeUndefined();
+		expect(await getTestDB(dbUrl).select().from(oauthTokens)).toHaveLength(0);
+	});
+
+	it('revokes the family when the replacement was rotated without ever being used', async () => {
+		const { createAccessToken, refreshAccessToken } = await import('$lib/server/oauth');
+		const { refreshToken } = await createAccessToken(userId, 'bissbilanz-mobile');
+		const first = await refreshAccessToken(refreshToken, 'bissbilanz-mobile');
+		await ageConsumption(30 * 60_000);
+		await refreshAccessToken(first!.refreshToken, 'bissbilanz-mobile');
+		await ageConsumption(30 * 60_000);
+
+		expect(await refreshAccessToken(refreshToken, 'bissbilanz-mobile')).toBeUndefined();
+		expect(await getTestDB(dbUrl).select().from(oauthTokens)).toHaveLength(0);
+	});
+
+	// Someone who redeemed a stolen token first and sat on the result is caught as soon
+	// as they come back with it.
+	it('revokes the family when a retired replacement is presented', async () => {
+		const { createAccessToken, refreshAccessToken, validateAccessToken } =
+			await import('$lib/server/oauth');
+		const { refreshToken } = await createAccessToken(userId, 'bissbilanz-mobile');
+		const retired = await refreshAccessToken(refreshToken, 'bissbilanz-mobile');
+		await ageConsumption(30 * 60_000);
+		const current = await refreshAccessToken(refreshToken, 'bissbilanz-mobile');
+		expect(await validateAccessToken(current!.accessToken)).toBeTruthy();
+
+		expect(await refreshAccessToken(retired!.refreshToken, 'bissbilanz-mobile')).toBeUndefined();
+		expect(await validateAccessToken(current!.accessToken)).toBeUndefined();
+		expect(await getTestDB(dbUrl).select().from(oauthTokens)).toHaveLength(0);
+	});
+
+	it('revokes the family when the replay follows a recovery whose token is in use', async () => {
+		const { createAccessToken, refreshAccessToken, validateAccessToken } =
+			await import('$lib/server/oauth');
+		const { refreshToken } = await createAccessToken(userId, 'bissbilanz-mobile');
+		await refreshAccessToken(refreshToken, 'bissbilanz-mobile');
+		await ageConsumption(30 * 60_000);
+		const recovered = await refreshAccessToken(refreshToken, 'bissbilanz-mobile');
+		expect(await validateAccessToken(recovered!.accessToken)).toBeTruthy();
+		await ageConsumption(30 * 60_000);
+
+		expect(await refreshAccessToken(refreshToken, 'bissbilanz-mobile')).toBeUndefined();
+		expect(await getTestDB(dbUrl).select().from(oauthTokens)).toHaveLength(0);
+	});
+
+	it('records the first use of an access token once', async () => {
+		const { createAccessToken, validateAccessToken } = await import('$lib/server/oauth');
+		const db = getTestDB(dbUrl);
+		const { accessToken } = await createAccessToken(userId, 'bissbilanz-mobile');
+		expect((await db.select().from(oauthTokens))[0].accessTokenUsedAt).toBeNull();
+
+		await validateAccessToken(accessToken);
+		const [afterFirst] = await db.select().from(oauthTokens);
+		await validateAccessToken(accessToken);
+		const [afterSecond] = await db.select().from(oauthTokens);
+
+		expect(afterFirst.accessTokenUsedAt).toBeInstanceOf(Date);
+		expect(afterSecond.accessTokenUsedAt).toEqual(afterFirst.accessTokenUsedAt);
+	});
+});
+
+describe('migration 0077 backfill', () => {
+	it('marks tokens issued before first use was recorded as used', async () => {
+		const db = getTestDB(dbUrl);
+		await db.insert(oauthTokens).values({
+			clientId: 'bissbilanz-mobile',
+			userId,
+			accessTokenHash: 'a',
+			refreshTokenHash: 'r',
+			expiresAt: new Date(Date.now() + 1000)
+		});
+		const update = `UPDATE "oauth_tokens" SET "access_token_used_at" = COALESCE("created_at", now()) WHERE "access_token_used_at" IS NULL`;
+		const { sql } = await import('drizzle-orm');
+		await db.execute(sql.raw(update));
+		const [first] = await db.select().from(oauthTokens);
+		await db.execute(sql.raw(update));
+		const [second] = await db.select().from(oauthTokens);
+		expect(first.accessTokenUsedAt).toEqual(first.createdAt);
+		expect(second.accessTokenUsedAt).toEqual(first.accessTokenUsedAt);
 	});
 });
 

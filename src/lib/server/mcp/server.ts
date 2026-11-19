@@ -607,7 +607,7 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'Search Open Food Facts',
 			description:
-				'Search Open Food Facts for products by name. Returns nutritional data that can be used with create_food to add products to the database.',
+				'Search Open Food Facts for products by name. Returns nutritional data that can be used with create_food to add products to the database. When Open Food Facts cannot be reached the result carries unavailable: true, which is not the same as no matching product.',
 			inputSchema: {
 				query: z.string().describe('Search query for product name'),
 				limit: z.number().optional().describe('Max results to return. Defaults to 5.')
