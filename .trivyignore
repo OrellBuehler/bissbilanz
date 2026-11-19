@@ -10,4 +10,10 @@
 # line, with a justification comment. Remove entries as soon as a fix is
 # applied.
 #
-# Currently empty: the dependency tree has no unfixed high/critical findings.
+# picomatch ReDoS through single-branch repeated extglobs (<=4.0.7). 4.0.7 is the
+# latest release and no patched version exists yet, so a lockfile refresh cannot
+# fix it. picomatch is only reached through build and test tooling (vite, vitest,
+# svelte-check, eslint, paraglide's unplugin); the running server never matches
+# user-supplied glob patterns. Remove both lines once a patched picomatch ships.
+CVE-2026-112366
+GHSA-fc5q-39xc-vjpf

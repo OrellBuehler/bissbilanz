@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import Settings from '@lucide/svelte/icons/settings';
 	import Plug from '@lucide/svelte/icons/plug';
 	import BellRing from '@lucide/svelte/icons/bell-ring';
@@ -23,7 +23,7 @@
 	const tabs = $derived(allTabs.filter((tab) => tab.href !== '/settings/mcp' || data.mcpEnabled));
 
 	const isActive = (tab: (typeof allTabs)[number]) =>
-		tab.exact ? $page.url.pathname === tab.href : $page.url.pathname.startsWith(tab.href);
+		tab.exact ? page.url.pathname === tab.href : page.url.pathname.startsWith(tab.href);
 </script>
 
 <div class="mx-auto max-w-3xl">

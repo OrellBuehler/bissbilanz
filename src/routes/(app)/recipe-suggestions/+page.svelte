@@ -25,7 +25,7 @@
 	import { today } from '$lib/utils/dates';
 	import { api } from '$lib/api/client';
 	import { toast } from 'svelte-sonner';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { useLiveQuery } from '$lib/db/live.svelte';
 	import { recipeService } from '$lib/services/recipe-service.svelte';
 	import { goalsService } from '$lib/services/goals-service.svelte';

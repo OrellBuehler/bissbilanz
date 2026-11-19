@@ -52,5 +52,5 @@ export const GET: RequestHandler = async (event) => {
 		codeChallenge
 	});
 
-	throw redirect(302, authorizeUrl);
+	throw redirect(302, authorizeUrl, { external: true });
 };

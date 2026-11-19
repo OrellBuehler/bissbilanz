@@ -1,7 +1,5 @@
 /**
- * Web Push handlers, imported into the Workbox-generated service worker
- * (see `workbox.importScripts` in vite.config.ts). Kept as a plain static
- * script so the precache/runtime-caching setup stays on generateSW.
+ * Web Push handlers for the service worker.
  *
  * All user-visible strings arrive inside the push payload, already localized
  * server-side — the service worker has no access to the Paraglide runtime.
@@ -10,7 +8,7 @@
 const DEFAULT_URL = '/supplements';
 
 self.addEventListener('push', (event) => {
-	let payload = {};
+	let payload;
 	try {
 		payload = event.data ? event.data.json() : {};
 	} catch {
@@ -43,8 +41,9 @@ const openApp = async (url) => {
 			if ('navigate' in client) {
 				try {
 					await client.navigate(url);
-				} catch {
+				} catch (error) {
 					// Cross-origin or a client that refuses navigation — just focus it.
+					console.warn('push: could not navigate client', error);
 				}
 			}
 			return client.focus();
@@ -63,7 +62,10 @@ const logSupplements = async (ids) => {
 				body: '{}'
 			})
 				.then((res) => res.ok)
-				.catch(() => false)
+				.catch((error) => {
+					console.warn('push: supplement log request failed', error);
+					return false;
+				})
 		)
 	);
 	return results.every(Boolean);

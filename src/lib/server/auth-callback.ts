@@ -306,6 +306,7 @@ export async function handleMobileCallback(input: {
 
 	throw redirect(
 		302,
-		`bissbilanz://oauth/callback?code=${encodeURIComponent(oneTimeCode)}&state=${encodeURIComponent(input.state)}`
+		`bissbilanz://oauth/callback?code=${encodeURIComponent(oneTimeCode)}&state=${encodeURIComponent(input.state)}`,
+		{ external: true }
 	);
 }

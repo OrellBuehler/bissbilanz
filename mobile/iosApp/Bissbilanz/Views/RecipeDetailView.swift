@@ -184,7 +184,7 @@ struct RecipeDetailView: View {
                 HStack {
                     Text(L10n.totalServings)
                     Spacer()
-                    Text("\(Int(recipe.totalServings))")
+                    Text(MacroFormat.servings(recipe.totalServings))
                         .foregroundStyle(.secondary)
                 }
                 .accessibilityElement(children: .combine)

@@ -21,7 +21,7 @@ import {
 } from './helpers';
 import { users, foods, foodEntries, idempotencyKeys } from '$lib/server/schema';
 
-vi.mock('$app/environment', () => ({ browser: true, building: false, dev: true, version: 'test' }));
+vi.mock('$app/env', () => ({ browser: true, building: false, dev: true, version: 'test' }));
 
 const syncState = vi.hoisted(() => ({
 	setSyncing: vi.fn(),

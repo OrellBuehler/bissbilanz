@@ -26,7 +26,7 @@ function hasAuthCookie(request: Request): boolean {
 
 /**
  * Manual CSRF check for non-exempt routes. SvelteKit's built-in CSRF protection is
- * disabled globally (svelte.config.js trustedOrigins: ['*']) because MCP/OAuth
+ * disabled globally (vite.config.ts trustedOrigins: ['*']) because MCP/OAuth
  * clients post from unknown origins, so this is the only protection.
  *
  * It applies to unsafe requests that carry the auth cookie, of any content type

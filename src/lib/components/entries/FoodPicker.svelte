@@ -10,7 +10,7 @@
 	import FoodThumbnail from '$lib/components/shared/FoodThumbnail.svelte';
 	import { api } from '$lib/api/client';
 	import * as m from '$lib/paraglide/messages';
-	import { dev } from '$app/environment';
+	import { dev } from '$app/env';
 	import { filterRecipes } from '$lib/components/foods/foodFilters';
 	import { cookedWeightServingSize } from '$lib/utils/recipe-yield';
 
