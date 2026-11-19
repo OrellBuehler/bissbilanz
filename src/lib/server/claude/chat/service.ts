@@ -1,17 +1,28 @@
 import { json } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
-import { and, asc, count, eq, gt, inArray, lte, min, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gt, lte, min, sql } from 'drizzle-orm';
 import { getDB } from '../../db';
 import { ApiError, rateLimitedResponse, RateLimitError } from '../../errors';
-import { ownsUpload, UPLOAD_FILENAME_PATTERN } from '../../images';
+import {
+	dropUploadFiles,
+	ownsUpload,
+	UPLOAD_DIR,
+	UPLOAD_FILENAME_PATTERN,
+	writeUploadFile
+} from '../../images';
+import type { TxOrDb } from '../../ownership';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { getUserTimeZone } from '../../preferences';
 import {
 	chatActiveRunStatusValues,
 	chatConversations,
 	chatEvents,
+	chatMessageLog,
 	chatMessages,
 	chatRuns,
 	chatToolCalls,
+	uploads,
 	users,
 	type ChatMessageRow
 } from '../../schema';
@@ -23,6 +34,8 @@ import {
 	CHAT_DAY_WINDOW_MS,
 	MAX_CHAT_MESSAGES_PER_DAY,
 	MAX_CONVERSATION_BYTES,
+	MAX_CONVERSATION_IMAGE_BYTES,
+	MAX_IMAGES_PER_CONVERSATION,
 	MAX_USER_MESSAGES_PER_CONVERSATION
 } from './constants';
 import {
@@ -38,7 +51,7 @@ import {
 	reconcileConversation,
 	stopChatRun
 } from './executor';
-import { finalizeRun } from './finalize';
+import { finalizeRun, finalizeRunInTx } from './finalize';
 import { toChatLocale } from './labels';
 import { buildUserContent } from './prompt';
 import {
@@ -53,7 +66,7 @@ import {
 	serializeMessage,
 	serializeRun
 } from './store';
-import { appendRaw, transcriptBytes } from './transcript';
+import { appendRaw, transcriptSize } from './transcript';
 
 const STATUS: Record<ChatErrorCode, number> = {
 	conversation_not_found: 404,
@@ -173,28 +186,75 @@ export async function deleteConversation(userId: string, conversationId: string)
 
 const normalizeImage = (value: string) => value.replace(/^\/uploads\//, '');
 
-async function checkImages(userId: string, images: string[]): Promise<string[]> {
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
+
+const base64Length = (bytes: number) => Math.ceil(bytes / 3) * 4;
+
+type ChatImage = { source: string; bytes: Uint8Array };
+
+/** The user's uploads to attach: theirs, on disk, small enough to send. */
+async function readImages(userId: string, images: string[]): Promise<ChatImage[]> {
 	const filenames = [...new Set(images.map(normalizeImage))];
-	for (const filename of filenames) {
-		if (!UPLOAD_FILENAME_PATTERN.test(filename) || !(await ownsUpload(userId, filename))) {
+	const read: ChatImage[] = [];
+	for (const source of filenames) {
+		if (!UPLOAD_FILENAME_PATTERN.test(source) || !(await ownsUpload(userId, source))) {
 			throw new ChatRequestError('invalid_image');
 		}
+		let bytes: Uint8Array;
+		try {
+			bytes = await readFile(join(UPLOAD_DIR, source));
+		} catch (error) {
+			Sentry.addBreadcrumb({
+				category: 'chat',
+				level: 'info',
+				message: 'Chat image upload is not readable',
+				data: { error: error instanceof Error ? error.message : String(error) }
+			});
+			throw new ChatRequestError('invalid_image');
+		}
+		if (bytes.byteLength > MAX_PHOTO_BYTES) throw new ChatRequestError('invalid_image');
+		read.push({ source, bytes });
 	}
-	return filenames;
+	return read;
 }
 
 async function dailyWindow(userId: string) {
 	const [row] = await getDB()
-		.select({ count: count(), oldest: min(chatMessages.createdAt) })
-		.from(chatMessages)
+		.select({ count: count(), oldest: min(chatMessageLog.createdAt) })
+		.from(chatMessageLog)
 		.where(
 			and(
-				eq(chatMessages.userId, userId),
-				eq(chatMessages.role, 'user'),
-				gt(chatMessages.createdAt, new Date(Date.now() - CHAT_DAY_WINDOW_MS))
+				eq(chatMessageLog.userId, userId),
+				gt(chatMessageLog.createdAt, new Date(Date.now() - CHAT_DAY_WINDOW_MS))
 			)
 		);
 	return { count: Number(row?.count ?? 0), oldest: row?.oldest ?? null };
+}
+
+/** Whether the conversation can take this message and its photos. */
+async function hasRoom(
+	tx: TxOrDb,
+	conversationId: string,
+	images: number,
+	imageBytes: number
+): Promise<boolean> {
+	const [sent] = await tx
+		.select({
+			messages: count(),
+			images:
+				sql<number>`coalesce(sum(coalesce(array_length(${chatMessages.imageUrls}, 1), 0)), 0)`.mapWith(
+					Number
+				)
+		})
+		.from(chatMessages)
+		.where(and(eq(chatMessages.conversationId, conversationId), eq(chatMessages.role, 'user')));
+	const size = await transcriptSize(tx, conversationId);
+	return (
+		Number(sent?.messages ?? 0) < MAX_USER_MESSAGES_PER_CONVERSATION &&
+		size.bytes < MAX_CONVERSATION_BYTES &&
+		(sent?.images ?? 0) + images <= MAX_IMAGES_PER_CONVERSATION &&
+		size.imageBytes + imageBytes <= MAX_CONVERSATION_IMAGE_BYTES
+	);
 }
 
 function autoTitle(text: string): string {
@@ -227,8 +287,10 @@ async function existingMessage(userId: string, conversationId: string, id: strin
 /**
  * Stores the user's message and queues the run that answers it. The message id
  * is the idempotency key: sending it again returns the stored message and its
- * run and never starts a second one. A run waiting for a confirmation is
- * cancelled by the new message (its pending action is declined).
+ * run and never starts a second one. Photos are copied into uploads of the
+ * chat, so later edits elsewhere never change what the transcript replays. A
+ * run waiting for a confirmation is cancelled by the new message (its pending
+ * action is declined), but only once the message passed every check.
  */
 export async function postMessage(
 	userId: string,
@@ -240,8 +302,8 @@ export async function postMessage(
 	if (known) return replay(known);
 
 	const gate = await getChatGateState(userId);
+	const capability = toChatCapability(gate);
 	if (!gate.available) {
-		const capability = toChatCapability(gate);
 		throw new ChatRequestError(
 			gate.blockedBy === 'user_budget_exhausted' || gate.blockedBy === 'global_budget_exhausted'
 				? 'budget_exhausted'
@@ -250,23 +312,13 @@ export async function postMessage(
 			{ capability }
 		);
 	}
-	const images = await checkImages(userId, input.imageFilenames ?? []);
+	const images = await readImages(userId, input.imageFilenames ?? []);
 	const window = await dailyWindow(userId);
 	if (window.count >= MAX_CHAT_MESSAGES_PER_DAY) {
 		const retryAfter = window.oldest
 			? Math.max(1, Math.ceil((window.oldest.getTime() + CHAT_DAY_WINDOW_MS - Date.now()) / 1000))
 			: 60;
 		throw new ChatRequestError('daily_limit_reached', retryAfter);
-	}
-
-	const paused = await getActiveRun(getDB(), conversationId);
-	if (paused?.status === 'awaiting_confirmation') {
-		await finalizeRun(paused.id, {
-			status: 'cancelled',
-			reason: 'superseded',
-			actionStatus: 'cancelled',
-			onlyIf: ['awaiting_confirmation']
-		});
 	}
 
 	const [owner] = await getDB()
@@ -279,97 +331,121 @@ export async function postMessage(
 		timezone: input.context?.timezone ?? null,
 		locale: input.context?.locale ?? owner?.locale ?? 'en'
 	};
-	const content = buildUserContent(input.text, images, {
-		now: new Date(),
-		timeZone,
-		viewedDate: context.date,
-		deviceTimeZone: context.timezone,
-		locale: context.locale
-	});
-	const parts: ChatPart[] = [
-		...images.map((filename): ChatPart => ({ type: 'image', url: `/uploads/${filename}` })),
-		{ type: 'text', text: input.text }
-	];
 
-	const outcome = await getDB().transaction(async (tx) => {
-		const [locked] = await tx
-			.select()
-			.from(chatConversations)
-			.where(and(eq(chatConversations.id, conversationId), eq(chatConversations.userId, userId)))
-			.for('update');
-		if (!locked) throw new ChatRequestError('conversation_not_found');
-		const [again] = await tx.select().from(chatMessages).where(eq(chatMessages.id, input.id));
-		if (again) {
-			if (
-				again.userId !== userId ||
-				again.conversationId !== conversationId ||
-				again.role !== 'user'
-			) {
-				throw new ChatRequestError('message_id_conflict');
+	const copies: string[] = [];
+	const imageBytes = images.reduce((sum, image) => sum + base64Length(image.bytes.byteLength), 0);
+
+	let outcome;
+	try {
+		for (const image of images) copies.push(await writeUploadFile(image.bytes));
+		const content = buildUserContent(input.text, copies, {
+			now: new Date(),
+			timeZone,
+			viewedDate: context.date,
+			deviceTimeZone: context.timezone,
+			locale: context.locale
+		});
+		const imageUrls = copies.map((filename) => `/uploads/${filename}`);
+		const parts: ChatPart[] = [
+			...imageUrls.map((url): ChatPart => ({ type: 'image', url })),
+			{ type: 'text', text: input.text }
+		];
+		outcome = await getDB().transaction(async (tx) => {
+			const [locked] = await tx
+				.select()
+				.from(chatConversations)
+				.where(and(eq(chatConversations.id, conversationId), eq(chatConversations.userId, userId)))
+				.for('update');
+			if (!locked) throw new ChatRequestError('conversation_not_found');
+			const [again] = await tx.select().from(chatMessages).where(eq(chatMessages.id, input.id));
+			if (again) {
+				if (
+					again.userId !== userId ||
+					again.conversationId !== conversationId ||
+					again.role !== 'user'
+				) {
+					throw new ChatRequestError('message_id_conflict');
+				}
+				return { replayOf: again as ChatMessageRow };
 			}
-			return { replayOf: again as ChatMessageRow };
-		}
 
-		const [active] = await tx
-			.select({ id: chatRuns.id })
-			.from(chatRuns)
-			.where(
-				and(
-					eq(chatRuns.conversationId, conversationId),
-					inArray(chatRuns.status, [...chatActiveRunStatusValues])
-				)
-			);
-		if (active) throw new ChatRequestError('run_active');
-		const [sent] = await tx
-			.select({ count: count() })
-			.from(chatMessages)
-			.where(and(eq(chatMessages.conversationId, conversationId), eq(chatMessages.role, 'user')));
-		if (
-			Number(sent?.count ?? 0) >= MAX_USER_MESSAGES_PER_CONVERSATION ||
-			(await transcriptBytes(tx, conversationId)) >= MAX_CONVERSATION_BYTES
-		) {
-			throw new ChatRequestError('conversation_too_long');
-		}
+			const active = await getActiveRun(tx, conversationId);
+			if (active && active.status !== 'awaiting_confirmation') {
+				throw new ChatRequestError('run_active');
+			}
+			if (!(await hasRoom(tx, conversationId, copies.length, imageBytes))) {
+				throw new ChatRequestError('conversation_too_long');
+			}
+			if (active) {
+				await finalizeRunInTx(
+					tx,
+					active,
+					{
+						status: 'cancelled',
+						reason: 'superseded',
+						actionStatus: 'cancelled',
+						onlyIf: ['awaiting_confirmation']
+					},
+					capability
+				);
+			}
 
-		const [message] = await tx
-			.insert(chatMessages)
-			.values({
-				id: input.id,
-				conversationId,
-				userId,
-				role: 'user',
-				status: 'completed',
-				parts,
-				imageUrls: images.length > 0 ? images.map((filename) => `/uploads/${filename}`) : null,
-				context
-			})
-			.returning();
-		await appendRaw(tx, conversationId, null, [{ role: 'user', content }]);
-		const [run] = await tx
-			.insert(chatRuns)
-			.values({ conversationId, userId, userMessageId: message!.id, status: 'queued' })
-			.returning();
-		await tx.update(chatMessages).set({ runId: run!.id }).where(eq(chatMessages.id, message!.id));
-		await tx
-			.update(chatConversations)
-			.set({
-				lastMessageAt: sql`now()`,
-				updatedAt: sql`now()`,
-				...(locked.title === null ? { title: autoTitle(input.text) } : {})
-			})
-			.where(eq(chatConversations.id, conversationId));
-		const view = { ...serializeMessage(message!), runId: run!.id };
-		const [created] = await appendEvents(tx, conversationId, [
-			{ type: 'message_created', message: view }
-		]);
-		await tx
-			.update(chatMessages)
-			.set({ createdSeq: created!.seq })
-			.where(eq(chatMessages.id, message!.id));
-		return { message: view, run: run!, seq: created!.seq };
-	});
+			if (copies.length > 0) {
+				await tx.insert(uploads).values(
+					images.map((image, index) => ({
+						filename: copies[index]!,
+						userId,
+						sizeBytes: image.bytes.byteLength
+					}))
+				);
+			}
+			await tx.insert(chatMessageLog).values({ userId });
+			const [message] = await tx
+				.insert(chatMessages)
+				.values({
+					id: input.id,
+					conversationId,
+					userId,
+					role: 'user',
+					status: 'completed',
+					parts,
+					imageUrls: imageUrls.length > 0 ? imageUrls : null,
+					context
+				})
+				.returning();
+			await appendRaw(tx, conversationId, null, [{ role: 'user', content, imageBytes }]);
+			const [run] = await tx
+				.insert(chatRuns)
+				.values({ conversationId, userId, userMessageId: message!.id, status: 'queued' })
+				.returning();
+			await tx.update(chatMessages).set({ runId: run!.id }).where(eq(chatMessages.id, message!.id));
+			await tx
+				.update(chatConversations)
+				.set({
+					lastMessageAt: sql`now()`,
+					updatedAt: sql`now()`,
+					...(locked.title === null ? { title: autoTitle(input.text) } : {})
+				})
+				.where(eq(chatConversations.id, conversationId));
+			const view = { ...serializeMessage(message!), runId: run!.id };
+			const [created] = await appendEvents(tx, conversationId, [
+				{ type: 'message_created', message: view }
+			]);
+			await tx
+				.update(chatMessages)
+				.set({ createdSeq: created!.seq })
+				.where(eq(chatMessages.id, message!.id));
+			return { message: view, run: run!, seq: created!.seq };
+		});
+	} catch (error) {
+		await dropUploadFiles(copies);
+		throw error;
+	}
 
-	if ('replayOf' in outcome && outcome.replayOf) return replay(outcome.replayOf);
+	if ('replayOf' in outcome && outcome.replayOf) {
+		await dropUploadFiles(copies);
+		return replay(outcome.replayOf);
+	}
 	if (!('run' in outcome)) throw new Error('Chat message was neither stored nor found');
 	notifyConversation(conversationId);
 	enqueueChatRun(outcome.run.id, userId);

@@ -49,7 +49,7 @@ const chatActionPreviewSchema = z
 	.meta({ id: 'ChatActionPreview' });
 
 const toolOrActionStatus = z.string().meta({
-	description: `Tool parts: running, ok, error, declined. Action parts: pending, approved, rejected, expired, cancelled. ${UNKNOWN_HINT}`,
+	description: `Tool parts: running, ok, error (a finished message never has a running part). Action parts: pending, approved, rejected, expired, cancelled. ${UNKNOWN_HINT}`,
 	'x-extensible-enum': [...new Set([...chatToolStatusValues, ...chatActionStatusValues])]
 });
 
@@ -129,7 +129,7 @@ export const chatRunSchema = z
 			.string()
 			.nullable()
 			.meta({
-				description: `Why the run ended, null while active and for a normal completion. completed: output_limit, iteration_limit. failed: not_configured, disabled, no_access, user_budget_exhausted, global_budget_exhausted, refusal, api_error, internal_error. cancelled: user_cancelled, superseded, action_expired. interrupted: server_restart. ${UNKNOWN_HINT}`,
+				description: `Why the run ended, null while active and for a normal completion. completed: output_limit, iteration_limit. failed: not_configured, disabled, no_access, user_budget_exhausted, global_budget_exhausted, refusal, conversation_too_long, api_error, internal_error. cancelled: user_cancelled, superseded, action_expired. interrupted: server_restart. ${UNKNOWN_HINT}`,
 				'x-extensible-enum': [...chatRunReasonValues]
 			}),
 		changed: z.array(domain).meta({ description: 'Every domain the run changed, so far.' }),
@@ -263,7 +263,7 @@ export const chatEventSchema = z
 			.string()
 			.optional()
 			.meta({
-				description: `tool_finished: ok, error, declined. action_resolved: approved, rejected, expired, cancelled. run_finished: the run status. ${UNKNOWN_HINT}`
+				description: `tool_finished: ok, error. action_resolved: approved, rejected, expired, cancelled. run_finished: the run status. ${UNKNOWN_HINT}`
 			}),
 		summary: z.string().nullable().optional(),
 		changed: z.array(domain).optional(),

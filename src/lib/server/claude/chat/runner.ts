@@ -1,42 +1,51 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import * as Sentry from '@sentry/sveltekit';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, count, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { getDB } from '../../db';
+import type { TxOrDb } from '../../ownership';
 import {
 	chatConversations,
 	chatMessages,
 	chatRuns,
 	chatToolCalls,
 	claudeAccess,
+	foodEntries,
 	users,
+	type ChatConversation,
 	type ChatRun
 } from '../../schema';
-import type { TxOrDb } from '../../ownership';
 import { callClaude } from '../call';
 import { assertClaudeGates } from '../capability';
 import { claudeConfig } from '../config';
 import { CHAT_FEATURE } from '../constants';
 import { ClaudeAbortedError, ClaudeApiError, ClaudeGateError } from '../errors';
-import { resolveClaudeModel } from '../models';
+import {
+	acceptWebFetch,
+	isWebFetchAccepted,
+	isWebFetchTool,
+	rejectWebFetch,
+	resolveClaudeModel
+} from '../models';
 import { changedDomains, mergeChanges, parseChanges, type ChatChange } from './changes';
 import {
 	ACTION_TTL_MS,
 	CHAT_MAX_TOKENS,
 	HEARTBEAT_INTERVAL_MS,
 	MAX_TOOL_CALLS_PER_RESPONSE,
+	MAX_UNCONFIRMED_WRITES_PER_RUN,
+	RETRY_DELAYS_MS,
 	TEXT_FLUSH_MS
 } from './constants';
 import {
 	appendEvents,
 	applyEvent,
-	emitEvents,
 	notifyConversation,
 	type ChatEvent,
 	type ChatPart
 } from './events';
 import { finalizeRun, type RunEnding } from './finalize';
 import { toChatLocale, toolLabel, type ChatLocale } from './labels';
-import { chatToolPolicy } from './policy';
+import { chatToolPolicy, needsConfirmation, type ConfirmLookup } from './policy';
 import { buildActionPreview } from './previews';
 import { entryDate, getConversation, serializeAction, serializeRun, userToday } from './store';
 import { connectMcp, errorSummary, formatToolResult, type McpConnection } from './tools';
@@ -54,6 +63,11 @@ import {
 
 export const DECLINED_RESULT = 'The user declined this action in the app. Nothing was changed.';
 
+// Server tools shown as tool parts. Code execution blocks that the web tools
+// trigger internally are not shown.
+const SHOWN_SERVER_TOOLS = new Set(['web_search', 'web_fetch']);
+const SHOWN_SERVER_RESULTS = new Set(['web_search_tool_result', 'web_fetch_tool_result']);
+
 export type StopReason = 'cancel' | 'gate' | 'deleted';
 
 export type RunOptions = {
@@ -61,6 +75,7 @@ export type RunOptions = {
 	instanceId: string;
 	stopReason: () => StopReason | undefined;
 	heartbeatMs?: number;
+	sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
 };
 
 class LeaseLost extends Error {
@@ -76,7 +91,7 @@ type Fence = { conversationId: string; runId: string; instanceId: string };
  * A write of the run, done only while this process still owns it. The
  * conversation row is locked first, as finalizeRun does, so a run that was
  * finished elsewhere (cancelled, swept as interrupted) never gets another
- * event or transcript turn.
+ * event, transcript turn or tool execution.
  */
 async function fenced<T>(fence: Fence, write: (tx: TxOrDb) => Promise<T>): Promise<T> {
 	const result = await getDB().transaction(async (tx) => {
@@ -152,6 +167,12 @@ class EventWriter {
 		this.enqueue([event]);
 	}
 
+	// The event is written by the caller in its own transaction.
+	apply(event: ChatEvent) {
+		this.flushText();
+		applyEvent(this.parts, event);
+	}
+
 	private flushText() {
 		if (this.timer) clearTimeout(this.timer);
 		this.timer = null;
@@ -189,12 +210,13 @@ class EventWriter {
 type RunContext = {
 	run: ChatRun;
 	fence: Fence;
+	conversation: ChatConversation;
 	userId: string;
 	conversationId: string;
 	messageId: string;
 	locale: ChatLocale;
 	model: string;
-	snapshot: PromptSnapshot;
+	snapshot: PromptSnapshot & { fromPosition: number };
 	raw: RawMessage[];
 	images: ImageCache;
 	writer: EventWriter;
@@ -202,7 +224,11 @@ type RunContext = {
 	signal: AbortSignal;
 	iterations: number;
 	changes: ChatChange[];
+	unconfirmedWrites: number;
+	container: string | undefined;
 	serverTools: Map<string, { partIndex: number; name: string }>;
+	pendingAction: ChatEvent | null;
+	sleep: (ms: number, signal: AbortSignal) => Promise<void>;
 };
 
 type LoopOutcome = { paused: true } | { paused: false; ending: RunEnding };
@@ -218,6 +244,24 @@ const asRecord = (value: unknown): Record<string, unknown> =>
 	value && typeof value === 'object' && !Array.isArray(value)
 		? (value as Record<string, unknown>)
 		: {};
+
+const isInvalidRequest = (error: unknown): error is ClaudeApiError =>
+	error instanceof ClaudeApiError && error.kind === 'invalid_request' && error.status === 400;
+
+export function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
+	return new Promise((resolve, reject) => {
+		if (signal.aborted) return reject(new ClaudeAbortedError());
+		const timer = setTimeout(() => {
+			signal.removeEventListener('abort', onAbort);
+			resolve();
+		}, ms);
+		const onAbort = () => {
+			clearTimeout(timer);
+			reject(new ClaudeAbortedError());
+		};
+		signal.addEventListener('abort', onAbort, { once: true });
+	});
+}
 
 async function claimRun(runId: string, instanceId: string): Promise<ChatRun | null> {
 	const [run] = await getDB()
@@ -249,35 +293,29 @@ async function heartbeat(runId: string, instanceId: string): Promise<boolean> {
 	return rows.length > 0;
 }
 
+/** Creates or resumes the assistant message; fenced, so it can never follow run_finished. */
 async function startMessage(
 	run: ChatRun,
+	fence: Fence,
 	model: string
 ): Promise<{ messageId: string; parts: ChatPart[] }> {
-	const db = getDB();
 	if (run.assistantMessageId) {
-		const [message] = await db
-			.select()
-			.from(chatMessages)
-			.where(eq(chatMessages.id, run.assistantMessageId));
-		const [updated] = await db
-			.update(chatRuns)
-			.set({ model, updatedAt: sql`now()` })
-			.where(eq(chatRuns.id, run.id))
-			.returning();
-		await emitEvents(run.conversationId, [
-			{
-				type: 'run_resumed',
-				runId: run.id,
-				messageId: run.assistantMessageId,
-				run: serializeRun(updated ?? run)
-			}
-		]);
-		return {
-			messageId: run.assistantMessageId,
-			parts: structuredClone((message?.parts as ChatPart[] | undefined) ?? [])
-		};
+		const messageId = run.assistantMessageId;
+		const parts = await fenced(fence, async (tx) => {
+			const [message] = await tx.select().from(chatMessages).where(eq(chatMessages.id, messageId));
+			const [updated] = await tx
+				.update(chatRuns)
+				.set({ model, updatedAt: sql`now()` })
+				.where(eq(chatRuns.id, run.id))
+				.returning();
+			await appendEvents(tx, run.conversationId, [
+				{ type: 'run_resumed', runId: run.id, messageId, run: serializeRun(updated ?? run) }
+			]);
+			return structuredClone((message?.parts as ChatPart[] | undefined) ?? []);
+		});
+		return { messageId, parts };
 	}
-	const { messageId, updated } = await db.transaction(async (tx) => {
+	const messageId = await fenced(fence, async (tx) => {
 		const [message] = await tx
 			.insert(chatMessages)
 			.values({
@@ -294,11 +332,11 @@ async function startMessage(
 			.set({ assistantMessageId: message!.id, model, updatedAt: sql`now()` })
 			.where(eq(chatRuns.id, run.id))
 			.returning();
-		return { messageId: message!.id, updated: updated! };
+		await appendEvents(tx, run.conversationId, [
+			{ type: 'run_started', runId: run.id, messageId: message!.id, run: serializeRun(updated!) }
+		]);
+		return message!.id;
 	});
-	await emitEvents(run.conversationId, [
-		{ type: 'run_started', runId: run.id, messageId, run: serializeRun(updated) }
-	]);
 	return { messageId, parts: [] };
 }
 
@@ -314,8 +352,38 @@ async function loadModelAndLocale(userId: string) {
 	return { model: resolveClaudeModel(access?.model), userLocale: owner?.locale ?? null };
 }
 
+async function countUnconfirmedWrites(runId: string): Promise<number> {
+	const [row] = await getDB()
+		.select({ count: count() })
+		.from(chatToolCalls)
+		.where(
+			and(
+				eq(chatToolCalls.runId, runId),
+				eq(chatToolCalls.kind, 'write'),
+				isNotNull(chatToolCalls.execution)
+			)
+		);
+	return Number(row?.count ?? 0);
+}
+
+async function assertLease(fence: Fence) {
+	const [run] = await getDB()
+		.select({ id: chatRuns.id })
+		.from(chatRuns)
+		.where(
+			and(
+				eq(chatRuns.id, fence.runId),
+				eq(chatRuns.status, 'running'),
+				eq(chatRuns.leaseOwner, fence.instanceId)
+			)
+		);
+	if (!run) throw new LeaseLost();
+}
+
+/** Before every model call and tool batch: still owned, not stopped, gates open. */
 async function regate(ctx: RunContext) {
 	if (ctx.signal.aborted) throw new ClaudeAbortedError();
+	await assertLease(ctx.fence);
 	await assertClaudeGates(ctx.userId);
 }
 
@@ -364,15 +432,36 @@ async function recordAnswer(
 		.where(eq(chatToolCalls.id, id));
 }
 
+async function hasEntries(
+	userId: string,
+	column: typeof foodEntries.foodId | typeof foodEntries.recipeId,
+	id: unknown
+) {
+	if (typeof id !== 'string') return false;
+	const [row] = await getDB()
+		.select({ id: foodEntries.id })
+		.from(foodEntries)
+		.where(and(eq(foodEntries.userId, userId), eq(column, id)))
+		.limit(1);
+	return !!row;
+}
+
+const confirmLookup = (userId: string): ConfirmLookup => ({
+	foodHasEntries: (id) => hasEntries(userId, foodEntries.foodId, id),
+	recipeHasEntries: (id) => hasEntries(userId, foodEntries.recipeId, id)
+});
+
 /**
  * Runs one tool call through the MCP server (same validation and user scoping
  * as MCP), with tool_started/tool_finished events. The ledger row is claimed
- * with execution 'started' first, so a write never runs twice.
+ * with execution 'started' in a fenced transaction first, so a write never
+ * runs twice and never runs for a run that was finished elsewhere.
  */
 async function execute(
 	ctx: RunContext,
 	callId: string,
-	block: Anthropic.ToolUseBlockParam
+	block: Anthropic.ToolUseBlockParam,
+	input: Record<string, unknown>
 ): Promise<Anthropic.ToolResultBlockParam> {
 	const [claimed] = await fenced(ctx.fence, (tx) =>
 		tx
@@ -387,7 +476,6 @@ async function execute(
 		await recordAnswer(callId, text, true);
 		return toolResult(block.id, text, true);
 	}
-	const input = asRecord(block.input);
 	const policy = chatToolPolicy(block.name);
 	const partIndex = ctx.writer.nextPartIndex();
 	ctx.writer.emit({
@@ -470,7 +558,10 @@ async function handleToolUse(
 	if (existing) {
 		if (existing.actionStatus === 'pending') return { paused: true };
 		if (existing.actionStatus === 'approved') {
-			return { paused: false, result: await execute(ctx, existing.id, block) };
+			return {
+				paused: false,
+				result: await execute(ctx, existing.id, block, asRecord(existing.input))
+			};
 		}
 		if (existing.actionStatus === 'rejected') {
 			await recordAnswer(existing.id, DECLINED_RESULT, true);
@@ -483,7 +574,12 @@ async function handleToolUse(
 
 	const policy = chatToolPolicy(block.name);
 	const input = asRecord(block.input);
-	const kind = policy && policy.kind !== 'excluded' ? policy.kind : 'read';
+	const offered = policy && policy.kind !== 'excluded' ? policy : null;
+	const confirm =
+		!!offered &&
+		((await needsConfirmation(offered, input, confirmLookup(ctx.userId))) ||
+			(offered.kind === 'write' && ctx.unconfirmedWrites >= MAX_UNCONFIRMED_WRITES_PER_RUN));
+	const kind = confirm ? 'confirm' : (offered?.kind ?? 'read');
 	const [row] = await getDB()
 		.insert(chatToolCalls)
 		.values({
@@ -500,20 +596,20 @@ async function handleToolUse(
 		.returning();
 	if (!row) return handleToolUse(ctx, block, index);
 
-	const rejection =
-		!policy || policy.kind === 'excluded'
-			? `Unknown tool ${block.name}.`
-			: index >= MAX_TOOL_CALLS_PER_RESPONSE
-				? 'Too many tool calls in one response. Make fewer calls per turn.'
-				: null;
+	const rejection = !offered
+		? `Unknown tool ${block.name}.`
+		: index >= MAX_TOOL_CALLS_PER_RESPONSE
+			? 'Too many tool calls in one response. Make fewer calls per turn.'
+			: null;
 	if (rejection) {
 		const text = JSON.stringify({ error: rejection });
 		await recordAnswer(row.id, text, true);
 		return { paused: false, result: toolResult(block.id, text, true) };
 	}
 
-	if (policy!.kind !== 'confirm') {
-		return { paused: false, result: await execute(ctx, row.id, block) };
+	if (!confirm) {
+		if (kind === 'write') ctx.unconfirmedWrites++;
+		return { paused: false, result: await execute(ctx, row.id, block, input) };
 	}
 
 	const preview = await buildActionPreview(block.name, input, {
@@ -531,6 +627,7 @@ async function handleToolUse(
 		tx
 			.update(chatToolCalls)
 			.set({
+				input: preview.input,
 				actionStatus: 'pending',
 				preview: preview.preview,
 				partIndex,
@@ -539,13 +636,15 @@ async function handleToolUse(
 			.where(eq(chatToolCalls.id, row.id))
 			.returning()
 	);
-	ctx.writer.emit({
+	const event: ChatEvent = {
 		type: 'action_required',
 		runId: ctx.run.id,
 		messageId: ctx.messageId,
 		partIndex,
 		action: serializeAction(action!, ctx.locale)
-	});
+	};
+	ctx.writer.apply(event);
+	ctx.pendingAction = event;
 	return { paused: true };
 }
 
@@ -582,6 +681,7 @@ function onServerBlock(ctx: RunContext, block: Anthropic.ContentBlock) {
 		return;
 	}
 	if (block.type === 'server_tool_use') {
+		if (!SHOWN_SERVER_TOOLS.has(block.name)) return;
 		const partIndex = ctx.writer.nextPartIndex();
 		ctx.serverTools.set(block.id, { partIndex, name: block.name });
 		ctx.writer.emit({
@@ -595,23 +695,104 @@ function onServerBlock(ctx: RunContext, block: Anthropic.ContentBlock) {
 		});
 		return;
 	}
-	if (block.type === 'web_search_tool_result' || block.type === 'web_fetch_tool_result') {
-		const started = ctx.serverTools.get(block.tool_use_id);
-		if (!started) return;
-		ctx.serverTools.delete(block.tool_use_id);
-		ctx.writer.emit({
-			type: 'tool_finished',
-			runId: ctx.run.id,
-			messageId: ctx.messageId,
-			partIndex: started.partIndex,
-			toolUseId: block.tool_use_id,
-			name: started.name,
-			status: serverToolFailed(block) ? 'error' : 'ok',
-			summary: null,
-			changed: [],
-			changes: []
-		});
+	if (!SHOWN_SERVER_RESULTS.has(block.type) || !('tool_use_id' in block)) return;
+	const started = ctx.serverTools.get(block.tool_use_id);
+	if (!started) return;
+	ctx.serverTools.delete(block.tool_use_id);
+	ctx.writer.emit({
+		type: 'tool_finished',
+		runId: ctx.run.id,
+		messageId: ctx.messageId,
+		partIndex: started.partIndex,
+		toolUseId: block.tool_use_id,
+		name: started.name,
+		status: serverToolFailed(block as { content?: unknown }) ? 'error' : 'ok',
+		summary: null,
+		changed: [],
+		changes: []
+	});
+}
+
+/**
+ * One model call with up to RETRY_DELAYS_MS.length retries of transient
+ * failures (rate limits, overload, server errors, timeouts) that happened
+ * before anything of the call streamed; each try is its own reservation.
+ */
+async function callWithRetries(
+	ctx: RunContext,
+	paused: RawMessage[],
+	continuation: boolean
+): Promise<Anthropic.Message> {
+	for (let retries = 0; ;) {
+		let streamed = false;
+		const declaresFetch = ctx.snapshot.tools.some(isWebFetchTool);
+		const mayDropFetch = declaresFetch && !continuation && !isWebFetchAccepted();
+		const { messages, imageCount } = await hydrate(
+			ctx.userId,
+			[...ctx.raw, ...paused],
+			ctx.images,
+			ctx.snapshot.fromPosition
+		);
+		const request = withCacheBreakpoints(ctx.snapshot, messages);
+		ctx.writer.endText();
+		try {
+			const response = await callClaude({
+				userId: ctx.userId,
+				feature: CHAT_FEATURE,
+				model: ctx.model,
+				chatConversationId: ctx.conversationId,
+				params: { ...request, ...(ctx.container ? { container: ctx.container } : {}) },
+				imageCount,
+				maxTokens: CHAT_MAX_TOKENS,
+				signal: ctx.signal,
+				expectedRejection: mayDropFetch ? isInvalidRequest : undefined,
+				stream: {
+					onText: (delta) => {
+						streamed = true;
+						ctx.writer.text(delta);
+					},
+					onBlock: (block) => {
+						streamed = true;
+						onServerBlock(ctx, block);
+					}
+				}
+			});
+			if (declaresFetch) acceptWebFetch();
+			return response;
+		} catch (error) {
+			if (mayDropFetch && isInvalidRequest(error) && !streamed) {
+				await dropWebFetch(ctx);
+				continue;
+			}
+			const retryable = error instanceof ClaudeApiError && error.retryable && !streamed;
+			const delay = RETRY_DELAYS_MS[retries++];
+			if (!retryable || delay === undefined) throw error;
+			await ctx.sleep(delay, ctx.signal);
+			await regate(ctx);
+		}
 	}
+}
+
+/**
+ * The API rejected the web fetch tool: like the task loop, drop it until the
+ * next restart. The conversation gets a new prompt without it from here on.
+ */
+async function dropWebFetch(ctx: RunContext) {
+	if (rejectWebFetch()) {
+		Sentry.captureMessage(
+			'The API rejected a chat request with web fetch; web fetch is off until the next restart',
+			{ level: 'warning', tags: { job: 'chat-run' }, extra: { model: ctx.model } }
+		);
+	}
+	ctx.snapshot = await ensurePromptSnapshot(ctx.conversation, ctx.model, {
+		rebuild: true,
+		transcriptLength: ctx.raw.length
+	});
+	ctx.conversation = {
+		...ctx.conversation,
+		promptId: ctx.snapshot.id,
+		promptFromPosition: ctx.snapshot.fromPosition
+	};
 }
 
 async function loop(ctx: RunContext): Promise<LoopOutcome> {
@@ -626,23 +807,8 @@ async function loop(ctx: RunContext): Promise<LoopOutcome> {
 			return { paused: false, ending: { status: 'completed', reason: 'iteration_limit' } };
 		}
 		await regate(ctx);
-		const { messages, imageCount } = await hydrate(ctx.userId, [...ctx.raw, ...paused], ctx.images);
-		const request = withCacheBreakpoints(ctx.snapshot, messages);
-		ctx.writer.endText();
-		const response = await callClaude({
-			userId: ctx.userId,
-			feature: CHAT_FEATURE,
-			model: ctx.model,
-			chatConversationId: ctx.conversationId,
-			params: request,
-			imageCount,
-			maxTokens: CHAT_MAX_TOKENS,
-			signal: ctx.signal,
-			stream: {
-				onText: (delta) => ctx.writer.text(delta),
-				onBlock: (block) => onServerBlock(ctx, block)
-			}
-		});
+		const response = await callWithRetries(ctx, paused, paused.length > 0);
+		ctx.container = response.container?.id ?? ctx.container;
 		ctx.iterations++;
 		ctx.writer.endText();
 		await Promise.all([ctx.writer.flush(), saveIterations(ctx)]);
@@ -654,6 +820,9 @@ async function loop(ctx: RunContext): Promise<LoopOutcome> {
 		const unanswered = hasUnansweredServerTool(response.content);
 		if (response.stop_reason === 'refusal') {
 			return { paused: false, ending: { status: 'failed', reason: 'refusal' } };
+		}
+		if (response.stop_reason === 'model_context_window_exceeded') {
+			return { paused: false, ending: { status: 'failed', reason: 'conversation_too_long' } };
 		}
 		if (
 			response.stop_reason === 'pause_turn' ||
@@ -701,16 +870,28 @@ async function endingForFailure(
 		return { status: 'interrupted', reason: 'server_restart' };
 	}
 	if (error instanceof ClaudeApiError) {
-		return { status: 'failed', reason: 'api_error' };
+		return {
+			status: 'failed',
+			reason: error.status === 413 ? 'conversation_too_long' : 'api_error'
+		};
 	}
 	Sentry.captureException(error, { tags: { job: 'chat-run' } });
 	return { status: 'failed', reason: 'internal_error' };
 }
 
+/**
+ * Hands the run to the user: in one transaction the run turns
+ * awaiting_confirmation and action_required is written, so a client that sees
+ * the card can always approve it.
+ */
 async function pauseRun(ctx: RunContext, instanceId: string) {
 	await ctx.writer.flush();
-	const db = getDB();
-	await db.transaction(async (tx) => {
+	await getDB().transaction(async (tx) => {
+		await tx
+			.select({ id: chatConversations.id })
+			.from(chatConversations)
+			.where(eq(chatConversations.id, ctx.conversationId))
+			.for('update');
 		const [run] = await tx
 			.update(chatRuns)
 			.set({
@@ -733,7 +914,9 @@ async function pauseRun(ctx: RunContext, instanceId: string) {
 			.update(chatMessages)
 			.set({ parts: ctx.writer.parts, updatedAt: sql`now()` })
 			.where(eq(chatMessages.id, ctx.messageId));
+		if (ctx.pendingAction) await appendEvents(tx, ctx.conversationId, [ctx.pendingAction]);
 	});
+	notifyConversation(ctx.conversationId);
 }
 
 /**
@@ -771,31 +954,43 @@ export async function executeChatRun(runId: string, options: RunOptions): Promis
 			.from(chatMessages)
 			.where(eq(chatMessages.id, run.userMessageId));
 		const contextLocale = (userMessage?.context as { locale?: string } | null)?.locale;
-		const { messageId, parts } = await startMessage(run, model);
-		const snapshot = await ensurePromptSnapshot(conversation, model);
-		mcp = await connectMcp(run.userId);
 		const fence = {
 			conversationId: run.conversationId,
 			runId: run.id,
 			instanceId: options.instanceId
 		};
+		const { messageId, parts } = await startMessage(run, fence, model);
+		const raw = await loadRaw(getDB(), run.conversationId);
+		const snapshot = await ensurePromptSnapshot(conversation, model, {
+			transcriptLength: raw.length
+		});
+		mcp = await connectMcp(run.userId);
 		ctx = {
 			run,
 			fence,
+			conversation: {
+				...conversation,
+				promptId: snapshot.id,
+				promptFromPosition: snapshot.fromPosition
+			},
 			userId: run.userId,
 			conversationId: run.conversationId,
 			messageId,
 			locale: toChatLocale(contextLocale ?? userLocale),
 			model,
 			snapshot,
-			raw: await loadRaw(getDB(), run.conversationId),
+			raw,
 			images: new Map(),
 			writer: new EventWriter(fence, messageId, parts),
 			mcp,
 			signal,
 			iterations: run.iterations,
 			changes: parseChanges(run.changes),
-			serverTools: new Map()
+			unconfirmedWrites: await countUnconfirmedWrites(run.id),
+			container: undefined,
+			serverTools: new Map(),
+			pendingAction: null,
+			sleep: options.sleep ?? abortableSleep
 		};
 		const outcome = await loop(ctx);
 		if (outcome.paused) {

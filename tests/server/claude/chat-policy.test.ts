@@ -7,9 +7,16 @@ vi.mock('$lib/server/claude/config', () => ({
 	isClaudeConfigured: () => true
 }));
 
-const { CHAT_TOOL_POLICY, chatToolPolicy } = await import('$lib/server/claude/chat/policy');
+const {
+	CHAT_TOOL_POLICY,
+	FOOD_NUTRITION_FIELDS,
+	chatToolPolicy,
+	needsConfirmation,
+	possibleChanges
+} = await import('$lib/server/claude/chat/policy');
 const { listMcpTools, chatToolDefinitions } = await import('$lib/server/claude/chat/tools');
-const { PREVIEW_BUILDERS } = await import('$lib/server/claude/chat/previews');
+const { FIELD_PREVIEW_BUILDERS, PREVIEW_BUILDERS, PREVIEW_SCHEMAS } =
+	await import('$lib/server/claude/chat/previews');
 const { hasMessage } = await import('$lib/server/claude/chat/labels');
 const { CHAT_SYSTEM_PROMPT, buildUserContent } = await import('$lib/server/claude/chat/prompt');
 const { CHAT_FIRST_CALL_INPUT_TOKENS } = await import('$lib/server/claude/chat/constants');
@@ -191,6 +198,86 @@ describe('chat tool policy', () => {
 		expect(await changesOf('set_recipe_labels', { recipeId: 'r1' })).toEqual([
 			{ domain: 'labels' },
 			{ domain: 'recipes', ids: ['r1'] }
+		]);
+	});
+});
+
+describe('confirmations', () => {
+	const lookup = (entries: boolean) => ({
+		foodHasEntries: async () => entries,
+		recipeHasEntries: async () => entries
+	});
+	const confirms = (name: string, input: Record<string, unknown>, entries = true) =>
+		needsConfirmation(chatToolPolicy(name)!, input, lookup(entries));
+
+	test('every field of a confirmable tool is shown on its card or rejected', () => {
+		for (const tool of tools) {
+			const builder = PREVIEW_BUILDERS[tool.name];
+			if (!builder) continue;
+			const schema = PREVIEW_SCHEMAS[tool.name as keyof typeof PREVIEW_SCHEMAS];
+			expect(schema, tool.name).toBeDefined();
+			const accepted = Object.keys(schema.shape);
+			const offered = Object.keys((tool.inputSchema.properties ?? {}) as Record<string, unknown>);
+			expect(accepted.sort(), tool.name).toEqual(expect.arrayContaining(offered.sort()));
+			expect(schema.safeParse({ unexpectedField: 1 }).success, tool.name).toBe(false);
+		}
+		expect(Object.keys(PREVIEW_SCHEMAS).sort()).toEqual(Object.keys(PREVIEW_BUILDERS).sort());
+	});
+
+	test('cards for conditional confirmations exist for every write that can ask', () => {
+		for (const [name, policy] of Object.entries(CHAT_TOOL_POLICY)) {
+			if (policy.kind === 'write' && policy.confirmWhen) {
+				expect(Object.hasOwn(FIELD_PREVIEW_BUILDERS, name), name).toBe(true);
+			}
+		}
+	});
+
+	test('asks before irreversible overwrites and forced calls only', async () => {
+		expect(await confirms('delete_entry', {})).toBe(true);
+		expect(await confirms('log_food', { foodId: 'f' })).toBe(false);
+		expect(await confirms('log_food', { force: true })).toBe(true);
+		expect(await confirms('update_goals', { calorieGoal: 2000 })).toBe(false);
+		expect(await confirms('update_food', { foodId: 'f', name: 'New name' })).toBe(false);
+		expect(await confirms('update_food', { foodId: 'f', calories: 100 })).toBe(true);
+		expect(await confirms('update_food', { foodId: 'f', calories: 100 }, false)).toBe(false);
+		expect(await confirms('update_food', { foodId: 'f', imageUrl: null })).toBe(true);
+		expect(FOOD_NUTRITION_FIELDS).toContain('vitaminC');
+		expect(await confirms('update_recipe', { recipeId: 'r', name: 'x' })).toBe(false);
+		expect(await confirms('update_recipe', { recipeId: 'r', steps: [] }, false)).toBe(true);
+		expect(await confirms('update_recipe', { recipeId: 'r', ingredients: [] }, false)).toBe(true);
+		expect(await confirms('update_recipe', { recipeId: 'r', totalServings: 4 })).toBe(true);
+		expect(await confirms('update_recipe', { recipeId: 'r', totalServings: 4 }, false)).toBe(false);
+		expect(await confirms('update_supplement', { supplementId: 's', ingredients: [] })).toBe(true);
+		expect(await confirms('update_supplement', { supplementId: 's', isActive: false })).toBe(false);
+		expect(await needsConfirmation({ kind: 'read' }, { force: true }, lookup(true))).toBe(false);
+	});
+
+	test('reports the domains a write of unknown outcome may have touched, unscoped', async () => {
+		expect(await possibleChanges('log_food', { date: '2026-11-19' })).toEqual([
+			{ domain: 'entries' }
+		]);
+		expect(await possibleChanges('delete_food', { foodId: 'f', force: true })).toEqual([
+			{ domain: 'foods' },
+			{ domain: 'recipes' },
+			{ domain: 'supplements' },
+			{ domain: 'entries' }
+		]);
+		expect(await possibleChanges('search_foods', {})).toEqual([]);
+		expect(await possibleChanges('nope', {})).toEqual([]);
+	});
+
+	test('reports foods when supplements create them inline', async () => {
+		const inline = { ingredients: [{ food: { name: 'Zinc' }, servings: 1 }] };
+		expect(await changesOf('create_supplement', inline, { supplementId: 's' })).toEqual([
+			{ domain: 'supplements', ids: ['s'] },
+			{ domain: 'foods' }
+		]);
+		expect(await changesOf('update_supplement', { supplementId: 's', ...inline })).toEqual([
+			{ domain: 'supplements', ids: ['s'] },
+			{ domain: 'foods' }
+		]);
+		expect(await changesOf('create_supplement', { ingredients: [{ foodId: 'f' }] }, {})).toEqual([
+			{ domain: 'supplements' }
 		]);
 	});
 });

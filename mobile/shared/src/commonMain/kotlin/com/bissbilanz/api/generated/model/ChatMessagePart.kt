@@ -30,7 +30,7 @@ import kotlinx.serialization.encoding.*
  * @param toolUseId tool and action parts.
  * @param name tool and action parts: the tool name.
  * @param label tool and action parts: a short label in the user’s language, e.g. \"Logging food\".
- * @param status Tool parts: running, ok, error, declined. Action parts: pending, approved, rejected, expired, cancelled. Clients must accept values not listed here.
+ * @param status Tool parts: running, ok, error (a finished message never has a running part). Action parts: pending, approved, rejected, expired, cancelled. Clients must accept values not listed here.
  * @param summary tool parts: the error message when status is error, otherwise null.
  * @param changed tool parts: domains the call changed.
  * @param changes tool parts.
@@ -52,7 +52,7 @@ data class ChatMessagePart(
     @SerialName(value = "name") val name: kotlin.String? = null,
     // tool and action parts: a short label in the user’s language, e.g. \"Logging food\".
     @SerialName(value = "label") val label: kotlin.String? = null,
-    // Tool parts: running, ok, error, declined. Action parts: pending, approved, rejected, expired, cancelled. Clients must accept values not listed here.
+    // Tool parts: running, ok, error (a finished message never has a running part). Action parts: pending, approved, rejected, expired, cancelled. Clients must accept values not listed here.
     @SerialName(value = "status") val status: kotlin.String? = null,
     // tool parts: the error message when status is error, otherwise null.
     @SerialName(value = "summary") val summary: kotlin.String? = null,

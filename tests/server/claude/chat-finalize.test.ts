@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import type { SQL } from 'drizzle-orm';
 import { createMockDB } from '../../helpers/mock-db';
-import type { ChatMessageRow, ChatRun, ChatToolCall } from '$lib/server/schema';
+import { users, type ChatMessageRow, type ChatRun, type ChatToolCall } from '$lib/server/schema';
 import type { ChatEvent } from '$lib/server/claude/chat/events';
 import type { RawMessage } from '$lib/server/claude/chat/transcript';
 
@@ -12,7 +12,8 @@ const h = vi.hoisted(() => ({
 	listRunEvents: vi.fn(),
 	notifyConversation: vi.fn(),
 	loadRaw: vi.fn(),
-	appendRaw: vi.fn()
+	appendRaw: vi.fn(),
+	possibleChanges: vi.fn()
 }));
 
 const { db, queueResults, reset, getCalls } = createMockDB();
@@ -31,6 +32,11 @@ vi.mock('$lib/server/claude/chat/transcript', async (importOriginal) => ({
 	...(await importOriginal<typeof import('$lib/server/claude/chat/transcript')>()),
 	loadRaw: h.loadRaw,
 	appendRaw: h.appendRaw
+}));
+
+vi.mock('$lib/server/claude/chat/policy', async (importOriginal) => ({
+	...(await importOriginal<typeof import('$lib/server/claude/chat/policy')>()),
+	possibleChanges: h.possibleChanges
 }));
 
 const finalize = await import('$lib/server/claude/chat/finalize');
@@ -123,21 +129,27 @@ type Script = {
 	locked?: ChatRun | null;
 	pending?: ChatToolCall[];
 	calls?: ChatToolCall[];
+	unknown?: ChatToolCall[];
+	owner?: unknown[];
 	message?: ChatMessageRow | null;
 	updated?: ChatRun;
+	inTx?: boolean;
 };
 
 const script = (o: Script = {}) => {
 	const current = o.current === undefined ? runRow() : o.current;
 	const locked = o.locked === undefined ? current : o.locked;
 	const withMessage = !!locked?.assistantMessageId;
+	const unknown = o.unknown ?? [];
 	queueResults([
-		current ? [current] : [],
+		...(o.inTx ? [] : [current ? [current] : []]),
 		o.conversation ?? [{ id: CID }],
 		locked ? [locked] : [],
 		o.pending ?? [],
 		...(o.calls ? [o.calls] : []),
-		[],
+		unknown,
+		...unknown.map(() => []),
+		...(o.owner ? [o.owner] : []),
 		...(withMessage ? [o.message === null ? [] : [o.message ?? messageRow()]] : []),
 		[
 			o.updated ??
@@ -180,6 +192,7 @@ beforeEach(() => {
 	h.getChatCapabilitySafe.mockResolvedValue(CAPABILITY);
 	h.loadRaw.mockResolvedValue([]);
 	h.listRunEvents.mockResolvedValue([]);
+	h.possibleChanges.mockResolvedValue([]);
 	h.appendEvents.mockResolvedValue([]);
 });
 
@@ -670,12 +683,42 @@ describe('finalizeRun: error events', () => {
 		['user_budget_exhausted', "This month's assistant budget is used up."],
 		['global_budget_exhausted', "The assistant's budget for this month is used up."],
 		['refusal', 'The assistant declined to answer this request.'],
+		['conversation_too_long', 'This conversation is too long; start a new one.'],
 		['api_error', 'The assistant service returned an error. Try again.'],
 		['internal_error', 'The assistant stopped because of an internal error.']
 	])('a failed run with reason %s reads the message from the table', async (reason, message) => {
 		script();
 		await finalize.finalizeRun(RID, { status: 'failed', reason });
 		expect(emitted(0)).toEqual([{ type: 'error', runId: RID, code: reason, error: message }]);
+	});
+
+	test('an empty error message falls back to the table, then to the generic one', async () => {
+		script();
+		await finalize.finalizeRun(RID, {
+			status: 'failed',
+			reason: 'api_error',
+			error: { code: 'api_error', message: '' }
+		});
+		expect(emitted(0)).toEqual([
+			{
+				type: 'error',
+				runId: RID,
+				code: 'api_error',
+				error: 'The assistant service returned an error. Try again.'
+			}
+		]);
+
+		reset();
+		h.appendEvents.mockClear();
+		script();
+		await finalize.finalizeRun(RID, {
+			status: 'failed',
+			reason: 'api_error',
+			error: { code: 'brand_new_code', message: '' }
+		});
+		expect(emitted(0)).toEqual([
+			{ type: 'error', runId: RID, code: 'brand_new_code', error: 'The assistant stopped.' }
+		]);
 	});
 
 	test('the message of the error wins over the table', async () => {
@@ -820,10 +863,11 @@ describe('finalizeRun: ending the run', () => {
 		expect(whereOf(6).params).toEqual([RID]);
 
 		const view = serializeRun(updated);
-		expect(h.appendEvents).toHaveBeenCalledTimes(2);
-		expect(h.appendEvents.mock.calls[1]![0]).toBe(db);
-		expect(h.appendEvents.mock.calls[1]![1]).toBe(CID);
-		expect(emitted(1)).toEqual([
+		expect(h.appendEvents).toHaveBeenCalledTimes(3);
+		expect(h.appendEvents.mock.calls[2]![0]).toBe(db);
+		expect(h.appendEvents.mock.calls[2]![1]).toBe(CID);
+		expect(emitted(1)).toEqual([]);
+		expect(emitted(2)).toEqual([
 			{
 				type: 'message_completed',
 				runId: RID,
@@ -865,9 +909,9 @@ describe('finalizeRun: ending the run', () => {
 			leaseOwner: null,
 			heartbeatAt: null
 		});
-		const finished = emitted(1).at(-1) as Extract<ChatEvent, { type: 'run_finished' }>;
+		const finished = emitted(2).at(-1) as Extract<ChatEvent, { type: 'run_finished' }>;
 		expect(finished).toMatchObject({ status, reason, changed: [], changes: [] });
-		expect(emitted(1)[0]).toMatchObject({
+		expect(emitted(2)[0]).toMatchObject({
 			type: 'message_completed',
 			message: { status, reason }
 		});
@@ -913,15 +957,15 @@ describe('finalizeRun: ending the run', () => {
 	test('omits message_completed when the assistant message was deleted meanwhile', async () => {
 		script({ message: null });
 		await finalize.finalizeRun(RID, COMPLETED);
-		expect(emitted(1).map((event) => event.type)).toEqual(['run_finished']);
-		expect(emitted(1)[0]).toMatchObject({ messageId: AID });
+		expect(emitted(2).map((event) => event.type)).toEqual(['run_finished']);
+		expect(emitted(2)[0]).toMatchObject({ messageId: AID });
 	});
 
 	test('carries the unavailable capability when it could not be read', async () => {
 		h.getChatCapabilitySafe.mockResolvedValue({ available: false });
 		script();
 		await finalize.finalizeRun(RID, COMPLETED);
-		expect(emitted(1).at(-1)).toMatchObject({ capability: { available: false } });
+		expect(emitted(2).at(-1)).toMatchObject({ capability: { available: false } });
 	});
 
 	test('wakes the conversations listeners once, after the transaction committed', async () => {
@@ -929,7 +973,7 @@ describe('finalizeRun: ending the run', () => {
 		await finalize.finalizeRun(RID, COMPLETED);
 		expect(h.notifyConversation).toHaveBeenCalledTimes(1);
 		expect(h.notifyConversation).toHaveBeenCalledWith('conv-from-row');
-		expect(order(h.notifyConversation)).toBeGreaterThan(order(h.appendEvents, 1));
+		expect(order(h.notifyConversation)).toBeGreaterThan(order(h.appendEvents, 2));
 	});
 
 	test('does not wake anyone when a step of the transaction fails', async () => {
@@ -937,5 +981,394 @@ describe('finalizeRun: ending the run', () => {
 		script();
 		await expect(finalize.finalizeRun(RID, COMPLETED)).rejects.toThrow('seq conflict');
 		expect(h.notifyConversation).not.toHaveBeenCalled();
+	});
+});
+
+const ev = (event: ChatEvent, seq: number) => ({ ...event, seq, createdAt: T.toISOString() });
+const started = (partIndex: number, toolUseId: string, name = 'log_food'): ChatEvent => ({
+	type: 'tool_started',
+	runId: RID,
+	messageId: AID,
+	partIndex,
+	toolUseId,
+	name,
+	label: 'Logging food'
+});
+const finished = (
+	partIndex: number,
+	toolUseId: string,
+	status: 'ok' | 'error',
+	changes: { domain: 'entries' | 'foods' | 'weight'; dates?: string[] }[] = []
+): ChatEvent => ({
+	type: 'tool_finished',
+	runId: RID,
+	messageId: AID,
+	partIndex,
+	toolUseId,
+	name: 'log_food',
+	status,
+	summary: `was ${status}`,
+	changed: changes.map((change) => change.domain),
+	changes
+});
+const text = (partIndex: number, value: string): ChatEvent => ({
+	type: 'text_delta',
+	runId: RID,
+	messageId: AID,
+	partIndex,
+	text: value
+});
+const midFlight = (overrides: Partial<ChatToolCall> = {}) =>
+	callRow({
+		id: 'call-1',
+		toolUseId: 'tu-1',
+		toolName: 'log_food',
+		input: { foodId: 'f-1' },
+		execution: 'unknown',
+		resultText: UNKNOWN_OUTCOME,
+		isError: true,
+		...overrides
+	});
+const STOPPED_EN = 'Stopped before it finished. Check the result.';
+const STOPPED_DE = 'Vor dem Ende gestoppt. Prüfe das Ergebnis.';
+
+describe('finalizeRun: calls that were still running', () => {
+	test('stores the domains an unknown write may have changed on the call and the run', async () => {
+		h.possibleChanges.mockImplementation(async (name: string) =>
+			name === 'log_food' ? [{ domain: 'entries' }] : [{ domain: 'weight' }]
+		);
+		script({
+			unknown: [
+				midFlight(),
+				midFlight({ id: 'call-2', toolUseId: 'tu-2', toolName: 'log_weight', input: { kg: 70 } })
+			],
+			updated: runRow({
+				status: 'cancelled',
+				reason: 'user_cancelled',
+				changes: [{ domain: 'entries' }, { domain: 'weight' }],
+				leaseOwner: null,
+				heartbeatAt: null,
+				finishedAt: T
+			})
+		});
+
+		await finalize.finalizeRun(RID, { status: 'cancelled', reason: 'user_cancelled' });
+
+		expect(h.possibleChanges.mock.calls).toEqual([
+			['log_food', { foodId: 'f-1' }],
+			['log_weight', { kg: 70 }]
+		]);
+		const sets = setCalls();
+		expect(sets[1]).toMatchObject({ execution: 'unknown', isError: true });
+		expect(sets[2]).toEqual({ changes: [{ domain: 'entries' }] });
+		expect(sets[3]).toEqual({ changes: [{ domain: 'weight' }] });
+		expect(whereOf(5).params).toEqual(['call-1']);
+		expect(whereOf(6).params).toEqual(['call-2']);
+		expect(sets[5]).toMatchObject({
+			status: 'cancelled',
+			changes: [{ domain: 'entries' }, { domain: 'weight' }]
+		});
+		const run = emitted(2).at(-1) as Extract<ChatEvent, { type: 'run_finished' }>;
+		expect(run.changed).toEqual(['entries', 'weight']);
+		expect(run.changes).toEqual([{ domain: 'entries' }, { domain: 'weight' }]);
+	});
+
+	test('counts them for a run that never created an assistant message', async () => {
+		h.possibleChanges.mockResolvedValue([{ domain: 'foods' }]);
+		script({
+			current: runRow({ assistantMessageId: null }),
+			unknown: [midFlight({ toolName: 'create_food' })],
+			updated: runRow({
+				assistantMessageId: null,
+				status: 'failed',
+				reason: 'api_error',
+				changes: [{ domain: 'foods' }],
+				leaseOwner: null,
+				heartbeatAt: null,
+				finishedAt: T
+			})
+		});
+
+		await finalize.finalizeRun(RID, { status: 'failed', reason: 'api_error' });
+
+		expect(h.listRunEvents).not.toHaveBeenCalled();
+		const sets = setCalls();
+		expect(sets).toHaveLength(4);
+		expect(sets[2]).toEqual({ changes: [{ domain: 'foods' }] });
+		expect(sets[3]).toMatchObject({ changes: [{ domain: 'foods' }] });
+		expect(emitted(1)).toEqual([
+			expect.objectContaining({
+				type: 'run_finished',
+				messageId: null,
+				changed: ['foods'],
+				changes: [{ domain: 'foods' }]
+			})
+		]);
+	});
+
+	test('stores an empty list for a call that cannot have changed anything', async () => {
+		script({ unknown: [midFlight({ toolName: 'search_foods' })] });
+		await finalize.finalizeRun(RID, COMPLETED);
+		expect(h.possibleChanges).toHaveBeenCalledWith('search_foods', { foodId: 'f-1' });
+		const sets = setCalls();
+		expect(sets[2]).toEqual({ changes: [] });
+		expect(sets[4]).toMatchObject({ changes: [] });
+	});
+
+	test('merges them with the changes of the tools that finished', async () => {
+		h.possibleChanges.mockResolvedValue([{ domain: 'entries' }]);
+		h.listRunEvents.mockResolvedValue([
+			ev(started(0, 'tu-done'), 2),
+			ev(finished(0, 'tu-done', 'ok', [{ domain: 'entries', dates: ['2026-11-18'] }]), 3),
+			ev(started(1, 'tu-x'), 4),
+			ev(finished(1, 'tu-x', 'ok', [{ domain: 'weight' }]), 5)
+		]);
+		script({ unknown: [midFlight({ toolUseId: 'tu-other' })] });
+
+		await finalize.finalizeRun(RID, COMPLETED);
+
+		const runSet = setCalls().at(-1)!;
+		expect(runSet.changes).toEqual([{ domain: 'entries' }, { domain: 'weight' }]);
+	});
+
+	test('marks only calls this run started', async () => {
+		script({ unknown: [] });
+		await finalize.finalizeRun(RID, COMPLETED);
+		expect(h.possibleChanges).not.toHaveBeenCalled();
+		expect(setCalls().filter((set) => 'changes' in set && !('status' in set))).toEqual([]);
+	});
+});
+
+describe('finalizeRun: tool parts still running', () => {
+	const closingOf = (call: number) =>
+		emitted(call) as Array<Extract<ChatEvent, { type: 'tool_finished' }>>;
+	const storedParts = (index: number) =>
+		(setCalls()[index] as { parts: Array<Record<string, unknown>> }).parts;
+	const noRunningPart = (parts: Array<Record<string, unknown>>) =>
+		parts.every((part) => part.type !== 'tool' || part.status !== 'running');
+
+	test('finishes a running part with an error and the localized stopped message', async () => {
+		h.listRunEvents.mockResolvedValue([
+			ev(started(0, 'tu-run'), 2),
+			ev(started(1, 'tu-done', 'search_foods'), 3),
+			ev(finished(1, 'tu-done', 'ok'), 4),
+			ev(text(2, 'Partial'), 5)
+		]);
+		script({ owner: [{ locale: 'de-CH' }] });
+
+		await finalize.finalizeRun(RID, { status: 'cancelled', reason: 'user_cancelled' });
+
+		const owner = callsOf('from').find((call) => call.args[0] === users);
+		expect(owner).toBeDefined();
+		expect(whereOf(5).params).toEqual([UID]);
+		expect(closingOf(1)).toEqual([
+			{
+				type: 'tool_finished',
+				runId: RID,
+				messageId: AID,
+				partIndex: 0,
+				toolUseId: 'tu-run',
+				name: 'log_food',
+				status: 'error',
+				summary: STOPPED_DE,
+				changed: [],
+				changes: []
+			}
+		]);
+		const parts = storedParts(2);
+		expect(noRunningPart(parts)).toBe(true);
+		expect(parts).toEqual([
+			expect.objectContaining({
+				type: 'tool',
+				toolUseId: 'tu-run',
+				status: 'error',
+				summary: STOPPED_DE,
+				changes: []
+			}),
+			expect.objectContaining({ type: 'tool', toolUseId: 'tu-done', status: 'ok' }),
+			{ type: 'text', text: 'Partial' }
+		]);
+		expect(emitted(2).map((event) => event.type)).toEqual(['message_completed', 'run_finished']);
+	});
+
+	test('speaks English without an owner row', async () => {
+		h.listRunEvents.mockResolvedValue([ev(started(0, 'tu-run'), 2)]);
+		script({ owner: [] });
+		await finalize.finalizeRun(RID, COMPLETED);
+		expect(closingOf(1)[0]).toMatchObject({ status: 'error', summary: STOPPED_EN });
+		expect(storedParts(2)[0]).toMatchObject({ status: 'error', summary: STOPPED_EN });
+	});
+
+	test('reads the owner once and closes every running part in order', async () => {
+		h.listRunEvents.mockResolvedValue([
+			ev(started(0, 'tu-a'), 2),
+			ev(started(1, 'tu-b', 'search_foods'), 3),
+			ev(started(2, 'tu-c'), 4)
+		]);
+		script({ owner: [{ locale: 'en' }] });
+
+		await finalize.finalizeRun(RID, COMPLETED);
+
+		expect(callsOf('from').filter((call) => call.args[0] === users)).toHaveLength(1);
+		expect(closingOf(1).map((event) => [event.partIndex, event.toolUseId, event.name])).toEqual([
+			[0, 'tu-a', 'log_food'],
+			[1, 'tu-b', 'search_foods'],
+			[2, 'tu-c', 'log_food']
+		]);
+		expect(noRunningPart(storedParts(2))).toBe(true);
+		expect(storedParts(2).map((part) => part.status)).toEqual(['error', 'error', 'error']);
+	});
+
+	test('gives a write that was mid-flight every domain it may have changed', async () => {
+		h.possibleChanges.mockResolvedValue([{ domain: 'entries' }]);
+		h.listRunEvents.mockResolvedValue([ev(started(0, 'tu-run'), 2), ev(text(1, 'Logging'), 3)]);
+		script({
+			unknown: [midFlight({ toolUseId: 'tu-run' })],
+			owner: [{ locale: 'en' }],
+			updated: runRow({
+				status: 'cancelled',
+				reason: 'user_cancelled',
+				changes: [{ domain: 'entries' }],
+				leaseOwner: null,
+				heartbeatAt: null,
+				finishedAt: T
+			})
+		});
+
+		await finalize.finalizeRun(RID, { status: 'cancelled', reason: 'user_cancelled' });
+
+		expect(closingOf(1)).toEqual([
+			expect.objectContaining({
+				partIndex: 0,
+				toolUseId: 'tu-run',
+				status: 'error',
+				summary: STOPPED_EN,
+				changed: ['entries'],
+				changes: [{ domain: 'entries' }]
+			})
+		]);
+		const sets = setCalls();
+		expect(sets[2]).toEqual({ changes: [{ domain: 'entries' }] });
+		const parts = sets[3]!.parts as Array<Record<string, unknown>>;
+		expect(noRunningPart(parts)).toBe(true);
+		expect(parts[0]).toMatchObject({
+			status: 'error',
+			changed: ['entries'],
+			changes: [{ domain: 'entries' }]
+		});
+		expect(sets[4]).toMatchObject({ changes: [{ domain: 'entries' }] });
+		const run = emitted(2).at(-1) as Extract<ChatEvent, { type: 'run_finished' }>;
+		expect(run.changed).toEqual(['entries']);
+	});
+
+	test('closes a running part whose call has no unknown outcome without changes', async () => {
+		h.possibleChanges.mockResolvedValue([{ domain: 'entries' }]);
+		h.listRunEvents.mockResolvedValue([ev(started(0, 'tu-run'), 2)]);
+		script({ unknown: [midFlight({ toolUseId: 'tu-other' })], owner: [{ locale: 'en' }] });
+		await finalize.finalizeRun(RID, COMPLETED);
+		expect(closingOf(1)[0]).toMatchObject({ toolUseId: 'tu-run', changed: [], changes: [] });
+	});
+
+	test('leaves finished and non-tool parts alone and reads no owner for them', async () => {
+		h.listRunEvents.mockResolvedValue([
+			ev(started(0, 'tu-ok'), 2),
+			ev(finished(0, 'tu-ok', 'ok'), 3),
+			ev(started(1, 'tu-bad'), 4),
+			ev(finished(1, 'tu-bad', 'error'), 5),
+			ev(text(2, 'Done'), 6)
+		]);
+		script();
+
+		await finalize.finalizeRun(RID, COMPLETED);
+
+		expect(callsOf('from').some((call) => call.args[0] === users)).toBe(false);
+		expect(emitted(1)).toEqual([]);
+		expect(storedParts(2).map((part) => part.status ?? part.type)).toEqual(['ok', 'error', 'text']);
+	});
+});
+
+describe('finalizeRunInTx', () => {
+	const IN_TX_CAPABILITY = { available: true, remainingBudgetUsd: 1.5 };
+	const end = (current: ChatRun, options: Parameters<typeof finalize.finalizeRunInTx>[2]) =>
+		finalize.finalizeRunInTx(db as never, current, options, IN_TX_CAPABILITY);
+
+	test('ends the run inside the callers transaction with the capability it was given', async () => {
+		const current = runRow();
+		const updated = runRow({
+			status: 'cancelled',
+			reason: 'superseded',
+			leaseOwner: null,
+			heartbeatAt: null,
+			finishedAt: T
+		});
+		script({ inTx: true, current, updated });
+
+		const result = await end(current, { status: 'cancelled', reason: 'superseded' });
+
+		expect(result).toBe(updated);
+		expect(h.getChatCapabilitySafe).not.toHaveBeenCalled();
+		expect(h.notifyConversation).not.toHaveBeenCalled();
+		expect(callsOf('transaction')).toHaveLength(0);
+		const first = whereOf(0);
+		expect(first.sql).toContain('"chat_conversations"."id" =');
+		expect(first.params).toEqual([CID]);
+		expect(whereOf(1).params).toEqual([RID]);
+		expect(emitted(2).at(-1)).toMatchObject({
+			type: 'run_finished',
+			status: 'cancelled',
+			capability: IN_TX_CAPABILITY
+		});
+	});
+
+	test('resolves what the caller asked for: pending actions and the transcript', async () => {
+		h.loadRaw.mockResolvedValue(danglingRaw('tu-1'));
+		const current = runRow({ status: 'awaiting_confirmation', leaseOwner: null });
+		script({
+			inTx: true,
+			current,
+			pending: [callRow({ id: 'a-1', partIndex: 1, actionStatus: 'pending' })],
+			calls: [callRow({ toolUseId: 'tu-1', actionStatus: 'pending' })]
+		});
+
+		await end(current, {
+			status: 'cancelled',
+			reason: 'superseded',
+			actionStatus: 'cancelled',
+			onlyIf: ['awaiting_confirmation']
+		});
+
+		expect(emitted(0)).toEqual([
+			expect.objectContaining({ type: 'action_resolved', actionId: 'a-1' })
+		]);
+		expect(h.appendRaw.mock.calls[0]![3][0].content[0]).toMatchObject({
+			tool_use_id: 'tu-1',
+			is_error: true,
+			content:
+				'Not executed: the user sent a new message instead of confirming. Nothing was changed.'
+		});
+	});
+
+	test('returns null without writing when the conversation is gone', async () => {
+		script({ inTx: true, conversation: [] });
+		expectLeftAlone(await end(runRow(), COMPLETED));
+	});
+
+	test.each(['completed', 'failed', 'cancelled', 'interrupted'])(
+		'returns null without writing when the run is already %s',
+		async (status) => {
+			script({ inTx: true, locked: runRow({ status }) });
+			expectLeftAlone(await end(runRow(), COMPLETED));
+		}
+	);
+
+	test('returns null without writing when the status is not one onlyIf allows', async () => {
+		script({ inTx: true, locked: runRow({ status: 'running' }) });
+		expectLeftAlone(
+			await end(runRow(), {
+				status: 'cancelled',
+				reason: 'superseded',
+				onlyIf: ['awaiting_confirmation']
+			})
+		);
 	});
 });

@@ -33,7 +33,7 @@ export const GET: RequestHandler = chatRoute(async ({ userId, params, url, reque
 	const after = Math.max(query.data.after, lastEventId(request));
 
 	if (request.headers.get('accept')?.includes('text/event-stream')) {
-		return new Response(chatEventStream(params.id, after, request.signal), {
+		return new Response(chatEventStream(userId, params.id, after, request.signal), {
 			headers: {
 				'Content-Type': 'text/event-stream; charset=utf-8',
 				'Cache-Control': 'no-cache, no-transform',

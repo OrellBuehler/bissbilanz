@@ -17,7 +17,7 @@ export const chatEventTypeValues = [
 ] as const;
 export type ChatEventType = (typeof chatEventTypeValues)[number];
 
-export const chatToolStatusValues = ['running', 'ok', 'error', 'declined'] as const;
+export const chatToolStatusValues = ['running', 'ok', 'error'] as const;
 export type ChatToolStatus = (typeof chatToolStatusValues)[number];
 
 export const chatRunReasonValues = [
@@ -29,6 +29,7 @@ export const chatRunReasonValues = [
 	'user_budget_exhausted',
 	'global_budget_exhausted',
 	'refusal',
+	'conversation_too_long',
 	'api_error',
 	'internal_error',
 	'user_cancelled',

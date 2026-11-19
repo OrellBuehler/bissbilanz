@@ -2732,7 +2732,7 @@ export const apiPaths = {
 			operationId: 'deleteChatConversation',
 			tags: ['Chat'],
 			description:
-				'Delete a conversation with its messages, runs and events. A run working on it is stopped first. Diary changes the assistant made stay.' +
+				'Delete a conversation with its messages, runs, events and chat photos. A run working on it is stopped first (the request waits up to 10 seconds for a tool call in flight). Diary changes the assistant made stay.' +
 				CHAT_AUTH,
 			requestParams: { path: uuidPathId },
 			responses: {
@@ -2750,7 +2750,7 @@ export const apiPaths = {
 			operationId: 'sendChatMessage',
 			tags: ['Chat'],
 			description:
-				'Send a message and start the run that answers it. Answers 202 at once; the run continues on the server whether or not the client stays connected, and its progress arrives through the events endpoint. The message `id` is the idempotency key: sending the same id again returns the stored message and its run (202) and never starts a second run, so retry with the same id after a network error; no Idempotency-Key header is needed. A run waiting for a confirmation is cancelled by a new message (reason `superseded`, its action `cancelled`). Online only: never queue it offline for a later replay.' +
+				'Send a message and start the run that answers it. Answers 202 at once; the run continues on the server whether or not the client stays connected, and its progress arrives through the events endpoint. The message `id` is the idempotency key: sending the same id again returns the stored message and its run (202) and never starts a second run, so retry with the same id after a network error; no Idempotency-Key header is needed. A run waiting for a confirmation is cancelled by a new message that is accepted (reason `superseded`, its action `cancelled`). Photos are copied into the chat. Online only: never queue it offline for a later replay.' +
 				CHAT_AUTH,
 			requestParams: { path: uuidPathId },
 			requestBody: {
@@ -2769,11 +2769,11 @@ export const apiPaths = {
 				'403': chatRes403,
 				'404': chatRes404Conversation,
 				'409': chatError(
-					'A run is still queued or running (`run_active`); the conversation reached its length limit (`conversation_too_long`, start a new conversation); or the message id is used by another conversation (`message_id_conflict`).'
+					'A run is still queued or running (`run_active`); the conversation reached its limit of 40 messages, about 1 MB of transcript, 20 photos or 12 MB of photo data (`conversation_too_long`, start a new conversation); or the message id is used by another conversation (`message_id_conflict`). A rejected message leaves a pending confirmation untouched.'
 				),
 				'429': {
 					description:
-						'The daily message limit (`daily_limit_reached`, 60 messages in 24 hours) or the write rate limit, with Retry-After',
+						'The daily message limit (`daily_limit_reached`, 60 messages in 24 hours, deleted conversations included) or the write rate limit, with Retry-After',
 					headers: retryAfterHeaders,
 					content: { 'application/json': { schema: chatErrorResponseSchema } }
 				}
@@ -2785,7 +2785,7 @@ export const apiPaths = {
 			operationId: 'listChatEvents',
 			tags: ['Chat'],
 			description:
-				'The events of a conversation after `after` (exclusive), in seq order. With `Accept: text/event-stream` the response is a server-sent event stream: the stored events after `after` (or after `Last-Event-ID`, whichever is larger), then new events as they happen. Each SSE message has `id: <seq>`, `event: <type>` and `data: <ChatEvent JSON>`; a `: ping` comment line arrives every 20 seconds, the stream starts with `retry: 3000` and ends after 10 minutes (reconnect with Last-Event-ID). Any other Accept returns one JSON page for polling. Has its own rate limit (240 requests a minute per user), separate from the write limit.' +
+				'The events of a conversation after `after` (exclusive), in seq order. With `Accept: text/event-stream` the response is a server-sent event stream: the stored events after `after` (or after `Last-Event-ID`, whichever is larger), then new events as they happen. Each SSE message has `id: <seq>`, `event: <type>` and `data: <ChatEvent JSON>`; a `: ping` comment line arrives every 20 seconds, the stream starts with `retry: 3000` and ends after 10 minutes (reconnect with Last-Event-ID). Any other Accept returns one JSON page for polling. Has its own rate limit (240 requests a minute per user), separate from the write limit. At most 3 streams per user stay open: a fourth closes the oldest.' +
 				CHAT_AUTH,
 			requestParams: { path: uuidPathId, query: chatEventsQuerySchema },
 			responses: {
@@ -2815,7 +2815,7 @@ export const apiPaths = {
 			operationId: 'cancelChatRun',
 			tags: ['Chat'],
 			description:
-				'Stop a queued, running or paused run. The partial answer is kept, tool calls that already ran stay done, a pending confirmation becomes `cancelled`, and the run finishes with status `cancelled`, reason `user_cancelled`.' +
+				'Stop a queued, running or paused run. The partial answer is kept, tool calls that already ran stay done, a pending confirmation becomes `cancelled`, and the run finishes with status `cancelled`, reason `user_cancelled`. The request waits up to 10 seconds for a tool call in flight. A run that finished on its own in the meantime is returned as it finished (e.g. `completed`).' +
 				CHAT_AUTH,
 			requestParams: { path: uuidPathId },
 			responses: {
@@ -2837,7 +2837,7 @@ export const apiPaths = {
 			operationId: 'decideChatAction',
 			tags: ['Chat'],
 			description:
-				'Approve or reject a pending confirmation. Approving runs the tool call and resumes the run; rejecting resumes it with "the user declined". Either way the run continues on the server and its events follow on the events endpoint. Pending actions expire after 60 minutes.' +
+				'Approve or reject a pending confirmation. Approving runs exactly the call the card describes (`preview`) and resumes the run; rejecting resumes it with "the user declined". Either way the run continues on the server at once and its events follow on the events endpoint. Pending actions expire after 60 minutes.' +
 				CHAT_AUTH,
 			requestParams: { path: uuidPathId },
 			requestBody: {

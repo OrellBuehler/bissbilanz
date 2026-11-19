@@ -1,11 +1,17 @@
 import * as Sentry from '@sentry/sveltekit';
 import { and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { getDB } from '../../db';
-import { chatRuns, chatToolCalls } from '../../schema';
+import { chatMessageLog, chatRuns, chatToolCalls } from '../../schema';
 import { assertClaudeGates } from '../capability';
 import { ClaudeGateError } from '../errors';
 import { onClaudeAccessChanged } from '../events';
-import { MAX_CONCURRENT_CHAT_RUNS, STALE_RUN_MS, SWEEP_INTERVAL_MS } from './constants';
+import {
+	CHAT_DAY_WINDOW_MS,
+	MAX_CONCURRENT_CHAT_RUNS,
+	MAX_CONCURRENT_CHAT_RUNS_PER_USER,
+	STALE_RUN_MS,
+	SWEEP_INTERVAL_MS
+} from './constants';
 import { pruneTextDeltas } from './events';
 import { finalizeRun } from './finalize';
 import { executeChatRun, type StopReason } from './runner';
@@ -17,6 +23,9 @@ type Active = {
 	controller: AbortController;
 	stop?: StopReason;
 	done: Promise<void>;
+	// Woken again while the job was still winding down (e.g. an approval that
+	// arrived as the run paused): start it once more when the job ends.
+	again?: boolean;
 };
 
 const queue: { runId: string; userId: string }[] = [];
@@ -24,11 +33,18 @@ const queued = new Set<string>();
 const active = new Map<string, Active>();
 let started = false;
 
+const runningFor = (userId: string) =>
+	[...active.values()].filter((entry) => entry.userId === userId).length;
+
 function pump(): void {
-	while (active.size < MAX_CONCURRENT_CHAT_RUNS && queue.length > 0) {
-		const job = queue.shift()!;
-		queued.delete(job.runId);
-		start(job.runId, job.userId);
+	while (active.size < MAX_CONCURRENT_CHAT_RUNS) {
+		const index = queue.findIndex(
+			(job) => runningFor(job.userId) < MAX_CONCURRENT_CHAT_RUNS_PER_USER
+		);
+		if (index === -1) return;
+		const [job] = queue.splice(index, 1);
+		queued.delete(job!.runId);
+		start(job!.runId, job!.userId);
 	}
 }
 
@@ -45,14 +61,20 @@ function start(runId: string, userId: string): void {
 		})
 		.finally(() => {
 			active.delete(runId);
-			pump();
+			if (entry.again && !entry.stop) enqueueChatRun(runId, userId);
+			else pump();
 		});
 	active.set(runId, entry);
 }
 
 /** Queues a run that is in status 'queued'; claiming it is atomic, so a duplicate wake-up is harmless. */
 export function enqueueChatRun(runId: string, userId: string): void {
-	if (queued.has(runId) || active.has(runId)) return;
+	const running = active.get(runId);
+	if (running) {
+		running.again = true;
+		return;
+	}
+	if (queued.has(runId)) return;
 	queued.add(runId);
 	queue.push({ runId, userId });
 	pump();
@@ -148,6 +170,9 @@ export async function sweepChatRuns(): Promise<void> {
 	for (const run of waiting) enqueueChatRun(run.id, run.userId);
 
 	await pruneTextDeltas();
+	await db
+		.delete(chatMessageLog)
+		.where(lt(chatMessageLog.createdAt, new Date(Date.now() - 2 * CHAT_DAY_WINDOW_MS)));
 }
 
 /** Brings one conversation up to date before it is read: stale runs, expired confirmations. */

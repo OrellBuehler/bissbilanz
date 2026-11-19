@@ -1,8 +1,14 @@
+import { ALL_NUTRIENTS } from '$lib/nutrients';
 import { change, type ChatChange } from './changes';
 
 export type ChangeLookup = {
 	today: () => Promise<string>;
 	entryDate: (id: unknown) => Promise<string | null>;
+};
+
+export type ConfirmLookup = {
+	foodHasEntries: (id: unknown) => Promise<boolean>;
+	recipeHasEntries: (id: unknown) => Promise<boolean>;
 };
 
 export type ChangeContext = {
@@ -14,10 +20,21 @@ export type ChangeContext = {
 
 type Changes = (context: ChangeContext) => ChatChange[] | Promise<ChatChange[]>;
 
+type ConfirmWhen = (
+	input: Record<string, unknown>,
+	lookup: ConfirmLookup
+) => boolean | Promise<boolean>;
+
 export type ChatToolPolicy =
 	| { kind: 'excluded'; reason: string }
 	| { kind: 'read' }
-	| { kind: 'write' | 'confirm'; changes: Changes; readsEntryBefore?: boolean };
+	| {
+			kind: 'write' | 'confirm';
+			changes: Changes;
+			readsEntryBefore?: boolean;
+			// A write that needs the user's confirmation for this input.
+			confirmWhen?: ConfirmWhen;
+	  };
 
 const str = (value: unknown): string | null => (typeof value === 'string' ? value : null);
 const strings = (value: unknown): string[] =>
@@ -27,11 +44,37 @@ const dateOr = async (value: unknown, lookup: ChangeLookup) => str(value) ?? (aw
 
 const READ: ChatToolPolicy = { kind: 'read' };
 
-const write = (changes: Changes, readsEntryBefore = false): ChatToolPolicy => ({
+const write = (
+	changes: Changes,
+	options: { readsEntryBefore?: boolean; confirmWhen?: ConfirmWhen } = {}
+): ChatToolPolicy => ({
 	kind: 'write',
 	changes,
-	readsEntryBefore
+	readsEntryBefore: options.readsEntryBefore ?? false,
+	...(options.confirmWhen ? { confirmWhen: options.confirmWhen } : {})
 });
+
+const has = (input: Record<string, unknown>, keys: readonly string[]) =>
+	keys.some((key) => input[key] !== undefined);
+
+// Fields of a food that change what its diary entries count.
+export const FOOD_NUTRITION_FIELDS = [
+	'servingSize',
+	'servingUnit',
+	'calories',
+	'protein',
+	'carbs',
+	'fat',
+	'fiber',
+	'imageUrl',
+	...ALL_NUTRIENTS.map((nutrient) => nutrient.key)
+] as const;
+
+const createsFoods = (input: Record<string, unknown>) =>
+	Array.isArray(input.ingredients) &&
+	input.ingredients.some(
+		(ingredient) => !!ingredient && typeof ingredient === 'object' && 'food' in ingredient
+	);
 
 const confirm = (changes: Changes, readsEntryBefore = false): ChatToolPolicy => ({
 	kind: 'confirm',
@@ -54,7 +97,10 @@ export const CHAT_TOOL_POLICY: Record<string, ChatToolPolicy> = {
 	get_daily_status: READ,
 	search_foods: READ,
 	create_food: write(({ result }) => [change('foods', { ids: [str(result?.foodId)] })]),
-	update_food: write(({ input }) => [change('foods', { ids: [str(input.foodId)] })]),
+	update_food: write(({ input }) => [change('foods', { ids: [str(input.foodId)] })], {
+		confirmWhen: (input, lookup) =>
+			has(input, FOOD_NUTRITION_FIELDS) && lookup.foodHasEntries(input.foodId)
+	}),
 	delete_food: confirm(({ input, result }) =>
 		blocked(result)
 			? []
@@ -75,7 +121,12 @@ export const CHAT_TOOL_POLICY: Record<string, ChatToolPolicy> = {
 	find_duplicate_foods: READ,
 	list_recent_foods: READ,
 	create_recipe: write(({ result }) => [change('recipes', { ids: [str(result?.recipeId)] })]),
-	update_recipe: write(({ input }) => [change('recipes', { ids: [str(input.recipeId)] })]),
+	update_recipe: write(({ input }) => [change('recipes', { ids: [str(input.recipeId)] })], {
+		confirmWhen: async (input, lookup) =>
+			has(input, ['ingredients', 'includeRecipes', 'steps']) ||
+			(has(input, ['totalServings', 'cookedWeight']) &&
+				(await lookup.recipeHasEntries(input.recipeId)))
+	}),
 	delete_recipe: confirm(({ input, result }) =>
 		blocked(result)
 			? []
@@ -95,13 +146,18 @@ export const CHAT_TOOL_POLICY: Record<string, ChatToolPolicy> = {
 			change('entries', { dates: [str(logged?.date) ?? (await dateOr(input.date, lookup))] })
 		];
 	}),
-	create_supplement: write(({ result }) => [
-		change('supplements', { ids: [str(result?.supplementId)] })
+	create_supplement: write(({ input, result }) => [
+		change('supplements', { ids: [str(result?.supplementId)] }),
+		...(createsFoods(input) ? [change('foods')] : [])
 	]),
 	list_supplements: READ,
-	update_supplement: write(({ input }) => [
-		change('supplements', { ids: [str(input.supplementId)] })
-	]),
+	update_supplement: write(
+		({ input }) => [
+			change('supplements', { ids: [str(input.supplementId)] }),
+			...(createsFoods(input) ? [change('foods')] : [])
+		],
+		{ confirmWhen: (input) => has(input, ['ingredients']) }
+	),
 	delete_supplement: confirm(({ input }) => [
 		change('supplements', { ids: [str(input.supplementId)] })
 	]),
@@ -114,7 +170,7 @@ export const CHAT_TOOL_POLICY: Record<string, ChatToolPolicy> = {
 		async ({ input, entryDateBefore, lookup }) => [
 			change('entries', { dates: [entryDateBefore, await lookup.entryDate(input.entryId)] })
 		],
-		true
+		{ readsEntryBefore: true }
 	),
 	delete_entry: confirm(
 		({ entryDateBefore }) => [change('entries', { dates: [entryDateBefore] })],
@@ -187,3 +243,37 @@ export const CHAT_TOOL_POLICY: Record<string, ChatToolPolicy> = {
 
 export const chatToolPolicy = (name: string): ChatToolPolicy | null =>
 	Object.hasOwn(CHAT_TOOL_POLICY, name) ? CHAT_TOOL_POLICY[name]! : null;
+
+/**
+ * Whether this call waits for the user: confirm tools always, writes when the
+ * input makes them irreversible (confirmWhen) or carries a force flag.
+ */
+export async function needsConfirmation(
+	policy: ChatToolPolicy,
+	input: Record<string, unknown>,
+	lookup: ConfirmLookup
+): Promise<boolean> {
+	if (policy.kind === 'confirm') return true;
+	if (policy.kind !== 'write') return false;
+	if (input.force === true) return true;
+	return policy.confirmWhen ? policy.confirmWhen(input, lookup) : false;
+}
+
+/**
+ * The domains a write may have touched when its outcome is unknown, without
+ * scope: clients refresh them fully.
+ */
+export async function possibleChanges(
+	name: string,
+	input: Record<string, unknown>
+): Promise<ChatChange[]> {
+	const policy = chatToolPolicy(name);
+	if (!policy || (policy.kind !== 'write' && policy.kind !== 'confirm')) return [];
+	const changes = await policy.changes({
+		input,
+		result: null,
+		entryDateBefore: null,
+		lookup: { today: async () => '', entryDate: async () => null }
+	});
+	return changes.map((item) => ({ domain: item.domain }));
+}

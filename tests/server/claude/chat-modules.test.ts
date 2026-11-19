@@ -452,12 +452,12 @@ describe('transcript', () => {
 		expect(await transcript.loadRaw(db as never, 'c')).toEqual([
 			{ role: 'assistant', content: [{ type: 'text', text: 'hi', citations: null }] }
 		]);
-		setResult([{ bytes: 42 }]);
-		expect(await transcript.transcriptBytes(db as never, 'c')).toBe(42);
+		setResult([{ bytes: 42, imageBytes: 7 }]);
+		expect(await transcript.transcriptSize(db as never, 'c')).toEqual({ bytes: 42, imageBytes: 7 });
 		setResult([]);
-		expect(await transcript.transcriptBytes(db as never, 'c')).toBe(0);
+		expect(await transcript.transcriptSize(db as never, 'c')).toEqual({ bytes: 0, imageBytes: 0 });
 		await transcript.appendRaw(db as never, 'c', 'r', [
-			{ role: 'user', content: [{ type: 'text', text: 'a' }] },
+			{ role: 'user', content: [{ type: 'text', text: 'a' }], imageBytes: 1000 },
 			{ role: 'user', content: [{ type: 'text', text: 'b' }] }
 		]);
 		expect(getCalls().filter((call) => call.method === 'execute')).toHaveLength(2);
@@ -504,6 +504,23 @@ describe('transcript', () => {
 		expect(h.loadTaskPhotos).toHaveBeenCalledTimes(1);
 	});
 
+	test('leaves out thinking blocks of turns before the current prompt, from the front only', async () => {
+		const thinking = { type: 'thinking' as const, thinking: '', signature: 's' };
+		const redacted = { type: 'redacted_thinking' as const, data: 'x' };
+		const raw = [
+			{ role: 'user' as const, content: [{ type: 'text' as const, text: 'a' }] },
+			{
+				role: 'assistant' as const,
+				content: [thinking, redacted, { type: 'text' as const, text: 'b' }]
+			},
+			{ role: 'user' as const, content: [{ type: 'text' as const, text: 'c' }] },
+			{ role: 'assistant' as const, content: [thinking, { type: 'text' as const, text: 'd' }] }
+		];
+		const { messages } = await transcript.hydrate('u', raw, new Map(), 2);
+		expect(messages[1]!.content).toEqual([{ type: 'text', text: 'b' }]);
+		expect(messages[3]!.content).toEqual([thinking, { type: 'text', text: 'd' }]);
+	});
+
 	test('puts cache breakpoints on the last tool, the system prompt and the newest user turn', () => {
 		const snapshot = {
 			id: 's',
@@ -542,7 +559,7 @@ describe('transcript', () => {
 		const built = await transcript.buildPromptSnapshot('claude-opus-5-5');
 		expect(built.id).toMatch(/^[0-9a-f]{64}$/);
 		expect(built.tools[0]).toMatchObject({ name: 'web_search' });
-		const conversation = { id: 'c', promptId: 'old' } as never;
+		const conversation = { id: 'c', promptId: 'old', promptFromPosition: 4 } as never;
 		queueResults([
 			[
 				{
@@ -556,21 +573,36 @@ describe('transcript', () => {
 		expect(await transcript.ensurePromptSnapshot(conversation, 'claude-opus-5-5')).toEqual({
 			id: 'old',
 			system: [{ type: 'text', text: 'old' }],
-			tools: []
+			tools: [],
+			fromPosition: 4
 		});
 		reset();
 		queueResults([[{ id: 'old', model: 'claude-haiku-5-5', system: '[]', tools: '[]' }]]);
-		const rebuilt = await transcript.ensurePromptSnapshot(conversation, 'claude-opus-5-5');
-		expect(rebuilt.id).toBe(built.id);
+		const rebuilt = await transcript.ensurePromptSnapshot(conversation, 'claude-opus-5-5', {
+			transcriptLength: 6
+		});
+		expect(rebuilt).toMatchObject({ id: built.id, fromPosition: 6 });
 		const inserted = getCalls().find((call) => call.method === 'values')!.args[0];
 		expect(inserted).toMatchObject({ id: built.id, model: 'claude-opus-5-5' });
 		expect(typeof inserted.tools).toBe('string');
 		expect(getCalls().find((call) => call.method === 'set')!.args[0]).toEqual({
-			promptId: built.id
+			promptId: built.id,
+			promptFromPosition: 6
 		});
 		reset();
-		await transcript.ensurePromptSnapshot({ id: 'c', promptId: null } as never, 'claude-opus-5-5');
+		const fresh = await transcript.ensurePromptSnapshot(
+			{ id: 'c', promptId: null } as never,
+			'claude-opus-5-5',
+			{ transcriptLength: 1 }
+		);
+		expect(fresh.fromPosition).toBe(0);
 		expect(getCalls().some((call) => call.method === 'values')).toBe(true);
+		reset();
+		const forced = await transcript.ensurePromptSnapshot(conversation, 'claude-opus-5-5', {
+			rebuild: true
+		});
+		expect(forced.fromPosition).toBe(0);
+		expect(getCalls().some((call) => call.method === 'select')).toBe(false);
 	});
 });
 
@@ -600,6 +632,7 @@ describe('store', () => {
 		title: null,
 		nextSeq: 3,
 		promptId: null,
+		promptFromPosition: 0,
 		lastMessageAt: date,
 		createdAt: date,
 		updatedAt: date

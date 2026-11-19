@@ -1916,5 +1916,13 @@
 	"chat_action_delete_weight": "Delete the weight entry of {date} ({weight} kg)",
 	"chat_action_delete_sleep": "Delete the sleep entry of {date}",
 	"chat_action_sleep_detail": "{hours} h {minutes} min",
-	"chat_action_delete_day_properties": "Clear water, activity, fasting and notes of {date}"
+	"chat_action_delete_day_properties": "Clear water, activity, fasting and notes of {date}",
+	"chat_action_merge_foods_override": "Merged food: {field} becomes {value}",
+	"chat_action_update_food": "Change the food “{name}”",
+	"chat_action_update_recipe": "Change the recipe “{name}”",
+	"chat_action_update_supplement": "Change the supplement “{name}”",
+	"chat_action_generic": "Allow: {label}",
+	"chat_action_field_set": "{field}: {value}",
+	"chat_action_field_changed": "{field}: {from} → {to}",
+	"chat_tool_stopped": "Stopped before it finished. Check the result."
 }

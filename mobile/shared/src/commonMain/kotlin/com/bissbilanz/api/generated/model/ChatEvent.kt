@@ -37,7 +37,7 @@ import kotlinx.serialization.encoding.*
  * @param toolUseId
  * @param name
  * @param label
- * @param status tool_finished: ok, error, declined. action_resolved: approved, rejected, expired, cancelled. run_finished: the run status. Clients must accept values not listed here.
+ * @param status tool_finished: ok, error. action_resolved: approved, rejected, expired, cancelled. run_finished: the run status. Clients must accept values not listed here.
  * @param summary
  * @param changed
  * @param changes
@@ -66,7 +66,7 @@ data class ChatEvent(
     @SerialName(value = "toolUseId") val toolUseId: kotlin.String? = null,
     @SerialName(value = "name") val name: kotlin.String? = null,
     @SerialName(value = "label") val label: kotlin.String? = null,
-    // tool_finished: ok, error, declined. action_resolved: approved, rejected, expired, cancelled. run_finished: the run status. Clients must accept values not listed here.
+    // tool_finished: ok, error. action_resolved: approved, rejected, expired, cancelled. run_finished: the run status. Clients must accept values not listed here.
     @SerialName(value = "status") val status: kotlin.String? = null,
     @SerialName(value = "summary") val summary: kotlin.String? = null,
     @SerialName(value = "changed") val changed: kotlin.collections.List<kotlin.String>? = null,

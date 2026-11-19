@@ -674,6 +674,39 @@ describe('GET /api/chat/conversations/{id}', () => {
 		expect(response.status).toBe(200);
 	});
 
+	test('answers an assistant message whose run failed because the conversation grew too long', async () => {
+		m.getConversationDetail.mockResolvedValue({
+			...detailPayload(),
+			messages: [
+				messageView({
+					id: ASSISTANT_MSG_ID,
+					role: 'assistant',
+					status: 'failed',
+					reason: 'conversation_too_long',
+					parts: [
+						{
+							type: 'tool',
+							toolUseId: 'toolu_00',
+							name: 'list_entries',
+							label: 'Reading the diary',
+							status: 'error',
+							summary: 'The tool timed out',
+							changed: [],
+							changes: []
+						}
+					]
+				})
+			],
+			pendingActions: [],
+			activeRun: null
+		});
+		const response = await detailCall();
+		await expectResponseContract('GET', '/api/chat/conversations/{id}', response);
+		expect(response.status).toBe(200);
+		const data = await response.json();
+		expect(data.messages[0]).toMatchObject({ status: 'failed', reason: 'conversation_too_long' });
+	});
+
 	test('answers 404 conversation_not_found', async () => {
 		m.getConversationDetail.mockRejectedValue(new ChatRequestError('conversation_not_found'));
 		const response = await detailCall();
@@ -1105,7 +1138,12 @@ describe('GET /api/chat/conversations/{id}/events', () => {
 			expect(response.headers.get('Cache-Control')).toBe('no-cache, no-transform');
 			expect(response.headers.get('X-Accel-Buffering')).toBe('no');
 			expect(await response.text()).toBe('retry: 3000\n\n');
-			expect(m.chatEventStream).toHaveBeenCalledWith(CONV_ID, 4, event.request.signal);
+			expect(m.chatEventStream).toHaveBeenCalledWith(
+				TEST_USER.id,
+				CONV_ID,
+				4,
+				event.request.signal
+			);
 			expect(m.reconcile).toHaveBeenCalledWith(CONV_ID);
 			expect(m.listEvents).not.toHaveBeenCalled();
 		}
@@ -1118,7 +1156,7 @@ describe('GET /api/chat/conversations/{id}/events', () => {
 			headers: { Accept: 'text/event-stream', 'Last-Event-ID': '11' }
 		});
 		await EVENTS(event);
-		expect(m.chatEventStream).toHaveBeenCalledWith(CONV_ID, 11, event.request.signal);
+		expect(m.chatEventStream).toHaveBeenCalledWith(TEST_USER.id, CONV_ID, 11, event.request.signal);
 	});
 
 	test('answers 404 as JSON to a stream request for an unknown conversation', async () => {

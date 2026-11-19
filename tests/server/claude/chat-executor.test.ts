@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { createMockDB } from '../../helpers/mock-db';
 import * as executor from '$lib/server/claude/chat/executor';
 import * as errors from '$lib/server/claude/errors';
 import {
+	CHAT_DAY_WINDOW_MS,
 	MAX_CONCURRENT_CHAT_RUNS,
+	MAX_CONCURRENT_CHAT_RUNS_PER_USER,
 	STALE_RUN_MS,
 	SWEEP_INTERVAL_MS
 } from '$lib/server/claude/chat/constants';
@@ -85,6 +88,11 @@ afterEach(async () => {
 });
 
 const jobOf = (index: number) => jobs.get(`${index}`)!;
+const saturate = () => {
+	for (let index = 0; index < MAX_CONCURRENT_CHAT_RUNS; index++) {
+		executor.enqueueChatRun(`busy-${index}`, `busy-user-${index}`);
+	}
+};
 
 describe('enqueueChatRun', () => {
 	test('starts a queued run right away with this instance and an abort signal', async () => {
@@ -124,7 +132,7 @@ describe('enqueueChatRun', () => {
 
 	test('runs at most MAX_CONCURRENT_CHAT_RUNS jobs and starts waiting ones in order', async () => {
 		const ids = Array.from({ length: MAX_CONCURRENT_CHAT_RUNS + 2 }, (_, index) => `run-${index}`);
-		for (const id of ids) executor.enqueueChatRun(id, 'user-1');
+		for (const id of ids) executor.enqueueChatRun(id, `user-of-${id}`);
 		expect(startedRuns()).toEqual(ids.slice(0, MAX_CONCURRENT_CHAT_RUNS));
 
 		jobOf(1).resolve();
@@ -138,11 +146,9 @@ describe('enqueueChatRun', () => {
 	});
 
 	test('queues a duplicate wake-up only once', async () => {
-		for (let index = 0; index < MAX_CONCURRENT_CHAT_RUNS; index++) {
-			executor.enqueueChatRun(`busy-${index}`, 'user-1');
-		}
-		executor.enqueueChatRun('waiting', 'user-1');
-		executor.enqueueChatRun('waiting', 'user-1');
+		saturate();
+		executor.enqueueChatRun('waiting', 'user-w');
+		executor.enqueueChatRun('waiting', 'user-w');
 		jobOf(0).resolve();
 		await tick();
 		expect(startedRuns().filter((id) => id === 'waiting')).toHaveLength(1);
@@ -153,19 +159,113 @@ describe('enqueueChatRun', () => {
 	});
 
 	test('reports a failed job to Sentry and keeps pumping the queue', async () => {
-		for (let index = 0; index < MAX_CONCURRENT_CHAT_RUNS; index++) {
-			executor.enqueueChatRun(`run-${index}`, 'user-1');
-		}
-		executor.enqueueChatRun('next', 'user-1');
+		saturate();
+		executor.enqueueChatRun('next', 'user-n');
 		const failure = new Error('boom');
 		jobOf(0).reject(failure);
 		await tick();
 		expect(h.captureException).toHaveBeenCalledWith(failure, {
 			tags: { job: 'chat-run' },
-			extra: { runId: 'run-0' }
+			extra: { runId: 'busy-0' }
 		});
-		expect(executor.isChatRunActiveHere('run-0')).toBe(false);
+		expect(executor.isChatRunActiveHere('busy-0')).toBe(false);
 		expect(startedRuns()).toContain('next');
+	});
+});
+
+describe('the per-user cap', () => {
+	test('lets one user run only a few jobs at once even when slots are free', async () => {
+		const ids = Array.from(
+			{ length: MAX_CONCURRENT_CHAT_RUNS_PER_USER + 1 },
+			(_, index) => `a-${index}`
+		);
+		for (const id of ids) executor.enqueueChatRun(id, 'user-a');
+		expect(startedRuns()).toEqual(ids.slice(0, MAX_CONCURRENT_CHAT_RUNS_PER_USER));
+		expect(MAX_CONCURRENT_CHAT_RUNS_PER_USER).toBeLessThan(MAX_CONCURRENT_CHAT_RUNS);
+
+		executor.enqueueChatRun('b-0', 'user-b');
+		expect(startedRuns()).toEqual([...ids.slice(0, MAX_CONCURRENT_CHAT_RUNS_PER_USER), 'b-0']);
+
+		jobOf(0).resolve();
+		await tick();
+		expect(startedRuns()).toContain(ids.at(-1));
+	});
+
+	test('skips the waiting job of a capped user in favour of the next in line', async () => {
+		for (let index = 0; index <= MAX_CONCURRENT_CHAT_RUNS_PER_USER; index++) {
+			executor.enqueueChatRun(`a-${index}`, 'user-a');
+		}
+		executor.enqueueChatRun('c-0', 'user-c');
+		const waiting = `a-${MAX_CONCURRENT_CHAT_RUNS_PER_USER}`;
+		expect(startedRuns()).toContain('c-0');
+		expect(startedRuns()).not.toContain(waiting);
+
+		jobOf(1).resolve();
+		await tick();
+		expect(startedRuns().filter((id) => id === waiting)).toHaveLength(1);
+		expect(executor.isChatRunActiveHere(waiting)).toBe(true);
+	});
+
+	test('keeps the global cap for users under their own cap', async () => {
+		saturate();
+		executor.enqueueChatRun('late', 'user-late');
+		expect(startedRuns()).not.toContain('late');
+		jobOf(0).resolve();
+		await tick();
+		expect(startedRuns()).toContain('late');
+	});
+});
+
+describe('a wake-up while the job winds down', () => {
+	test('starts the run once more when the running job ends', async () => {
+		executor.enqueueChatRun('run-1', 'user-1');
+		executor.enqueueChatRun('run-1', 'user-1');
+		executor.enqueueChatRun('run-1', 'user-1');
+		expect(h.executeChatRun).toHaveBeenCalledTimes(1);
+		jobOf(0).resolve();
+		await tick();
+		expect(startedRuns()).toEqual(['run-1', 'run-1']);
+		expect(executor.isChatRunActiveHere('run-1')).toBe(true);
+		jobOf(1).resolve();
+		await tick();
+		expect(startedRuns()).toEqual(['run-1', 'run-1']);
+		expect(executor.isChatRunActiveHere('run-1')).toBe(false);
+	});
+
+	test('starts it again after a failed job too', async () => {
+		executor.enqueueChatRun('run-1', 'user-1');
+		executor.enqueueChatRun('run-1', 'user-1');
+		const failure = new Error('boom');
+		jobOf(0).reject(failure);
+		await tick();
+		expect(h.captureException).toHaveBeenCalledWith(failure, {
+			tags: { job: 'chat-run' },
+			extra: { runId: 'run-1' }
+		});
+		expect(startedRuns()).toEqual(['run-1', 'run-1']);
+	});
+
+	test('does not start a stopped run again', async () => {
+		executor.enqueueChatRun('run-1', 'user-1');
+		executor.enqueueChatRun('run-1', 'user-1');
+		const stopped = executor.stopChatRun('run-1', 'cancel');
+		jobOf(0).resolve();
+		await stopped;
+		await tick();
+		expect(startedRuns()).toEqual(['run-1']);
+		expect(executor.isChatRunActiveHere('run-1')).toBe(false);
+	});
+
+	test('queues the run behind the jobs already waiting and still starts those', async () => {
+		saturate();
+		executor.enqueueChatRun('waiting', 'user-w');
+		executor.enqueueChatRun('busy-0', 'busy-user-0');
+		jobOf(0).resolve();
+		await tick();
+		expect(startedRuns()).toEqual(['busy-0', 'busy-1', 'busy-2', 'waiting']);
+		jobOf(1).resolve();
+		await tick();
+		expect(startedRuns()).toEqual(['busy-0', 'busy-1', 'busy-2', 'waiting', 'busy-0']);
 	});
 });
 
@@ -175,15 +275,13 @@ describe('stopChatRun', () => {
 	});
 
 	test('drops a queued run without ever starting it', async () => {
-		for (let index = 0; index < MAX_CONCURRENT_CHAT_RUNS; index++) {
-			executor.enqueueChatRun(`run-${index}`, 'user-1');
-		}
-		executor.enqueueChatRun('queued', 'user-1');
+		saturate();
+		executor.enqueueChatRun('queued', 'user-q');
 		await expect(executor.stopChatRun('queued', 'cancel')).resolves.toBe(false);
 		jobOf(0).resolve();
 		await tick();
 		expect(startedRuns()).not.toContain('queued');
-		executor.enqueueChatRun('queued', 'user-1');
+		executor.enqueueChatRun('queued', 'user-q');
 		expect(startedRuns()).toContain('queued');
 	});
 
@@ -327,6 +425,24 @@ describe('sweepChatRuns', () => {
 		expect(h.finalizeRun).not.toHaveBeenCalled();
 	});
 
+	test('prunes the message log of the daily limit after two days, once the text deltas are gone', async () => {
+		let deletedBeforePrune = true;
+		h.pruneTextDeltas.mockImplementation(async () => {
+			deletedBeforePrune = getCalls().some((call) => call.method === 'delete');
+			return 0;
+		});
+		await executor.sweepChatRuns();
+		expect(deletedBeforePrune).toBe(false);
+		const calls = getCalls();
+		const deleted = calls.findIndex((call) => call.method === 'delete');
+		expect(deleted).toBeGreaterThan(-1);
+		const where = calls.slice(deleted).find((call) => call.method === 'where')!;
+		const { params } = new PgDialect().sqlToQuery(where.args[0]);
+		expect(params.map((value) => new Date(value as string).toISOString())).toEqual([
+			new Date(Date.now() - 2 * CHAT_DAY_WINDOW_MS).toISOString()
+		]);
+	});
+
 	test('does nothing but prune when there is nothing to sweep', async () => {
 		await executor.sweepChatRuns();
 		expect(h.finalizeRun).not.toHaveBeenCalled();
@@ -411,7 +527,9 @@ describe('settleChatRunsForTests', () => {
 
 	test('waits for active and queued runs alike', async () => {
 		const total = MAX_CONCURRENT_CHAT_RUNS + 1;
-		for (let index = 0; index < total; index++) executor.enqueueChatRun(`run-${index}`, 'user-1');
+		for (let index = 0; index < total; index++) {
+			executor.enqueueChatRun(`run-${index}`, `user-${index}`);
+		}
 		const settled = vi.fn();
 		void executor.settleChatRunsForTests().then(settled);
 		await tick();

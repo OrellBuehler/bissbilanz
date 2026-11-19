@@ -1281,6 +1281,9 @@ export const chatConversations = pgTable(
 		title: text('title'),
 		nextSeq: integer('next_seq').notNull().default(0),
 		promptId: text('prompt_id').references(() => chatPrompts.id),
+		// Transcript position from which promptId applies. Thinking blocks of
+		// earlier turns were bound to another prompt and are left out on replay.
+		promptFromPosition: integer('prompt_from_position').notNull().default(0),
 		lastMessageAt: timestamp('last_message_at', { withTimezone: true }).notNull().defaultNow(),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
@@ -1342,6 +1345,8 @@ export const chatRawMessages = pgTable(
 		content: text('content').notNull(),
 		runId: uuid('run_id'),
 		bytes: integer('bytes').notNull().default(0),
+		// Base64 size of the photos the turn refers to; they are sent inline.
+		imageBytes: integer('image_bytes').notNull().default(0),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 	},
 	(table) => [
@@ -1390,6 +1395,8 @@ export const chatRuns = pgTable(
 			.where(sql`${table.status} IN (${sqlInList(chatActiveRunStatusValues)})`),
 		index('idx_chat_runs_status_heartbeat').on(table.status, table.heartbeatAt),
 		index('idx_chat_runs_conversation').on(table.conversationId, table.createdAt),
+		index('idx_chat_runs_user_message').on(table.userMessageId),
+		index('idx_chat_runs_assistant_message').on(table.assistantMessageId),
 		check('chat_runs_status_valid', sql`${table.status} IN (${sqlInList(chatRunStatusValues)})`)
 	]
 );
@@ -1473,6 +1480,20 @@ export const chatToolCalls = pgTable(
 );
 
 export type ChatToolCall = typeof chatToolCalls.$inferSelect;
+
+// One row per accepted chat message, for the daily limit. Unlike
+// chat_messages it survives deleting the conversation; old rows are pruned.
+export const chatMessageLog = pgTable(
+	'chat_message_log',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [index('idx_chat_message_log_user_created').on(table.userId, table.createdAt)]
+);
 
 // OAuth Clients - per-user or dynamically registered (RFC 7591)
 export const oauthClients = pgTable(

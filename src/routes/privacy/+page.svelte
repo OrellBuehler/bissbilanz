@@ -175,8 +175,13 @@
 		also search the web and look products up in Open Food Facts. Anthropic processes this data under
 		its commercial terms and
 		<a href="https://www.anthropic.com/legal/privacy" class="underline">privacy policy</a>. The
-		assistant only acts on your account, deletions and other changes that cannot be undone wait for
-		your confirmation, and the conversations stay stored until you delete them.
+		assistant only acts on your account. These changes wait for your confirmation: deleting, merging
+		foods, copying a day, removing a supplement log, changing the nutrition, serving size or photo
+		of a food that has diary entries, changing a recipe's ingredients or steps (or the servings or
+		cooked weight of a recipe that has diary entries), changing a supplement's ingredients, anything
+		the assistant wants to force, and every change after the first ten in one answer. Photos you
+		attach are copied into the chat, and the conversations and their photos stay stored until you
+		delete them.
 	</p>
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">AI meal estimation (iOS)</h2>

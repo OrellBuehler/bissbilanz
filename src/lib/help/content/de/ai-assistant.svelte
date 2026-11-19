@@ -64,8 +64,12 @@
 	chatten, ohne etwas zu verbinden. Frag nach deinem Fortschritt, lass dir Mahlzeiten vorschlagen,
 	die zu deinen Zielen passen, oder erzähl, was du gegessen hast: Er schaut deine Daten nach,
 	erfasst, erstellt oder korrigiert Einträge, Lebensmittel, Rezepte, Ziele, Gewicht, Schlaf und
-	Supplemente für dich und sagt, was er geändert hat. Löschen, Lebensmittel zusammenführen, einen
-	Tag kopieren und ein Supplement zurücksetzen passieren erst, wenn du es im Chat bestätigst.
+	Supplemente für dich und sagt, was er geändert hat. Erst nach deiner Bestätigung im Chat
+	passieren: Löschen, Lebensmittel zusammenführen, einen Tag kopieren, ein Supplement zurücksetzen,
+	Nährwerte, Portionsgrösse oder Foto eines Lebensmittels ändern, das du schon erfasst hast, die
+	Zutaten oder Schritte eines Rezepts ändern (oder Portionen und gekochtes Gewicht eines Rezepts,
+	das du schon erfasst hast), die Zutaten eines Supplements ändern, alles Erzwungene und jede
+	Änderung nach den ersten zehn in einer Antwort.
 </p>
 <p class="mb-6">
 	Deine Nachrichten, angehängte Fotos, das bisherige Gespräch und alle Tagebuchdaten, die der

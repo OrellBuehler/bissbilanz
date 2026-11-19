@@ -58,9 +58,12 @@
 	If Claude is enabled for your account, you can also chat with the assistant directly in
 	Bissbilanz, without connecting anything. Ask about your progress, get meal ideas that fit your
 	goals, or tell it what you ate; it looks up your data and logs, creates or corrects entries,
-	foods, recipes, goals, weight, sleep and supplements for you, and says what it changed. Deleting,
-	merging foods, copying a day and removing a supplement log only happen after you confirm them in
-	the chat.
+	foods, recipes, goals, weight, sleep and supplements for you, and says what it changed. These only
+	happen after you confirm them in the chat: deleting, merging foods, copying a day, removing a
+	supplement log, changing the nutrition, serving size or photo of a food you already logged,
+	changing a recipe's ingredients or steps (or the servings or cooked weight of a recipe you already
+	logged), changing a supplement's ingredients, anything forced, and every change after the first
+	ten in one answer.
 </p>
 <p class="mb-6">
 	Your messages, the photos you attach, the earlier conversation and whatever diary data the

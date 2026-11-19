@@ -4,6 +4,7 @@ CREATE TABLE "chat_conversations" (
 	"title" text,
 	"next_seq" integer DEFAULT 0 NOT NULL,
 	"prompt_id" text,
+	"prompt_from_position" integer DEFAULT 0 NOT NULL,
 	"last_message_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -17,6 +18,12 @@ CREATE TABLE "chat_events" (
 	"payload" jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "chat_events_conversation_id_seq_pk" PRIMARY KEY("conversation_id","seq")
+);
+--> statement-breakpoint
+CREATE TABLE "chat_message_log" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "chat_messages" (
@@ -52,6 +59,7 @@ CREATE TABLE "chat_raw_messages" (
 	"content" text NOT NULL,
 	"run_id" uuid,
 	"bytes" integer DEFAULT 0 NOT NULL,
+	"image_bytes" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "chat_raw_messages_conversation_id_position_pk" PRIMARY KEY("conversation_id","position"),
 	CONSTRAINT "chat_raw_messages_role_valid" CHECK ("chat_raw_messages"."role" IN ('user', 'assistant'))
@@ -107,6 +115,7 @@ ALTER TABLE "claude_usage" ADD COLUMN "chat_conversation_id" uuid;--> statement-
 ALTER TABLE "chat_conversations" ADD CONSTRAINT "chat_conversations_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "chat_conversations" ADD CONSTRAINT "chat_conversations_prompt_id_chat_prompts_id_fk" FOREIGN KEY ("prompt_id") REFERENCES "public"."chat_prompts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "chat_events" ADD CONSTRAINT "chat_events_conversation_id_chat_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."chat_conversations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "chat_message_log" ADD CONSTRAINT "chat_message_log_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "chat_messages" ADD CONSTRAINT "chat_messages_conversation_id_chat_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."chat_conversations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "chat_messages" ADD CONSTRAINT "chat_messages_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "chat_raw_messages" ADD CONSTRAINT "chat_raw_messages_conversation_id_chat_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."chat_conversations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -119,11 +128,14 @@ ALTER TABLE "chat_tool_calls" ADD CONSTRAINT "chat_tool_calls_user_id_users_id_f
 ALTER TABLE "chat_tool_calls" ADD CONSTRAINT "chat_tool_calls_run_id_chat_runs_id_fk" FOREIGN KEY ("run_id") REFERENCES "public"."chat_runs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "idx_chat_conversations_user_last" ON "chat_conversations" USING btree ("user_id","last_message_at");--> statement-breakpoint
 CREATE INDEX "idx_chat_events_delta_created" ON "chat_events" USING btree ("created_at") WHERE "chat_events"."type" = 'text_delta';--> statement-breakpoint
+CREATE INDEX "idx_chat_message_log_user_created" ON "chat_message_log" USING btree ("user_id","created_at");--> statement-breakpoint
 CREATE INDEX "idx_chat_messages_conversation" ON "chat_messages" USING btree ("conversation_id","created_at");--> statement-breakpoint
 CREATE INDEX "idx_chat_messages_user_role" ON "chat_messages" USING btree ("user_id","role","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_chat_runs_active_conversation" ON "chat_runs" USING btree ("conversation_id") WHERE "chat_runs"."status" IN ('queued', 'running', 'awaiting_confirmation');--> statement-breakpoint
 CREATE INDEX "idx_chat_runs_status_heartbeat" ON "chat_runs" USING btree ("status","heartbeat_at");--> statement-breakpoint
 CREATE INDEX "idx_chat_runs_conversation" ON "chat_runs" USING btree ("conversation_id","created_at");--> statement-breakpoint
+CREATE INDEX "idx_chat_runs_user_message" ON "chat_runs" USING btree ("user_message_id");--> statement-breakpoint
+CREATE INDEX "idx_chat_runs_assistant_message" ON "chat_runs" USING btree ("assistant_message_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_chat_tool_calls_tool_use" ON "chat_tool_calls" USING btree ("conversation_id","tool_use_id");--> statement-breakpoint
 CREATE INDEX "idx_chat_tool_calls_run" ON "chat_tool_calls" USING btree ("run_id");--> statement-breakpoint
 CREATE INDEX "idx_chat_tool_calls_pending" ON "chat_tool_calls" USING btree ("expires_at") WHERE "chat_tool_calls"."action_status" = 'pending';--> statement-breakpoint

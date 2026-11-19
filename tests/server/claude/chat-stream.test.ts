@@ -19,7 +19,7 @@ vi.mock('$lib/server/claude/chat/events', () => ({
 	}
 }));
 
-const { chatEventStream, formatSseEvent, SSE_RETRY_MS } =
+const { chatEventStream, formatSseEvent, openStreamCount, SSE_RETRY_MS } =
 	await import('$lib/server/claude/chat/stream');
 
 const event = (seq: number, type = 'text_delta') => ({
@@ -67,7 +67,7 @@ describe('chat event stream', () => {
 		const pages: unknown[][] = [[event(3), event(4)], [event(5, 'run_finished')]];
 		h.listEvents.mockImplementation(async () => pages.shift() ?? []);
 		const abort = new AbortController();
-		const reader = chatEventStream('c1', 2, abort.signal, timing).getReader();
+		const reader = chatEventStream('u1', 'c1', 2, abort.signal, timing).getReader();
 		await vi.advanceTimersByTimeAsync(0);
 		expect(h.listEvents).toHaveBeenNthCalledWith(1, 'c1', 2, 500);
 		h.listeners.get('c1')!();
@@ -92,7 +92,7 @@ describe('chat event stream', () => {
 			return pages.shift() ?? [];
 		});
 		const abort = new AbortController();
-		const reader = chatEventStream('c1', 0, abort.signal, timing).getReader();
+		const reader = chatEventStream('u1', 'c1', 0, abort.signal, timing).getReader();
 		await vi.advanceTimersByTimeAsync(0);
 		h.listeners.get('c1')!();
 		h.listeners.get('c1')!();
@@ -110,7 +110,7 @@ describe('chat event stream', () => {
 
 	test('ends after the maximum duration and when reading fails', async () => {
 		h.listEvents.mockResolvedValue([]);
-		const reader = chatEventStream('c1', 0, new AbortController().signal, {
+		const reader = chatEventStream('u1', 'c1', 0, new AbortController().signal, {
 			...timing,
 			maxDurationMs: 2000
 		}).getReader();
@@ -118,7 +118,13 @@ describe('chat event stream', () => {
 		await collect(reader);
 
 		h.listEvents.mockRejectedValue(new Error('db down'));
-		const failing = chatEventStream('c2', 0, new AbortController().signal, timing).getReader();
+		const failing = chatEventStream(
+			'u1',
+			'c2',
+			0,
+			new AbortController().signal,
+			timing
+		).getReader();
 		await vi.advanceTimersByTimeAsync(0);
 		await collect(failing);
 		expect(h.captureException).toHaveBeenCalled();
@@ -126,11 +132,24 @@ describe('chat event stream', () => {
 
 	test('cleans up when the client cancels', async () => {
 		h.listEvents.mockResolvedValue([]);
-		const stream = chatEventStream('c1', 0, new AbortController().signal, timing);
+		const stream = chatEventStream('u1', 'c1', 0, new AbortController().signal, timing);
 		const reader = stream.getReader();
 		await vi.advanceTimersByTimeAsync(0);
 		await reader.cancel();
 		expect(h.listeners.has('c1')).toBe(false);
 		await vi.advanceTimersByTimeAsync(5000);
+	});
+
+	test('keeps at most three streams per user open, closing the oldest', async () => {
+		h.listEvents.mockResolvedValue([]);
+		const readers = Array.from({ length: 4 }, (_, index) =>
+			chatEventStream('u9', `c${index}`, 0, new AbortController().signal, timing).getReader()
+		);
+		await vi.advanceTimersByTimeAsync(0);
+		expect(openStreamCount('u9')).toBe(3);
+		await collect(readers[0]!);
+		for (const reader of readers.slice(1)) await reader.cancel();
+		expect(openStreamCount('u9')).toBe(0);
+		expect(openStreamCount('nobody')).toBe(0);
 	});
 });

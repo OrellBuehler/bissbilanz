@@ -70,8 +70,9 @@ re-sending the same create returns 200 with the existing conversation. An id tha
 another user answers `409 conversation_exists`. Without a title, the first message sets one (its
 first 60 characters).
 
-Deleting removes messages, runs, events and pending actions. Diary changes the assistant made
-stay. A run working on the conversation is stopped first.
+Deleting removes messages, runs, events, pending actions and the chat's copies of attached
+photos. Diary changes the assistant made stay. A run working on the conversation is stopped
+first; the request waits up to 10 seconds for a tool call that is executing at that moment.
 
 All ids in paths must be UUIDs (`400 { "error": "Invalid ID format" }` otherwise). Ids of another
 user's conversation, run or action always answer 404, exactly like ids that do not exist.
@@ -95,8 +96,10 @@ POST /api/chat/conversations/83e75848-4125-4fab-b1d5-671e38b93bba/messages
 - `text`: 1–4000 characters after trimming.
 - `imageFilenames` (optional): up to 5 photos the user uploaded with `POST /api/ai-tasks/photo`
   (or `/api/images/upload`), as `<uuid>.webp` or `/uploads/<uuid>.webp`. Anything that is not the
-  user's own upload answers `400 invalid_image`. Files over 4 MB are replaced by a note to the
-  model. Photos are shown as `image` parts of the user message.
+  user's own upload, is missing on the server or is over 4 MB answers `400 invalid_image`. The
+  server copies each photo into the chat: the `image` parts of the user message point to the copy
+  (`/uploads/<new uuid>.webp`), so replacing or deleting the original elsewhere never changes the
+  conversation. A conversation holds at most 20 photos (12 MB of photo data).
 - `context` (optional, recommended): `date` = the diary day the user has open (YYYY-MM-DD);
   `timezone` = the device's IANA zone (only informs the assistant; the diary keeps using the
   user's time-zone preference); `locale` = the app language (BCP 47). The assistant answers in
@@ -112,23 +115,24 @@ and let the user retry instead.
 
 Errors (`ChatErrorResponse { error, code?, … }`):
 
-| Status | `code`                   | Meaning / client action                                                   |
-| ------ | ------------------------ | ------------------------------------------------------------------------- |
-| 400    | (none)                   | Validation error (`details` present)                                      |
-| 400    | `invalid_image`          | An image is not the user's upload                                         |
-| 403    | (none)                   | Token without `account:manage`                                            |
-| 403    | `chat_unavailable`       | Gate closed (key, kill switch, access); body has `capability`             |
-| 403    | `budget_exhausted`       | User or global monthly budget too low; body has `capability`              |
-| 404    | `conversation_not_found` |                                                                           |
-| 409    | `run_active`             | A run is still `queued`/`running`: wait for `run_finished` or cancel it   |
-| 409    | `conversation_too_long`  | 40 user messages or ~1 MB of transcript reached: offer "Start a new chat" |
-| 409    | `message_id_conflict`    | The id is used by another conversation or user: generate a new id         |
-| 429    | `daily_limit_reached`    | 60 messages in 24 hours; `Retry-After` header (seconds)                   |
-| 429    | (none)                   | Shared write rate limit (120 writes/min); `Retry-After`                   |
+| Status | `code`                   | Meaning / client action                                                                                   |
+| ------ | ------------------------ | --------------------------------------------------------------------------------------------------------- |
+| 400    | (none)                   | Validation error (`details` present)                                                                      |
+| 400    | `invalid_image`          | An image is not the user's upload                                                                         |
+| 403    | (none)                   | Token without `account:manage`                                                                            |
+| 403    | `chat_unavailable`       | Gate closed (key, kill switch, access); body has `capability`                                             |
+| 403    | `budget_exhausted`       | User or global monthly budget too low; body has `capability`                                              |
+| 404    | `conversation_not_found` |                                                                                                           |
+| 409    | `run_active`             | A run is still `queued`/`running`: wait for `run_finished` or cancel it                                   |
+| 409    | `conversation_too_long`  | 40 user messages, ~1 MB of transcript, 20 photos or 12 MB of photo data reached: offer "Start a new chat" |
+| 409    | `message_id_conflict`    | The id is used by another conversation or user: generate a new id                                         |
+| 429    | `daily_limit_reached`    | 60 messages in 24 hours (deleting conversations does not reset it); `Retry-After` header (seconds)        |
+| 429    | (none)                   | Shared write rate limit (120 writes/min); `Retry-After`                                                   |
 
-A run that is **waiting for a confirmation** does not block a new message: sending a message then
+A run that is **waiting for a confirmation** does not block a new message: an accepted message
 cancels that run (status `cancelled`, reason `superseded`; its action becomes `cancelled`, the
-model is told the user did not confirm) and starts the new run. Unknown `code` → show `error`
+model is told the user did not confirm) and starts the new run. A message that is rejected (any
+error above) leaves the pending confirmation untouched. Unknown `code` → show `error`
 generically.
 
 ## 5. Receiving events
@@ -164,7 +168,8 @@ data: {"seq":3,"type":"text_delta","runId":"9eab…","messageId":"3638…","part
 - Reconnect with `after=<lastSeq>` (or the standard `Last-Event-ID` header; the server uses the
   larger of the two). Back off (3 s, then exponential up to 30 s) on errors.
 - Close the stream when the screen is closed. Opening a stream counts against the events rate
-  limit (240 requests/min per user).
+  limit (240 requests/min per user). At most **3 streams per user** stay open; a fourth closes the
+  oldest one (it simply ends, like the 10-minute close).
 
 ### 5.2 JSON polling (fallback)
 
@@ -212,25 +217,46 @@ Any other `Accept` returns one page:
 | `action` | `actionId`, `toolUseId`, `name`, `label`, `status`, `preview { summary, details[] }`, `expiresAt` | Confirmation card (§7)                                                     |
 
 Unknown part `type` → skip it. `tool.status`: `running`, `ok`, `error` (show `summary`, the error
-message), `declined`; unknown → like `ok`. `label` is already in the user's language
+message); unknown → like `ok`. A finished message never contains a `running` tool part: a call the
+run stopped during ends as `error` with a summary such as "Stopped before it finished. Check the
+result." A confirmation the user rejected is an `action` part with status `rejected` and has no
+`tool` part. `label` is already in the user's language
 (e.g. "Logging food" / "Trage Essen ein"). Web searches and page fetches the assistant does
 appear as tool parts named `web_search` / `web_fetch` ("Searching the web"); they change nothing.
 A tool part can still be `running` in a final message when the run stopped during that call.
 
 ## 7. Confirmations
 
-Deleting (entries, foods, recipes, supplements, weight, sleep, day details), merging foods,
-copying a day of entries and removing a supplement log never run without the user's approval.
-When the model calls one of these tools, the run pauses:
+These calls never run without the user's approval:
+
+- deleting an entry, food, recipe, supplement, weight or sleep entry, or a day's details (water,
+  activity, fasting flag, notes); merging foods; copying a day of entries; removing a supplement
+  log;
+- changing the serving size, nutrition values or photo of a food that has diary entries;
+- changing a recipe's ingredients or steps, or the servings or cooked weight of a recipe that has
+  diary entries; changing a supplement's ingredients;
+- any call with a `force` flag;
+- every write after the first 10 writes of one run (a "log all of these" request with many items
+  asks again from the 11th on).
+
+Everything else (logging, creating, other edits, goals, weight and sleep logs, day properties,
+labels) runs at once and is reported in `changed` (§10). When the model calls a tool that needs
+approval, the run pauses:
 
 1. `action_required` event with `partIndex` and the full `action` (`ChatAction`); the message gets
    an `action` part with `status: "pending"`; the run's status becomes `awaiting_confirmation`
    (no event for this; `GET` shows it as `activeRun`). `pendingActions` in `GET` lists open ones.
 2. Show `preview.summary` (one line, user's language, built by the server from the current data,
    e.g. "Delete “Greek yogurt” from Breakfast on 18 Nov 2026") and `preview.details` (extra lines,
-   possibly empty), with Approve and Reject buttons.
+   possibly empty), with Approve and Reject buttons. The card describes exactly the call that runs:
+   defaults are resolved when the card is built (copying "to today" names the day; approving after
+   midnight still acts on that day), every field the call sets is listed (e.g.
+   `calories: 60 → 75`, or the overrides of a merge), and fields the card cannot show are rejected
+   before any card is created.
 3. `POST /api/chat/actions/{actionId}` with `{ "decision": "approve" }` or `"reject"` →
-   `200 { action, run }` (`run.status` is `queued`). Events follow on the stream:
+   `200 { action, run }` (`run.status` is `queued`). The run resumes at once. The card is written in
+   the same transaction that pauses the run, so an approval right after `action_required` always
+   finds the action pending. Events follow on the stream:
    `action_resolved` (`status: approved | rejected`), `run_resumed`, then for an approval
    `tool_started`/`tool_finished` of the call itself, then the model's reply.
 4. Errors: `404 action_not_found`; `409 action_not_pending` (already decided, cancelled, or the
@@ -260,6 +286,7 @@ changes, createdAt, startedAt, finishedAt }`
 | `failed`      | `not_configured`, `disabled`, `no_access`          | "The assistant is not available right now." |
 | `failed`      | `user_budget_exhausted`, `global_budget_exhausted` | "This month's assistant budget is used up." |
 | `failed`      | `refusal`                                          | "The assistant declined this request."      |
+| `failed`      | `conversation_too_long`                            | "This chat is full. Start a new one."       |
 | `failed`      | `api_error`                                        | "Something went wrong. Try again."          |
 | `failed`      | `internal_error`                                   | "Something went wrong. Try again."          |
 | `cancelled`   | `user_cancelled`                                   | (none, or "Stopped")                        |
@@ -269,11 +296,21 @@ changes, createdAt, startedAt, finishedAt }`
 
 Unknown reason → generic message for the status. After a failure the user can simply send
 another message. Partial text and the tool calls that already ran are kept in the message.
+Overload, rate-limit, server and connection errors (and a stalled stream: 90 s without data or 10
+minutes in total) are retried up to twice by the server, but only while nothing of that answer has
+streamed; `api_error` means the retries did not help or text had already arrived.
+`interrupted` / `server_restart` also covers a run that stopped without a known cause (e.g. its
+access was revoked and restored while it stopped). A run left by a restart is settled within about
+1.5 minutes (the heartbeat goes stale after 60 s, the sweep runs every 30 s) or when the
+conversation or its events are read.
 
-`POST /api/chat/runs/{id}/cancel` stops a `queued`, `running` or `awaiting_confirmation` run
-(`200 { run }` with `status: "cancelled"`, `reason: "user_cancelled"`); a finished run answers
-`409 run_not_active` (body has `run`), an unknown one `404 run_not_found`. A tool call that is
-already executing finishes; everything after it does not run.
+`POST /api/chat/runs/{id}/cancel` stops a `queued`, `running` or `awaiting_confirmation` run and
+returns `200 { run }`, normally with `status: "cancelled"`, `reason: "user_cancelled"`. A run that
+finished on its own while the cancel was handled is returned as it finished (e.g. `completed`): use
+the returned status. A run already finished before the request answers `409 run_not_active` (body
+has `run`), an unknown one `404 run_not_found`. The request waits up to 10 seconds for a tool call
+that is executing; that call finishes, nothing after it runs, and a write whose outcome is unknown
+is reported in `changed` without scope.
 
 ## 9. Event types
 
@@ -349,7 +386,7 @@ Both are also derivable from the stored message (the `tool` parts' `changes`).
 | Domain          | What to refresh                                  | Scope given                                                                                                            |
 | --------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | `entries`       | Diary entries and day totals                     | `dates` when known (log, update, delete, copy, supplement log); none after a food merge or a forced food/recipe delete |
-| `foods`         | Food list / food detail                          | `ids`                                                                                                                  |
+| `foods`         | Food list / food detail                          | `ids`; none when a supplement created foods for its ingredients                                                        |
 | `recipes`       | Recipes                                          | `ids` when known; none when a deleted food was an ingredient                                                           |
 | `goals`         | Goals                                            | none                                                                                                                   |
 | `weight`        | Weight entries / trend                           | `dates` (log) or `ids` (update, delete)                                                                                |
@@ -361,22 +398,27 @@ Both are also derivable from the stored message (the `tool` parts' `changes`).
 
 Unknown domain → ignore it (or refresh everything if you prefer safety). Editing a food changes
 the macros shown for entries that use it; like an edit through the REST API, that is reported as
-`foods` only.
+`foods` only. When a run stops while a write executes (cancel, restart), the write's outcome is
+unknown: its tool part ends as `error` and its `changed`/`changes` list every domain it may have
+touched, without scope, so `run_finished` always covers everything that may have been written.
 
 ## 11. Limits
 
-| Limit                         | Value                                             | Error                               |
-| ----------------------------- | ------------------------------------------------- | ----------------------------------- |
-| Message text                  | 1–4000 characters                                 | 400                                 |
-| Photos per message            | 5                                                 | 400                                 |
-| Messages per user             | 60 per rolling 24 h                               | 429 `daily_limit_reached`           |
-| Conversation length           | 40 user messages or ~1 MB transcript              | 409 `conversation_too_long`         |
-| Active runs                   | 1 per conversation                                | 409 `run_active`                    |
-| Model calls per run           | `CLAUDE_MAX_ITERATIONS` (default 20)              | run `completed` / `iteration_limit` |
-| Confirmation lifetime         | 60 minutes                                        | `action_expired`                    |
-| Events endpoint               | 240 requests/min per user (SSE connects included) | 429 + `Retry-After`                 |
-| SSE stream                    | ping every 20 s, closed after 10 min              | reconnect                           |
-| Concurrent runs on the server | 3 (others wait in `queued`)                       | —                                   |
+| Limit                         | Value                                                       | Error                                  |
+| ----------------------------- | ----------------------------------------------------------- | -------------------------------------- |
+| Message text                  | 1–4000 characters                                           | 400                                    |
+| Photos per message            | 5, each ≤ 4 MB                                              | 400 `invalid_image`                    |
+| Messages per user             | 60 per rolling 24 h, deleted conversations included         | 429 `daily_limit_reached`              |
+| Conversation length           | 40 user messages, ~1 MB transcript, 20 photos, 12 MB photos | 409 `conversation_too_long`            |
+| Context window of the model   | full                                                        | run `failed` / `conversation_too_long` |
+| Active runs                   | 1 per conversation                                          | 409 `run_active`                       |
+| Model calls per run           | `CLAUDE_MAX_ITERATIONS` (default 20)                        | run `completed` / `iteration_limit`    |
+| Writes without confirmation   | 10 per run, then every write asks                           | confirmation card                      |
+| Confirmation lifetime         | 60 minutes                                                  | `action_expired`                       |
+| Events endpoint               | 240 requests/min per user (SSE connects included)           | 429 + `Retry-After`                    |
+| SSE streams                   | 3 open per user (a fourth closes the oldest)                | stream ends, reconnect                 |
+| SSE stream                    | ping every 20 s, closed after 10 min                        | reconnect                              |
+| Concurrent runs on the server | 3, at most 2 per user (others wait in `queued`)             | —                                      |
 
 ## 12. What the assistant can and cannot reach
 

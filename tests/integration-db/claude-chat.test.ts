@@ -554,6 +554,149 @@ describe('confirmations', () => {
 	});
 });
 
+describe('review fixes', () => {
+	it('runs exactly the input the card was built from', async () => {
+		const user = await seedUser(db);
+		const food = await seedFood(user.id);
+		await seedEntry(user.id, food.id, '2026-11-10');
+		const conversation = await newConversation(user.id);
+		const copy = toolUse('copy_entries', { fromDate: '2026-11-10' });
+		const fake = fakeClaude([message([copy], 'tool_use')]);
+		await send(user.id, conversation.id, 'Copy that day');
+		const [action] = await db
+			.select()
+			.from(chatToolCalls)
+			.where(eq(chatToolCalls.toolUseId, copy.id as string));
+		const input = action!.input as { fromDate: string; toDate: string };
+		expect(input.fromDate).toBe('2026-11-10');
+		expect(input.toDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+		await db
+			.update(chatToolCalls)
+			.set({ input: { fromDate: '2026-11-10', toDate: '2026-11-12' } })
+			.where(eq(chatToolCalls.id, action!.id));
+		fake.queue.push(message([textBlock('Copied.')], 'end_turn'));
+		await service.decideAction(user.id, action!.id, 'approve');
+		await executor.settleChatRunsForTests();
+		const copied = await db
+			.select()
+			.from(foodEntries)
+			.where(and(eq(foodEntries.userId, user.id), eq(foodEntries.date, '2026-11-12')));
+		expect(copied).toHaveLength(1);
+	});
+
+	it('asks before overwriting the nutrition of a food that has entries', async () => {
+		const user = await seedUser(db);
+		const food = await seedFood(user.id);
+		await seedEntry(user.id, food.id);
+		const conversation = await newConversation(user.id);
+		const update = toolUse('update_food', { foodId: food.id, calories: 75 });
+		fakeClaude([message([update], 'tool_use')]);
+		const accepted = await send(user.id, conversation.id, 'Fix the calories');
+		expect((await runOf(accepted.run.id)).status).toBe('awaiting_confirmation');
+		const [action] = await db
+			.select()
+			.from(chatToolCalls)
+			.where(eq(chatToolCalls.toolUseId, update.id as string));
+		expect(action).toMatchObject({ kind: 'confirm', actionStatus: 'pending' });
+		expect(action!.preview).toEqual({
+			summary: 'Change the food “Greek yogurt”',
+			details: ['calories: 60 → 75']
+		});
+		const [unchanged] = await db.select().from(foods).where(eq(foods.id, food.id));
+		expect(unchanged!.calories).toBe(60);
+	});
+
+	it('asks for every write after the tenth in one run', async () => {
+		const user = await seedUser(db);
+		const conversation = await newConversation(user.id);
+		const logs = Array.from({ length: 11 }, (_, index) =>
+			toolUse('log_food', {
+				quickName: `Snack ${index}`,
+				quickCalories: 100,
+				servings: 1,
+				mealType: 'Snacks',
+				date: '2026-11-18'
+			})
+		);
+		fakeClaude([message(logs, 'tool_use')]);
+		const accepted = await send(user.id, conversation.id, 'Log my snacks');
+		expect((await runOf(accepted.run.id)).status).toBe('awaiting_confirmation');
+		const entries = await db.select().from(foodEntries).where(eq(foodEntries.userId, user.id));
+		expect(entries).toHaveLength(10);
+		const [last] = await db
+			.select()
+			.from(chatToolCalls)
+			.where(eq(chatToolCalls.toolUseId, logs[10]!.id as string));
+		expect(last).toMatchObject({ kind: 'confirm', actionStatus: 'pending' });
+		expect((last!.preview as { summary: string }).summary).toBe('Allow: Logging food');
+	});
+
+	it('retries an overloaded call once nothing has streamed, with a new reservation', async () => {
+		const user = await seedUser(db);
+		const conversation = await newConversation(user.id);
+		const overloaded = new Anthropic.InternalServerError(
+			529,
+			{ type: 'error' },
+			'busy',
+			new Headers()
+		);
+		fakeClaude([overloaded, message([textBlock('Here you go')], 'end_turn')]);
+		const accepted = await send(user.id, conversation.id);
+		expect((await runOf(accepted.run.id)).status).toBe('completed');
+		const usage = await db.select().from(claudeUsage);
+		expect(usage.map((row) => row.status).sort()).toEqual(['failed', 'succeeded']);
+	});
+
+	it('ends with conversation_too_long when the context window is full', async () => {
+		const user = await seedUser(db);
+		const conversation = await newConversation(user.id);
+		fakeClaude([message([textBlock('Partial')], 'model_context_window_exceeded' as never)]);
+		const accepted = await send(user.id, conversation.id);
+		expect(await runOf(accepted.run.id)).toMatchObject({
+			status: 'failed',
+			reason: 'conversation_too_long'
+		});
+	});
+
+	it('copies attached photos into the chat so later changes elsewhere do not reach it', async () => {
+		const user = await seedUser(db);
+		const conversation = await newConversation(user.id);
+		const { mkdir, writeFile, rm } = await import('node:fs/promises');
+		const { join } = await import('node:path');
+		const { UPLOAD_DIR } = await import('$lib/server/images');
+		await mkdir(UPLOAD_DIR, { recursive: true });
+		const source = `${randomUUID()}.webp`;
+		await writeFile(join(UPLOAD_DIR, source), new Uint8Array([1, 2, 3, 4]));
+		await db.insert(schema.uploads).values({ filename: source, userId: user.id, sizeBytes: 4 });
+		const fake = fakeClaude([message([textBlock('A photo')], 'end_turn')]);
+		const accepted = await service.postMessage(user.id, conversation.id, {
+			id: randomUUID(),
+			text: 'What is this?',
+			imageFilenames: [`/uploads/${source}`]
+		});
+		await executor.settleChatRunsForTests();
+		const [stored] = await db
+			.select()
+			.from(chatMessages)
+			.where(eq(chatMessages.id, accepted.message.id));
+		const copy = stored!.imageUrls![0]!;
+		expect(copy).not.toBe(`/uploads/${source}`);
+		const [owned] = await db
+			.select()
+			.from(schema.uploads)
+			.where(eq(schema.uploads.filename, copy.slice('/uploads/'.length)));
+		expect(owned!.userId).toBe(user.id);
+		const [raw] = await rawOf(conversation.id);
+		expect(raw!.imageBytes).toBe(8);
+		await rm(join(UPLOAD_DIR, source));
+		fake.queue.push(message([textBlock('Still the same photo')], 'end_turn'));
+		await send(user.id, conversation.id, 'And now?');
+		const firstTurn = fake.calls[1]!.messages[0]!.content as Anthropic.ContentBlockParam[];
+		expect(firstTurn[0]).toMatchObject({ type: 'image' });
+		await rm(join(UPLOAD_DIR, copy.slice('/uploads/'.length)));
+	});
+});
+
 describe('stopping a run', () => {
 	it('cancels mid-stream, keeps the partial text and settles the usage', async () => {
 		const user = await seedUser(db);
@@ -752,8 +895,18 @@ describe('limits and gates', () => {
 
 		const busy = await seedUser(db);
 		const conversation = await newConversation(busy.id);
+		await db
+			.insert(schema.chatMessageLog)
+			.values(Array.from({ length: 60 }, () => ({ userId: busy.id })));
+		await expect(
+			service.postMessage(busy.id, conversation.id, { id: randomUUID(), text: 'Hi' })
+		).rejects.toMatchObject({ code: 'daily_limit_reached', status: 429 });
+		await db
+			.update(schema.chatMessageLog)
+			.set({ createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) })
+			.where(eq(schema.chatMessageLog.userId, busy.id));
 		await db.insert(chatMessages).values(
-			Array.from({ length: 60 }, () => ({
+			Array.from({ length: 40 }, () => ({
 				conversationId: conversation.id,
 				userId: busy.id,
 				role: 'user',
@@ -762,14 +915,47 @@ describe('limits and gates', () => {
 		);
 		await expect(
 			service.postMessage(busy.id, conversation.id, { id: randomUUID(), text: 'Hi' })
-		).rejects.toMatchObject({ code: 'daily_limit_reached', status: 429 });
-		await db
-			.update(chatMessages)
-			.set({ createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) })
-			.where(eq(chatMessages.userId, busy.id));
-		await expect(
-			service.postMessage(busy.id, conversation.id, { id: randomUUID(), text: 'Hi' })
 		).rejects.toMatchObject({ code: 'conversation_too_long', status: 409 });
+	});
+
+	it('keeps counting messages of deleted conversations against the daily limit', async () => {
+		const user = await seedUser(db);
+		const conversation = await newConversation(user.id);
+		fakeClaude([message([textBlock('Hi')], 'end_turn')]);
+		await send(user.id, conversation.id, 'Hello');
+		await service.deleteConversation(user.id, conversation.id);
+		const [logged] = await db
+			.select({ count: sql<number>`count(*)`.mapWith(Number) })
+			.from(schema.chatMessageLog)
+			.where(eq(schema.chatMessageLog.userId, user.id));
+		expect(logged!.count).toBe(1);
+	});
+
+	it('rejects a message that does not fit without touching the pending confirmation', async () => {
+		const user = await seedUser(db);
+		const food = await seedFood(user.id);
+		const entry = await seedEntry(user.id, food.id);
+		const conversation = await newConversation(user.id);
+		const remove = toolUse('delete_entry', { entryId: entry.id });
+		fakeClaude([message([remove], 'tool_use')]);
+		const accepted = await send(user.id, conversation.id, 'Delete it');
+		await db.insert(chatMessages).values(
+			Array.from({ length: 39 }, () => ({
+				conversationId: conversation.id,
+				userId: user.id,
+				role: 'user',
+				parts: []
+			}))
+		);
+		await expect(
+			service.postMessage(user.id, conversation.id, { id: randomUUID(), text: 'Keep it' })
+		).rejects.toMatchObject({ code: 'conversation_too_long' });
+		expect((await runOf(accepted.run.id)).status).toBe('awaiting_confirmation');
+		const [action] = await db
+			.select()
+			.from(chatToolCalls)
+			.where(eq(chatToolCalls.toolUseId, remove.id as string));
+		expect(action!.actionStatus).toBe('pending');
 	});
 
 	it('rejects images that are not the user’s uploads', async () => {
@@ -951,7 +1137,7 @@ describe('server-sent events', () => {
 		await send(user.id, conversation.id, 'One');
 		const { chatEventStream } = await import('$lib/server/claude/chat/stream');
 		const abort = new AbortController();
-		const reader = chatEventStream(conversation.id, 2, abort.signal, {
+		const reader = chatEventStream(user.id, conversation.id, 2, abort.signal, {
 			heartbeatMs: 50,
 			pollMs: 1000,
 			maxDurationMs: 5000

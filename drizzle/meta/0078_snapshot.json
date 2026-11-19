@@ -1,5 +1,5 @@
 {
-  "id": "ee6c0517-56c0-47fd-b127-5887754e9b92",
+  "id": "cd1fdade-d898-45a4-a93d-7d062984b2e0",
   "prevId": "af678cb0-e14b-49a2-ac24-070e7345e64d",
   "version": "7",
   "dialect": "postgresql",
@@ -1049,6 +1049,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "prompt_from_position": {
+          "name": "prompt_from_position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "last_message_at": {
           "name": "last_message_at",
           "type": "timestamp with time zone",
@@ -1212,6 +1219,75 @@
           ]
         }
       },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.chat_message_log": {
+      "name": "chat_message_log",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_chat_message_log_user_created": {
+          "name": "idx_chat_message_log_user_created",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "chat_message_log_user_id_users_id_fk": {
+          "name": "chat_message_log_user_id_users_id_fk",
+          "tableFrom": "chat_message_log",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -1483,6 +1559,13 @@
           "notNull": true,
           "default": 0
         },
+        "image_bytes": {
+          "name": "image_bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1682,6 +1765,36 @@
             },
             {
               "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_chat_runs_user_message": {
+          "name": "idx_chat_runs_user_message",
+          "columns": [
+            {
+              "expression": "user_message_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_chat_runs_assistant_message": {
+          "name": "idx_chat_runs_assistant_message",
+          "columns": [
+            {
+              "expression": "assistant_message_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

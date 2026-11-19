@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import type { SQL } from 'drizzle-orm';
 import { createMockDB } from '../../helpers/mock-db';
-import { chatEvents } from '$lib/server/schema';
+import { join } from 'node:path';
+import { chatEvents, chatMessageLog, chatMessages, chatRuns, uploads } from '$lib/server/schema';
 import type { ChatConversation, ChatMessageRow, ChatRun, ChatToolCall } from '$lib/server/schema';
 
 const h = vi.hoisted(() => ({
@@ -18,6 +19,7 @@ const h = vi.hoisted(() => ({
 	reconcileConversation: vi.fn(),
 	stopChatRun: vi.fn(),
 	finalizeRun: vi.fn(),
+	finalizeRunInTx: vi.fn(),
 	getConversation: vi.fn(),
 	getActiveRun: vi.fn(),
 	listMessages: vi.fn(),
@@ -25,7 +27,10 @@ const h = vi.hoisted(() => ({
 	getRunForUser: vi.fn(),
 	deleteConversationRow: vi.fn(),
 	appendRaw: vi.fn(),
-	transcriptBytes: vi.fn(),
+	transcriptSize: vi.fn(),
+	readFile: vi.fn(),
+	writeUploadFile: vi.fn(),
+	dropUploadFiles: vi.fn(),
 	ownsUpload: vi.fn(),
 	getUserTimeZone: vi.fn()
 }));
@@ -54,7 +59,10 @@ vi.mock('$lib/server/claude/chat/executor', () => ({
 	reconcileConversation: h.reconcileConversation,
 	stopChatRun: h.stopChatRun
 }));
-vi.mock('$lib/server/claude/chat/finalize', () => ({ finalizeRun: h.finalizeRun }));
+vi.mock('$lib/server/claude/chat/finalize', () => ({
+	finalizeRun: h.finalizeRun,
+	finalizeRunInTx: h.finalizeRunInTx
+}));
 vi.mock('$lib/server/claude/chat/store', async (importOriginal) => ({
 	...(await importOriginal<typeof import('$lib/server/claude/chat/store')>()),
 	getConversation: h.getConversation,
@@ -66,11 +74,18 @@ vi.mock('$lib/server/claude/chat/store', async (importOriginal) => ({
 }));
 vi.mock('$lib/server/claude/chat/transcript', () => ({
 	appendRaw: h.appendRaw,
-	transcriptBytes: h.transcriptBytes
+	transcriptSize: h.transcriptSize
 }));
 vi.mock('$lib/server/images', () => ({
 	ownsUpload: h.ownsUpload,
+	writeUploadFile: h.writeUploadFile,
+	dropUploadFiles: h.dropUploadFiles,
+	UPLOAD_DIR: '/uploads-dir',
 	UPLOAD_FILENAME_PATTERN: /^[a-f0-9-]+\.webp$/
+}));
+vi.mock('node:fs/promises', async (importOriginal) => ({
+	...(await importOriginal<typeof import('node:fs/promises')>()),
+	readFile: h.readFile
 }));
 vi.mock('$lib/server/preferences', () => ({ getUserTimeZone: h.getUserTimeZone }));
 
@@ -78,6 +93,7 @@ const service = await import('$lib/server/claude/chat/service');
 const { chatErrorCodeValues } = await import('$lib/server/claude/chat/codes');
 const { ApiError } = await import('$lib/server/errors');
 
+const UPLOAD_DIR = '/uploads-dir';
 const UID = 'user-1';
 const CID = 'conv-1';
 const T = new Date('2026-11-18T10:00:00.000Z');
@@ -161,6 +177,7 @@ const actionRow = (overrides: Partial<ChatToolCall> = {}) =>
 
 const OPEN_GATE = { available: true, remainingUsd: 5, blockedBy: null };
 const CAPABILITY = { available: false, blockedReason: 'no_access' };
+const OPEN_CAPABILITY = { available: true, remainingBudgetUsd: 5 };
 
 const input = (overrides: Record<string, unknown> = {}) => ({
 	id: 'msg-1',
@@ -193,7 +210,11 @@ beforeEach(() => {
 	h.toChatCapability.mockReturnValue(CAPABILITY);
 	h.ownsUpload.mockResolvedValue(true);
 	h.getUserTimeZone.mockResolvedValue('Europe/Zurich');
-	h.transcriptBytes.mockResolvedValue(0);
+	h.transcriptSize.mockResolvedValue({ bytes: 0, imageBytes: 0 });
+	h.readFile.mockResolvedValue(new Uint8Array(1000));
+	let copies = 0;
+	h.writeUploadFile.mockImplementation(async () => `copy-${++copies}.webp`);
+	h.dropUploadFiles.mockResolvedValue([]);
 	h.appendEvents.mockResolvedValue([{ seq: 7 }]);
 });
 
@@ -439,10 +460,10 @@ type Script = {
 	owner?: unknown[];
 	locked?: unknown[];
 	again?: unknown[];
-	active?: unknown[];
-	sent?: unknown[];
+	room?: unknown[];
 	message?: unknown[];
 	run?: unknown[];
+	images?: boolean;
 };
 
 const script = (overrides: Script = {}) =>
@@ -452,8 +473,9 @@ const script = (overrides: Script = {}) =>
 		overrides.owner ?? [{ locale: 'en' }],
 		overrides.locked ?? [conversationRow()],
 		overrides.again ?? [],
-		overrides.active ?? [],
-		overrides.sent ?? [{ count: 0 }],
+		overrides.room ?? [{ messages: 0, images: 0 }],
+		...(overrides.images ? [[]] : []),
+		[],
 		overrides.message ?? [messageRow()],
 		overrides.run ?? [runRow()],
 		[],
@@ -469,6 +491,11 @@ const expectNothingStored = () => {
 	expect(h.notifyConversation).not.toHaveBeenCalled();
 	expect(h.enqueueChatRun).not.toHaveBeenCalled();
 };
+
+const valuesOf = () => callsOf('values').map((call) => call.args[0]);
+const storedMessage = () =>
+	valuesOf().find((value) => value && 'conversationId' in value && 'role' in value);
+const rawTurn = () => h.appendRaw.mock.calls[0]![3][0];
 
 describe('postMessage: before the transaction', () => {
 	test('throws 404 for a foreign conversation', async () => {
@@ -503,6 +530,7 @@ describe('postMessage: before the transaction', () => {
 		});
 		expect(h.getChatGateState).not.toHaveBeenCalled();
 		expect(h.ownsUpload).not.toHaveBeenCalled();
+		expect(h.writeUploadFile).not.toHaveBeenCalled();
 		expectNothingStored();
 		expect(callsOf('transaction')).toHaveLength(0);
 	});
@@ -546,18 +574,34 @@ describe('postMessage: before the transaction', () => {
 		h.getChatGateState.mockResolvedValue(gate);
 		queueResults([[]]);
 
-		const error = await service.postMessage(UID, CID, input()).catch((caught) => caught);
+		const error = await service
+			.postMessage(UID, CID, input({ imageFilenames: ['aa-11.webp'] }))
+			.catch((caught) => caught);
 
 		expect(error).toBeInstanceOf(service.ChatRequestError);
 		expect(error).toMatchObject({ code, status, extra: { capability: CAPABILITY } });
 		expect(h.getChatGateState).toHaveBeenCalledWith(UID);
+		expect(h.toChatCapability).toHaveBeenCalledTimes(1);
 		expect(h.toChatCapability).toHaveBeenCalledWith(gate);
 		expect(h.ownsUpload).not.toHaveBeenCalled();
+		expect(h.readFile).not.toHaveBeenCalled();
+		expect(h.writeUploadFile).not.toHaveBeenCalled();
 		expectNothingStored();
 		const response = service.chatErrorResponse(error);
 		expect(await response.json()).toMatchObject({ code, capability: CAPABILITY });
 	});
 
+	test('derives the capability from the gate state it already read', async () => {
+		script();
+		await service.postMessage(UID, CID, input());
+		expect(h.getChatGateState).toHaveBeenCalledTimes(1);
+		expect(h.toChatCapability).toHaveBeenCalledTimes(1);
+		expect(h.toChatCapability).toHaveBeenCalledWith(OPEN_GATE);
+		expect(h.getChatCapabilitySafe).not.toHaveBeenCalled();
+	});
+});
+
+describe('postMessage: reading the photos', () => {
 	test.each([
 		['a filename that is not a webp uuid', ['../secret.png'], true],
 		['an upload the user does not own', ['abc-123.webp'], false]
@@ -568,11 +612,13 @@ describe('postMessage: before the transaction', () => {
 			status: 400,
 			code: 'invalid_image'
 		});
+		expect(h.readFile).not.toHaveBeenCalled();
+		expect(h.writeUploadFile).not.toHaveBeenCalled();
 		expectNothingStored();
 		expect(callsOf('transaction')).toHaveLength(0);
 	});
 
-	test('stops at the first foreign image and checks owners per filename', async () => {
+	test('stops at the first foreign image and reads nothing after it', async () => {
 		h.ownsUpload.mockImplementation(
 			async (_user: string, filename: string) => filename === 'a-1.webp'
 		);
@@ -584,19 +630,79 @@ describe('postMessage: before the transaction', () => {
 			[UID, 'a-1.webp'],
 			[UID, 'b-2.webp']
 		]);
+		expect(h.readFile.mock.calls).toEqual([[join(UPLOAD_DIR, 'a-1.webp')]]);
+		expect(h.writeUploadFile).not.toHaveBeenCalled();
 	});
 
+	test.each([
+		['an error', new Error('ENOENT: no such file'), 'ENOENT: no such file'],
+		['a thrown string', 'disk gone', 'disk gone']
+	])('answers invalid_image when the upload is unreadable (%s)', async (_name, failure, detail) => {
+		h.readFile.mockRejectedValue(failure);
+		queueResults([[]]);
+		await expect(
+			service.postMessage(UID, CID, input({ imageFilenames: ['aa-11.webp'] }))
+		).rejects.toMatchObject({ status: 400, code: 'invalid_image' });
+		expect(h.addBreadcrumb).toHaveBeenCalledWith(
+			expect.objectContaining({
+				category: 'chat',
+				message: 'Chat image upload is not readable',
+				data: { error: detail }
+			})
+		);
+		expect(h.writeUploadFile).not.toHaveBeenCalled();
+		expectNothingStored();
+	});
+
+	test('answers invalid_image for a photo over 4 MB but takes one of exactly 4 MB', async () => {
+		h.readFile.mockResolvedValue(new Uint8Array(4 * 1024 * 1024 + 1));
+		queueResults([[]]);
+		await expect(
+			service.postMessage(UID, CID, input({ imageFilenames: ['aa-11.webp'] }))
+		).rejects.toMatchObject({ status: 400, code: 'invalid_image' });
+		expect(h.writeUploadFile).not.toHaveBeenCalled();
+
+		reset();
+		h.readFile.mockResolvedValue(new Uint8Array(4 * 1024 * 1024));
+		script({ images: true });
+		await expect(
+			service.postMessage(UID, CID, input({ imageFilenames: ['aa-11.webp'] }))
+		).resolves.toMatchObject({ created: true });
+	});
+
+	test('reads every distinct upload once from the upload directory', async () => {
+		script({ images: true });
+		await service.postMessage(
+			UID,
+			CID,
+			input({ imageFilenames: ['/uploads/aa-11.webp', 'aa-11.webp', 'bb-22.webp'] })
+		);
+		expect(h.ownsUpload.mock.calls).toEqual([
+			[UID, 'aa-11.webp'],
+			[UID, 'bb-22.webp']
+		]);
+		expect(h.readFile.mock.calls).toEqual([
+			[join(UPLOAD_DIR, 'aa-11.webp')],
+			[join(UPLOAD_DIR, 'bb-22.webp')]
+		]);
+	});
+});
+
+describe('postMessage: the daily limit', () => {
 	test('answers 429 with the time until the oldest message leaves the window', async () => {
 		vi.useFakeTimers();
 		try {
 			vi.setSystemTime(new Date('2026-11-18T12:00:00.000Z'));
 			const oldest = new Date('2026-11-18T11:00:00.000Z');
-			script({ window: [{ count: 60, oldest }] });
+			script({ window: [{ count: 60, oldest }], images: true });
 			// the oldest message is 1 h old, so it leaves the 24 h window in 23 h
-			const error = await service.postMessage(UID, CID, input()).catch((caught) => caught);
+			const error = await service
+				.postMessage(UID, CID, input({ imageFilenames: ['aa-11.webp'] }))
+				.catch((caught) => caught);
 			expect(error).toMatchObject({ code: 'daily_limit_reached', status: 429 });
 			expect(error.retryAfterSeconds).toBe(23 * 60 * 60);
 			expect(service.chatErrorResponse(error).headers.get('Retry-After')).toBe(String(23 * 3600));
+			expect(h.writeUploadFile).not.toHaveBeenCalled();
 			expectNothingStored();
 		} finally {
 			vi.useRealTimers();
@@ -622,14 +728,16 @@ describe('postMessage: before the transaction', () => {
 		expect(error.retryAfterSeconds).toBe(60);
 	});
 
-	test('counts the users own messages of the last day', async () => {
+	test('counts the accepted messages of the user in the log, not the messages table', async () => {
 		script({ window: [{ count: 60, oldest: null }] });
 		await service.postMessage(UID, CID, input()).catch(() => undefined);
 		const windowWhere = callsOf('where')[1]!.args[0] as SQL;
 		const { sql, params } = new PgDialect().sqlToQuery(windowWhere);
-		expect(sql).toContain('"chat_messages"."user_id" =');
-		expect(sql).toContain('"chat_messages"."created_at" >');
-		expect(params.slice(0, 2)).toEqual([UID, 'user']);
+		expect(sql).toContain('"chat_message_log"."user_id" =');
+		expect(sql).toContain('"chat_message_log"."created_at" >');
+		expect(sql).not.toContain('chat_messages');
+		expect(params[0]).toBe(UID);
+		expect(callsOf('from')[1]!.args[0]).toBe(chatMessageLog);
 	});
 
 	test('lets 59 messages through and treats a missing count row as zero', async () => {
@@ -639,88 +747,162 @@ describe('postMessage: before the transaction', () => {
 		script({ window: [] });
 		await expect(service.postMessage(UID, CID, input())).resolves.toMatchObject({ created: true });
 	});
-
-	test('declines a run waiting for confirmation before storing the message', async () => {
-		h.getActiveRun.mockResolvedValue(runRow({ id: 'paused', status: 'awaiting_confirmation' }));
-		script();
-		await service.postMessage(UID, CID, input());
-		expect(h.finalizeRun).toHaveBeenCalledTimes(1);
-		expect(h.finalizeRun).toHaveBeenCalledWith('paused', {
-			status: 'cancelled',
-			reason: 'superseded',
-			actionStatus: 'cancelled',
-			onlyIf: ['awaiting_confirmation']
-		});
-		expectCalledWithDb(h.getActiveRun, CID);
-		expect(order(h.finalizeRun)).toBeLessThan(order(h.appendRaw));
-	});
-
-	test.each(['queued', 'running'])('does not finalize a %s run', async (status) => {
-		h.getActiveRun.mockResolvedValue(runRow({ id: 'busy', status }));
-		script({ active: [{ id: 'busy' }] });
-		await expect(service.postMessage(UID, CID, input())).rejects.toMatchObject({
-			code: 'run_active'
-		});
-		expect(h.finalizeRun).not.toHaveBeenCalled();
-	});
 });
 
 describe('postMessage: inside the transaction', () => {
+	const withImages = { imageFilenames: ['aa-11.webp'] };
+
 	test('throws 404 when the conversation vanished before it could be locked', async () => {
 		script({ locked: [] });
-		await expect(service.postMessage(UID, CID, input())).rejects.toMatchObject({
+		await expect(service.postMessage(UID, CID, input(withImages))).rejects.toMatchObject({
 			status: 404,
 			code: 'conversation_not_found'
 		});
 		expectNothingStored();
 		expect(callsOf('for').map((call) => call.args[0])).toEqual(['update']);
+		expect(h.dropUploadFiles).toHaveBeenCalledWith(['copy-1.webp']);
 	});
 
-	test('rejects with run_active when a run is queued, running or paused', async () => {
-		script({ active: [{ id: 'run-9' }] });
-		await expect(service.postMessage(UID, CID, input())).rejects.toMatchObject({
-			status: 409,
-			code: 'run_active'
-		});
-		expect(callsOf('insert')).toHaveLength(0);
-		expect(h.transcriptBytes).not.toHaveBeenCalled();
-		expect(h.enqueueChatRun).not.toHaveBeenCalled();
+	test('drops the copies already written when copying a later photo fails', async () => {
+		const full = new Error('ENOSPC');
+		h.writeUploadFile.mockResolvedValueOnce('copy-1.webp').mockRejectedValueOnce(full);
+		script({ images: true });
+		await expect(
+			service.postMessage(UID, CID, input({ imageFilenames: ['aa-11.webp', 'bb-22.webp'] }))
+		).rejects.toBe(full);
+		expect(h.dropUploadFiles).toHaveBeenCalledWith(['copy-1.webp']);
+		expectNothingStored();
 	});
 
-	test('rejects with conversation_too_long at 40 user messages without reading the transcript', async () => {
-		script({ sent: [{ count: 40 }] });
-		await expect(service.postMessage(UID, CID, input())).rejects.toMatchObject({
+	test.each(['queued', 'running'])(
+		'rejects with run_active while a %s run is answering',
+		async (status) => {
+			h.getActiveRun.mockResolvedValue(runRow({ id: 'busy', status }));
+			script();
+			await expect(service.postMessage(UID, CID, input(withImages))).rejects.toMatchObject({
+				status: 409,
+				code: 'run_active'
+			});
+			expectCalledWithDb(h.getActiveRun, CID);
+			expect(h.transcriptSize).not.toHaveBeenCalled();
+			expect(h.finalizeRunInTx).not.toHaveBeenCalled();
+			expect(callsOf('insert')).toHaveLength(0);
+			expect(h.enqueueChatRun).not.toHaveBeenCalled();
+			expect(h.dropUploadFiles).toHaveBeenCalledWith(['copy-1.webp']);
+		}
+	);
+
+	test('rejects with conversation_too_long at 40 user messages', async () => {
+		script({ room: [{ messages: 40, images: 0 }] });
+		await expect(service.postMessage(UID, CID, input(withImages))).rejects.toMatchObject({
 			status: 409,
 			code: 'conversation_too_long'
 		});
-		expect(h.transcriptBytes).not.toHaveBeenCalled();
+		expectCalledWithDb(h.transcriptSize, CID);
 		expect(callsOf('insert')).toHaveLength(0);
+		expect(h.dropUploadFiles).toHaveBeenCalledWith(['copy-1.webp']);
 	});
 
 	test('rejects with conversation_too_long at 1 MB of transcript', async () => {
-		h.transcriptBytes.mockResolvedValue(1_000_000);
-		script({ sent: [{ count: 3 }] });
+		h.transcriptSize.mockResolvedValue({ bytes: 1_000_000, imageBytes: 0 });
+		script({ room: [{ messages: 3, images: 0 }] });
 		await expect(service.postMessage(UID, CID, input())).rejects.toMatchObject({
 			status: 409,
 			code: 'conversation_too_long'
 		});
-		expectCalledWithDb(h.transcriptBytes, CID);
 		expect(callsOf('insert')).toHaveLength(0);
 		expect(h.enqueueChatRun).not.toHaveBeenCalled();
 	});
 
-	test('takes the last message below both limits', async () => {
-		h.transcriptBytes.mockResolvedValue(999_999);
-		script({ sent: [{ count: 39 }] });
+	test('takes the last message below the message and transcript limits', async () => {
+		h.transcriptSize.mockResolvedValue({ bytes: 999_999, imageBytes: 0 });
+		script({ room: [{ messages: 39, images: 0 }] });
 		await expect(service.postMessage(UID, CID, input())).resolves.toMatchObject({ created: true });
+	});
+
+	test('rejects photos beyond 20 per conversation and takes exactly 20', async () => {
+		h.readFile.mockResolvedValue(new Uint8Array(10));
+		const three = { imageFilenames: ['aa-11.webp', 'bb-22.webp', 'cc-33.webp'] };
+		script({ room: [{ messages: 5, images: 18 }] });
+		await expect(service.postMessage(UID, CID, input(three))).rejects.toMatchObject({
+			status: 409,
+			code: 'conversation_too_long'
+		});
+		expect(h.dropUploadFiles).toHaveBeenCalledWith(['copy-1.webp', 'copy-2.webp', 'copy-3.webp']);
+
+		reset();
+		script({ room: [{ messages: 5, images: 17 }], images: true });
+		await expect(service.postMessage(UID, CID, input(three))).resolves.toMatchObject({
+			created: true
+		});
+	});
+
+	test('rejects photos beyond 12 MB of base64 per conversation and takes exactly 12 MB', async () => {
+		h.readFile.mockResolvedValue(new Uint8Array(3000));
+		h.transcriptSize.mockResolvedValue({ bytes: 10, imageBytes: 11_996_001 });
+		script({ images: true });
+		await expect(service.postMessage(UID, CID, input(withImages))).rejects.toMatchObject({
+			status: 409,
+			code: 'conversation_too_long'
+		});
+		expect(h.dropUploadFiles).toHaveBeenCalledWith(['copy-1.webp']);
+
+		reset();
+		h.transcriptSize.mockResolvedValue({ bytes: 10, imageBytes: 11_996_000 });
+		script({ images: true });
+		await expect(service.postMessage(UID, CID, input(withImages))).resolves.toMatchObject({
+			created: true
+		});
 	});
 
 	test('treats a missing count row as an empty conversation', async () => {
-		script({ sent: [] });
+		script({ room: [] });
 		await expect(service.postMessage(UID, CID, input())).resolves.toMatchObject({ created: true });
 	});
 
-	test('replays when the message id appeared while the lock was awaited', async () => {
+	test('leaves a paused run alone when the message does not fit', async () => {
+		h.getActiveRun.mockResolvedValue(runRow({ id: 'paused', status: 'awaiting_confirmation' }));
+		script({ room: [{ messages: 40, images: 0 }] });
+		await expect(service.postMessage(UID, CID, input())).rejects.toMatchObject({
+			code: 'conversation_too_long'
+		});
+		expect(h.finalizeRunInTx).not.toHaveBeenCalled();
+		expect(h.finalizeRun).not.toHaveBeenCalled();
+	});
+
+	test('declines a paused run in the same transaction once every check passed', async () => {
+		const paused = runRow({ id: 'paused', status: 'awaiting_confirmation' });
+		h.getActiveRun.mockResolvedValue(paused);
+		h.toChatCapability.mockReturnValue(OPEN_CAPABILITY);
+		script();
+
+		const result = await service.postMessage(UID, CID, input());
+
+		expect(result.created).toBe(true);
+		expect(h.finalizeRunInTx).toHaveBeenCalledTimes(1);
+		const [tx, run, options, capability] = h.finalizeRunInTx.mock.calls[0]!;
+		expect(tx === db).toBe(true);
+		expect(run).toBe(paused);
+		expect(options).toEqual({
+			status: 'cancelled',
+			reason: 'superseded',
+			actionStatus: 'cancelled',
+			onlyIf: ['awaiting_confirmation']
+		});
+		expect(capability).toBe(OPEN_CAPABILITY);
+		expect(h.finalizeRun).not.toHaveBeenCalled();
+		expect(order(h.transcriptSize)).toBeLessThan(order(h.finalizeRunInTx));
+		expect(order(h.finalizeRunInTx)).toBeLessThan(order(h.appendRaw));
+	});
+
+	test('never touches a run when none is active', async () => {
+		script();
+		await service.postMessage(UID, CID, input());
+		expect(h.finalizeRunInTx).not.toHaveBeenCalled();
+		expect(h.finalizeRun).not.toHaveBeenCalled();
+	});
+
+	test('replays when the message id appeared while the lock was awaited, dropping the copies', async () => {
 		queueResults([
 			[],
 			[{ count: 0, oldest: null }],
@@ -730,7 +912,7 @@ describe('postMessage: inside the transaction', () => {
 			[runRow({ status: 'running' })]
 		]);
 
-		const result = await service.postMessage(UID, CID, input());
+		const result = await service.postMessage(UID, CID, input(withImages));
 
 		expect(result).toMatchObject({
 			message: { id: 'msg-1' },
@@ -738,8 +920,10 @@ describe('postMessage: inside the transaction', () => {
 			seq: 4,
 			created: false
 		});
+		expect(h.dropUploadFiles).toHaveBeenCalledTimes(1);
+		expect(h.dropUploadFiles).toHaveBeenCalledWith(['copy-1.webp']);
 		expectNothingStored();
-		expect(h.transcriptBytes).not.toHaveBeenCalled();
+		expect(h.transcriptSize).not.toHaveBeenCalled();
 	});
 
 	test.each([
@@ -748,16 +932,17 @@ describe('postMessage: inside the transaction', () => {
 		['the assistant role', { role: 'assistant' }]
 	])('rejects the racing id when it belongs to %s', async (_name, overrides) => {
 		script({ again: [messageRow(overrides)] });
-		await expect(service.postMessage(UID, CID, input())).rejects.toMatchObject({
+		await expect(service.postMessage(UID, CID, input(withImages))).rejects.toMatchObject({
 			status: 409,
 			code: 'message_id_conflict'
 		});
 		expectNothingStored();
+		expect(h.dropUploadFiles).toHaveBeenCalledWith(['copy-1.webp']);
 	});
 });
 
 describe('postMessage: storing the message', () => {
-	test('inserts the message, transcript turn and run, then notifies and enqueues', async () => {
+	test('inserts the log row, message, transcript turn and run, then notifies and enqueues', async () => {
 		script({
 			message: [messageRow({ id: 'msg-1' })],
 			run: [runRow({ id: 'run-7', userMessageId: 'msg-1' })]
@@ -778,8 +963,14 @@ describe('postMessage: storing the message', () => {
 
 		expect(callsOf('transaction')).toHaveLength(1);
 		expect(callsOf('for').map((call) => call.args[0])).toEqual(['update']);
-		const values = callsOf('values').map((call) => call.args[0]);
-		expect(values[0]).toEqual({
+		expect(callsOf('insert').map((call) => call.args[0])).toEqual([
+			chatMessageLog,
+			chatMessages,
+			chatRuns
+		]);
+		const values = valuesOf();
+		expect(values[0]).toEqual({ userId: UID });
+		expect(values[1]).toEqual({
 			id: 'msg-1',
 			conversationId: CID,
 			userId: UID,
@@ -789,12 +980,14 @@ describe('postMessage: storing the message', () => {
 			imageUrls: null,
 			context: { date: '2026-11-18', timezone: 'Europe/Zurich', locale: 'en' }
 		});
-		expect(values[1]).toEqual({
+		expect(values[2]).toEqual({
 			conversationId: CID,
 			userId: UID,
 			userMessageId: 'msg-1',
 			status: 'queued'
 		});
+		expect(h.writeUploadFile).not.toHaveBeenCalled();
+		expect(h.dropUploadFiles).not.toHaveBeenCalled();
 
 		expect(h.appendRaw).toHaveBeenCalledTimes(1);
 		const [rawDb, rawConversation, rawRun, rawMessages] = h.appendRaw.mock.calls[0]!;
@@ -803,6 +996,7 @@ describe('postMessage: storing the message', () => {
 		expect(rawRun).toBeNull();
 		expect(rawMessages).toHaveLength(1);
 		expect(rawMessages[0].role).toBe('user');
+		expect(rawMessages[0].imageBytes).toBe(0);
 		expect(rawMessages[0].content.at(-1)).toEqual({ type: 'text', text: 'Hello there' });
 		expect(rawMessages[0].content.at(-2).text).toContain('Day open in the app: 2026-11-18');
 		expect(rawMessages[0].content.at(-2).text).toContain('Europe/Zurich');
@@ -833,6 +1027,73 @@ describe('postMessage: storing the message', () => {
 		expect(order(h.notifyConversation)).toBeLessThan(order(h.enqueueChatRun));
 	});
 
+	test('copies each photo into a chat-owned upload and records it with the message', async () => {
+		h.readFile.mockImplementation(async (path: string) =>
+			path.endsWith('aa-11.webp') ? new Uint8Array(1000) : new Uint8Array(1500)
+		);
+		script({ images: true });
+
+		await service.postMessage(
+			UID,
+			CID,
+			input({ imageFilenames: ['/uploads/aa-11.webp', 'aa-11.webp', 'bb-22.webp'] })
+		);
+
+		expect(h.writeUploadFile).toHaveBeenCalledTimes(2);
+		expect(h.writeUploadFile.mock.calls.map((call) => call[0].byteLength)).toEqual([1000, 1500]);
+
+		expect(callsOf('insert').map((call) => call.args[0])).toEqual([
+			uploads,
+			chatMessageLog,
+			chatMessages,
+			chatRuns
+		]);
+		const values = valuesOf();
+		expect(values[0]).toEqual([
+			{ filename: 'copy-1.webp', userId: UID, sizeBytes: 1000 },
+			{ filename: 'copy-2.webp', userId: UID, sizeBytes: 1500 }
+		]);
+		expect(values[1]).toEqual({ userId: UID });
+
+		const stored = storedMessage();
+		expect(stored.parts).toEqual([
+			{ type: 'image', url: '/uploads/copy-1.webp' },
+			{ type: 'image', url: '/uploads/copy-2.webp' },
+			{ type: 'text', text: 'Hello there' }
+		]);
+		expect(stored.imageUrls).toEqual(['/uploads/copy-1.webp', '/uploads/copy-2.webp']);
+
+		const turn = rawTurn();
+		expect(turn.content.slice(0, 2)).toEqual([
+			{ type: 'image', upload: 'copy-1.webp' },
+			{ type: 'image', upload: 'copy-2.webp' }
+		]);
+		expect(turn.content.at(-1)).toEqual({ type: 'text', text: 'Hello there' });
+		// 1000 B -> 1336 B and 1500 B -> 2000 B as base64
+		expect(turn.imageBytes).toBe(1336 + 2000);
+
+		expect(JSON.stringify([stored, turn, values])).not.toContain('aa-11');
+		expect(JSON.stringify([stored, turn, values])).not.toContain('bb-22');
+		expect(h.dropUploadFiles).not.toHaveBeenCalled();
+		expect(h.transcriptSize).toHaveBeenCalledTimes(1);
+	});
+
+	test('passes the new photos to the room check', async () => {
+		h.readFile.mockResolvedValue(new Uint8Array(1000));
+		h.transcriptSize.mockResolvedValue({ bytes: 0, imageBytes: 12_000_000 - 1336 });
+		script({ images: true });
+		await expect(
+			service.postMessage(UID, CID, input({ imageFilenames: ['aa-11.webp'] }))
+		).resolves.toMatchObject({ created: true });
+
+		reset();
+		h.transcriptSize.mockResolvedValue({ bytes: 0, imageBytes: 12_000_000 - 1335 });
+		script({ images: true });
+		await expect(
+			service.postMessage(UID, CID, input({ imageFilenames: ['aa-11.webp'] }))
+		).rejects.toMatchObject({ code: 'conversation_too_long' });
+	});
+
 	test('keeps an existing title', async () => {
 		script({ locked: [conversationRow({ title: 'My plan' })] });
 		await service.postMessage(UID, CID, input());
@@ -856,60 +1117,26 @@ describe('postMessage: storing the message', () => {
 		expect(setCalls()[1]!.title).toBe(title);
 	});
 
-	test('stores the images ahead of the text and deduplicates them', async () => {
-		script();
-		await service.postMessage(
-			UID,
-			CID,
-			input({ imageFilenames: ['/uploads/aa-11.webp', 'aa-11.webp', 'bb-22.webp'] })
-		);
-
-		expect(h.ownsUpload.mock.calls).toEqual([
-			[UID, 'aa-11.webp'],
-			[UID, 'bb-22.webp']
-		]);
-		const stored = callsOf('values')[0]!.args[0];
-		expect(stored.parts).toEqual([
-			{ type: 'image', url: '/uploads/aa-11.webp' },
-			{ type: 'image', url: '/uploads/bb-22.webp' },
-			{ type: 'text', text: 'Hello there' }
-		]);
-		expect(stored.imageUrls).toEqual(['/uploads/aa-11.webp', '/uploads/bb-22.webp']);
-
-		const content = h.appendRaw.mock.calls[0]![3][0].content;
-		expect(content.slice(0, 2)).toEqual([
-			{ type: 'image', upload: 'aa-11.webp' },
-			{ type: 'image', upload: 'bb-22.webp' }
-		]);
-		expect(content.at(-1)).toEqual({ type: 'text', text: 'Hello there' });
-	});
-
 	test('stores no image urls for an empty image list', async () => {
 		script();
 		await service.postMessage(UID, CID, input({ imageFilenames: [] }));
-		expect(callsOf('values')[0]!.args[0].imageUrls).toBeNull();
+		expect(storedMessage().imageUrls).toBeNull();
+		expect(h.readFile).not.toHaveBeenCalled();
+		expect(callsOf('insert').map((call) => call.args[0])).not.toContain(uploads);
 	});
 
 	test('falls back to the owners locale and no viewed date without a client context', async () => {
 		script({ owner: [{ locale: 'de-CH' }] });
 		await service.postMessage(UID, CID, input({ context: undefined }));
-		expect(callsOf('values')[0]!.args[0].context).toEqual({
-			date: null,
-			timezone: null,
-			locale: 'de-CH'
-		});
-		const context = h.appendRaw.mock.calls[0]![3][0].content.at(-2).text as string;
+		expect(storedMessage().context).toEqual({ date: null, timezone: null, locale: 'de-CH' });
+		const context = rawTurn().content.at(-2).text as string;
 		expect(context).toContain('Reply language: German');
 	});
 
 	test('falls back to English without an owner row', async () => {
 		script({ owner: [] });
 		await service.postMessage(UID, CID, input({ context: {} }));
-		expect(callsOf('values')[0]!.args[0].context).toEqual({
-			date: null,
-			timezone: null,
-			locale: 'en'
-		});
+		expect(storedMessage().context).toEqual({ date: null, timezone: null, locale: 'en' });
 	});
 
 	test('prefers the context locale and reports a differing device time zone', async () => {
@@ -919,12 +1146,12 @@ describe('postMessage: storing the message', () => {
 			CID,
 			input({ context: { date: '2026-11-17', timezone: 'Asia/Tokyo', locale: 'fr' } })
 		);
-		expect(callsOf('values')[0]!.args[0].context).toEqual({
+		expect(storedMessage().context).toEqual({
 			date: '2026-11-17',
 			timezone: 'Asia/Tokyo',
 			locale: 'fr'
 		});
-		const context = h.appendRaw.mock.calls[0]![3][0].content.at(-2).text as string;
+		const context = rawTurn().content.at(-2).text as string;
 		expect(context).toContain('Day open in the app: 2026-11-17');
 		expect(context).toContain('Asia/Tokyo');
 		expect(context).toContain('Reply language: French');
@@ -935,16 +1162,27 @@ describe('postMessage: storing the message', () => {
 		script();
 		await service.postMessage(UID, CID, input());
 		expect(h.getUserTimeZone).toHaveBeenCalledWith(UID);
-		const context = h.appendRaw.mock.calls[0]![3][0].content.at(-2).text as string;
+		const context = rawTurn().content.at(-2).text as string;
 		expect(context).toContain('time zone Pacific/Auckland');
 	});
 
-	test('never enqueues or notifies when a step of the transaction fails', async () => {
+	test('drops the copies and never enqueues or notifies when a step of the transaction fails', async () => {
+		script({ images: true });
+		h.appendRaw.mockRejectedValue(new Error('disk full'));
+		await expect(
+			service.postMessage(UID, CID, input({ imageFilenames: ['aa-11.webp'] }))
+		).rejects.toThrow('disk full');
+		expect(h.dropUploadFiles).toHaveBeenCalledTimes(1);
+		expect(h.dropUploadFiles).toHaveBeenCalledWith(['copy-1.webp']);
+		expect(h.notifyConversation).not.toHaveBeenCalled();
+		expect(h.enqueueChatRun).not.toHaveBeenCalled();
+	});
+
+	test('a failing transaction without photos drops nothing', async () => {
 		script();
 		h.appendRaw.mockRejectedValue(new Error('disk full'));
 		await expect(service.postMessage(UID, CID, input())).rejects.toThrow('disk full');
-		expect(h.notifyConversation).not.toHaveBeenCalled();
-		expect(h.enqueueChatRun).not.toHaveBeenCalled();
+		expect(h.dropUploadFiles).toHaveBeenCalledWith([]);
 	});
 });
 
@@ -1232,4 +1470,16 @@ describe('cancelRun', () => {
 			});
 		}
 	);
+
+	test('throws 404 when the run vanished while it was being finalized', async () => {
+		h.getRunForUser
+			.mockResolvedValueOnce(runRow({ status: 'running' }))
+			.mockResolvedValueOnce(null);
+		await expect(service.cancelRun(UID, 'run-1')).rejects.toMatchObject({
+			status: 404,
+			code: 'run_not_found'
+		});
+		expect(h.stopChatRun).toHaveBeenCalledWith('run-1', 'cancel');
+		expect(h.finalizeRun).toHaveBeenCalledTimes(1);
+	});
 });

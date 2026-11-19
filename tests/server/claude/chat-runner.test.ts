@@ -4,6 +4,7 @@ import { getTableName } from 'drizzle-orm';
 import {
 	chatConversations,
 	chatMessages,
+	foodEntries,
 	chatRuns,
 	chatToolCalls,
 	claudeAccess,
@@ -16,18 +17,29 @@ import {
 	CHAT_MAX_TOKENS,
 	HEARTBEAT_INTERVAL_MS,
 	MAX_TOOL_CALLS_PER_RESPONSE,
+	MAX_UNCONFIRMED_WRITES_PER_RUN,
+	RETRY_DELAYS_MS,
 	TEXT_FLUSH_MS
 } from '$lib/server/claude/chat/constants';
 import { subscribeConversation } from '$lib/server/claude/chat/events';
-import { DECLINED_RESULT, executeChatRun, type StopReason } from '$lib/server/claude/chat/runner';
+import {
+	DECLINED_RESULT,
+	abortableSleep,
+	executeChatRun,
+	type StopReason
+} from '$lib/server/claude/chat/runner';
 import { ClaudeAbortedError, ClaudeApiError, ClaudeGateError } from '$lib/server/claude/errors';
-import { CLAUDE_MODELS } from '$lib/server/claude/models';
+import {
+	CLAUDE_MODELS,
+	isWebFetchAccepted,
+	isWebFetchRejected,
+	resetWebFetchForTests
+} from '$lib/server/claude/models';
 
 const h = vi.hoisted(() => ({
 	callClaude: vi.fn(),
 	assertClaudeGates: vi.fn(),
 	finalizeRun: vi.fn(),
-	emitEvents: vi.fn(),
 	appendEvents: vi.fn(),
 	getConversation: vi.fn(),
 	entryDate: vi.fn(),
@@ -39,6 +51,7 @@ const h = vi.hoisted(() => ({
 	connectMcp: vi.fn(),
 	buildActionPreview: vi.fn(),
 	captureException: vi.fn(),
+	captureMessage: vi.fn(),
 	config: { model: 'claude-opus-5-5', effort: 'medium', maxIterations: 10 }
 }));
 
@@ -71,6 +84,7 @@ function builder(op: Query['op'], table?: unknown, fields?: Record<string, unkno
 		},
 		returning: () => api,
 		where: () => api,
+		limit: () => api,
 		for: () => api,
 		onConflictDoNothing: () => api,
 		then: (resolve: (value: unknown) => unknown, reject: (error: unknown) => unknown) =>
@@ -90,6 +104,7 @@ const db = {
 
 vi.mock('@sentry/sveltekit', () => ({
 	captureException: h.captureException,
+	captureMessage: h.captureMessage,
 	addBreadcrumb: vi.fn(),
 	logger: { info: vi.fn() }
 }));
@@ -102,7 +117,6 @@ vi.mock('$lib/server/claude/chat/finalize', () => ({ finalizeRun: h.finalizeRun 
 vi.mock('$lib/server/claude/chat/previews', () => ({ buildActionPreview: h.buildActionPreview }));
 vi.mock('$lib/server/claude/chat/events', async (importOriginal) => ({
 	...(await importOriginal<typeof import('$lib/server/claude/chat/events')>()),
-	emitEvents: h.emitEvents,
 	appendEvents: h.appendEvents
 }));
 vi.mock('$lib/server/claude/chat/store', async (importOriginal) => ({
@@ -130,6 +144,7 @@ const T = {
 	messages: getTableName(chatMessages),
 	conversations: getTableName(chatConversations),
 	toolCalls: getTableName(chatToolCalls),
+	entries: getTableName(foodEntries),
 	access: getTableName(claudeAccess),
 	users: getTableName(users)
 };
@@ -183,12 +198,20 @@ const toolCallRow = (overrides: Partial<ChatToolCall> = {}) =>
 		...overrides
 	}) as ChatToolCall;
 
-const conversation = { id: 'conv-1', userId: 'user-1', promptId: null };
+const conversation = { id: 'conv-1', userId: 'user-1', promptId: null, promptFromPosition: 0 };
 const snapshot = {
 	id: 'snap-1',
 	system: [{ type: 'text', text: 'system prompt' }],
-	tools: [{ name: 'search_foods' }, { name: 'log_food' }]
+	tools: [{ name: 'search_foods' }, { name: 'log_food' }],
+	fromPosition: 0
 };
+const FETCH_TOOL = { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 3 };
+const fetchSnapshot = (id: string, fromPosition = 0) => ({
+	...snapshot,
+	id,
+	tools: [{ name: 'search_foods' }, FETCH_TOOL],
+	fromPosition
+});
 const userTurn = { role: 'user', content: [{ type: 'text', text: 'Hi' }] };
 const EPHEMERAL = { type: 'ephemeral' };
 
@@ -200,6 +223,9 @@ const fresh = () => ({
 	resumedMessage: null as { parts: unknown[] } | null,
 	updatedRunMissing: false,
 	lease: true,
+	leaseSeq: [] as boolean[],
+	hasEntries: false,
+	writeCount: 0 as number | string | null,
 	heartbeatAlive: true,
 	heartbeatError: null as Error | null,
 	pauseOk: true,
@@ -233,7 +259,11 @@ const route = (query: Query): unknown => {
 		case `select:${T.conversations}`:
 			return [{ id: 'conv-1' }];
 		case `select:${T.runs}`:
-			return state.lease ? [{ id: 'run-1' }] : [];
+			return (state.leaseSeq.length > 0 ? state.leaseSeq.shift() : state.lease)
+				? [{ id: 'run-1' }]
+				: [];
+		case `select:${T.entries}`:
+			return state.hasEntries ? [{ id: 'entry-1' }] : [];
 		case `select:${T.access}`:
 			return state.access ? [state.access] : [];
 		case `select:${T.users}`:
@@ -244,6 +274,9 @@ const route = (query: Query): unknown => {
 		case `insert:${T.messages}`:
 			return [{ id: ASSISTANT_ID }];
 		case `select:${T.toolCalls}`: {
+			if (query.fields && 'count' in query.fields) {
+				return state.writeCount === null ? [] : [{ count: state.writeCount }];
+			}
 			const row = state.lookups.shift() ?? null;
 			if (row) state.lastCall = row;
 			return row ? [row] : [];
@@ -349,17 +382,34 @@ let controller = new AbortController();
 let stop: StopReason | undefined;
 const stopReason = vi.fn<() => StopReason | undefined>();
 
-const go = (overrides: { heartbeatMs?: number } = {}) =>
+const sleep = vi.fn<(ms: number, signal: AbortSignal) => Promise<void>>();
+
+const go = (
+	overrides: {
+		heartbeatMs?: number;
+		sleep?: ((ms: number, signal: AbortSignal) => Promise<void>) | undefined;
+	} = {}
+) =>
 	executeChatRun('run-1', {
 		signal: controller.signal,
 		instanceId: 'inst-1',
 		stopReason,
+		sleep,
 		...overrides
 	});
 
 const drain = () => vi.advanceTimersByTimeAsync(0);
-const appended = () =>
-	h.appendEvents.mock.calls.flatMap(([, , events]) => events as Array<Record<string, any>>);
+type Event = Record<string, any>;
+const START_EVENTS = ['run_started', 'run_resumed'];
+const appendedAll = () => h.appendEvents.mock.calls.flatMap(([, , events]) => events as Event[]);
+const appended = () => appendedAll().filter((event) => !START_EVENTS.includes(event.type));
+const startEvents = () => appendedAll().filter((event) => START_EVENTS.includes(event.type));
+const failEventWrites = (error: Error) =>
+	h.appendEvents.mockImplementation(async (_tx: unknown, _id: string, events: Event[]) => {
+		if (events.some((event) => !START_EVENTS.includes(event.type))) throw error;
+		return [];
+	});
+const queriesAtEvent: Record<string, string[]> = {};
 const persisted = () =>
 	h.appendRaw.mock.calls.flatMap(
 		([, , , messages]) => messages as Array<{ role: string; content: any[] }>
@@ -382,7 +432,16 @@ beforeEach(() => {
 	stop = undefined;
 	h.config.maxIterations = 10;
 	h.config.model = 'claude-opus-5-5';
-	for (const fn of [...Object.values(h), mcp.callTool, mcp.listTools, mcp.close, stopReason]) {
+	resetWebFetchForTests();
+	for (const key of Object.keys(queriesAtEvent)) delete queriesAtEvent[key];
+	for (const fn of [
+		...Object.values(h),
+		mcp.callTool,
+		mcp.listTools,
+		mcp.close,
+		stopReason,
+		sleep
+	]) {
 		if (typeof fn === 'function' && 'mockReset' in fn) fn.mockReset();
 	}
 	stopReason.mockImplementation(() => stop);
@@ -390,8 +449,13 @@ beforeEach(() => {
 	h.ensurePromptSnapshot.mockResolvedValue(snapshot);
 	h.loadRaw.mockImplementation(async () => [structuredClone(userTurn)]);
 	h.appendRaw.mockResolvedValue(undefined);
-	h.appendEvents.mockResolvedValue([]);
-	h.emitEvents.mockResolvedValue([]);
+	h.appendEvents.mockImplementation(async (_tx: unknown, _id: string, events: Event[]) => {
+		for (const event of events) {
+			queriesAtEvent[event.type] = queries.map((query) => `${query.op}:${query.table}`);
+		}
+		return [];
+	});
+	sleep.mockResolvedValue(undefined);
 	h.finalizeRun.mockResolvedValue(null);
 	h.assertClaudeGates.mockResolvedValue(undefined);
 	h.entryDate.mockResolvedValue('2026-11-18');
@@ -459,7 +523,7 @@ describe('starting a run', () => {
 			assistantMessageId: ASSISTANT_ID,
 			model: 'claude-opus-5-5'
 		});
-		expect(h.emitEvents).toHaveBeenCalledWith('conv-1', [
+		expect(startEvents()).toEqual([
 			{
 				type: 'run_started',
 				runId: 'run-1',
@@ -472,10 +536,19 @@ describe('starting a run', () => {
 				})
 			}
 		]);
-		expect(h.ensurePromptSnapshot).toHaveBeenCalledWith(conversation, 'claude-opus-5-5');
+		expect(h.appendEvents.mock.calls[0]).toEqual([db, 'conv-1', startEvents()]);
+		expect(h.ensurePromptSnapshot).toHaveBeenCalledWith(conversation, 'claude-opus-5-5', {
+			transcriptLength: 1
+		});
 		expect(h.connectMcp).toHaveBeenCalledWith('user-1');
 		expect(h.loadRaw).toHaveBeenCalledWith(db, 'conv-1');
-		expect(h.hydrate).toHaveBeenCalledWith('user-1', [userTurn], expect.any(Map));
+		expect(h.hydrate).toHaveBeenCalledWith('user-1', [userTurn], expect.any(Map), 0);
+		expect(h.appendEvents.mock.invocationCallOrder[0]).toBeLessThan(
+			h.loadRaw.mock.invocationCallOrder[0]!
+		);
+		expect(h.loadRaw.mock.invocationCallOrder[0]).toBeLessThan(
+			h.ensurePromptSnapshot.mock.invocationCallOrder[0]!
+		);
 
 		expect(h.callClaude).toHaveBeenCalledTimes(1);
 		expect(h.callClaude).toHaveBeenCalledWith({
@@ -528,7 +601,7 @@ describe('starting a run', () => {
 		expect(updatesOf(T.runs).find((set) => 'model' in set)).toMatchObject({
 			model: 'claude-opus-5-5'
 		});
-		expect(h.emitEvents).toHaveBeenCalledWith('conv-1', [
+		expect(startEvents()).toEqual([
 			{
 				type: 'run_resumed',
 				runId: 'run-1',
@@ -548,7 +621,7 @@ describe('starting a run', () => {
 		state.updatedRunMissing = true;
 		script(message([text('Hi')]));
 		await go();
-		expect(h.emitEvents).toHaveBeenCalledWith('conv-1', [
+		expect(startEvents()).toEqual([
 			expect.objectContaining({
 				type: 'run_resumed',
 				run: expect.objectContaining({ id: 'run-1', assistantMessageId: 'msg-asst-9' })
@@ -562,7 +635,9 @@ describe('starting a run', () => {
 		state.access = { model: picked };
 		script(message([text('One')]), message([text('Two')]));
 		await go();
-		expect(h.ensurePromptSnapshot).toHaveBeenCalledWith(conversation, picked);
+		expect(h.ensurePromptSnapshot).toHaveBeenCalledWith(conversation, picked, {
+			transcriptLength: 1
+		});
 		expect(h.callClaude.mock.calls[0]![0].model).toBe(picked);
 		expect(updatesOf(T.runs).find((set) => 'assistantMessageId' in set)).toMatchObject({
 			model: picked
@@ -672,10 +747,10 @@ describe('the event writer', () => {
 
 	test('reports a failed write once, skips later events and fails the run', async () => {
 		const failure = new Error('db down');
-		h.appendEvents.mockRejectedValueOnce(failure);
+		failEventWrites(failure);
 		script(message([serverSearch('srv_1'), searchResult('srv_1'), text('Found it.')]));
 		await go();
-		expect(h.appendEvents).toHaveBeenCalledTimes(1);
+		expect(appendedAll().map((event) => event.type)).toEqual(['run_started', 'tool_started']);
 		expect(h.appendRaw).not.toHaveBeenCalled();
 		expect(h.captureException).toHaveBeenCalledTimes(2);
 		for (const call of h.captureException.mock.calls) {
@@ -688,10 +763,13 @@ describe('the event writer', () => {
 	});
 
 	test('drops a run silently when the lease was lost during a write', async () => {
-		state.lease = false;
-		script(message([text('Hello')]));
+		script(async (options) => {
+			state.lease = false;
+			options.stream.onText('Hello');
+			return message([text('Hello')]);
+		});
 		await go();
-		expect(h.appendEvents).not.toHaveBeenCalled();
+		expect(appended()).toEqual([]);
 		expect(h.appendRaw).not.toHaveBeenCalled();
 		expect(h.finalizeRun).not.toHaveBeenCalled();
 		expect(h.captureException).not.toHaveBeenCalled();
@@ -1037,6 +1115,7 @@ describe('tool calls', () => {
 				}
 			);
 			expect(updatesOf(T.messages)).toEqual([expect.objectContaining({ parts: [] })]);
+			expect(appendedAll().map((event) => event.type)).toEqual(['run_started']);
 			expect(h.finalizeRun).not.toHaveBeenCalled();
 			expect(mcp.callTool).not.toHaveBeenCalled();
 			expect(mcp.close).toHaveBeenCalledTimes(1);
@@ -1090,6 +1169,32 @@ describe('tool calls', () => {
 			});
 			expect(h.callClaude).toHaveBeenCalledTimes(1);
 			expect(finalized()).toEqual([{ status: 'completed', reason: null, instanceId: 'inst-1' }]);
+		});
+
+		test('runs the input stored with the approved action, not the one the model sent', async () => {
+			state.claimed = runRow({ assistantMessageId: ASSISTANT_ID, iterations: 1 });
+			state.lookups = [
+				toolCallRow({
+					actionStatus: 'approved',
+					toolName: 'delete_entry',
+					input: { entryId: 'e1', date: '2026-11-18' }
+				})
+			];
+			h.loadRaw.mockResolvedValue([
+				userTurn,
+				{
+					role: 'assistant',
+					content: [toolUse('delete_entry', { entryId: 'e1', date: 'today' }, 'toolu_1')]
+				}
+			]);
+			script(message([text('Deleted.')]));
+			await go();
+			expect(mcp.callTool).toHaveBeenCalledTimes(1);
+			expect(mcp.callTool).toHaveBeenCalledWith('delete_entry', {
+				entryId: 'e1',
+				date: '2026-11-18'
+			});
+			expect(h.entryDate).toHaveBeenCalledWith('user-1', 'e1');
 		});
 
 		test('does not run a call twice when its execution was already claimed', async () => {
@@ -1404,13 +1509,20 @@ describe('tool calls', () => {
 
 		test('stores a pending action, asks the user and pauses the run', async () => {
 			const preview = { summary: 'Delete “Greek yogurt”', details: ['2 servings · 120 kcal'] };
-			h.buildActionPreview.mockResolvedValue({ preview });
+			const normalised = { entryId: 'e1', date: '2026-11-18' };
+			h.buildActionPreview.mockResolvedValue({ preview, input: normalised });
 			script(message([text('I will delete it.'), removal()], 'tool_use'));
 			await go();
 
 			const expiresAt = new Date(NOW.getTime() + ACTION_TTL_MS);
 			expect(updatesOf(T.toolCalls)).toEqual([
-				expect.objectContaining({ actionStatus: 'pending', preview, partIndex: 1, expiresAt })
+				expect.objectContaining({
+					input: normalised,
+					actionStatus: 'pending',
+					preview,
+					partIndex: 1,
+					expiresAt
+				})
 			]);
 			expect(mcp.callTool).not.toHaveBeenCalled();
 			const required = appended().find((event) => event.type === 'action_required')!;
@@ -1456,8 +1568,13 @@ describe('tool calls', () => {
 					]
 				})
 			]);
-			const eventOrder = h.appendEvents.mock.invocationCallOrder.at(-1)!;
-			expect(eventOrder).toBeLessThan(h.finalizeRun.mock.invocationCallOrder[0] ?? Infinity);
+			expect(appendedAll().filter((event) => event.type === 'action_required')).toHaveLength(1);
+			expect(h.appendEvents.mock.calls.at(-1)).toEqual([db, 'conv-1', [required]]);
+			expect(queriesAtEvent.action_required!.slice(-3)).toEqual([
+				`select:${T.conversations}`,
+				`update:${T.runs}`,
+				`update:${T.messages}`
+			]);
 			expect(h.finalizeRun).not.toHaveBeenCalled();
 			expect(persisted().map((turn) => turn.role)).toEqual(['assistant']);
 			expect(h.callClaude).toHaveBeenCalledTimes(1);
@@ -1466,7 +1583,10 @@ describe('tool calls', () => {
 		});
 
 		test('pauses at the confirmation but has already run the calls before it', async () => {
-			h.buildActionPreview.mockResolvedValue({ preview: { summary: 'Delete', details: [] } });
+			h.buildActionPreview.mockResolvedValue({
+				preview: { summary: 'Delete', details: [] },
+				input: { entryId: 'e1' }
+			});
 			script(message([toolUse('search_foods', { query: 'x' }, 'toolu_0'), removal()], 'tool_use'));
 			await go();
 			expect(mcp.callTool).toHaveBeenCalledTimes(1);
@@ -1479,11 +1599,15 @@ describe('tool calls', () => {
 		});
 
 		test('drops the run silently when its lease is gone while pausing', async () => {
-			state.lookups = [toolCallRow({ actionStatus: 'pending' })];
+			h.buildActionPreview.mockResolvedValue({
+				preview: { summary: 'Delete', details: [] },
+				input: { entryId: 'e1' }
+			});
 			state.pauseOk = false;
 			script(message([removal()], 'tool_use'));
 			await go();
 			expect(updatesOf(T.messages)).toEqual([]);
+			expect(appendedAll().some((event) => event.type === 'action_required')).toBe(false);
 			expect(h.finalizeRun).not.toHaveBeenCalled();
 			expect(h.captureException).not.toHaveBeenCalled();
 			expect(mcp.close).toHaveBeenCalledTimes(1);
@@ -1532,10 +1656,11 @@ describe('failures', () => {
 	});
 
 	test('fails with api_error without reporting a Claude API error', async () => {
-		script(new ClaudeApiError({ kind: 'server', status: 500, retryable: true }));
+		script(new ClaudeApiError({ kind: 'auth', status: 401, retryable: false }));
 		await go();
 		expect(finalized()).toEqual([{ status: 'failed', reason: 'api_error', instanceId: 'inst-1' }]);
 		expect(h.captureException).not.toHaveBeenCalled();
+		expect(sleep).not.toHaveBeenCalled();
 	});
 
 	test('reports an unexpected error and fails with internal_error', async () => {
@@ -1554,7 +1679,7 @@ describe('failures', () => {
 		h.ensurePromptSnapshot.mockRejectedValue(failure);
 		await go();
 		expect(h.connectMcp).not.toHaveBeenCalled();
-		expect(h.appendEvents).not.toHaveBeenCalled();
+		expect(appendedAll().map((event) => event.type)).toEqual(['run_started']);
 		expect(h.captureException).toHaveBeenCalledWith(failure, { tags: { job: 'chat-run' } });
 		expect(finalized()).toEqual([
 			{ status: 'failed', reason: 'internal_error', instanceId: 'inst-1' }
@@ -1598,7 +1723,7 @@ describe('failures', () => {
 
 	test('reports a failed flush while winding down and still finalizes', async () => {
 		const failure = new Error('db down');
-		h.appendEvents.mockRejectedValue(failure);
+		failEventWrites(failure);
 		script(async (options) => {
 			options.stream.onText('partial');
 			throw new ClaudeApiError({ kind: 'timeout', retryable: true });
@@ -1763,5 +1888,590 @@ describe('the heartbeat', () => {
 		release();
 		await running;
 		expect(finalized()).toEqual([{ status: 'completed', reason: null, instanceId: 'inst-1' }]);
+	});
+});
+
+const completed = { status: 'completed', reason: null, instanceId: 'inst-1' };
+const failedWith = (reason: string) => ({ status: 'failed', reason, instanceId: 'inst-1' });
+const withContainer = (response: Anthropic.Message, id: string) =>
+	({ ...response, container: { id, expires_at: '2026-11-18T11:00:00Z' } }) as Anthropic.Message;
+const transient = () => new ClaudeApiError({ kind: 'rate_limited', status: 429, retryable: true });
+const rejection = () =>
+	new ClaudeApiError({ kind: 'invalid_request', status: 400, retryable: false });
+
+describe('starting under the lease', () => {
+	test('writes the assistant message and run_started in one fenced transaction', async () => {
+		script(message([text('Hi')]));
+		await go();
+		expect(queriesAtEvent.run_started!.slice(-4)).toEqual([
+			`select:${T.conversations}`,
+			`select:${T.runs}`,
+			`insert:${T.messages}`,
+			`update:${T.runs}`
+		]);
+	});
+
+	test('resumes a message in the same fenced transaction', async () => {
+		state.claimed = runRow({ assistantMessageId: 'msg-asst-9' });
+		script(message([text('Hi')]));
+		await go();
+		expect(queriesAtEvent.run_resumed!.slice(-4)).toEqual([
+			`select:${T.conversations}`,
+			`select:${T.runs}`,
+			`select:${T.messages}`,
+			`update:${T.runs}`
+		]);
+	});
+
+	test('writes nothing and never connects MCP when the lease is already gone', async () => {
+		state.leaseSeq = [false];
+		script(message([text('Hi')]));
+		await go();
+		expect(insertsOf(T.messages)).toEqual([]);
+		expect(updatesOf(T.runs)).toHaveLength(1);
+		expect(h.appendEvents).not.toHaveBeenCalled();
+		expect(h.loadRaw).not.toHaveBeenCalled();
+		expect(h.connectMcp).not.toHaveBeenCalled();
+		expect(h.finalizeRun).not.toHaveBeenCalled();
+		expect(h.captureException).not.toHaveBeenCalled();
+		expect(mcp.close).not.toHaveBeenCalled();
+	});
+
+	test('does not resume a message for a run whose lease is gone', async () => {
+		state.claimed = runRow({ assistantMessageId: 'msg-asst-9' });
+		state.leaseSeq = [false];
+		await go();
+		expect(updatesOf(T.runs)).toHaveLength(1);
+		expect(h.appendEvents).not.toHaveBeenCalled();
+		expect(h.finalizeRun).not.toHaveBeenCalled();
+	});
+
+	test('stops before the first call when the lease is lost after starting', async () => {
+		state.leaseSeq = [true, false];
+		await go();
+		expect(h.assertClaudeGates).not.toHaveBeenCalled();
+		expect(h.callClaude).not.toHaveBeenCalled();
+		expect(h.finalizeRun).not.toHaveBeenCalled();
+		expect(h.captureException).not.toHaveBeenCalled();
+		expect(stopReason).not.toHaveBeenCalled();
+		expect(mcp.close).toHaveBeenCalledTimes(1);
+	});
+
+	test('checks the lease before answering tool calls', async () => {
+		state.leaseSeq = [true, true, true, false];
+		script(
+			message([toolUse('list_meal_types', {}, 'toolu_1')], 'tool_use'),
+			message([text('Never asked')])
+		);
+		await go();
+		expect(h.callClaude).toHaveBeenCalledTimes(1);
+		expect(h.assertClaudeGates).toHaveBeenCalledTimes(1);
+		expect(mcp.callTool).not.toHaveBeenCalled();
+		expect(insertsOf(T.toolCalls)).toEqual([]);
+		expect(h.finalizeRun).not.toHaveBeenCalled();
+		expect(h.captureException).not.toHaveBeenCalled();
+	});
+});
+
+describe('which calls wait for the user', () => {
+	const asked = (input: Record<string, unknown>) => ({
+		preview: { summary: 'Please confirm', details: [] },
+		input
+	});
+	const lookups = () => queries.filter((query) => query.table === T.entries).length;
+
+	test.each([
+		['a confirm tool', 'delete_entry', { entryId: 'e1' }, false, 'confirm', 0],
+		[
+			'a food whose nutrition changes and that has entries',
+			'update_food',
+			{ foodId: 'f1', calories: 120 },
+			true,
+			'confirm',
+			1
+		],
+		[
+			'a food whose nutrition changes but that nobody logged',
+			'update_food',
+			{ foodId: 'f1', calories: 120 },
+			false,
+			'write',
+			1
+		],
+		[
+			'a food that is only renamed',
+			'update_food',
+			{ foodId: 'f1', name: 'Skyr' },
+			true,
+			'write',
+			0
+		],
+		['a nutrition change without a food id', 'update_food', { calories: 120 }, true, 'write', 0],
+		[
+			'a write with the force flag',
+			'update_food',
+			{ foodId: 'f1', name: 'Skyr', force: true },
+			false,
+			'confirm',
+			0
+		],
+		[
+			'a recipe whose ingredients change',
+			'update_recipe',
+			{ recipeId: 'r1', ingredients: [] },
+			false,
+			'confirm',
+			0
+		],
+		[
+			'a recipe whose servings change and that has entries',
+			'update_recipe',
+			{ recipeId: 'r1', totalServings: 4 },
+			true,
+			'confirm',
+			1
+		],
+		[
+			'a recipe whose servings change but that nobody logged',
+			'update_recipe',
+			{ recipeId: 'r1', cookedWeight: 800 },
+			false,
+			'write',
+			1
+		],
+		[
+			'a recipe that is only renamed',
+			'update_recipe',
+			{ recipeId: 'r1', name: 'Soup' },
+			true,
+			'write',
+			0
+		],
+		[
+			'a supplement whose ingredients change',
+			'update_supplement',
+			{ supplementId: 's1', ingredients: [{ food: { name: 'Zinc' } }] },
+			false,
+			'confirm',
+			0
+		],
+		['a supplement dose', 'update_supplement', { supplementId: 's1', dose: 2 }, false, 'write', 0],
+		[
+			'a plain write',
+			'log_food',
+			{ foodId: 'f1', servings: 1, mealType: 'Lunch' },
+			true,
+			'write',
+			0
+		],
+		['a read', 'search_foods', { query: 'x' }, true, 'read', 0]
+	] as const)('treats %s as %s', async (_name, tool, input, hasEntries, kind, expectedLookups) => {
+		state.hasEntries = hasEntries;
+		h.buildActionPreview.mockResolvedValue(asked({ ...input, normalised: true }));
+		script(message([toolUse(tool, { ...input }, 'toolu_1')], 'tool_use'), message([text('Done')]));
+		await go();
+
+		expect(insertsOf(T.toolCalls)[0]).toMatchObject({ toolName: tool, kind });
+		expect(lookups()).toBe(expectedLookups);
+		if (kind === 'confirm') {
+			expect(h.buildActionPreview).toHaveBeenCalledWith(tool, input, expect.anything());
+			expect(updatesOf(T.toolCalls)[0]).toMatchObject({
+				input: { ...input, normalised: true },
+				actionStatus: 'pending'
+			});
+			expect(appended().filter((event) => event.type === 'action_required')).toHaveLength(1);
+			expect(mcp.callTool).not.toHaveBeenCalled();
+			expect(h.finalizeRun).not.toHaveBeenCalled();
+		} else {
+			expect(h.buildActionPreview).not.toHaveBeenCalled();
+			expect(mcp.callTool).toHaveBeenCalledWith(tool, input);
+			expect(finalized()).toEqual([completed]);
+		}
+	});
+
+	describe('after too many writes in one run', () => {
+		const logFood = (id: string) =>
+			toolUse('log_food', { foodId: 'f1', servings: 1, mealType: 'Lunch' }, id);
+
+		test('lets writes run below the cap and asks for the one that reaches it', async () => {
+			state.writeCount = String(MAX_UNCONFIRMED_WRITES_PER_RUN - 1);
+			h.buildActionPreview.mockResolvedValue(asked({ foodId: 'f1' }));
+			script(message([logFood('toolu_1'), logFood('toolu_2')], 'tool_use'));
+			await go();
+			expect(insertsOf(T.toolCalls).map((values) => [values.toolUseId, values.kind])).toEqual([
+				['toolu_1', 'write'],
+				['toolu_2', 'confirm']
+			]);
+			expect(mcp.callTool).toHaveBeenCalledTimes(1);
+			expect(h.buildActionPreview).toHaveBeenCalledTimes(1);
+			expect(h.buildActionPreview.mock.calls[0]![0]).toBe('log_food');
+			expect(appended().filter((event) => event.type === 'action_required')).toHaveLength(1);
+			expect(h.finalizeRun).not.toHaveBeenCalled();
+			expect(persisted().map((turn) => turn.role)).toEqual(['assistant']);
+		});
+
+		test('asks for every write once the run is at the cap', async () => {
+			state.writeCount = MAX_UNCONFIRMED_WRITES_PER_RUN;
+			h.buildActionPreview.mockResolvedValue(asked({ foodId: 'f1' }));
+			script(message([logFood('toolu_1'), logFood('toolu_2')], 'tool_use'));
+			await go();
+			expect(insertsOf(T.toolCalls).map((values) => values.kind)).toEqual(['confirm']);
+			expect(mcp.callTool).not.toHaveBeenCalled();
+			expect(h.buildActionPreview).toHaveBeenCalledTimes(1);
+		});
+
+		test('does not hold back reads at the cap', async () => {
+			state.writeCount = MAX_UNCONFIRMED_WRITES_PER_RUN;
+			script(
+				message([toolUse('search_foods', { query: 'x' }, 'toolu_1')], 'tool_use'),
+				message([text('Done')])
+			);
+			await go();
+			expect(insertsOf(T.toolCalls)[0]).toMatchObject({ kind: 'read' });
+			expect(mcp.callTool).toHaveBeenCalledWith('search_foods', { query: 'x' });
+			expect(h.buildActionPreview).not.toHaveBeenCalled();
+		});
+
+		test('counts nothing for a run without ledger rows', async () => {
+			state.writeCount = null;
+			script(message([logFood('toolu_1')], 'tool_use'), message([text('Done')]));
+			await go();
+			expect(insertsOf(T.toolCalls)[0]).toMatchObject({ kind: 'write' });
+			expect(mcp.callTool).toHaveBeenCalledTimes(1);
+		});
+
+		test('keeps a confirm tool a confirm tool at the cap', async () => {
+			state.writeCount = MAX_UNCONFIRMED_WRITES_PER_RUN;
+			h.buildActionPreview.mockResolvedValue(asked({ entryId: 'e1' }));
+			script(message([toolUse('delete_entry', { entryId: 'e1' }, 'toolu_1')], 'tool_use'));
+			await go();
+			expect(insertsOf(T.toolCalls)[0]).toMatchObject({ kind: 'confirm' });
+		});
+	});
+});
+
+describe('server tools in a response', () => {
+	test('shows only web search and fetch, not the code execution behind them', async () => {
+		script(async (options) => {
+			options.stream.onBlock(serverSearch('srv_1', 'code_execution'));
+			options.stream.onBlock({
+				type: 'code_execution_tool_result',
+				tool_use_id: 'srv_1',
+				content: { type: 'code_execution_result' }
+			});
+			options.stream.onBlock(serverSearch('srv_2', 'bash_code_execution'));
+			options.stream.onBlock({ type: 'web_search_tool_result', content: [] });
+			options.stream.onBlock({ type: 'web_fetch_tool_result', content: null });
+			return message([text('Done')]);
+		});
+		await go();
+		expect(appended()).toEqual([]);
+		expect(finalized()).toEqual([completed]);
+	});
+
+	test('persists the whole turn, hidden tool blocks included', async () => {
+		const turn = [
+			serverSearch('srv_1', 'code_execution'),
+			{
+				type: 'code_execution_tool_result',
+				tool_use_id: 'srv_1',
+				content: { type: 'code_execution_result' }
+			},
+			text('Done')
+		];
+		script(message(turn));
+		await go();
+		expect(persisted()).toEqual([{ role: 'assistant', content: turn }]);
+		expect(appended().map((event) => event.type)).toEqual(['text_delta']);
+	});
+});
+
+describe('model call retries', () => {
+	test('waits, checks the lease and the gates again, and tries once more', async () => {
+		script(transient(), message([text('Back again')]));
+		await go();
+		expect(sleep).toHaveBeenCalledTimes(1);
+		expect(sleep).toHaveBeenCalledWith(RETRY_DELAYS_MS[0], expect.any(AbortSignal));
+		expect(h.callClaude).toHaveBeenCalledTimes(2);
+		expect(h.hydrate).toHaveBeenCalledTimes(2);
+		expect(h.assertClaudeGates).toHaveBeenCalledTimes(2);
+		expect(sleep.mock.invocationCallOrder[0]).toBeLessThan(
+			h.assertClaudeGates.mock.invocationCallOrder[1]!
+		);
+		expect(h.captureException).not.toHaveBeenCalled();
+		expect(textDeltas().map((event) => event.text)).toEqual(['Back again']);
+		expect(
+			updatesOf(T.runs)
+				.filter((set) => 'iterations' in set)
+				.map((set) => set.iterations)
+		).toEqual([1]);
+		expect(finalized()).toEqual([completed]);
+	});
+
+	test('gives up after the last delay', async () => {
+		script(transient(), transient(), transient());
+		await go();
+		expect(sleep.mock.calls.map(([ms]) => ms)).toEqual(RETRY_DELAYS_MS);
+		expect(h.callClaude).toHaveBeenCalledTimes(RETRY_DELAYS_MS.length + 1);
+		expect(finalized()).toEqual([failedWith('api_error')]);
+	});
+
+	test.each([
+		['text', (options: CallOptions) => options.stream.onText('Half an answer')],
+		['a web search block', (options: CallOptions) => options.stream.onBlock(serverSearch('srv_1'))]
+	])('never retries once %s streamed', async (_name, stream) => {
+		script(async (options) => {
+			stream(options);
+			throw transient();
+		});
+		await go();
+		expect(sleep).not.toHaveBeenCalled();
+		expect(h.callClaude).toHaveBeenCalledTimes(1);
+		expect(finalized()).toEqual([failedWith('api_error')]);
+	});
+
+	test('treats an abort while waiting like any other abort', async () => {
+		stop = 'cancel';
+		sleep.mockRejectedValue(new ClaudeAbortedError());
+		script(transient());
+		await go();
+		expect(h.callClaude).toHaveBeenCalledTimes(1);
+		expect(finalized()).toEqual([
+			{ status: 'cancelled', reason: 'user_cancelled', instanceId: 'inst-1' }
+		]);
+	});
+
+	test('walks away when the lease was lost while waiting', async () => {
+		state.leaseSeq = [true, true, false];
+		script(transient(), message([text('Never asked')]));
+		await go();
+		expect(h.callClaude).toHaveBeenCalledTimes(1);
+		expect(h.assertClaudeGates).toHaveBeenCalledTimes(1);
+		expect(h.finalizeRun).not.toHaveBeenCalled();
+		expect(h.captureException).not.toHaveBeenCalled();
+	});
+
+	test('fails when a gate closed while waiting', async () => {
+		script(transient(), message([text('Never asked')]));
+		sleep.mockImplementation(async () => {
+			h.assertClaudeGates.mockRejectedValue(new ClaudeGateError('user_budget_exhausted'));
+		});
+		await go();
+		expect(h.callClaude).toHaveBeenCalledTimes(1);
+		expect(finalized()).toEqual([failedWith('user_budget_exhausted')]);
+	});
+
+	test('sleeps on the clock with the default sleeper', async () => {
+		script(transient(), message([text('Back again')]));
+		const running = go({ sleep: undefined });
+		await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0]! - 1);
+		expect(h.callClaude).toHaveBeenCalledTimes(1);
+		await vi.advanceTimersByTimeAsync(1);
+		await running;
+		expect(h.callClaude).toHaveBeenCalledTimes(2);
+		expect(sleep).not.toHaveBeenCalled();
+		expect(finalized()).toEqual([completed]);
+	});
+});
+
+describe('abortableSleep', () => {
+	test('resolves after the delay and removes its abort listener', async () => {
+		const abort = new AbortController();
+		const remove = vi.spyOn(abort.signal, 'removeEventListener');
+		const done = vi.fn();
+		void abortableSleep(1000, abort.signal).then(done);
+		await vi.advanceTimersByTimeAsync(999);
+		expect(done).not.toHaveBeenCalled();
+		await vi.advanceTimersByTimeAsync(1);
+		expect(done).toHaveBeenCalledTimes(1);
+		expect(remove).toHaveBeenCalledWith('abort', expect.any(Function));
+	});
+
+	test('rejects at once when the signal fired already', async () => {
+		const abort = new AbortController();
+		abort.abort();
+		await expect(abortableSleep(1000, abort.signal)).rejects.toBeInstanceOf(ClaudeAbortedError);
+		expect(vi.getTimerCount()).toBe(0);
+	});
+
+	test('rejects and stops the timer when the signal fires while waiting', async () => {
+		const abort = new AbortController();
+		const outcome = expect(abortableSleep(1000, abort.signal)).rejects.toBeInstanceOf(
+			ClaudeAbortedError
+		);
+		expect(vi.getTimerCount()).toBe(1);
+		abort.abort();
+		await outcome;
+		expect(vi.getTimerCount()).toBe(0);
+	});
+});
+
+describe('dropping web fetch', () => {
+	const slim = (id = 'snap-2', fromPosition = 1) => ({ ...snapshot, id, fromPosition });
+
+	test('drops it once the API rejects it and carries on with a new prompt', async () => {
+		h.ensurePromptSnapshot
+			.mockResolvedValueOnce(fetchSnapshot('snap-f'))
+			.mockResolvedValueOnce(slim());
+		script(rejection(), message([text('Hi')]));
+		await go();
+
+		const [first, second] = h.callClaude.mock.calls.map(([options]) => options);
+		const expectedRejection = first.expectedRejection as (error: unknown) => boolean;
+		expect(expectedRejection(rejection())).toBe(true);
+		expect(
+			expectedRejection(
+				new ClaudeApiError({ kind: 'invalid_request', status: 422, retryable: false })
+			)
+		).toBe(false);
+		expect(
+			expectedRejection(new ClaudeApiError({ kind: 'server', status: 400, retryable: false }))
+		).toBe(false);
+		expect(expectedRejection(new Error('boom'))).toBe(false);
+		expect(second.expectedRejection).toBeUndefined();
+		expect(JSON.stringify(first.params.tools)).toContain('web_fetch');
+		expect(JSON.stringify(second.params.tools)).not.toContain('web_fetch');
+
+		expect(h.ensurePromptSnapshot.mock.calls[1]).toEqual([
+			{ ...conversation, promptId: 'snap-f', promptFromPosition: 0 },
+			'claude-opus-5-5',
+			{ rebuild: true, transcriptLength: 1 }
+		]);
+		expect(h.hydrate.mock.calls.map((call) => call[3])).toEqual([0, 1]);
+		expect(isWebFetchRejected()).toBe(true);
+		expect(isWebFetchAccepted()).toBe(false);
+		expect(h.captureMessage).toHaveBeenCalledTimes(1);
+		expect(h.captureMessage).toHaveBeenCalledWith(expect.stringContaining('web fetch'), {
+			level: 'warning',
+			tags: { job: 'chat-run' },
+			extra: { model: 'claude-opus-5-5' }
+		});
+		expect(sleep).not.toHaveBeenCalled();
+		expect(h.captureException).not.toHaveBeenCalled();
+		expect(finalized()).toEqual([completed]);
+	});
+
+	test('keeps every retry after dropping it', async () => {
+		h.ensurePromptSnapshot
+			.mockResolvedValueOnce(fetchSnapshot('snap-f'))
+			.mockResolvedValueOnce(slim());
+		script(rejection(), transient(), transient(), message([text('Hi')]));
+		await go();
+		expect(sleep.mock.calls.map(([ms]) => ms)).toEqual(RETRY_DELAYS_MS);
+		expect(finalized()).toEqual([completed]);
+	});
+
+	test('reports the rejection only once and rebuilds from the latest prompt each time', async () => {
+		h.ensurePromptSnapshot
+			.mockResolvedValueOnce(fetchSnapshot('snap-f'))
+			.mockResolvedValueOnce(fetchSnapshot('snap-f2', 1))
+			.mockResolvedValueOnce(slim('snap-3', 2));
+		script(rejection(), rejection(), message([text('Hi')]));
+		await go();
+		expect(
+			h.ensurePromptSnapshot.mock.calls
+				.slice(1)
+				.map(([conv, , options]) => [conv.promptId, conv.promptFromPosition, options])
+		).toEqual([
+			['snap-f', 0, { rebuild: true, transcriptLength: 1 }],
+			['snap-f2', 1, { rebuild: true, transcriptLength: 1 }]
+		]);
+		expect(h.hydrate.mock.calls.map((call) => call[3])).toEqual([0, 1, 2]);
+		expect(h.captureMessage).toHaveBeenCalledTimes(1);
+		expect(finalized()).toEqual([completed]);
+	});
+
+	test('remembers that web fetch works after the first successful call', async () => {
+		h.ensurePromptSnapshot.mockResolvedValue(fetchSnapshot('snap-f'));
+		script(
+			message([toolUse('list_meal_types', {}, 'toolu_1')], 'tool_use'),
+			message([text('Done')])
+		);
+		await go();
+		expect(h.callClaude.mock.calls[0]![0].expectedRejection).toEqual(expect.any(Function));
+		expect(h.callClaude.mock.calls[1]![0].expectedRejection).toBeUndefined();
+		expect(isWebFetchAccepted()).toBe(true);
+	});
+
+	test('fails with api_error when a rejection comes after web fetch worked', async () => {
+		h.ensurePromptSnapshot.mockResolvedValue(fetchSnapshot('snap-f'));
+		script(message([toolUse('list_meal_types', {}, 'toolu_1')], 'tool_use'), rejection());
+		await go();
+		expect(finalized()).toEqual([failedWith('api_error')]);
+		expect(isWebFetchRejected()).toBe(false);
+		expect(h.ensurePromptSnapshot).toHaveBeenCalledTimes(1);
+	});
+
+	test('does not drop web fetch after output streamed', async () => {
+		h.ensurePromptSnapshot.mockResolvedValue(fetchSnapshot('snap-f'));
+		script(async (options) => {
+			options.stream.onText('Half an answer');
+			throw rejection();
+		});
+		await go();
+		expect(finalized()).toEqual([failedWith('api_error')]);
+		expect(isWebFetchRejected()).toBe(false);
+		expect(h.captureMessage).not.toHaveBeenCalled();
+		expect(h.ensurePromptSnapshot).toHaveBeenCalledTimes(1);
+	});
+
+	test('treats a rejection as a plain error for a prompt without web fetch', async () => {
+		script(rejection());
+		await go();
+		expect(h.callClaude.mock.calls[0]![0].expectedRejection).toBeUndefined();
+		expect(finalized()).toEqual([failedWith('api_error')]);
+		expect(isWebFetchRejected()).toBe(false);
+		expect(isWebFetchAccepted()).toBe(false);
+	});
+});
+
+describe('the context of a run', () => {
+	test('replays thinking from the prompt position on and carries the container along', async () => {
+		h.ensurePromptSnapshot.mockResolvedValue({ ...snapshot, fromPosition: 3 });
+		script(
+			withContainer(message([toolUse('list_meal_types', {}, 'toolu_1')], 'tool_use'), 'cont_1'),
+			message([toolUse('list_meal_types', {}, 'toolu_2')], 'tool_use'),
+			withContainer(message([toolUse('list_meal_types', {}, 'toolu_3')], 'tool_use'), 'cont_2'),
+			message([text('Done')])
+		);
+		await go();
+		const params = h.callClaude.mock.calls.map(([options]) => options.params);
+		expect('container' in params[0]!).toBe(false);
+		expect(params.slice(1).map((request) => request.container)).toEqual([
+			'cont_1',
+			'cont_1',
+			'cont_2'
+		]);
+		expect(h.hydrate.mock.calls.map((call) => call[3])).toEqual([3, 3, 3, 3]);
+	});
+});
+
+describe('the new stop reasons', () => {
+	test('fails with conversation_too_long when the context window is exceeded', async () => {
+		script(message([text('Partial answer')], 'model_context_window_exceeded'));
+		await go();
+		expect(h.appendRaw).not.toHaveBeenCalled();
+		expect(finalized()).toEqual([failedWith('conversation_too_long')]);
+	});
+
+	test('fails with conversation_too_long when the API says the request is too large', async () => {
+		script(new ClaudeApiError({ kind: 'invalid_request', status: 413, retryable: false }));
+		await go();
+		expect(sleep).not.toHaveBeenCalled();
+		expect(h.captureException).not.toHaveBeenCalled();
+		expect(finalized()).toEqual([failedWith('conversation_too_long')]);
+	});
+
+	test('walks away silently when the lease is lost while winding down', async () => {
+		script(async (options) => {
+			options.stream.onText('Half an answer');
+			state.lease = false;
+			throw new ClaudeApiError({ kind: 'connection', retryable: true });
+		});
+		await go();
+		expect(h.finalizeRun).not.toHaveBeenCalled();
+		expect(h.captureException).not.toHaveBeenCalled();
+		expect(sleep).not.toHaveBeenCalled();
+		expect(mcp.close).toHaveBeenCalledTimes(1);
 	});
 });

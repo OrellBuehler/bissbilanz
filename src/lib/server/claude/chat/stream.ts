@@ -1,5 +1,11 @@
 import * as Sentry from '@sentry/sveltekit';
-import { EVENTS_PAGE_LIMIT, SSE_HEARTBEAT_MS, SSE_MAX_DURATION_MS, SSE_POLL_MS } from './constants';
+import {
+	EVENTS_PAGE_LIMIT,
+	MAX_EVENT_STREAMS_PER_USER,
+	SSE_HEARTBEAT_MS,
+	SSE_MAX_DURATION_MS,
+	SSE_POLL_MS
+} from './constants';
 import { listEvents, subscribeConversation, type ChatEventRecord } from './events';
 
 export const SSE_RETRY_MS = 3000;
@@ -8,6 +14,24 @@ export const formatSseEvent = (event: ChatEventRecord): string =>
 	`id: ${event.seq}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
 
 export type SseTiming = { heartbeatMs: number; pollMs: number; maxDurationMs: number };
+
+// Open streams per user, oldest first. A new stream beyond the cap closes the
+// oldest one (usually a connection the client already gave up on).
+const openStreams = new Map<string, (() => void)[]>();
+
+function register(userId: string, close: () => void): () => void {
+	const streams = openStreams.get(userId) ?? [];
+	streams.push(close);
+	openStreams.set(userId, streams);
+	while (streams.length > MAX_EVENT_STREAMS_PER_USER) streams.shift()!();
+	return () => {
+		const index = streams.indexOf(close);
+		if (index !== -1) streams.splice(index, 1);
+		if (streams.length === 0) openStreams.delete(userId);
+	};
+}
+
+export const openStreamCount = (userId: string) => openStreams.get(userId)?.length ?? 0;
 
 const DEFAULT_TIMING: SseTiming = {
 	heartbeatMs: SSE_HEARTBEAT_MS,
@@ -23,6 +47,7 @@ const DEFAULT_TIMING: SseTiming = {
  * maxDurationMs and the client reconnects with Last-Event-ID.
  */
 export function chatEventStream(
+	userId: string,
 	conversationId: string,
 	after: number,
 	signal: AbortSignal,
@@ -97,7 +122,9 @@ export function chatEventStream(
 			const lifetime = setTimeout(close, timing.maxDurationMs);
 			const onAbort = () => close();
 			signal.addEventListener('abort', onAbort);
+			const unregister = register(userId, close);
 			cleanup = () => {
+				unregister();
 				unsubscribe();
 				clearInterval(heartbeat);
 				clearInterval(poll);

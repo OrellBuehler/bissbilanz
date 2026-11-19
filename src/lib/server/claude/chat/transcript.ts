@@ -14,7 +14,11 @@ import { taskServerTools } from '../models';
 import { chatSystem, isStoredImage, type StoredContentBlock } from './prompt';
 import { chatToolDefinitions, listMcpTools } from './tools';
 
-export type RawMessage = { role: 'user' | 'assistant'; content: StoredContentBlock[] };
+export type RawMessage = {
+	role: 'user' | 'assistant';
+	content: StoredContentBlock[];
+	imageBytes?: number;
+};
 
 export async function loadRaw(db: TxOrDb, conversationId: string): Promise<RawMessage[]> {
 	const rows = await db
@@ -37,19 +41,25 @@ export async function appendRaw(
 	for (const message of messages) {
 		const json = JSON.stringify(message.content);
 		await db.execute(sql`
-			INSERT INTO ${chatRawMessages} (conversation_id, position, role, content, run_id, bytes)
-			SELECT ${conversationId}, coalesce(max(position), -1) + 1, ${message.role}, ${json}, ${runId}, ${Buffer.byteLength(json, 'utf8')}
+			INSERT INTO ${chatRawMessages} (conversation_id, position, role, content, run_id, bytes, image_bytes)
+			SELECT ${conversationId}, coalesce(max(position), -1) + 1, ${message.role}, ${json}, ${runId}, ${Buffer.byteLength(json, 'utf8')}, ${message.imageBytes ?? 0}
 			FROM ${chatRawMessages} WHERE conversation_id = ${conversationId}
 		`);
 	}
 }
 
-export async function transcriptBytes(db: TxOrDb, conversationId: string): Promise<number> {
+export async function transcriptSize(
+	db: TxOrDb,
+	conversationId: string
+): Promise<{ bytes: number; imageBytes: number }> {
 	const [row] = await db
-		.select({ bytes: sql<number>`coalesce(sum(${chatRawMessages.bytes}), 0)`.mapWith(Number) })
+		.select({
+			bytes: sql<number>`coalesce(sum(${chatRawMessages.bytes}), 0)`.mapWith(Number),
+			imageBytes: sql<number>`coalesce(sum(${chatRawMessages.imageBytes}), 0)`.mapWith(Number)
+		})
 		.from(chatRawMessages)
 		.where(eq(chatRawMessages.conversationId, conversationId));
-	return row?.bytes ?? 0;
+	return { bytes: row?.bytes ?? 0, imageBytes: row?.imageBytes ?? 0 };
 }
 
 const isToolUse = (block: unknown): block is Anthropic.ToolUseBlockParam =>
@@ -67,11 +77,19 @@ export function danglingToolUses(raw: RawMessage[]): Anthropic.ToolUseBlockParam
 
 export type ImageCache = Map<string, string | null>;
 
-/** The transcript as the API takes it: stored image references become base64 images. */
+const isThinking = (block: StoredContentBlock) =>
+	block.type === 'thinking' || block.type === 'redacted_thinking';
+
+/**
+ * The transcript as the API takes it: stored image references become base64
+ * images, and thinking blocks of turns before stripThinkingBefore (bound to an
+ * earlier prompt of the conversation) are left out, from the front only.
+ */
 export async function hydrate(
 	userId: string,
 	raw: RawMessage[],
-	images: ImageCache
+	images: ImageCache,
+	stripThinkingBefore = 0
 ): Promise<{ messages: Anthropic.MessageParam[]; imageCount: number }> {
 	const missing = [
 		...new Set(
@@ -86,9 +104,13 @@ export async function hydrate(
 		missing.forEach((upload, index) => images.set(upload, loaded[index] ?? null));
 	}
 	let imageCount = 0;
-	const messages = raw.map((message): Anthropic.MessageParam => {
+	const messages = raw.map((message, position): Anthropic.MessageParam => {
 		let photo = 0;
-		const content = message.content.map((block): Anthropic.ContentBlockParam => {
+		const kept =
+			position < stripThinkingBefore
+				? message.content.filter((block) => !isThinking(block))
+				: message.content;
+		const content = kept.map((block): Anthropic.ContentBlockParam => {
 			if (!isStoredImage(block)) return block;
 			photo++;
 			const data = images.get(block.upload);
@@ -121,13 +143,16 @@ export async function buildPromptSnapshot(model: string): Promise<PromptSnapshot
  * The prompt a conversation replays. It is frozen per conversation and model:
  * thinking blocks are bound to the system prompt and tools they were produced
  * with, so a deploy that changes either must not reach a running conversation.
+ * A new model, or a rebuild (web fetch rejected), starts a new prompt at the
+ * current transcript length; thinking blocks before it are no longer replayed.
  */
 export async function ensurePromptSnapshot(
 	conversation: ChatConversation,
-	model: string
-): Promise<PromptSnapshot> {
+	model: string,
+	options: { rebuild?: boolean; transcriptLength?: number } = {}
+): Promise<PromptSnapshot & { fromPosition: number }> {
 	const db = getDB();
-	if (conversation.promptId) {
+	if (conversation.promptId && !options.rebuild) {
 		const [stored] = await db
 			.select()
 			.from(chatPrompts)
@@ -136,11 +161,13 @@ export async function ensurePromptSnapshot(
 			return {
 				id: stored.id,
 				system: JSON.parse(stored.system) as Anthropic.TextBlockParam[],
-				tools: JSON.parse(stored.tools) as Anthropic.ToolUnion[]
+				tools: JSON.parse(stored.tools) as Anthropic.ToolUnion[],
+				fromPosition: conversation.promptFromPosition
 			};
 		}
 	}
 	const snapshot = await buildPromptSnapshot(model);
+	const fromPosition = conversation.promptId ? (options.transcriptLength ?? 0) : 0;
 	await db
 		.insert(chatPrompts)
 		.values({
@@ -152,9 +179,9 @@ export async function ensurePromptSnapshot(
 		.onConflictDoNothing({ target: chatPrompts.id });
 	await db
 		.update(chatConversations)
-		.set({ promptId: snapshot.id })
+		.set({ promptId: snapshot.id, promptFromPosition: fromPosition })
 		.where(eq(chatConversations.id, conversation.id));
-	return snapshot;
+	return { ...snapshot, fromPosition };
 }
 
 /** Breakpoints on the last tool, the system prompt and the newest user turn (3 of 4). */

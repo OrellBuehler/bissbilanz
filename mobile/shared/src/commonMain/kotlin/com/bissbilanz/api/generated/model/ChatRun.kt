@@ -28,7 +28,7 @@ import kotlinx.serialization.encoding.*
  * @param userMessageId
  * @param assistantMessageId
  * @param status queued, running and awaiting_confirmation are active; completed, failed, cancelled and interrupted are final. Clients must accept values not listed here.
- * @param reason Why the run ended, null while active and for a normal completion. completed: output_limit, iteration_limit. failed: not_configured, disabled, no_access, user_budget_exhausted, global_budget_exhausted, refusal, api_error, internal_error. cancelled: user_cancelled, superseded, action_expired. interrupted: server_restart. Clients must accept values not listed here.
+ * @param reason Why the run ended, null while active and for a normal completion. completed: output_limit, iteration_limit. failed: not_configured, disabled, no_access, user_budget_exhausted, global_budget_exhausted, refusal, conversation_too_long, api_error, internal_error. cancelled: user_cancelled, superseded, action_expired. interrupted: server_restart. Clients must accept values not listed here.
  * @param changed Every domain the run changed, so far.
  * @param changes
  * @param createdAt
@@ -43,7 +43,7 @@ data class ChatRun(
     @SerialName(value = "assistantMessageId") @Required val assistantMessageId: kotlin.String?,
     // queued, running and awaiting_confirmation are active; completed, failed, cancelled and interrupted are final. Clients must accept values not listed here.
     @SerialName(value = "status") @Required val status: kotlin.String,
-    // Why the run ended, null while active and for a normal completion. completed: output_limit, iteration_limit. failed: not_configured, disabled, no_access, user_budget_exhausted, global_budget_exhausted, refusal, api_error, internal_error. cancelled: user_cancelled, superseded, action_expired. interrupted: server_restart. Clients must accept values not listed here.
+    // Why the run ended, null while active and for a normal completion. completed: output_limit, iteration_limit. failed: not_configured, disabled, no_access, user_budget_exhausted, global_budget_exhausted, refusal, conversation_too_long, api_error, internal_error. cancelled: user_cancelled, superseded, action_expired. interrupted: server_restart. Clients must accept values not listed here.
     @SerialName(value = "reason") @Required val reason: kotlin.String?,
     // Every domain the run changed, so far.
     @SerialName(value = "changed") @Required val changed: kotlin.collections.List<kotlin.String>,
