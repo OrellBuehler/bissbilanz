@@ -14,6 +14,8 @@ import com.bissbilanz.android.ui.screens.LoginScreen
 import com.bissbilanz.android.ui.screens.MigrationScreen
 import com.bissbilanz.android.ui.screens.UpdateRequiredScreen
 import com.bissbilanz.android.ui.theme.BissbilanzTheme
+import com.bissbilanz.android.ui.theme.SystemBarsForTheme
+import com.bissbilanz.android.ui.theme.isAppInDarkTheme
 import com.bissbilanz.api.UpdateGate
 import com.bissbilanz.auth.AuthManager
 import com.bissbilanz.auth.AuthState
@@ -93,8 +95,10 @@ fun BissbilanzApp() {
     }
 
     val destination = resolveRootDestination(authState, mode)
+    val darkTheme = isAppInDarkTheme()
+    SystemBarsForTheme(darkTheme)
 
-    BissbilanzTheme {
+    BissbilanzTheme(darkTheme = darkTheme) {
         val requiredUpdate = updateRequired
         if (requiredUpdate != null) {
             // Ahead of auth/navigation: no route stays reachable if it would just

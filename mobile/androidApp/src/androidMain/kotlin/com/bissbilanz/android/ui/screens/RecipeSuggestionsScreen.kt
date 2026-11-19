@@ -47,7 +47,10 @@ import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RecipeSuggestionsScreen(navController: NavController) {
+fun RecipeSuggestionsScreen(
+    navController: NavController,
+    showBack: Boolean = false,
+) {
     val viewModel: RecipeSuggestionsViewModel = koinViewModel()
     val refreshManager: RefreshManager = koinInject()
     val goals by viewModel.goals.collectAsStateWithLifecycle()
@@ -82,7 +85,13 @@ fun RecipeSuggestionsScreen(navController: NavController) {
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = { AppTopBar(stringResource(R.string.recipe_suggestions_title), scrollBehavior) },
+        topBar = {
+            AppTopBar(
+                stringResource(R.string.recipe_suggestions_title),
+                scrollBehavior,
+                onBack = if (showBack) ({ navController.popBackStack() }) else null,
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         PullToRefreshWrapper(

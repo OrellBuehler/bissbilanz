@@ -1,6 +1,5 @@
 package com.bissbilanz.android.navigation
 
-import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
@@ -12,15 +11,22 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavGraphBuilder
@@ -35,6 +41,12 @@ import com.bissbilanz.android.tips.TipIds
 import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.ui.components.SyncConflictBanner
 import com.bissbilanz.android.ui.theme.Motion
+import com.bissbilanz.android.ui.util.rememberPreference
+import com.bissbilanz.mode.AppMode
+import com.bissbilanz.mode.AppModeManager
+import com.bissbilanz.repository.AiTaskRepository
+import com.bissbilanz.repository.isUnreadDismissal
+import com.bissbilanz.util.unreadReplies
 import org.koin.compose.koinInject
 
 sealed class Screen(
@@ -42,7 +54,7 @@ sealed class Screen(
     @param:StringRes val titleRes: Int,
     val icon: ImageVector,
 ) {
-    data object Dashboard : Screen("dashboard", R.string.nav_home, Icons.Default.Home)
+    data object Dashboard : Screen(NavTabs.HOME, R.string.nav_home, Icons.Default.Home)
 
     data object Foods : Screen("foods", R.string.food_search_title, Icons.Default.Restaurant)
 
@@ -57,45 +69,116 @@ sealed class Screen(
     data object RecipeSuggestions :
         Screen("recipe-suggestions", R.string.recipe_suggestions_title, Icons.Default.Lightbulb)
 
-    data object Settings : Screen("settings", R.string.settings_title, Icons.Default.Settings)
+    data object Recipes : Screen("recipes", R.string.recipe_list_title, Icons.AutoMirrored.Filled.MenuBook)
+
+    data object AiTasks : Screen("ai-tasks", R.string.ai_tasks_title, Icons.Default.AutoAwesome)
+
+    data object Sleep : Screen("sleep", R.string.sleep_section_title, Icons.Default.Bedtime)
+
+    data object Calendar : Screen("calendar", R.string.settings_nav_calendar, Icons.Default.CalendarMonth)
+
+    data object Fasting : Screen("fasting", R.string.fasting_title, Icons.Default.Timer)
+
+    data object Settings : Screen(NavTabs.SETTINGS, R.string.settings_title, Icons.Default.Settings)
 }
 
-val allMiddleTabs =
-    listOf(Screen.Foods, Screen.Favorites, Screen.Insights, Screen.Weight, Screen.Supplements, Screen.RecipeSuggestions)
+private val tabScreens =
+    listOf(
+        Screen.Foods,
+        Screen.Favorites,
+        Screen.Insights,
+        Screen.Weight,
+        Screen.Supplements,
+        Screen.RecipeSuggestions,
+        Screen.Recipes,
+        Screen.AiTasks,
+        Screen.Sleep,
+        Screen.Calendar,
+        Screen.Fasting,
+    ).associateBy { it.route }
+
+/** The bar entry for one of [NavTabs.CANDIDATES]. */
+fun tabScreen(id: String): Screen = tabScreens.getValue(id)
 
 const val NAV_KEY_CREATE_FOOD_BARCODE = "create_food_barcode"
 const val NAV_KEY_EDIT_SUPPLEMENT_ID = "edit_supplement_id"
-val defaultTabRoutes = setOf("foods", "favorites", "insights")
 
-/** Optional tabs that are also opened from Settings; there they are pushed screens with a back arrow. */
-private val pushableTabRoutes = setOf("weight", "supplements", "recipe-suggestions", "insights")
+/** Screens that are only ever pushed, so the bar steps aside for them. */
+private val pushedRoutes =
+    setOf(
+        "scanner",
+        "supplement-history",
+        "maintenance",
+        "pending-sync",
+        "health",
+        "connect-claude",
+        "reminders",
+        "food-duplicates",
+        "food-package-import",
+        "enhance-foods",
+        "dashboard-layout",
+    )
+
+/** Switches to a bar tab, keeping every tab's own back stack. */
+fun NavController.selectTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) {
+            saveState = true
+        }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
+/**
+ * Opens [route] from outside its tab — a Settings row, a notification, a shortcut or a
+ * widget. A destination that is on the bar is switched to instead of being pushed a
+ * second time; anything else is pushed.
+ */
+fun NavController.openDestination(
+    route: String,
+    barRoutes: List<String>,
+) {
+    if (route in barRoutes) {
+        selectTab(route)
+    } else {
+        navigate(route) { launchSingleTop = true }
+    }
+}
+
+/** The route under [entry], known only while it is on top: an entry is first composed there. */
+private fun NavController.routeBelow(entry: NavBackStackEntry): String? =
+    if (currentBackStackEntry?.id == entry.id) previousBackStackEntry?.destination?.route else null
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
-    val tabPrefs = context.getSharedPreferences("nav_tabs", Context.MODE_PRIVATE)
+    val tabPrefs = remember(context) { NavTabPrefs(context) }
+    val tabConfig by rememberPreference(tabPrefs.prefs) { tabPrefs.read() }
+    val appModeManager: AppModeManager = koinInject()
+    val mode by appModeManager.mode.collectAsStateWithLifecycle()
+    // Filtered here rather than in storage, so an account-only tab comes back after sign-in.
+    val visibleTabs by remember { derivedStateOf { NavTabs.visible(tabConfig.tabs, mode != AppMode.LOCAL) } }
+    val barRoutes by remember { derivedStateOf { NavTabs.barRoutes(visibleTabs) } }
 
-    var selectedTabRoutes by remember {
-        mutableStateOf(tabPrefs.getStringSet("selected_tabs", defaultTabRoutes) ?: defaultTabRoutes)
-    }
-
-    DisposableEffect(Unit) {
-        val listener =
-            android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-                if (key == "selected_tabs") {
-                    selectedTabRoutes = tabPrefs.getStringSet("selected_tabs", defaultTabRoutes) ?: defaultTabRoutes
-                }
+    // Only a fresh start opens on the chosen tab; a recreated activity keeps its restored back stack.
+    var landingHandled by rememberSaveable { mutableStateOf(false) }
+    PendingNavigationHandler(
+        navController,
+        barRoutes = { barRoutes },
+        takeLandingRoute = {
+            if (landingHandled) {
+                null
+            } else {
+                landingHandled = true
+                NavTabs.landingTab(tabConfig.landing, visibleTabs).takeIf { it != NavTabs.HOME }
             }
-        tabPrefs.registerOnSharedPreferenceChangeListener(listener)
-        onDispose { tabPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
-    }
+        },
+    )
 
-    PendingNavigationHandler(navController)
-
-    val middleTabs = allMiddleTabs.filter { it.route in selectedTabRoutes }
-    val bottomNavItems = listOf(Screen.Dashboard) + middleTabs + listOf(Screen.Settings)
+    val bottomNavItems = listOf(Screen.Dashboard) + visibleTabs.map(::tabScreen) + Screen.Settings
 
     Scaffold(
         // The shell only reserves room for the bottom bar. Top insets are left to
@@ -111,28 +194,13 @@ fun AppNavigation() {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentDestination = navBackStackEntry?.destination
             val currentRoute = currentDestination?.route
+            val routeBelow = navController.previousBackStackEntry?.destination?.route
 
+            // A tab destination keeps the bar only as its tab's root; pushed from anywhere
+            // else it is an ordinary pushed screen with a back arrow.
             val hideBottomBar =
-                currentRoute in
-                    listOf(
-                        "scanner",
-                        "supplement-history",
-                        "recipes",
-                        "calendar",
-                        "maintenance",
-                        "sleep",
-                        "pending-sync",
-                        "fasting",
-                        "health",
-                        "ai-tasks",
-                        "connect-claude",
-                        "reminders",
-                        "food-duplicates",
-                        "food-package-import",
-                        "enhance-foods",
-                        "dashboard-layout",
-                    ) ||
-                    (currentRoute in pushableTabRoutes && currentRoute !in selectedTabRoutes) ||
+                currentRoute in pushedRoutes ||
+                    (currentRoute in NavTabs.CANDIDATES && !NavTabs.isTabRoot(currentRoute, routeBelow, visibleTabs)) ||
                     currentRoute?.startsWith("food/") == true ||
                     currentRoute?.startsWith("daylog/") == true ||
                     currentRoute?.startsWith("recipe/") == true
@@ -158,6 +226,11 @@ fun AppNavigation() {
             ) {
                 val tipStore: TipStore = koinInject()
                 val foodLoggedCount by tipStore.foodLoggedCount.collectAsStateWithLifecycle()
+                val aiTaskRepo: AiTaskRepository = koinInject()
+                val aiTasks by aiTaskRepo.tasks.collectAsStateWithLifecycle()
+                // What opening the list clears: dismissals and assistant replies not seen yet.
+                val aiTaskAttention =
+                    remember(aiTasks) { aiTasks.count { it.isUnreadDismissal() } + aiTasks.sumOf { it.unreadReplies().size } }
                 NavigationBar {
                     bottomNavItems.forEach { screen ->
                         NavigationBarItem(
@@ -171,6 +244,18 @@ fun AppNavigation() {
                                         text = stringResource(R.string.tip_favorites_text),
                                         helpSlug = HelpSlugs.LOGGING,
                                         eligible = foodLoggedCount >= 5,
+                                    ) {
+                                        Icon(screen.icon, contentDescription = null)
+                                    }
+                                } else if (screen == Screen.AiTasks && aiTaskAttention > 0) {
+                                    val badgeDescription =
+                                        pluralStringResource(R.plurals.nav_ai_tasks_badge, aiTaskAttention, aiTaskAttention)
+                                    BadgedBox(
+                                        badge = {
+                                            Badge(modifier = Modifier.semantics { contentDescription = badgeDescription }) {
+                                                Text(aiTaskAttention.toString())
+                                            }
+                                        },
                                     ) {
                                         Icon(screen.icon, contentDescription = null)
                                     }
@@ -188,15 +273,7 @@ fun AppNavigation() {
                                 )
                             },
                             selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
-                            onClick = {
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
+                            onClick = { navController.selectTab(screen.route) },
                         )
                     }
                 }
@@ -235,7 +312,7 @@ fun AppNavigation() {
                         ) { it / 5 }
                 },
             ) {
-                bissbilanzDestinations(navController) { selectedTabRoutes }
+                bissbilanzDestinations(navController) { visibleTabs }
             }
         }
     }
@@ -248,23 +325,36 @@ fun AppNavigation() {
  */
 internal fun NavGraphBuilder.bissbilanzDestinations(
     navController: NavHostController,
-    tabRoutes: () -> Set<String>,
+    tabRoutes: () -> List<String>,
 ) {
+    // A destination that can be on the bar: no back arrow while it is its tab's root,
+    // a pushed screen with one everywhere else. Saved with the entry, because it is also
+    // composed when it is not on top: revealed by a back gesture, or after process death.
+    fun tabCandidate(
+        screen: Screen,
+        content: @Composable (showBack: Boolean) -> Unit,
+    ) {
+        composable(screen.route) { entry ->
+            val routeBelow by rememberSaveable { mutableStateOf(navController.routeBelow(entry)) }
+            content(!NavTabs.isTabRoot(screen.route, routeBelow, tabRoutes()))
+        }
+    }
+
     composable(Screen.Dashboard.route) {
         com.bissbilanz.android.ui.screens
             .DashboardScreen(navController)
     }
-    composable(Screen.Foods.route) {
+    tabCandidate(Screen.Foods) { showBack ->
         com.bissbilanz.android.ui.screens
-            .FoodSearchScreen(navController)
+            .FoodSearchScreen(navController, showBack)
     }
-    composable(Screen.Favorites.route) {
+    tabCandidate(Screen.Favorites) { showBack ->
         com.bissbilanz.android.ui.screens
-            .FavoritesScreen(navController)
+            .FavoritesScreen(navController, showBack)
     }
-    composable(Screen.Insights.route) {
+    tabCandidate(Screen.Insights) { showBack ->
         com.bissbilanz.android.ui.screens
-            .InsightsScreen(navController, showBack = Screen.Insights.route !in tabRoutes())
+            .InsightsScreen(navController, showBack)
     }
     composable(Screen.Settings.route) {
         com.bissbilanz.android.ui.screens
@@ -295,9 +385,9 @@ internal fun NavGraphBuilder.bissbilanzDestinations(
         com.bissbilanz.android.ui.screens
             .BarcodeScannerScreen(navController)
     }
-    composable("recipes") {
+    tabCandidate(Screen.Recipes) { showBack ->
         com.bissbilanz.android.ui.screens
-            .RecipeListScreen(navController)
+            .RecipeListScreen(navController, showBack)
     }
     composable("recipe/{recipeId}") { backStackEntry ->
         val recipeId = backStackEntry.arguments?.getString("recipeId") ?: return@composable
@@ -309,37 +399,37 @@ internal fun NavGraphBuilder.bissbilanzDestinations(
         com.bissbilanz.android.ui.screens
             .RecipeCookScreen(recipeId, navController)
     }
-    composable("weight") {
+    tabCandidate(Screen.Weight) { showBack ->
         com.bissbilanz.android.ui.screens
-            .WeightScreen(navController)
+            .WeightScreen(navController, showBack)
     }
-    composable("sleep") {
+    tabCandidate(Screen.Sleep) { showBack ->
         com.bissbilanz.android.ui.screens
-            .SleepScreen(navController)
+            .SleepScreen(navController, showBack)
     }
-    composable("supplements") {
+    tabCandidate(Screen.Supplements) { showBack ->
         com.bissbilanz.android.ui.screens
-            .SupplementsScreen(navController)
+            .SupplementsScreen(navController, showBack)
     }
-    composable("recipe-suggestions") {
+    tabCandidate(Screen.RecipeSuggestions) { showBack ->
         com.bissbilanz.android.ui.screens
-            .RecipeSuggestionsScreen(navController)
+            .RecipeSuggestionsScreen(navController, showBack)
     }
     composable("supplement-history") {
         com.bissbilanz.android.ui.screens
             .SupplementHistoryScreen(navController)
     }
-    composable("calendar") {
+    tabCandidate(Screen.Calendar) { showBack ->
         com.bissbilanz.android.ui.screens
-            .CalendarScreen(navController)
+            .CalendarScreen(navController, showBack)
     }
     composable("health") {
         com.bissbilanz.android.ui.screens
             .HealthConnectScreen(navController)
     }
-    composable("fasting") {
+    tabCandidate(Screen.Fasting) { showBack ->
         com.bissbilanz.android.ui.screens
-            .FastingScreen(navController)
+            .FastingScreen(navController, showBack)
     }
     composable("dashboard-layout") {
         com.bissbilanz.android.ui.screens
@@ -353,9 +443,9 @@ internal fun NavGraphBuilder.bissbilanzDestinations(
         com.bissbilanz.android.ui.screens
             .MaintenanceScreen(navController)
     }
-    composable("ai-tasks") {
+    tabCandidate(Screen.AiTasks) { showBack ->
         com.bissbilanz.android.ui.screens
-            .AiTasksScreen(navController)
+            .AiTasksScreen(navController, showBack)
     }
     composable("connect-claude") {
         com.bissbilanz.android.ui.screens

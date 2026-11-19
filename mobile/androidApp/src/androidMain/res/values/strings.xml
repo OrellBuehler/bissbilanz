@@ -1101,9 +1101,17 @@
     <string name="settings_nav_calendar">Calendar</string>
     <string name="settings_nav_insights">Insights</string>
     <string name="settings_nav_tabs">Navigation Tabs</string>
-    <string name="settings_nav_tabs_desc">Choose 3 tabs for the bottom navigation</string>
-    <string name="settings_tab_foods">Foods</string>
-    <string name="settings_select_exactly_3_tabs">Select exactly 3 tabs (%1$d/3)</string>
+    <string name="settings_nav_tabs_desc">Home and Settings always stay. Pick 1 to 3 tabs between them and drag to reorder.</string>
+    <string name="settings_nav_tabs_chosen">On the bar</string>
+    <string name="settings_nav_tabs_available">More destinations</string>
+    <string name="settings_nav_tabs_full">Remove a tab to add another (up to %1$d).</string>
+    <string name="settings_nav_tabs_add">Add %1$s</string>
+    <string name="settings_nav_tabs_remove">Remove %1$s</string>
+    <string name="settings_nav_tabs_move_up">Move up</string>
+    <string name="settings_nav_tabs_move_down">Move down</string>
+    <string name="settings_nav_tabs_requires_sign_in">Requires sign-in</string>
+    <string name="settings_nav_tabs_after_sign_in">Shown after sign-in</string>
+    <string name="settings_landing_tab">Open app on</string>
     <string name="settings_daily_goals">Daily Goals</string>
     <string name="settings_calories_kcal">Calories (kcal)</string>
     <string name="settings_protein_pct_grams">Protein: %1$d%% - %2$dg</string>
@@ -1425,6 +1433,10 @@
 
     <!-- Navigation / screen titles -->
     <string name="nav_home">Home</string>
+    <plurals name="nav_ai_tasks_badge">
+        <item quantity="one">%1$d update</item>
+        <item quantity="other">%1$d updates</item>
+    </plurals>
     <string name="food_search_title">Foods</string>
 
     <!-- Day log: entry search -->
@@ -1457,6 +1469,13 @@
     <string name="settings_language_system">System</string>
     <string name="settings_language_english">English</string>
     <string name="settings_language_german">Deutsch</string>
+
+    <!-- Settings: appearance -->
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
 
     <!-- Settings: expired session -->
     <string name="settings_sign_in_again">Sign in again</string>

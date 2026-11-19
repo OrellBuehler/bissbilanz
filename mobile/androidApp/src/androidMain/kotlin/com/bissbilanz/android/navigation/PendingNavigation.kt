@@ -92,15 +92,26 @@ object PendingLogConfirmation {
 
 /**
  * Sends the app to any route [PendingNavigation] is holding, once [navController] can
- * take it.
+ * take it. A route on the bar ([barRoutes]) selects its tab rather than stacking a copy.
+ *
+ * [takeLandingRoute] is asked once the host is up: the tab a fresh start opens on, or null
+ * to stay on Home. A route an entry point already asked for wins over it.
  */
 @Composable
-fun PendingNavigationHandler(navController: NavController) {
+fun PendingNavigationHandler(
+    navController: NavController,
+    barRoutes: () -> List<String> = { emptyList() },
+    takeLandingRoute: () -> String? = { null },
+) {
     LaunchedEffect(navController) {
         // Material's Scaffold subcomposes its body during layout, so the nav host — and
         // with it the graph — does not exist yet when this effect first runs. Navigating
         // then throws. The first back stack entry is the signal that the host is up.
         navController.currentBackStackEntryFlow.first()
+        val landing = takeLandingRoute()
+        if (landing != null && PendingNavigation.route.value == null) {
+            navController.selectTab(landing)
+        }
         // A shared food package: the import screen claims the request itself once it is up.
         launch {
             PendingPackageImport.request.filterNotNull().collect {
@@ -113,9 +124,7 @@ fun PendingNavigationHandler(navController: NavController) {
             // Cleared before the jump, so a route that cannot be navigated to is dropped
             // rather than retried on every recomposition.
             PendingNavigation.consume(route)
-            navController.navigate(route) {
-                launchSingleTop = true
-            }
+            navController.openDestination(route, barRoutes())
         }
     }
 }

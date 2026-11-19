@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -144,20 +145,82 @@ class PendingNavigationTest {
         assertNull(PendingPackageImport.request.value)
     }
 
+    @Test
+    fun aRouteThatIsOnTheBarSelectsItsTabInsteadOfStackingACopy() {
+        composeTestRule.setContent { NavShell(barRoutes = listOf("dashboard", "weight", "settings")) }
+        awaitText("dashboard screen")
+
+        PendingNavigation.request("scanner")
+        awaitText("scanner screen")
+        PendingNavigation.request("weight")
+        awaitText("weight screen")
+
+        composeTestRule.runOnIdle {
+            assertEquals(listOf("dashboard", "weight"), shellNavController.topRoutes())
+        }
+    }
+
+    @Test
+    fun aRouteThatIsNotOnTheBarIsPushedOnTop() {
+        composeTestRule.setContent { NavShell(barRoutes = listOf("dashboard", "settings")) }
+        awaitText("dashboard screen")
+
+        PendingNavigation.request("scanner")
+        awaitText("scanner screen")
+        PendingNavigation.request("weight")
+        awaitText("weight screen")
+
+        composeTestRule.runOnIdle {
+            assertEquals(listOf("scanner", "weight"), shellNavController.topRoutes())
+        }
+    }
+
+    @Test
+    fun aFreshStartOpensOnTheLandingTab() {
+        composeTestRule.setContent { NavShell(barRoutes = listOf("dashboard", "weight", "settings"), landing = "weight") }
+        awaitText("weight screen")
+
+        composeTestRule.runOnIdle {
+            assertEquals(listOf("dashboard", "weight"), shellNavController.topRoutes())
+        }
+    }
+
+    @Test
+    fun anEntryPointRouteWinsOverTheLandingTab() {
+        PendingNavigation.request("scanner")
+
+        composeTestRule.setContent { NavShell(barRoutes = listOf("dashboard", "weight", "settings"), landing = "weight") }
+        awaitText("scanner screen")
+
+        composeTestRule.runOnIdle {
+            assertEquals(listOf("dashboard", "scanner"), shellNavController.topRoutes())
+        }
+    }
+
     private fun awaitText(text: String) {
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             composeTestRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
         }
     }
 
+    private lateinit var shellNavController: NavHostController
+
+    /** The route on top and the one under it. */
+    private fun NavHostController.topRoutes(): List<String?> =
+        listOf(previousBackStackEntry?.destination?.route, currentBackStackEntry?.destination?.route)
+
     /**
      * Mirrors the real shell: the handler sits outside a Scaffold whose body — the nav
      * host — is subcomposed during layout, so the graph is not there on the first frame.
      */
     @Composable
-    private fun NavShell() {
+    private fun NavShell(
+        barRoutes: List<String> = emptyList(),
+        landing: String? = null,
+    ) {
         val navController = rememberNavController()
-        PendingNavigationHandler(navController)
+        shellNavController = navController
+        PendingNavigationHandler(navController, barRoutes = { barRoutes }, takeLandingRoute = { landing })
         Scaffold { innerPadding ->
             NavHost(
                 navController = navController,

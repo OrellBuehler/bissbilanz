@@ -1,64 +1,58 @@
 package com.bissbilanz.android.ui.screens
 
-import android.content.SharedPreferences
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.AddCircleOutline
+import androidx.compose.material.icons.outlined.RemoveCircleOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.bissbilanz.android.R
-import com.bissbilanz.android.ui.components.CheckboxRow
+import com.bissbilanz.android.navigation.NavTabs
+import com.bissbilanz.android.navigation.openDestination
+import com.bissbilanz.android.navigation.tabScreen
+import com.bissbilanz.android.ui.components.ChoiceDropdown
+import com.bissbilanz.android.ui.theme.rememberHaptic
+import sh.calvin.reorderable.ReorderableColumn
 
 @Composable
 internal fun SettingsNavigationCard(
     navController: NavController,
-    selectedTabs: Set<String>,
+    barRoutes: List<String>,
     isLocalMode: Boolean,
     healthAvailable: Boolean,
 ) {
+    // Every destination that can leave the bar has a row here, whatever the tab choice.
+    fun open(route: String) = navController.openDestination(route, barRoutes)
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column {
-            SettingsNavItem(stringResource(R.string.weight_screen_title), Icons.Default.MonitorWeight) {
-                if ("weight" in selectedTabs) {
-                    navController.navigate("weight") {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                } else {
-                    navController.navigate("weight") { launchSingleTop = true }
-                }
-            }
+            SettingsNavItem(stringResource(R.string.food_search_title), Icons.Default.Restaurant) { open("foods") }
             HorizontalDivider()
-            SettingsNavItem(stringResource(R.string.chart_supplements), Icons.Default.Medication) {
-                if ("supplements" in selectedTabs) {
-                    navController.navigate("supplements") {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                } else {
-                    navController.navigate("supplements") { launchSingleTop = true }
-                }
-            }
+            SettingsNavItem(stringResource(R.string.favorites_title), Icons.Default.Star) { open("favorites") }
             HorizontalDivider()
-            SettingsNavItem(stringResource(R.string.sleep_section_title), Icons.Default.Bedtime) {
-                navController.navigate("sleep") { launchSingleTop = true }
-            }
+            SettingsNavItem(stringResource(R.string.weight_screen_title), Icons.Default.MonitorWeight) { open("weight") }
             HorizontalDivider()
-            SettingsNavItem(stringResource(R.string.fasting_title), Icons.Default.Timer) {
-                navController.navigate("fasting") { launchSingleTop = true }
-            }
+            SettingsNavItem(stringResource(R.string.chart_supplements), Icons.Default.Medication) { open("supplements") }
+            HorizontalDivider()
+            SettingsNavItem(stringResource(R.string.sleep_section_title), Icons.Default.Bedtime) { open("sleep") }
+            HorizontalDivider()
+            SettingsNavItem(stringResource(R.string.fasting_title), Icons.Default.Timer) { open("fasting") }
             if (healthAvailable) {
                 HorizontalDivider()
                 SettingsNavItem(stringResource(R.string.health_connect_title), Icons.Default.Favorite) {
@@ -66,25 +60,13 @@ internal fun SettingsNavigationCard(
                 }
             }
             HorizontalDivider()
-            SettingsNavItem(stringResource(R.string.recipe_list_title), Icons.AutoMirrored.Filled.MenuBook) {
-                navController.navigate("recipes") { launchSingleTop = true }
-            }
+            SettingsNavItem(stringResource(R.string.recipe_list_title), Icons.AutoMirrored.Filled.MenuBook) { open("recipes") }
             HorizontalDivider()
             SettingsNavItem(stringResource(R.string.recipe_suggestions_title), Icons.Default.Lightbulb) {
-                if ("recipe-suggestions" in selectedTabs) {
-                    navController.navigate("recipe-suggestions") {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                } else {
-                    navController.navigate("recipe-suggestions") { launchSingleTop = true }
-                }
+                open("recipe-suggestions")
             }
             HorizontalDivider()
-            SettingsNavItem(stringResource(R.string.settings_nav_calendar), Icons.Default.CalendarMonth) {
-                navController.navigate("calendar") { launchSingleTop = true }
-            }
+            SettingsNavItem(stringResource(R.string.settings_nav_calendar), Icons.Default.CalendarMonth) { open("calendar") }
             if (!isLocalMode) {
                 HorizontalDivider()
                 SettingsNavItem(stringResource(R.string.maintenance_title), Icons.Default.Calculate) {
@@ -97,36 +79,31 @@ internal fun SettingsNavigationCard(
                 // The queue only exists server-side — the assistant reaches it
                 // over MCP — so it has no meaning in Local mode.
                 HorizontalDivider()
-                SettingsNavItem(stringResource(R.string.ai_tasks_title), Icons.Default.AutoAwesome) {
-                    navController.navigate("ai-tasks") { launchSingleTop = true }
-                }
+                SettingsNavItem(stringResource(R.string.ai_tasks_title), Icons.Default.AutoAwesome) { open("ai-tasks") }
                 HorizontalDivider()
                 SettingsNavItem(stringResource(R.string.connect_assistant_title), Icons.Default.SmartToy) {
                     navController.navigate("connect-claude") { launchSingleTop = true }
                 }
             }
             HorizontalDivider()
-            SettingsNavItem(stringResource(R.string.settings_nav_insights), Icons.Default.BarChart) {
-                if ("insights" in selectedTabs) {
-                    navController.navigate("insights") {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                } else {
-                    navController.navigate("insights") { launchSingleTop = true }
-                }
-            }
+            SettingsNavItem(stringResource(R.string.settings_nav_insights), Icons.Default.BarChart) { open("insights") }
         }
     }
 }
 
+/**
+ * The bottom bar editor: the chosen tabs (reorderable, removable), every other destination
+ * that could be one, and the tab the app opens on. All of it is device-local.
+ */
 @Composable
 internal fun NavigationTabsCard(
-    selectedTabs: Set<String>,
-    onSelectedTabsChange: (Set<String>) -> Unit,
-    tabPrefs: SharedPreferences,
+    tabs: List<String>,
+    landing: String?,
+    signedIn: Boolean,
+    onTabsChange: (List<String>) -> Unit,
+    onLandingChange: (String) -> Unit,
 ) {
+    val haptic = rememberHaptic()
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -140,45 +117,153 @@ internal fun NavigationTabsCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(modifier = Modifier.height(8.dp))
 
-            val tabOptions =
-                listOf(
-                    "foods" to stringResource(R.string.settings_tab_foods),
-                    "favorites" to stringResource(R.string.favorites_title),
-                    "insights" to stringResource(R.string.settings_nav_insights),
-                    "weight" to stringResource(R.string.weight_widget_title),
-                    "supplements" to stringResource(R.string.chart_supplements),
-                    "recipe-suggestions" to stringResource(R.string.recipe_suggestions_title),
-                )
-
-            tabOptions.forEach { (route, label) ->
-                val isSelected = route in selectedTabs
-                CheckboxRow(
-                    label = label,
-                    checked = isSelected,
-                    enabled = if (isSelected) selectedTabs.size >= 3 else selectedTabs.size < 3,
-                    onCheckedChange = { checked ->
-                        val updated = if (checked) selectedTabs + route else selectedTabs - route
-                        if (updated.size in 1..5) {
-                            onSelectedTabsChange(updated)
-                            if (updated.size == 3) {
-                                tabPrefs.edit().putStringSet("selected_tabs", updated).apply()
+            NavTabsSectionLabel(stringResource(R.string.settings_nav_tabs_chosen))
+            val moveUpLabel = stringResource(R.string.settings_nav_tabs_move_up)
+            val moveDownLabel = stringResource(R.string.settings_nav_tabs_move_down)
+            ReorderableColumn(
+                list = tabs,
+                onSettle = { from, to -> onTabsChange(NavTabs.move(tabs, from, to)) },
+                onMove = { haptic(HapticFeedbackType.SegmentFrequentTick) },
+            ) { index, id, isDragging ->
+                key(id) {
+                    ReorderableItem {
+                        val screen = tabScreen(id)
+                        val label = stringResource(screen.titleRes)
+                        val elevation by animateDpAsState(if (isDragging) 4.dp else 0.dp, label = "navTabElevation")
+                        val dragHandle =
+                            Modifier.draggableHandle(
+                                onDragStarted = { haptic(HapticFeedbackType.GestureThresholdActivate) },
+                                onDragStopped = { haptic(HapticFeedbackType.GestureEnd) },
+                            )
+                        Surface(color = CardDefaults.cardColors().containerColor, shadowElevation = elevation) {
+                            NavTabRow(
+                                screenIcon = screen.icon,
+                                label = label,
+                                hint =
+                                    if (NavTabs.isAllowed(id, signedIn)) null else stringResource(R.string.settings_nav_tabs_after_sign_in),
+                                modifier =
+                                    Modifier.semantics {
+                                        customActions =
+                                            listOfNotNull(
+                                                CustomAccessibilityAction(moveUpLabel) {
+                                                    onTabsChange(NavTabs.move(tabs, index, index - 1))
+                                                    true
+                                                }.takeIf { index > 0 },
+                                                CustomAccessibilityAction(moveDownLabel) {
+                                                    onTabsChange(NavTabs.move(tabs, index, index + 1))
+                                                    true
+                                                }.takeIf { index < tabs.lastIndex },
+                                            )
+                                    },
+                            ) {
+                                IconButton(
+                                    onClick = {
+                                        haptic(HapticFeedbackType.LongPress)
+                                        onTabsChange(NavTabs.remove(tabs, id))
+                                    },
+                                    enabled = NavTabs.canRemove(tabs, id),
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.RemoveCircleOutline,
+                                        stringResource(R.string.settings_nav_tabs_remove, label),
+                                    )
+                                }
+                                IconButton(onClick = {}, modifier = dragHandle) {
+                                    Icon(Icons.Default.DragHandle, stringResource(R.string.dashboard_layout_drag_handle))
+                                }
                             }
                         }
-                    },
-                )
+                    }
+                }
             }
-            if (selectedTabs.size != 3) {
-                Text(
-                    stringResource(R.string.settings_select_exactly_3_tabs, selectedTabs.size),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
+
+            val available = NavTabs.CANDIDATES - tabs.toSet()
+            if (available.isNotEmpty()) {
+                NavTabsSectionLabel(stringResource(R.string.settings_nav_tabs_available))
+                if (tabs.size >= NavTabs.MAX) {
+                    Text(
+                        stringResource(R.string.settings_nav_tabs_full, NavTabs.MAX),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                available.forEach { id ->
+                    val screen = tabScreen(id)
+                    val label = stringResource(screen.titleRes)
+                    NavTabRow(
+                        screenIcon = screen.icon,
+                        label = label,
+                        hint = if (NavTabs.isAllowed(id, signedIn)) null else stringResource(R.string.settings_nav_tabs_requires_sign_in),
+                    ) {
+                        IconButton(
+                            onClick = {
+                                haptic(HapticFeedbackType.LongPress)
+                                onTabsChange(NavTabs.add(tabs, id, signedIn))
+                            },
+                            enabled = NavTabs.canAdd(tabs, id, signedIn),
+                        ) {
+                            Icon(Icons.Outlined.AddCircleOutline, stringResource(R.string.settings_nav_tabs_add, label))
+                        }
+                    }
+                }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            val visible = NavTabs.visible(tabs, signedIn)
+            val landingOptions =
+                listOf(stringResource(R.string.nav_home) to NavTabs.HOME) +
+                    visible.map { stringResource(tabScreen(it).titleRes) to it }
+            val selectedLanding = NavTabs.landingTab(landing, visible)
+            ChoiceDropdown(
+                selectedLabel = landingOptions.first { it.second == selectedLanding }.first,
+                options = landingOptions,
+                onSelect = onLandingChange,
+                label = stringResource(R.string.settings_landing_tab),
+            )
         }
     }
+}
+
+@Composable
+private fun NavTabsSectionLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+    )
+}
+
+@Composable
+private fun NavTabRow(
+    screenIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    hint: String?,
+    modifier: Modifier = Modifier,
+    actions: @Composable RowScope.() -> Unit,
+) {
+    val dimmed = hint != null
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = {
+            Icon(
+                screenIcon,
+                null,
+                tint = if (dimmed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+            )
+        },
+        headlineContent = {
+            Text(
+                label,
+                maxLines = 1,
+                color = if (dimmed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            )
+        },
+        supportingContent = hint?.let { { Text(it, maxLines = 1) } },
+        trailingContent = { Row(verticalAlignment = Alignment.CenterVertically, content = actions) },
+        modifier = modifier,
+    )
 }
 
 @Composable

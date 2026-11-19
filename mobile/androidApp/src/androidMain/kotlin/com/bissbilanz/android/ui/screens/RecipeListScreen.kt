@@ -46,7 +46,10 @@ import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RecipeListScreen(navController: NavController) {
+fun RecipeListScreen(
+    navController: NavController,
+    showBack: Boolean = false,
+) {
     val recipeRepo: RecipeRepository = koinInject()
     val entryRepo: EntryRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
@@ -161,7 +164,7 @@ fun RecipeListScreen(navController: NavController) {
             AppTopBar(
                 scrollBehavior = scrollBehavior,
                 title = stringResource(R.string.recipe_list_title),
-                onBack = { navController.popBackStack() },
+                onBack = if (showBack) ({ navController.popBackStack() }) else null,
             )
         },
         floatingActionButton = {

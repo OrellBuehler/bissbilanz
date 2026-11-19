@@ -76,7 +76,10 @@ import kotlin.time.Instant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AiTasksScreen(navController: NavController) {
+fun AiTasksScreen(
+    navController: NavController,
+    showBack: Boolean = false,
+) {
     val viewModel: AiTasksViewModel = koinViewModel()
     val context = LocalContext.current
     val tasks by viewModel.visibleTasks.collectAsStateWithLifecycle()
@@ -165,7 +168,7 @@ fun AiTasksScreen(navController: NavController) {
             AppTopBar(
                 scrollBehavior = scrollBehavior,
                 title = stringResource(R.string.ai_tasks_title),
-                onBack = { navController.popBackStack() },
+                onBack = if (showBack) ({ navController.popBackStack() }) else null,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
