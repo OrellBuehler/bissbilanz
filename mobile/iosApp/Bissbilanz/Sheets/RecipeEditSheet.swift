@@ -135,12 +135,14 @@ struct RecipeEditSheet: View {
                     } label: {
                         Label(L10n.addIngredient, systemImage: "plus")
                     }
+                    .disabled(ingredients.count >= RecipeIngredientLimits.maxIngredients)
 
                     Button {
                         showRecipePicker = true
                     } label: {
                         Label(L10n.addFromRecipe, systemImage: "book.closed")
                     }
+                    .disabled(ingredients.count >= RecipeIngredientLimits.maxIngredients)
                 }
 
                 stepsSection
@@ -156,9 +158,9 @@ struct RecipeEditSheet: View {
                     Task { await suggestLabels() }
                 }
 
-                if let errorMessage {
+                if let inlineMessage {
                     Section {
-                        Text(errorMessage)
+                        Text(inlineMessage)
                             .foregroundStyle(.red)
                             .font(.caption)
                     }
@@ -184,10 +186,7 @@ struct RecipeEditSheet: View {
                     Button(L10n.save) {
                         Task { await save() }
                     }
-                    .disabled(
-                        name.isEmpty || ingredients.isEmpty || isSaving ||
-                            !((Double.parseUserInput(totalServings) ?? 0) > 0)
-                    )
+                    .disabled(formIssue != nil || isSaving)
                     .fontWeight(.semibold)
                 }
             }
@@ -281,6 +280,26 @@ struct RecipeEditSheet: View {
                 }
             }
         )
+    }
+
+    private var formInput: RecipeFormValidator.Input {
+        RecipeFormValidator.Input(
+            name: name,
+            totalServings: totalServings,
+            cookedWeight: cookedWeight,
+            quantities: ingredients.map(\.quantity)
+        )
+    }
+
+    private var formIssue: RecipeFormValidator.Issue? {
+        RecipeFormValidator.issue(for: formInput)
+    }
+
+    private var inlineMessage: String? {
+        if let issue = formIssue, !issue.isMissingInput {
+            return issue.message
+        }
+        return errorMessage
     }
 
     /// The steps as the server takes them: trimmed, blank ones dropped, and the
@@ -440,13 +459,21 @@ struct RecipeEditSheet: View {
     }
 
     private func save() async {
-        isSaving = true
         errorMessage = nil
+        let values: RecipeFormValidator.Values
+        switch RecipeFormValidator.validate(formInput) {
+        case let .success(validated):
+            values = validated
+        case let .failure(issue):
+            errorMessage = issue.message
+            return
+        }
+        isSaving = true
 
-        let ingredientInputs = ingredients.map { ing in
+        let ingredientInputs = zip(ingredients, values.quantities).map { ing, quantity in
             RecipeIngredientInput(
                 foodId: ing.foodId,
-                quantity: Double.parseUserInput(ing.quantity) ?? 1,
+                quantity: quantity,
                 servingUnit: ing.unit
             )
         }
@@ -456,11 +483,11 @@ struct RecipeEditSheet: View {
         do {
             var saved: Recipe
             var photoFailed = false
-            let parsedCookedWeight = Double.parseUserInput(cookedWeight).flatMap { $0 > 0 ? $0 : nil }
+            let parsedCookedWeight = values.cookedWeight
             if let existing = existingRecipe {
                 var update = RecipeUpdate(
-                    name: name,
-                    totalServings: Double.parseUserInput(totalServings) ?? 1,
+                    name: values.name,
+                    totalServings: values.totalServings,
                     ingredients: ingredientInputs,
                     isFavorite: isFavorite
                 )
@@ -497,8 +524,8 @@ struct RecipeEditSheet: View {
                 // No id yet on a create, so the already-uploaded URL rides
                 // along on the create body — `recipeCreateSchema` accepts it.
                 let create = RecipeCreate(
-                    name: name,
-                    totalServings: Double.parseUserInput(totalServings) ?? 1,
+                    name: values.name,
+                    totalServings: values.totalServings,
                     ingredients: ingredientInputs,
                     isFavorite: isFavorite,
                     imageUrl: imageUrl,
