@@ -406,24 +406,32 @@ final class RecipeRepository {
     /// A list-endpoint copy carries neither `ingredients` nor `steps` (only
     /// `stepCount`), and must not wipe what a detail fetch cached: the list
     /// refresh runs on every launch and the detail may be opened offline
-    /// afterwards (cooking mode needs both). The cached detail is only kept while
-    /// `updatedAt` is unchanged: a newer stamp means the recipe was edited
-    /// elsewhere, so the cached ingredients and steps are stale and go until the
-    /// next detail refresh. Cached steps must also still match the count. A count
-    /// of zero is itself an answer: no steps.
-    static func preservingDetail(_ incoming: Recipe, existing: Recipe?) -> Recipe {
+    /// afterwards (cooking mode needs both). The list has no `updatedAt` either,
+    /// while a cached detail copy always does, so a missing stamp says nothing
+    /// about the recipe: the cached detail goes only when both stamps exist and
+    /// differ, which proves an edit elsewhere (the next detail fetch refills it).
+    /// Otherwise a stale-but-present ingredient list beats an empty one offline,
+    /// and the detail view refetches on every open. Cached steps must still match
+    /// the count (any count when the server sent none). A count of zero is itself
+    /// an answer: no steps.
+    nonisolated static func preservingDetail(_ incoming: Recipe, existing: Recipe?) -> Recipe {
         var merged = incoming
-        let unchanged = existing?.updatedAt == incoming.updatedAt
-        if merged.ingredients == nil, unchanged {
+        let edited = isProvablyEdited(incoming: incoming, existing: existing)
+        if merged.ingredients == nil, !edited {
             merged.ingredients = existing?.ingredients
         }
         guard incoming.steps == nil else { return merged }
         if incoming.stepCount == 0 {
             merged.steps = []
-        } else if unchanged, let kept = existing?.steps, kept.count == incoming.stepCount {
+        } else if !edited, let kept = existing?.steps, kept.count == (incoming.stepCount ?? kept.count) {
             merged.steps = kept
         }
         return merged
+    }
+
+    private nonisolated static func isProvablyEdited(incoming: Recipe, existing: Recipe?) -> Bool {
+        guard let incomingStamp = incoming.updatedAt, let existingStamp = existing?.updatedAt else { return false }
+        return incomingStamp != existingStamp
     }
 
     /// Ingredient inputs resolved against the local food store.
