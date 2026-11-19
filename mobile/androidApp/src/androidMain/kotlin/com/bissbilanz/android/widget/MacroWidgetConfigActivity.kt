@@ -44,6 +44,8 @@ import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.FatYellow
 import com.bissbilanz.android.ui.theme.FiberGreen
 import com.bissbilanz.android.ui.theme.ProteinRed
+import com.bissbilanz.android.ui.theme.SystemBarsForTheme
+import com.bissbilanz.android.ui.theme.isAppInDarkTheme
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -72,7 +74,9 @@ class MacroWidgetConfigActivity : ComponentActivity() {
         }
 
         setContent {
-            BissbilanzTheme {
+            val darkTheme = isAppInDarkTheme()
+            SystemBarsForTheme(darkTheme)
+            BissbilanzTheme(darkTheme = darkTheme) {
                 var showCalories by remember { mutableStateOf(true) }
                 var showProtein by remember { mutableStateOf(true) }
                 var showCarbs by remember { mutableStateOf(true) }

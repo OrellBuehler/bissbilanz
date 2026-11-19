@@ -1099,9 +1099,17 @@
     <string name="settings_nav_calendar">Kalender</string>
     <string name="settings_nav_insights">Auswertungen</string>
     <string name="settings_nav_tabs">Navigationstabs</string>
-    <string name="settings_nav_tabs_desc">Wähle 3 Tabs für die untere Navigation</string>
-    <string name="settings_tab_foods">Lebensmittel</string>
-    <string name="settings_select_exactly_3_tabs">Wähle genau 3 Tabs (%1$d/3)</string>
+    <string name="settings_nav_tabs_desc">Start und Einstellungen bleiben immer. Wähle dazwischen 1 bis 3 Tabs und ziehe sie in die gewünschte Reihenfolge.</string>
+    <string name="settings_nav_tabs_chosen">In der Leiste</string>
+    <string name="settings_nav_tabs_available">Weitere Ziele</string>
+    <string name="settings_nav_tabs_full">Entferne einen Tab, um einen anderen hinzuzufügen (höchstens %1$d).</string>
+    <string name="settings_nav_tabs_add">%1$s hinzufügen</string>
+    <string name="settings_nav_tabs_remove">%1$s entfernen</string>
+    <string name="settings_nav_tabs_move_up">Nach oben verschieben</string>
+    <string name="settings_nav_tabs_move_down">Nach unten verschieben</string>
+    <string name="settings_nav_tabs_requires_sign_in">Erfordert Anmeldung</string>
+    <string name="settings_nav_tabs_after_sign_in">Sichtbar nach der Anmeldung</string>
+    <string name="settings_landing_tab">App öffnen mit</string>
     <string name="settings_daily_goals">Tagesziele</string>
     <string name="settings_calories_kcal">Kalorien (kcal)</string>
     <string name="settings_protein_pct_grams">Protein: %1$d%% - %2$dg</string>
@@ -1423,6 +1431,10 @@
 
     <!-- Navigation / screen titles -->
     <string name="nav_home">Start</string>
+    <plurals name="nav_ai_tasks_badge">
+        <item quantity="one">%1$d Neuigkeit</item>
+        <item quantity="other">%1$d Neuigkeiten</item>
+    </plurals>
     <string name="food_search_title">Lebensmittel</string>
 
     <!-- Day log: entry search -->
@@ -1455,6 +1467,13 @@
     <string name="settings_language_system">System</string>
     <string name="settings_language_english">English</string>
     <string name="settings_language_german">Deutsch</string>
+
+    <!-- Settings: appearance -->
+    <string name="settings_appearance">Darstellung</string>
+    <string name="settings_theme">Design</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Hell</string>
+    <string name="settings_theme_dark">Dunkel</string>
 
     <!-- Settings: expired session -->
     <string name="settings_sign_in_again">Erneut anmelden</string>

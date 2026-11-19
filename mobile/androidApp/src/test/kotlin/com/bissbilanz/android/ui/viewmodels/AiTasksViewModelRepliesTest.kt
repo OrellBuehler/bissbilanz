@@ -635,7 +635,7 @@ class AiTasksViewModelRepliesTest {
             every { aiTaskRepo.unreadCount() } returns 0
             every { aiTaskRepo.unreadReplyCount() } returns 1
 
-            viewModel.load()
+            viewModel.onShown()
 
             assertEquals(AiTasksViewModel.Filter.COMPLETED, viewModel.filter.value)
         }
@@ -647,7 +647,7 @@ class AiTasksViewModelRepliesTest {
             every { aiTaskRepo.unreadCount() } returns 1
             every { aiTaskRepo.unreadReplyCount() } returns 1
 
-            viewModel.load()
+            viewModel.onShown()
 
             assertEquals(AiTasksViewModel.Filter.DISMISSED, viewModel.filter.value)
             coVerify(exactly = 1) { aiTaskRepo.acknowledgeAll() }

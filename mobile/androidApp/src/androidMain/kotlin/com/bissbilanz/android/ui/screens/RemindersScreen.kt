@@ -28,7 +28,9 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
+import com.bissbilanz.android.navigation.LocalBarRoutes
 import com.bissbilanz.android.navigation.NAV_KEY_EDIT_SUPPLEMENT_ID
+import com.bissbilanz.android.navigation.openDestination
 import com.bissbilanz.android.reminders.SupplementReminderPreferences
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.ChoiceDropdown
@@ -53,6 +55,7 @@ import org.koin.compose.koinInject
 @Composable
 fun RemindersScreen(navController: NavController) {
     val viewModel: RemindersViewModel = koinViewModel()
+    val barRoutes = LocalBarRoutes.current
     val reminders by viewModel.reminders.collectAsStateWithLifecycle()
     val supplementReminders by viewModel.supplementReminders.collectAsStateWithLifecycle()
     val customMealTypes by viewModel.customMealTypes.collectAsStateWithLifecycle()
@@ -234,7 +237,7 @@ fun RemindersScreen(navController: NavController) {
                                 SupplementReminderRow(
                                     supplement = supplement,
                                     onClick = {
-                                        navController.navigate("supplements")
+                                        navController.openDestination("supplements", barRoutes)
                                         navController.currentBackStackEntry
                                             ?.savedStateHandle
                                             ?.set(NAV_KEY_EDIT_SUPPLEMENT_ID, supplement.id)

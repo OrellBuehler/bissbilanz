@@ -32,6 +32,8 @@ import com.bissbilanz.analytics.GoalMacro
 import com.bissbilanz.analytics.GoalRule
 import com.bissbilanz.analytics.summarizeGoalAdherence
 import com.bissbilanz.android.R
+import com.bissbilanz.android.navigation.LocalBarRoutes
+import com.bissbilanz.android.navigation.openDestination
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.CalendarHeatmap
@@ -98,6 +100,7 @@ fun InsightsScreen(
     showBack: Boolean = false,
 ) {
     val viewModel: InsightsViewModel = koinViewModel()
+    val barRoutes = LocalBarRoutes.current
     val refreshManager: RefreshManager = koinInject()
     val weeklyStats by viewModel.weeklyStats.collectAsStateWithLifecycle()
     val monthlyStats by viewModel.monthlyStats.collectAsStateWithLifecycle()
@@ -602,7 +605,7 @@ fun InsightsScreen(
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.weight(1f),
                                 )
-                                IconButton(onClick = { navController.navigate("sleep") }) {
+                                IconButton(onClick = { navController.openDestination("sleep", barRoutes) }) {
                                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.sleep_log_content_desc))
                                 }
                             }

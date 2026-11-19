@@ -35,6 +35,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.navigation.LocalBarRoutes
+import com.bissbilanz.android.navigation.openDestination
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.ErrorState
@@ -116,6 +118,7 @@ fun FoodDetailScreen(
     val refreshManager: RefreshManager = koinInject()
     val prefsRepo: PreferencesRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
+    val barRoutes = LocalBarRoutes.current
     val preferencesFlow = remember(prefsRepo) { prefsRepo.preferences() }
     val prefs by preferencesFlow.collectAsStateWithLifecycle(null)
     val visibleNutrients = prefs?.visibleNutrients?.toSet()
@@ -272,7 +275,7 @@ fun FoodDetailScreen(
             onOpenSupplement = {
                 showUsage = false
                 deleteConflict = null
-                navController.navigate("supplements")
+                navController.openDestination("supplements", barRoutes)
             },
         )
     }

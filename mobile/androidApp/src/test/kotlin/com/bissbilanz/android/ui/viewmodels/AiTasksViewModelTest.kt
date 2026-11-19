@@ -97,7 +97,7 @@ class AiTasksViewModelTest {
             backgroundScope.launch(testDispatcher) { viewModel.filter.collect {} }
             every { aiTaskRepo.unreadCount() } returns 1
 
-            viewModel.load()
+            viewModel.onShown()
 
             assertEquals(AiTasksViewModel.Filter.DISMISSED, viewModel.filter.value)
         }
@@ -109,7 +109,7 @@ class AiTasksViewModelTest {
             every { aiTaskRepo.unreadCount() } returns 1
 
             viewModel.selectFilter(AiTasksViewModel.Filter.COMPLETED)
-            viewModel.load()
+            viewModel.onShown()
 
             assertEquals(AiTasksViewModel.Filter.COMPLETED, viewModel.filter.value)
         }
@@ -118,7 +118,7 @@ class AiTasksViewModelTest {
     fun aSuccessfulRefreshClearsTheLoadFailure() =
         runTest {
             coEvery { aiTaskRepo.refresh() } throws RuntimeException("offline")
-            viewModel.load()
+            viewModel.onShown()
             assertEquals(true, viewModel.loadFailed.value)
 
             coEvery { aiTaskRepo.refresh() } returns Unit
@@ -130,14 +130,84 @@ class AiTasksViewModelTest {
     @Test
     fun aRecreatedScreenDoesNotLoadAgain() =
         runTest {
-            viewModel.load()
+            viewModel.onShown()
             assertEquals(false, viewModel.isLoading.value)
 
-            viewModel.load()
+            viewModel.onShown()
 
             assertEquals(false, viewModel.isLoading.value)
             coVerify(exactly = 1) { aiTaskRepo.refresh() }
             coVerify(exactly = 1) { aiTaskRepo.acknowledgeAll() }
+        }
+
+    @Test
+    fun everyVisitRefreshesAndClearsTheUnreadStateAgain() =
+        runTest {
+            viewModel.onShown()
+            viewModel.onHidden()
+
+            viewModel.onShown()
+
+            coVerify(exactly = 2) { aiTaskRepo.refresh() }
+            coVerify(exactly = 2) { aiTaskRepo.acknowledgeAll() }
+        }
+
+    @Test
+    fun onlyTheFirstVisitShowsTheSpinner() =
+        runTest {
+            val gate = CompletableDeferred<Unit>()
+            viewModel.onShown()
+            viewModel.onHidden()
+            coEvery { aiTaskRepo.refresh() } coAnswers { gate.await() }
+
+            viewModel.onShown()
+
+            assertEquals(false, viewModel.isLoading.value)
+            gate.complete(Unit)
+        }
+
+    @Test
+    fun aFilterPickedForTheUserDoesNotStickToTheNextVisit() =
+        runTest {
+            backgroundScope.launch(testDispatcher) { viewModel.filter.collect {} }
+            every { aiTaskRepo.unreadCount() } returns 1
+            viewModel.onShown()
+            assertEquals(AiTasksViewModel.Filter.DISMISSED, viewModel.filter.value)
+            viewModel.onHidden()
+
+            every { aiTaskRepo.unreadCount() } returns 0
+            viewModel.onShown()
+
+            assertEquals(AiTasksViewModel.Filter.OPEN, viewModel.filter.value)
+        }
+
+    @Test
+    fun aDismissalOnALaterVisitOpensTheDismissedTabOverAnEarlierChoice() =
+        runTest {
+            backgroundScope.launch(testDispatcher) { viewModel.filter.collect {} }
+            viewModel.onShown()
+            viewModel.selectFilter(AiTasksViewModel.Filter.COMPLETED)
+            viewModel.onHidden()
+
+            every { aiTaskRepo.unreadCount() } returns 1
+            viewModel.onShown()
+
+            assertEquals(AiTasksViewModel.Filter.DISMISSED, viewModel.filter.value)
+        }
+
+    @Test
+    fun aTabChosenWhileTheVisitLoadsIsKept() =
+        runTest {
+            backgroundScope.launch(testDispatcher) { viewModel.filter.collect {} }
+            val gate = CompletableDeferred<Unit>()
+            coEvery { aiTaskRepo.refresh() } coAnswers { gate.await() }
+            every { aiTaskRepo.unreadCount() } returns 1
+
+            viewModel.onShown()
+            viewModel.selectFilter(AiTasksViewModel.Filter.COMPLETED)
+            gate.complete(Unit)
+
+            assertEquals(AiTasksViewModel.Filter.COMPLETED, viewModel.filter.value)
         }
 
     @Test
