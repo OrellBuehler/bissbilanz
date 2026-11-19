@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import { enqueue } from '$lib/stores/offline-queue';
 import { IDEMPOTENCY_KEY_HEADER, CLIENT_EDITED_AT_HEADER } from '$lib/sync/contract';
 import {

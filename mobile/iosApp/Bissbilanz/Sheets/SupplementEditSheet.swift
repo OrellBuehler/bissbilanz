@@ -57,32 +57,40 @@ struct SupplementEditSheet: View {
                         Text(L10n.custom).tag(ScheduleType.specificDays)
                     }
 
-                    if scheduleType == .weekly || scheduleType == .specificDays {
-                        HStack {
-                            ForEach(0 ..< 7, id: \.self) { day in
-                                Button {
-                                    if scheduleDays.contains(day) {
-                                        scheduleDays.remove(day)
-                                    } else {
-                                        scheduleDays.insert(day)
-                                    }
-                                } label: {
-                                    Text(weekdays[day])
-                                        .font(.caption2)
-                                        .frame(maxWidth: .infinity, minHeight: 36)
-                                        .background(scheduleDays.contains(day) ? Color.accentColor : Color.clear)
-                                        .foregroundStyle(scheduleDays.contains(day) ? .white : .primary)
-                                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                                        .overlay {
-                                            if differentiateWithoutColor, scheduleDays.contains(day) {
-                                                RoundedRectangle(cornerRadius: 6)
-                                                    .strokeBorder(.primary, lineWidth: 2)
-                                            }
+                    if SupplementFormValidator.requiresScheduleDays(scheduleType) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                ForEach(0 ..< 7, id: \.self) { day in
+                                    Button {
+                                        if scheduleDays.contains(day) {
+                                            scheduleDays.remove(day)
+                                        } else {
+                                            scheduleDays.insert(day)
                                         }
-                                        .contentShape(RoundedRectangle(cornerRadius: 6))
+                                    } label: {
+                                        Text(weekdays[day])
+                                            .font(.caption2)
+                                            .frame(maxWidth: .infinity, minHeight: 36)
+                                            .background(scheduleDays.contains(day) ? Color.accentColor : Color.clear)
+                                            .foregroundStyle(scheduleDays.contains(day) ? .white : .primary)
+                                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                                            .overlay {
+                                                if differentiateWithoutColor, scheduleDays.contains(day) {
+                                                    RoundedRectangle(cornerRadius: 6)
+                                                        .strokeBorder(.primary, lineWidth: 2)
+                                                }
+                                            }
+                                            .contentShape(RoundedRectangle(cornerRadius: 6))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityAddTraits(scheduleDays.contains(day) ? .isSelected : [])
                                 }
-                                .buttonStyle(.plain)
-                                .accessibilityAddTraits(scheduleDays.contains(day) ? .isSelected : [])
+                            }
+
+                            if scheduleDays.isEmpty {
+                                Text(L10n.supplementDaysRequired)
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
                             }
                         }
                     }
@@ -154,11 +162,18 @@ struct SupplementEditSheet: View {
     }
 
     private var isValid: Bool {
-        guard !name.isEmpty, !ingredientRows.isEmpty else { return false }
-        return ingredientRows.allSatisfy { row in
-            !row.name.isEmpty &&
-                ((Double.parseUserInput(row.dosage) ?? 0) > 0 || (row.originalText ?? "").isEmpty == false)
-        }
+        SupplementFormValidator.isValid(
+            name: name,
+            scheduleType: scheduleType,
+            scheduleDays: scheduleDays,
+            ingredients: ingredientRows.map { row in
+                SupplementFormValidator.Ingredient(
+                    name: row.name,
+                    dosage: row.dosage,
+                    hasOriginalText: !(row.originalText ?? "").isEmpty
+                )
+            }
+        )
     }
 
     /// Parses "42 mg" out of an existing ingredientsText. Returns (dosage, unit,

@@ -27,14 +27,14 @@ export const load: PageServerLoad = async ({ url, request }) => {
 	if (!sessionId) {
 		const loginUrl = new URL('/', url.origin);
 		loginUrl.searchParams.set('redirect', url.pathname + url.search);
-		throw redirect(302, loginUrl.toString());
+		throw redirect(302, loginUrl.pathname + loginUrl.search);
 	}
 
 	const sessionData = await getSessionWithUser(sessionId);
 	if (!sessionData) {
 		const loginUrl = new URL('/', url.origin);
 		loginUrl.searchParams.set('redirect', url.pathname + url.search);
-		throw redirect(302, loginUrl.toString());
+		throw redirect(302, loginUrl.pathname + loginUrl.search);
 	}
 
 	const client = await resolveOAuthClient(clientId);
@@ -125,7 +125,7 @@ export const actions = {
 			callbackUrl.searchParams.set('state', state);
 			callbackUrl.searchParams.set('iss', getIssuer(url));
 
-			throw redirect(302, callbackUrl.toString());
+			throw redirect(302, callbackUrl.toString(), { external: true });
 		} catch (error) {
 			if (isRedirect(error)) throw error;
 			console.error('Failed to approve authorization:', error);
@@ -149,7 +149,7 @@ export const actions = {
 				callbackUrl.searchParams.set('state', state);
 				callbackUrl.searchParams.set('iss', getIssuer(url));
 
-				throw redirect(302, callbackUrl.toString());
+				throw redirect(302, callbackUrl.toString(), { external: true });
 			}
 		}
 

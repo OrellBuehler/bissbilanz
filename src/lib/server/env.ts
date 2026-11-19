@@ -32,9 +32,9 @@ export type ClaudeEffort = (typeof CLAUDE_EFFORTS)[number];
 const CLAUDE_DEFAULT_EFFORT: ClaudeEffort = 'medium';
 const CLAUDE_DEFAULT_MAX_ITERATIONS = 20;
 const CLAUDE_MAX_ITERATIONS_LIMIT = 50;
-const CLAUDE_DEFAULT_MAX_WEB_SEARCHES = 3;
+const CLAUDE_DEFAULT_MAX_WEB_SEARCHES = 8;
 const CLAUDE_MAX_WEB_SEARCHES_LIMIT = 10;
-const CLAUDE_DEFAULT_MAX_WEB_FETCHES = 3;
+const CLAUDE_DEFAULT_MAX_WEB_FETCHES = 5;
 const CLAUDE_MAX_WEB_FETCHES_LIMIT = 10;
 
 const isClaudeEffort = (value: string): value is ClaudeEffort =>

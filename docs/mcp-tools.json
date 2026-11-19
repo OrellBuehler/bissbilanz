@@ -3314,7 +3314,7 @@
 		"/tools/search_openfoodfacts": {
 			"post": {
 				"operationId": "search_openfoodfacts",
-				"description": "Search Open Food Facts for products by name. Returns nutritional data that can be used with create_food to add products to the database.",
+				"description": "Search Open Food Facts for products by name. Returns nutritional data that can be used with create_food to add products to the database. When Open Food Facts cannot be reached the result carries unavailable: true, which is not the same as no matching product.",
 				"requestBody": {
 					"required": true,
 					"content": {

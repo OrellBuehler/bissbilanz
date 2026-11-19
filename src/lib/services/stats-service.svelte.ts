@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import { api } from '$lib/api/client';
 
 function reportIfOnline(err: unknown, context: string): void {

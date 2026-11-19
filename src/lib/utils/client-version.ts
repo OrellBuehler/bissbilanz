@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import {
 	CLIENT_PLATFORM_HEADER,
 	CLIENT_VERSION_HEADER,

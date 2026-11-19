@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/sveltekit';
 import { json, redirect } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
-import type { Handle, HandleServerError } from '@sveltejs/kit';
+import type { Handle, HandleServerError } from '@sveltejs/kit/hooks';
 import { getSessionWithUser, getUserById, cleanExpiredSessions } from '$lib/server/session';
 import { validateAccessToken, cleanupExpiredOAuthData } from '$lib/server/oauth';
 import { securityHeaders } from '$lib/server/security';
@@ -30,14 +30,14 @@ import {
 	requiredMinimum,
 	updateRequiredResponse
 } from '$lib/server/client-version';
-import { env } from '$env/dynamic/public';
+import { PUBLIC_SENTRY_DSN, PUBLIC_SENTRY_ENVIRONMENT } from '$app/env/public';
 
 // Both must be set: a DSN alone would make any local run of the built server
 // (default environment "production") report into the live Sentry project.
-if (env.PUBLIC_SENTRY_DSN && env.PUBLIC_SENTRY_ENVIRONMENT) {
+if (PUBLIC_SENTRY_DSN && PUBLIC_SENTRY_ENVIRONMENT) {
 	Sentry.init({
-		dsn: env.PUBLIC_SENTRY_DSN,
-		environment: env.PUBLIC_SENTRY_ENVIRONMENT,
+		dsn: PUBLIC_SENTRY_DSN,
+		environment: PUBLIC_SENTRY_ENVIRONMENT,
 		tracesSampleRate: import.meta.env.DEV ? 1.0 : 0.2,
 		beforeSendLog: (log) => (import.meta.env.DEV ? log : null)
 	});
@@ -92,7 +92,8 @@ export async function init() {
 
 const paraglideHandle: Handle = ({ event, resolve }) =>
 	paraglideMiddleware(event.request, ({ request: localizedRequest, locale }) => {
-		event.request = localizedRequest;
+		// Typed read-only since SvelteKit 3, but routes must see the de-localized request.
+		(event as { request: Request }).request = localizedRequest;
 		return resolve(event, {
 			transformPageChunk: ({ html }) => {
 				return html.replace('%lang%', locale);
@@ -305,11 +306,11 @@ export const handle = sequence(
 	idempotencyHandle
 );
 
-const logUnexpectedError: HandleServerError = ({ error, status }) => {
-	// Don't log noise for unmatched routes / 404s (legacy API paths, scanners).
-	// Sentry already declines to capture 4xx errors; this just silences the
-	// console.error its default handler would otherwise emit.
-	if (status === 404) return;
+const logUnexpectedError: HandleServerError = ({ kind, error }) => {
+	// SvelteKit passes every error here, including error(...) responses and its
+	// own 404s for unmatched routes (legacy API paths, scanners). Only log what
+	// our code threw; Sentry applies its own rule for what to capture.
+	if (kind !== 'unknown') return;
 	console.error(error instanceof Error ? error.stack : error);
 };
 

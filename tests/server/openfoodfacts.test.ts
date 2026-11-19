@@ -1,12 +1,17 @@
 import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 
-const sentry = vi.hoisted(() => ({ captureMessage: vi.fn(), captureException: vi.fn() }));
+const sentry = vi.hoisted(() => ({
+	captureMessage: vi.fn(),
+	captureException: vi.fn(),
+	addBreadcrumb: vi.fn()
+}));
 vi.mock('@sentry/sveltekit', () => sentry);
 import {
 	fetchProduct,
 	lookupProduct,
 	parseRetryAfter,
-	searchProducts
+	searchProducts,
+	searchProductsResult
 } from '../../src/lib/server/openfoodfacts';
 
 const VALID_BARCODE = '3017620422003';
@@ -496,6 +501,35 @@ describe('searchProducts', () => {
 
 		const results = await searchProducts('banana');
 		expect(results).toEqual([]);
+	});
+
+	test('tells an outage apart from an empty result', async () => {
+		fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ products: [] })));
+		expect(await searchProductsResult('banana')).toEqual({ products: [], unavailable: false });
+
+		fetchSpy.mockResolvedValueOnce(new Response('Error', { status: 503 }));
+		expect(await searchProductsResult('banana')).toEqual({ products: [], unavailable: true });
+	});
+
+	test('a timeout is unavailable and leaves a breadcrumb instead of an event', async () => {
+		sentry.captureException.mockClear();
+		sentry.addBreadcrumb.mockClear();
+		fetchSpy.mockRejectedValueOnce(new DOMException('The operation timed out.', 'TimeoutError'));
+
+		expect(await searchProductsResult('Frischhefe')).toEqual({ products: [], unavailable: true });
+		expect(sentry.captureException).not.toHaveBeenCalled();
+		expect(sentry.addBreadcrumb).toHaveBeenCalledWith(
+			expect.objectContaining({ category: 'openfoodfacts', data: { query: 'Frischhefe' } })
+		);
+	});
+
+	test('any other failure is still reported', async () => {
+		sentry.captureException.mockClear();
+		const failure = new Error('network error');
+		fetchSpy.mockRejectedValueOnce(failure);
+
+		expect(await searchProductsResult('banana')).toEqual({ products: [], unavailable: true });
+		expect(sentry.captureException).toHaveBeenCalledWith(failure, { extra: { query: 'banana' } });
 	});
 
 	test('caps page_size at 20 regardless of limit parameter', async () => {

@@ -121,6 +121,33 @@ struct SharedFixtureTests {
                 )
                 return SharedFixtures.orNull(factor)
 
+            case "recipeServingAmount":
+                var recipe = try Self.makeRecipe(
+                    totalServings: SharedFixtures.number(input["totalServings"]) ?? 1,
+                    cookedWeight: SharedFixtures.number(input["cookedWeight"])
+                )
+                let rows = input["ingredients"] as? [[String: Any]] ?? []
+                recipe.ingredients = try rows.enumerated().map { index, raw -> RecipeIngredient in
+                    guard let unit = ServingUnit(rawValue: raw["servingUnit"] as? String ?? "") else {
+                        throw SharedFixtureError.malformed("unknown serving unit in \(raw)")
+                    }
+                    return RecipeIngredient(
+                        id: nil,
+                        recipeId: nil,
+                        foodId: "f\(index)",
+                        quantity: SharedFixtures.number(raw["quantity"]) ?? 0,
+                        servingUnit: unit,
+                        sortOrder: index,
+                        food: nil
+                    )
+                }
+                guard let amount = recipe.servingAmount else { return NSNull() }
+                return [
+                    "amount": amount.amount,
+                    "unit": amount.unit.rawValue,
+                    "estimated": amount.isEstimated,
+                ] as [String: Any]
+
             case "scaleIngredients":
                 let rawIngredients = input["ingredients"] as? [[String: Any]] ?? []
                 let ingredients = try rawIngredients.map { raw in

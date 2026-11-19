@@ -62,6 +62,7 @@ struct ContentView: View {
     @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
     @State private var showSessionExpiredPrompt = false
     @State private var reauthSession: ASWebAuthenticationSession?
+    @State private var reauthPrompt: SignInPrompt?
 
     private var selectedTabs: [NavigableTab] {
         selectedTabsRaw.split(separator: ",").compactMap { NavigableTab(rawValue: String($0)) }
@@ -159,11 +160,23 @@ struct ContentView: View {
         }
         .alert(L10n.sessionExpiredTitle, isPresented: $showSessionExpiredPrompt) {
             Button(L10n.signIn) {
-                reauthSession = SignInFlow.start(authManager: authManager)
+                beginReauth()
             }
             Button(L10n.notNow, role: .cancel) {}
         } message: {
             Text(L10n.sessionExpiredMessage)
+        }
+        .sheet(item: $reauthPrompt) { prompt in
+            SignInProviderSheet(prompt: prompt)
+        }
+    }
+
+    private func beginReauth() {
+        switch SignInPlan.resolve(lastProvider: authManager.lastProvider, isLocalMode: appModeManager.isLocal) {
+        case let .web(provider):
+            reauthSession = SignInFlow.start(authManager: authManager, provider: provider)
+        case let .prompt(prompt):
+            reauthPrompt = prompt
         }
     }
 }

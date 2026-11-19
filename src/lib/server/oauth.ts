@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID, createHash, timingSafeEqual } from 'crypto';
 import * as Sentry from '@sentry/sveltekit';
 import { compareSync, hashSync } from 'bcrypt';
-import { eq, and, gt, lt, isNull, or } from 'drizzle-orm';
+import { eq, and, gt, lt, ne, isNull, or } from 'drizzle-orm';
 import {
 	getDB,
 	oauthClients,
@@ -23,7 +23,8 @@ export const AUTH_CODE_LIFETIME_MS = 10 * 60 * 1000; // 10 minutes
 // Rotation extends a refresh token indefinitely; the family cap bounds the chain.
 export const REFRESH_FAMILY_LIFETIME_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
 // A just-rotated refresh token presented again within this window is a retry (lost
-// response, concurrent refresh), not reuse. Longer replays revoke the whole family.
+// response, concurrent refresh), not reuse. A later replay revokes the whole family
+// unless nothing issued since was ever used (see refreshAccessToken).
 export const REFRESH_REUSE_GRACE_MS = 60 * 1000;
 // Consumed rows only serve reuse detection; older ones are pruned.
 export const CONSUMED_TOKEN_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -399,11 +400,34 @@ function familyIdOf(row: { id: string; familyId: string | null }): string {
 	return row.familyId ?? row.id;
 }
 
-async function revokeTokenFamily(tx: Tx, row: { id: string; familyId: string | null }) {
+function familyFilter(row: { id: string; familyId: string | null }) {
 	const familyId = familyIdOf(row);
-	await tx
-		.delete(oauthTokens)
-		.where(or(eq(oauthTokens.familyId, familyId), eq(oauthTokens.id, familyId)));
+	return or(eq(oauthTokens.familyId, familyId), eq(oauthTokens.id, familyId));
+}
+
+async function revokeTokenFamily(tx: Tx, row: { id: string; familyId: string | null }) {
+	await tx.delete(oauthTokens).where(familyFilter(row));
+}
+
+/**
+ * Whether the chain moved on after `replayed` was rotated: a later token of the family
+ * was rotated in turn, or a live one has authenticated a request. Then whoever presents
+ * `replayed` is not the holder of the current token.
+ */
+async function familyMovedOn(
+	tx: Tx,
+	replayed: { id: string; familyId: string | null; refreshTokenConsumedAt: Date }
+): Promise<boolean> {
+	const others = await tx
+		.select({
+			consumedAt: oauthTokens.refreshTokenConsumedAt,
+			usedAt: oauthTokens.accessTokenUsedAt
+		})
+		.from(oauthTokens)
+		.where(and(familyFilter(replayed), ne(oauthTokens.id, replayed.id)));
+	return others.some((other) =>
+		other.consumedAt ? other.consumedAt >= replayed.refreshTokenConsumedAt : other.usedAt !== null
+	);
 }
 
 /**
@@ -412,7 +436,11 @@ async function revokeTokenFamily(tx: Tx, row: { id: string; familyId: string | n
  * - within REFRESH_REUSE_GRACE_MS of the rotation it is treated as a lost response or a
  *   racing refresh from the same client and answered with a fresh rotation of the same
  *   family (the family expiry is unchanged, so this extends nothing);
- * - after that it is treated as theft, the whole family (every refresh and access
+ * - after that, if no token issued since was used, the response never reached the client
+ *   (a mobile app on a bad connection retries minutes later). The unused replacements are
+ *   retired and the token is rotated again. A retired replacement that shows up later
+ *   counts as reuse, so a thief who redeemed the token first is still caught;
+ * - otherwise it is treated as theft, the whole family (every refresh and access
  *   token descending from the original grant) is revoked and undefined is returned.
  */
 export async function refreshAccessToken(
@@ -451,18 +479,37 @@ export async function refreshAccessToken(
 						gt(oauthTokens.refreshTokenExpiresAt, now)
 					)
 				)
-				.limit(1);
-			if (!previous?.refreshTokenConsumedAt) return undefined;
+				.limit(1)
+				.for('update');
+			const consumedAt = previous?.refreshTokenConsumedAt;
+			if (!consumedAt) return undefined;
 
-			const ageMs = now.getTime() - previous.refreshTokenConsumedAt.getTime();
+			const ageMs = now.getTime() - consumedAt.getTime();
 			if (ageMs > REFRESH_REUSE_GRACE_MS) {
-				await revokeTokenFamily(tx, previous);
-				Sentry.captureMessage('OAuth refresh token reuse detected, token family revoked', {
-					level: 'warning',
-					tags: { clientId },
-					extra: { familyId: familyIdOf(previous), userId: previous.userId, ageMs }
+				if (await familyMovedOn(tx, { ...previous, refreshTokenConsumedAt: consumedAt })) {
+					await revokeTokenFamily(tx, previous);
+					Sentry.captureMessage('OAuth refresh token reuse detected, token family revoked', {
+						level: 'warning',
+						tags: { clientId },
+						extra: { familyId: familyIdOf(previous), userId: previous.userId, ageMs }
+					});
+					return undefined;
+				}
+				// Retired with the old timestamp, so they are older than the replayed token
+				// from here on and presenting one of them revokes the family.
+				await tx
+					.update(oauthTokens)
+					.set({ refreshTokenConsumedAt: consumedAt })
+					.where(and(familyFilter(previous), isNull(oauthTokens.refreshTokenConsumedAt)));
+				await tx
+					.update(oauthTokens)
+					.set({ refreshTokenConsumedAt: now })
+					.where(eq(oauthTokens.id, previous.id));
+				Sentry.addBreadcrumb({
+					category: 'oauth',
+					message: 'Refresh token replayed with unused replacement, rotated again',
+					data: { clientId, ageMs }
 				});
-				return undefined;
 			}
 			row = previous;
 		}
@@ -503,6 +550,13 @@ export async function validateAccessToken(
 	});
 
 	if (!tokenRecord) return undefined;
+
+	if (!tokenRecord.accessTokenUsedAt) {
+		await db
+			.update(oauthTokens)
+			.set({ accessTokenUsedAt: now })
+			.where(and(eq(oauthTokens.id, tokenRecord.id), isNull(oauthTokens.accessTokenUsedAt)));
+	}
 
 	return {
 		userId: tokenRecord.userId,

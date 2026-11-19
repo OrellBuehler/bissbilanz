@@ -4,10 +4,6 @@ import VisionKit
 
 struct BarcodeScannerView: View {
     @Environment(FoodRepository.self) private var foodRepository
-    // Open Food Facts lookups are proxied by the server in Synced mode; Local
-    // mode queries Open Food Facts directly (there is no backend session).
-    @Environment(BissbilanzAPI.self) private var api
-    @Environment(AppModeManager.self) private var appModeManager
     @Environment(FoodLabeler.self) private var foodLabeler
     @Environment(FoodImageLoader.self) private var foodImageLoader
     @Environment(\.dismiss) private var dismiss
@@ -15,6 +11,7 @@ struct BarcodeScannerView: View {
     @State private var scannedBarcode: String?
     @State private var isSearching = false
     @State private var notFound = false
+    @State private var lookupFailed = false
     @State private var cameraPermission: AVAuthorizationStatus = .notDetermined
     @State private var isTorchOn = false
     /// The flow after a scan lives in this stack's path: one sheet, pushed
@@ -107,6 +104,43 @@ struct BarcodeScannerView: View {
                     .padding()
                     .background(.ultraThinMaterial)
                     .clipShape(Capsule())
+                    .padding(.bottom, 40)
+                }
+            }
+
+            if lookupFailed {
+                VStack {
+                    Spacer()
+                    VStack(spacing: 12) {
+                        Text(L10n.barcodeLookupFailed)
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .multilineTextAlignment(.center)
+                        Text(L10n.barcodeLookupFailedHint)
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.7))
+                            .multilineTextAlignment(.center)
+
+                        HStack(spacing: 12) {
+                            Button(L10n.scanAgain) {
+                                resetScanner()
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.white)
+
+                            Button(L10n.retry) {
+                                if let scannedBarcode {
+                                    lookUp(scannedBarcode)
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.white)
+                        }
+                    }
+                    .padding()
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .padding(.horizontal, 32)
                     .padding(.bottom, 40)
                 }
             }
@@ -206,35 +240,24 @@ struct BarcodeScannerView: View {
         // path.isEmpty guard keeps stray detections from firing behind it.
         guard scannedBarcode == nil, path.isEmpty else { return }
         scannedBarcode = barcode
-        isSearching = true
-        notFound = false
 
         UINotificationFeedbackGenerator().notificationOccurred(.success)
 
+        lookUp(barcode)
+    }
+
+    private func lookUp(_ barcode: String) {
+        guard !isSearching else { return }
+        isSearching = true
+        notFound = false
+        lookupFailed = false
+
         Task {
             do {
-                if let food = try await foodRepository.findByBarcode(barcode) {
+                switch try await foodRepository.resolveScannedBarcode(barcode) {
+                case let .existing(food):
                     path.append(.log(food))
-                } else if let hit = try await lookupOpenFoodFacts(barcode) {
-                    // Found in Open Food Facts - create locally
-                    let food = hit.food
-                    let created = try await foodRepository.createFood(FoodCreate(
-                        name: food.name,
-                        brand: food.brand,
-                        servingSize: food.servingSize,
-                        servingUnit: food.servingUnit,
-                        calories: food.calories,
-                        protein: food.protein,
-                        carbs: food.carbs,
-                        fat: food.fat,
-                        fiber: food.fiber,
-                        barcode: barcode,
-                        nutriScore: food.nutriScore,
-                        novaGroup: food.novaGroup,
-                        additives: food.additives,
-                        ingredientsText: food.ingredientsText,
-                        categoriesTags: hit.categoriesTags
-                    ))
+                case let .imported(created):
                     // No-ops unless the OFF import left it with no labels.
                     FoodAutoLabeler.labelIfNeeded(
                         created,
@@ -243,33 +266,37 @@ struct BarcodeScannerView: View {
                         foodImageLoader: foodImageLoader
                     )
                     path.append(.log(created))
-                } else {
+                case .notFound:
                     notFound = true
                     UINotificationFeedbackGenerator().notificationOccurred(.warning)
                 }
             } catch {
-                notFound = true
+                reportLookupFailure(error)
+                lookupFailed = true
                 UINotificationFeedbackGenerator().notificationOccurred(.error)
             }
             isSearching = false
         }
     }
 
-    /// Local mode has no backend session — query Open Food Facts directly;
-    /// Synced mode keeps using the authenticated server proxy. Only the proxy
-    /// carries categories: Local mode has no server to seed labels from them.
-    private func lookupOpenFoodFacts(_ barcode: String) async throws -> BissbilanzAPI.OpenFoodFactsHit? {
-        if appModeManager.isLocal {
-            try await OpenFoodFactsClient().lookupBarcode(barcode)
-                .map { BissbilanzAPI.OpenFoodFactsHit(food: $0, categoriesTags: nil) }
+    private func reportLookupFailure(_ error: Error) {
+        let reason = OpenFoodFactsLookupFailure.reason(for: error)
+        if OpenFoodFactsLookupFailure.isExpected(reason: reason) {
+            ErrorReporter.addBreadcrumb(
+                "barcode lookup failed, not reported",
+                category: "barcode",
+                level: .warning,
+                data: ["reason": reason]
+            )
         } else {
-            try await api.lookupBarcode(barcode)
+            ErrorReporter.captureWarning("Barcode lookup failed", context: ["reason": reason])
         }
     }
 
     private func resetScanner() {
         scannedBarcode = nil
         notFound = false
+        lookupFailed = false
     }
 }
 
