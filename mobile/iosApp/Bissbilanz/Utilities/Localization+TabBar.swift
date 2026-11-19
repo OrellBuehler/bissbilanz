@@ -6,7 +6,11 @@ import Foundation
 // shared Localization.swift; same `localized` helper, re-declared privately.
 extension L10n {
     static var tabBarChosenHeader: String {
-        localized("tab_bar_chosen_header", en: "In the tab bar", de: "In der Tab-Leiste")
+        localized("tab_bar_chosen_header", en: "In the tab bar", de: "In der Navigationsleiste")
+    }
+
+    static func tabBarCount(_ count: Int, of max: Int) -> String {
+        localized("tab_bar_count", en: "\(count) of \(max)", de: "\(count) von \(max)")
     }
 
     static var tabBarChosenFooter: String {
@@ -25,7 +29,7 @@ extension L10n {
         localized(
             "tab_bar_full_hint",
             en: "The tab bar holds up to \(max) tabs. Remove one to add another.",
-            de: "Die Tab-Leiste fasst bis zu \(max) Tabs. Entferne einen, um einen anderen hinzuzufügen."
+            de: "Die Navigationsleiste fasst bis zu \(max) Tabs. Entferne einen, um einen anderen hinzuzufügen."
         )
     }
 

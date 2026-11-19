@@ -135,6 +135,51 @@ struct TabBarLayoutTests {
         #expect(moved.raw == "ai-tasks,weight,foods")
     }
 
+    @Test("An edit from the stand-in defaults keeps the hidden tab while there is room")
+    func editFromStandInDefaults() {
+        // Without an account the bar shows the defaults in place of ai-tasks;
+        // removing one of them stores the two that are left and keeps ai-tasks
+        // in front, where it was, so it returns on sign-in.
+        let removed = TabBarLayout(raw: "ai-tasks").removing(.insights, signedIn: false)
+        #expect(removed.raw == "ai-tasks,foods,favorites")
+        #expect(removed.visibleTabs(signedIn: false) == [.foods, .favorites])
+        #expect(removed.visibleTabs(signedIn: true) == [.aiTasks, .foods, .favorites])
+    }
+
+    @Test("Removing the landing tab sends the app back to Home")
+    func removingLandingTabResetsIt() {
+        #expect(TabBarLayout.landing("recipes", afterRemoving: .recipes) == TabBarLayout.homeId)
+        #expect(TabBarLayout.landing("recipes", afterRemoving: .foods) == "recipes")
+        #expect(TabBarLayout.landing(TabBarLayout.homeId, afterRemoving: .foods) == TabBarLayout.homeId)
+    }
+
+    @Test("The stored landing tab is read from defaults with the same fallback")
+    func storedLandingTab() throws {
+        let suite = "TabBarLayoutTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        #expect(TabBarLayout.storedLandingTab(defaults: defaults, signedIn: true) == TabBarLayout.homeId)
+        defaults.set("insights", forKey: TabBarLayout.landingStorageKey)
+        #expect(TabBarLayout.storedLandingTab(defaults: defaults, signedIn: true) == "insights")
+        defaults.set("recipes,ai-tasks", forKey: TabBarLayout.storageKey)
+        #expect(TabBarLayout.storedLandingTab(defaults: defaults, signedIn: true) == TabBarLayout.homeId)
+        defaults.set("ai-tasks", forKey: TabBarLayout.landingStorageKey)
+        #expect(TabBarLayout.storedLandingTab(defaults: defaults, signedIn: true) == "ai-tasks")
+        #expect(TabBarLayout.storedLandingTab(defaults: defaults, signedIn: false) == TabBarLayout.homeId)
+    }
+
+    @Test("The widgets' plain tap opens Home and is not a sheet link")
+    func todayLinkOpensHome() throws {
+        let today = try #require(URL(string: "bissbilanz://today"))
+        let log = try #require(URL(string: "bissbilanz://log"))
+        let web = try #require(URL(string: "https://today"))
+        #expect(DeepLink.opensHome(today))
+        #expect(DeepLink.parse(today) == nil)
+        #expect(!DeepLink.opensHome(log))
+        #expect(!DeepLink.opensHome(web))
+    }
+
     @Test("The landing tab falls back to Home when the bar does not show it")
     func landingFallsBackToHome() {
         let layout = TabBarLayout(raw: "recipes,ai-tasks")
@@ -188,6 +233,10 @@ struct AiTaskAttentionCountTests {
         )
     }
 
+    private static let proposed = AiTaskClaudeProcessing(
+        state: "proposed", proposal: AiTaskProposal(summary: nil, items: [])
+    )
+
     private static func upload(_ state: PendingAiTaskUpload.State) -> PendingAiTaskUpload {
         PendingAiTaskUpload(
             id: UUID(), description: "soup", photoCount: 0, date: "2026-11-01", mealType: nil, eatenAt: nil,
@@ -207,11 +256,10 @@ struct AiTaskAttentionCountTests {
 
     @Test("Counts unread dismissals and answers, proposals and failed uploads")
     func countsWhatWaits() {
-        let proposal = AiTaskClaudeProcessing(state: "proposed", proposal: AiTaskProposal(summary: nil, items: []))
         let tasks = [
             Self.task(id: "a", status: "dismissed", acknowledgedAt: nil),
             Self.task(id: "b", thread: Self.thread(unread: true)),
-            Self.task(id: "c", status: "pending", acknowledgedAt: nil, processing: proposal),
+            Self.task(id: "c", status: "pending", acknowledgedAt: nil, processing: Self.proposed),
             Self.task(id: "d"),
         ]
         let uploads = [Self.upload(.failed("Offline", retryable: true)), Self.upload(.sending)]
@@ -222,5 +270,29 @@ struct AiTaskAttentionCountTests {
     func countsTaskOnce() {
         let tasks = [Self.task(id: "a", status: "dismissed", acknowledgedAt: nil, thread: Self.thread(unread: true))]
         #expect(AiTaskStore.attentionCount(tasks: tasks, uploads: []) == 1)
+    }
+
+    @Test("A proposed state on a task that is no longer pending does not count")
+    func staleProposalDoesNotCount() {
+        let tasks = [Self.task(id: "a", status: "completed", processing: Self.proposed)]
+        #expect(AiTaskStore.attentionCount(tasks: tasks, uploads: []) == 0)
+        #expect(AiTaskThreadChanges.statusWithNews(in: tasks) == nil)
+    }
+
+    @Test("Only failed uploads count as failed")
+    func failedUploads() {
+        let uploads = [Self.upload(.sending), Self.upload(.failed("Offline", retryable: false))]
+        #expect(AiTaskStore.failedUploadCount(in: uploads) == 1)
+        #expect(AiTaskStore.failedUploadCount(in: [Self.upload(.sending)]) == 0)
+    }
+
+    @Test("The list opens on Open when only a proposal waits, after dismissals and answers")
+    func proposalNewsIsPending() {
+        let proposal = Self.task(id: "p", status: "pending", acknowledgedAt: nil, processing: Self.proposed)
+        let answered = Self.task(id: "b", thread: Self.thread(unread: true))
+        let dismissal = Self.task(id: "a", status: "dismissed", acknowledgedAt: nil)
+        #expect(AiTaskThreadChanges.statusWithNews(in: [proposal]) == "pending")
+        #expect(AiTaskThreadChanges.statusWithNews(in: [proposal, answered]) == "completed")
+        #expect(AiTaskThreadChanges.statusWithNews(in: [proposal, dismissal]) == "dismissed")
     }
 }

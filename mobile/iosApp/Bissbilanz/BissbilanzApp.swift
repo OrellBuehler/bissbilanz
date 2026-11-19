@@ -514,6 +514,8 @@ struct BissbilanzApp: App {
                     foodPackageInbox.receive(url)
                 } else if let link = DeepLink.parse(url) {
                     deepLinkRouter.pending = link
+                } else if DeepLink.opensHome(url) {
+                    deepLinkRouter.homeRequested = true
                 } else {
                     Task {
                         await authManager.handleCallback(url: url)
@@ -636,6 +638,13 @@ struct BissbilanzApp: App {
             sleepRepository: sleepRepository,
             entryRepository: entryRepository
         )
+        // Home pulls today's data whenever it shows. When the app opens on
+        // another tab, Home is not built, and entries logged on the web or
+        // over MCP would miss the store, the widgets and the watch until it is.
+        let landingTab = TabBarLayout.storedLandingTab(defaults: .standard, signedIn: !appModeManager.isLocal)
+        if landingTab != TabBarLayout.homeId {
+            await refreshToday()
+        }
         // Pull the current reminders so the refill below sees edits made on
         // another device, mirroring the supplement pull that already happens
         // via HealthKitImporter/refresh above.
@@ -668,6 +677,34 @@ struct BissbilanzApp: App {
             ErrorReporter.captureWarning(
                 "Quick add (widget extension): \(entry.phase)",
                 context: ["details": entry.message, "timestamp": entry.timestamp.description]
+            )
+        }
+    }
+
+    /// What the dashboard pulls for today and the widgets and watch render.
+    /// Each step is independent; a failure leaves a breadcrumb and the rest
+    /// still run. All of them no-op in Local mode.
+    @MainActor
+    private func refreshToday() async {
+        let today = DateFormatting.today
+        await refreshStep("entries") { try await entryRepository.refresh(date: today) }
+        await refreshStep("goals") { try await goalsRepository.refresh() }
+        await refreshStep("preferences") { try await preferencesRepository.refresh() }
+        await refreshStep("weight") { try await weightRepository.refresh() }
+        await refreshStep("sleep") { try await sleepRepository.refresh() }
+        await refreshStep("favorites") { try await foodRepository.refreshFavorites() }
+    }
+
+    @MainActor
+    private func refreshStep(_ step: String, _ work: @MainActor () async throws -> Void) async {
+        do {
+            try await work()
+        } catch {
+            ErrorReporter.addBreadcrumb(
+                "activation refresh failed",
+                category: "sync",
+                level: .warning,
+                data: ["step": step, "reason": ErrorReporter.reason(for: error)]
             )
         }
     }

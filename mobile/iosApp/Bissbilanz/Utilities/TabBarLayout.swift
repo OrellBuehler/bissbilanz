@@ -166,6 +166,19 @@ struct TabBarLayout: Equatable {
         visibleTabs(signedIn: signedIn).contains { $0.rawValue == stored } ? stored : Self.homeId
     }
 
+    /// The tab the app opens on, read straight from `defaults` for code
+    /// outside the views.
+    static func storedLandingTab(defaults: UserDefaults, signedIn: Bool) -> String {
+        let layout = TabBarLayout(raw: defaults.string(forKey: storageKey) ?? defaultRaw)
+        return layout.landingTab(defaults.string(forKey: landingStorageKey) ?? homeId, signedIn: signedIn)
+    }
+
+    /// Removing the landing tab sends the app back to opening on Home, so
+    /// adding that tab again later does not quietly make it the landing tab.
+    static func landing(_ landing: String, afterRemoving tab: NavigableTab) -> String {
+        landing == tab.rawValue ? homeId : landing
+    }
+
     /// The tab to show: the one the user picked while it still exists,
     /// otherwise the landing tab.
     func selection(current: String?, landing: String, signedIn: Bool) -> String {

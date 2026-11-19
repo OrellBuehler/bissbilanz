@@ -66,6 +66,12 @@ enum DeepLink: Equatable, Identifiable {
             return nil
         }
     }
+
+    /// The widgets' plain tap (`bissbilanz://today`): open on the Home tab,
+    /// whichever tab the app would otherwise open on.
+    static func opensHome(_ url: URL) -> Bool {
+        url.scheme == "bissbilanz" && url.host == "today"
+    }
 }
 
 /// Bridges incoming deep links from the App scene to whichever view presents
@@ -79,4 +85,7 @@ final class DeepLinkRouter {
     /// sees the log it just collapsed from (widget scan → log → dismiss left
     /// the day stale until a pull-to-refresh). Observing this lets it reload.
     var dismissedCount = 0
+    /// A widget tap that should land on Home. Stays set until ContentView
+    /// exists to select the tab, so a cold launch gets there too.
+    var homeRequested = false
 }

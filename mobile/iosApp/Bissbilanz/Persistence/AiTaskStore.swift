@@ -427,19 +427,26 @@ final class AiTaskStore {
         Self.attentionCount(tasks: tasks, uploads: pendingUploads)
     }
 
+    var hasFailedUploads: Bool {
+        Self.failedUploadCount(in: pendingUploads) > 0
+    }
+
     /// An unread dismissal or answer, a proposal to review, or a meal that
     /// failed to upload.
     nonisolated static func attentionCount(tasks: [AiTask], uploads: [PendingAiTaskUpload]) -> Int {
         let waitingTasks = tasks.count { task in
             task.isUnreadDismissal || task.hasUnreadReplies || task.openProposal != nil
         }
-        let failedUploads = uploads.count { upload in
+        return waitingTasks + failedUploadCount(in: uploads)
+    }
+
+    nonisolated static func failedUploadCount(in uploads: [PendingAiTaskUpload]) -> Int {
+        uploads.count { upload in
             if case .failed = upload.state {
                 return true
             }
             return false
         }
-        return waitingTasks + failedUploads
     }
 
     /// Bumped whenever a local accept or edit lands, and when a reply starts

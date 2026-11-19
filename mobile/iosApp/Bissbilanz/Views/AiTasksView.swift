@@ -7,7 +7,12 @@ struct AiTasksView: View {
     @State private var isLoading = true
     @State private var error: Error?
     @State private var selectedFilter: Filter = .open
+    /// Set by a tap on the filter, until the list goes off screen. As a tab
+    /// root this view's state lives for the whole run, so the next visit
+    /// again opens on the filter with news.
     @State private var hasChosenFilter = false
+    @State private var isOnScreen = false
+    @State private var wasBackgrounded = false
     @State private var errorMessage: String?
     @State private var proposalNotice: String?
     /// `AiTaskProcessor` review-first results waiting for the user to confirm
@@ -92,7 +97,15 @@ struct AiTasksView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("", selection: $selectedFilter) {
+            // Only a tap counts as the user's choice; `load()` switching to
+            // the filter with news does not.
+            Picker("", selection: Binding(
+                get: { selectedFilter },
+                set: { newValue in
+                    selectedFilter = newValue
+                    hasChosenFilter = true
+                }
+            )) {
                 ForEach(Filter.allCases) { option in
                     Text(option.label).tag(option)
                 }
@@ -100,7 +113,6 @@ struct AiTasksView: View {
             .pickerStyle(.segmented)
             .padding(.horizontal)
             .padding(.top, 8)
-            .onChange(of: selectedFilter) { _, _ in hasChosenFilter = true }
 
             Group {
                 if isLoading {
@@ -170,6 +182,22 @@ struct AiTasksView: View {
         .navigationTitle(L10n.aiTasks)
         .refreshable { await load() }
         .task { await load() }
+        .onAppear { isOnScreen = true }
+        .onDisappear {
+            isOnScreen = false
+            hasChosenFilter = false
+        }
+        // Coming back to the app with the list showing (a tab stays put) reads
+        // what arrived meanwhile, as opening the list would.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background {
+                wasBackgrounded = true
+            } else if phase == .active, wasBackgrounded {
+                wasBackgrounded = false
+                guard isOnScreen else { return }
+                Task { await load() }
+            }
+        }
         .task(id: shouldPoll) {
             guard shouldPoll else { return }
             await pollWhileClaudeWorks()
@@ -300,9 +328,12 @@ struct AiTasksView: View {
             readyForReviewDrafts = AiTaskDraftDisk.loadAll()
             // Show the tab holding what the user came here for. Arriving from a
             // dismissal or answer notification would otherwise land on Open,
-            // which cannot contain the task they just tapped.
+            // which cannot contain the task they just tapped. A failed upload
+            // only shows under Open.
+            let newsStatus = AiTaskThreadChanges.statusWithNews(in: store.tasks)
+                ?? (store.hasFailedUploads ? Filter.open.status : nil)
             if !hasChosenFilter,
-               let status = AiTaskThreadChanges.statusWithNews(in: store.tasks),
+               let status = newsStatus,
                let filter = Filter.allCases.first(where: { $0.status == status })
             {
                 selectedFilter = filter

@@ -45,6 +45,7 @@ struct TabSelectionView: View {
                     Spacer()
                     Text(verbatim: "\(chosenTabs.count)/\(TabBarLayout.maxTabs)")
                         .monospacedDigit()
+                        .accessibilityLabel(L10n.tabBarCount(chosenTabs.count, of: TabBarLayout.maxTabs))
                 }
             } footer: {
                 Text(L10n.tabBarChosenFooter)
@@ -79,12 +80,12 @@ struct TabSelectionView: View {
         let canRemove = layout.canRemove(tab, signedIn: isSignedIn)
         return HStack(spacing: 12) {
             Button {
-                update(layout.removing(tab, signedIn: isSignedIn))
+                remove(tab)
             } label: {
                 Image(systemName: "minus.circle.fill")
                     .font(.title3)
                     .foregroundStyle(canRemove ? Color.red : Color.secondary)
-                    .frame(minWidth: 32, minHeight: 32)
+                    .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
             // Borderless so the button keeps its own tap while the list is
@@ -131,7 +132,14 @@ struct TabSelectionView: View {
         .buttonStyle(.borderless)
         .disabled(!canAdd)
         .accessibilityLabel(L10n.tabBarAdd(tab.label))
-        .accessibilityHint(needsAccount ? L10n.tabBarRequiresAccount : "")
+        .accessibilityHint(addHint(needsAccount: needsAccount, canAdd: canAdd))
+    }
+
+    private func addHint(needsAccount: Bool, canAdd: Bool) -> String {
+        if needsAccount {
+            return L10n.tabBarRequiresAccount
+        }
+        return canAdd ? "" : L10n.tabBarFullHint(TabBarLayout.maxTabs)
     }
 
     private var landingPicker: some View {
@@ -150,6 +158,13 @@ struct TabSelectionView: View {
     }
 
     // MARK: - Changes
+
+    private func remove(_ tab: NavigableTab) {
+        let removed = layout.removing(tab, signedIn: isSignedIn)
+        guard removed != layout else { return }
+        update(removed)
+        landingTabRaw = TabBarLayout.landing(landingTabRaw, afterRemoving: tab)
+    }
 
     private func move(from source: IndexSet, to destination: Int) {
         update(layout.moving(fromOffsets: source, toOffset: destination, signedIn: isSignedIn))

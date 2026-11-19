@@ -108,6 +108,13 @@ struct ContentView: View {
             }
         }
         .minimizableTabBar()
+        // A widget's plain tap promises the dashboard, also when the app
+        // opens on another tab.
+        .onChange(of: deepLinkRouter.homeRequested, initial: true) { _, requested in
+            guard requested else { return }
+            selectedTab = TabBarLayout.homeId
+            deepLinkRouter.homeRequested = false
+        }
         // Outside the tabs so a lost offline edit is visible wherever the user
         // happens to be. Sits above the tab bar, where every other transient
         // message (`.toast`) already appears — at the top it covered the
