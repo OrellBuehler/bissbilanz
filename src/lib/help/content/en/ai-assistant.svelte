@@ -52,3 +52,22 @@
 	next time your connected assistant checks in, it reviews the queue and logs the entry for you (or you
 	can describe and log it yourself in the same conversation).
 </p>
+
+<h2 class="mb-3 mt-8 text-xl font-semibold">Assistant chat in the app</h2>
+<p class="mb-3">
+	If Claude is enabled for your account, you can also chat with the assistant directly in
+	Bissbilanz, without connecting anything. Ask about your progress, get meal ideas that fit your
+	goals, or tell it what you ate; it looks up your data and logs, creates or corrects entries,
+	foods, recipes, goals, weight, sleep and supplements for you, and says what it changed. These only
+	happen after you confirm them in the chat: deleting, merging foods, copying a day, removing a
+	supplement log, changing the nutrition, serving size or photo of a food you already logged,
+	changing a recipe's ingredients or steps (or the servings or cooked weight of a recipe you already
+	logged), changing a supplement's ingredients, anything forced, and every change after the first
+	ten in one answer.
+</p>
+<p class="mb-6">
+	Your messages, the photos you attach, the earlier conversation and whatever diary data the
+	assistant looks up to answer (that can be any of your data) are sent to Anthropic, the provider of
+	Claude. Conversations stay until you delete them and are part of your data export. Chat uses your
+	monthly Claude budget, and a long conversation eventually asks you to start a new one.
+</p>

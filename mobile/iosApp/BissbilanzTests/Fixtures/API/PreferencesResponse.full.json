@@ -1,6 +1,11 @@
 {
 	"claude": {
 		"available": true,
+		"chat": {
+			"available": true,
+			"blockedReason": "sample-blockedReason",
+			"remainingBudgetUsd": 12.5
+		},
 		"remainingBudgetUsd": 12.5
 	},
 	"preferences": {

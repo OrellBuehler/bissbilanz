@@ -47,9 +47,20 @@ Notes:
   assistant can read a queued task's photo directly, using a token the user
   explicitly grants and can revoke at any time — a deliberate, user-directed
   connection, not a third-party sale or ad-related share.
+- Claude on the Bissbilanz server (only for accounts the admin enabled): queued
+  meals the user routes to Claude, and everything in the in-app assistant chat
+  (the user's messages and photos, the conversation so far, and whatever diary
+  data the assistant looks up to answer — potentially any of the user's data:
+  food entries, foods, recipes, goals, weight, sleep, supplements, day notes)
+  are sent to Anthropic, which processes them as a service provider to provide
+  the feature, under its commercial terms (no training, no onward sharing) —
+  so "Shared" stays No. These are covered by the Health info, Photos and
+  Other user-generated content rows above; the chat itself is stored on the
+  server until the user deletes it and is part of the export.
 - Data deletion: account deletion removes all server data immediately. A photo
   from a completed or dismissed AI task is otherwise auto-deleted within 30
-  days even without account deletion.
+  days even without account deletion. Assistant chats stay until the user
+  deletes them or the account.
 
 ## Content rating questionnaire (IARC)
 
@@ -60,7 +71,10 @@ location. Expected rating: Everyone / PEGI 3.
 
 Note: the app is a self-improvement/food-diary tool; if the questionnaire asks
 whether the app provides medical or health advice — answer No (it records
-user-entered data, gives no advice).
+user-entered data, gives no advice). The in-app assistant chat is a conversation
+with an AI about the user's own diary, not user-to-user interaction; its system
+prompt keeps it to general nutrition information and points to professionals for
+medical questions. Re-check this answer before the chat ships in the Android app.
 
 ## App content declarations
 

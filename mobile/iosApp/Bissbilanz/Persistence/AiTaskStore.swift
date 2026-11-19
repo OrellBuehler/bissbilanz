@@ -421,6 +421,34 @@ final class AiTaskStore {
         AiTaskClaudeState.hasActiveWork(in: tasks) || AiTaskCorrectionState.hasPolledWork(in: tasks)
     }
 
+    /// What waits on the user in the list — the AI tasks tab's badge. Read
+    /// from what the store already holds; nothing is fetched for it.
+    var attentionCount: Int {
+        Self.attentionCount(tasks: tasks, uploads: pendingUploads)
+    }
+
+    var hasFailedUploads: Bool {
+        Self.failedUploadCount(in: pendingUploads) > 0
+    }
+
+    /// An unread dismissal or answer, a proposal to review, or a meal that
+    /// failed to upload.
+    nonisolated static func attentionCount(tasks: [AiTask], uploads: [PendingAiTaskUpload]) -> Int {
+        let waitingTasks = tasks.count { task in
+            task.isUnreadDismissal || task.hasUnreadReplies || task.openProposal != nil
+        }
+        return waitingTasks + failedUploadCount(in: uploads)
+    }
+
+    nonisolated static func failedUploadCount(in uploads: [PendingAiTaskUpload]) -> Int {
+        uploads.count { upload in
+            if case .failed = upload.state {
+                return true
+            }
+            return false
+        }
+    }
+
     /// Bumped whenever a local accept or edit lands, and when a reply starts
     /// and lands, so a list read that started earlier (and may predate it) is
     /// dropped instead of undoing the change.
