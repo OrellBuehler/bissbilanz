@@ -57,3 +57,24 @@
 	Meldet sich dein verbundener Assistent das nächste Mal, prüft er die Warteschlange und erfasst den Eintrag
 	für dich (oder du beschreibst und erfasst ihn selbst im gleichen Gespräch).
 </p>
+
+<h2 class="mb-3 mt-8 text-xl font-semibold">Assistenten-Chat in der App</h2>
+<p class="mb-3">
+	Ist Claude für dein Konto freigeschaltet, kannst du auch direkt in Bissbilanz mit dem Assistenten
+	chatten, ohne etwas zu verbinden. Frag nach deinem Fortschritt, lass dir Mahlzeiten vorschlagen,
+	die zu deinen Zielen passen, oder erzähl, was du gegessen hast: Er schaut deine Daten nach,
+	erfasst, erstellt oder korrigiert Einträge, Lebensmittel, Rezepte, Ziele, Gewicht, Schlaf und
+	Supplemente für dich und sagt, was er geändert hat. Erst nach deiner Bestätigung im Chat
+	passieren: Löschen, Lebensmittel zusammenführen, einen Tag kopieren, ein Supplement zurücksetzen,
+	Nährwerte, Portionsgrösse oder Foto eines Lebensmittels ändern, das du schon erfasst hast, die
+	Zutaten oder Schritte eines Rezepts ändern (oder Portionen und gekochtes Gewicht eines Rezepts,
+	das du schon erfasst hast), die Zutaten eines Supplements ändern, alles Erzwungene und jede
+	Änderung nach den ersten zehn in einer Antwort.
+</p>
+<p class="mb-6">
+	Deine Nachrichten, angehängte Fotos, das bisherige Gespräch und alle Tagebuchdaten, die der
+	Assistent für die Antwort nachschlägt (das können alle deine Daten sein), werden an Anthropic, den
+	Anbieter von Claude, gesendet. Gespräche bleiben gespeichert, bis du sie löschst, und sind Teil
+	deines Datenexports. Der Chat nutzt dein monatliches Claude-Budget, und ein langes Gespräch bittet
+	dich irgendwann, ein neues zu beginnen.
+</p>

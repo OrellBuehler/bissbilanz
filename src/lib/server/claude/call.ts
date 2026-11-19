@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import type { Middleware } from '@anthropic-ai/sdk';
 import * as Sentry from '@sentry/sveltekit';
 import { reserveCall, settleCall, type Settlement } from './budget';
 import { claudeApiKey, claudeConfig, isClaudeConfigured } from './config';
@@ -30,14 +31,31 @@ export type ClaudeCallParams = {
 	container?: string;
 };
 
+export type ClaudeStreamHandlers = {
+	onText?: (delta: string) => void;
+	onBlock?: (block: Anthropic.ContentBlock) => void;
+	// Any bytes of the response, pings included.
+	onActivity?: () => void;
+};
+
+// The SDK timeout only covers the wait for the response headers; a stream
+// that stalls afterwards is cut by these, like any other unknown outcome.
+export const STREAM_IDLE_TIMEOUT_MS = 90_000;
+export const STREAM_TOTAL_TIMEOUT_MS = 10 * 60_000;
+
+export type ClaudeStreamOptions = ClaudeStreamHandlers & { idleMs?: number; totalMs?: number };
+
 export type ClaudeCallOptions = {
 	userId: string;
 	feature: string;
 	model: string;
 	aiTaskId?: string;
+	chatConversationId?: string;
 	params: ClaudeCallParams;
 	imageCount: number;
+	maxTokens?: number;
 	signal?: AbortSignal;
+	stream?: ClaudeStreamOptions;
 	expectedRejection?: (error: ClaudeApiError) => boolean;
 };
 
@@ -46,6 +64,10 @@ export type ClaudeClient = {
 		create(
 			params: Anthropic.MessageCreateParamsNonStreaming,
 			options?: { signal?: AbortSignal }
+		): Promise<Anthropic.Message>;
+		stream?(
+			params: Anthropic.MessageCreateParamsNonStreaming,
+			options: { signal?: AbortSignal } & ClaudeStreamHandlers
 		): Promise<Anthropic.Message>;
 	};
 };
@@ -57,13 +79,48 @@ export function setClaudeClientForTests(fake: ClaudeClient | null): void {
 	testClient = fake;
 }
 
+const activityMiddleware =
+	(onActivity: () => void): Middleware =>
+	async (request, next) => {
+		const response = await next(request);
+		if (!response.body) return response;
+		const watched = response.body.pipeThrough(
+			new TransformStream<Uint8Array, Uint8Array>({
+				transform(chunk, controller) {
+					onActivity();
+					controller.enqueue(chunk);
+				}
+			})
+		);
+		return new Response(watched, {
+			status: response.status,
+			statusText: response.statusText,
+			headers: response.headers
+		});
+	};
+
 function getClient(): ClaudeClient {
 	if (testClient) return testClient;
 	if (!client) {
 		const apiKey = claudeApiKey();
 		if (!apiKey) throw new ClaudeGateError('not_configured');
 		const real = new Anthropic({ apiKey, timeout: REQUEST_TIMEOUT_MS, maxRetries: 0 });
-		client = { messages: { create: (params, options) => real.messages.create(params, options) } };
+		client = {
+			messages: {
+				create: (params, options) => real.messages.create(params, options),
+				stream: async (params, { signal, onText, onBlock, onActivity }) => {
+					const stream = real.messages.stream(params, {
+						signal,
+						middleware: onActivity ? [activityMiddleware(onActivity)] : []
+					});
+					const final = stream.finalMessage();
+					if (onText) stream.on('text', (delta) => onText(delta));
+					if (onBlock) stream.on('contentBlock', (block) => onBlock(block));
+					const message = await final;
+					return Object.assign(message, { _request_id: stream.request_id ?? null });
+				}
+			}
+		};
 	}
 	return client;
 }
@@ -172,13 +229,64 @@ const kindOf = (error: unknown): string => {
 	return mapped instanceof ClaudeApiError ? mapped.kind : 'other';
 };
 
+async function streamWithDeadlines(
+	stream: NonNullable<ClaudeClient['messages']['stream']>,
+	request: Anthropic.MessageCreateParamsNonStreaming,
+	signal: AbortSignal | undefined,
+	options: ClaudeStreamOptions
+): Promise<Anthropic.Message> {
+	const {
+		idleMs = STREAM_IDLE_TIMEOUT_MS,
+		totalMs = STREAM_TOTAL_TIMEOUT_MS,
+		...handlers
+	} = options;
+	const deadline = new AbortController();
+	let timedOut = false;
+	const expire = () => {
+		timedOut = true;
+		deadline.abort();
+	};
+	let idle = setTimeout(expire, idleMs);
+	const total = setTimeout(expire, totalMs);
+	const alive = () => {
+		clearTimeout(idle);
+		idle = setTimeout(expire, idleMs);
+	};
+	try {
+		return await stream(request, {
+			signal: signal ? AbortSignal.any([signal, deadline.signal]) : deadline.signal,
+			onText: (delta) => {
+				alive();
+				handlers.onText?.(delta);
+			},
+			onBlock: (block) => {
+				alive();
+				handlers.onBlock?.(block);
+			},
+			onActivity: () => {
+				alive();
+				handlers.onActivity?.();
+			}
+		});
+	} catch (error) {
+		if (timedOut && !signal?.aborted) {
+			throw new ClaudeApiError({ kind: 'timeout', retryable: true });
+		}
+		throw error;
+	} finally {
+		clearTimeout(idle);
+		clearTimeout(total);
+	}
+}
+
 export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.Message> {
 	if (!isClaudeConfigured()) throw new ClaudeGateError('not_configured');
 	const { effort } = claudeConfig();
 	const { model, params, signal } = options;
+	const maxTokens = options.maxTokens ?? TASK_MAX_TOKENS;
 	const request: Anthropic.MessageCreateParamsNonStreaming = {
 		model,
-		max_tokens: TASK_MAX_TOKENS,
+		max_tokens: maxTokens,
 		output_config: { effort },
 		system: params.system,
 		tools: params.tools,
@@ -188,7 +296,7 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 	const reservedUsd = maxCallCostUsd(
 		model,
 		estimateInputTokens(params, options.imageCount),
-		TASK_MAX_TOKENS,
+		maxTokens,
 		serverToolAllowanceOf(params.tools)
 	);
 
@@ -199,6 +307,7 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 			feature: options.feature,
 			model,
 			aiTaskId: options.aiTaskId,
+			chatConversationId: options.chatConversationId,
 			reservedUsd,
 			requireClaudeProcessor: options.feature === 'ai_task'
 		});
@@ -219,11 +328,17 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 	let failure: unknown;
 	try {
 		if (signal?.aborted) throw new ClaudeAbortedError();
-		const claude = getClient();
+		const { messages } = getClient();
+		if (options.stream && !messages.stream) throw new Error('The Claude client cannot stream');
 		sent = true;
-		response = await claude.messages.create(request, { signal });
+		response =
+			options.stream && messages.stream
+				? await streamWithDeadlines(messages.stream, request, signal, options.stream)
+				: await messages.create(request, { signal });
 		Sentry.logger.info('Claude call finished', {
+			feature: options.feature,
 			taskId: options.aiTaskId ?? '',
+			chatConversationId: options.chatConversationId ?? '',
 			model: response.model,
 			requestedModel: model,
 			inputTokens: response.usage.input_tokens,
@@ -244,6 +359,7 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 		if (mapped instanceof ClaudeApiError) {
 			if (mapped.retryable) {
 				Sentry.logger.info('Claude call failed', {
+					feature: options.feature,
 					taskId: options.aiTaskId ?? '',
 					requestedModel: model,
 					kind: mapped.kind,

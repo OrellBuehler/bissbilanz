@@ -451,7 +451,10 @@ describe('preferences', () => {
 		const user = await seedUser(db, { access: null });
 		const response = await prefsRoute.GET(createMockEvent({ user }));
 		const body = await response.json();
-		expect(body.claude).toEqual({ available: false });
+		expect(body.claude).toEqual({
+			available: false,
+			chat: { available: false, blockedReason: 'no_access' }
+		});
 	});
 
 	it('stores claude through PATCH even when it is unavailable', async () => {

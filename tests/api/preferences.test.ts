@@ -6,7 +6,8 @@ import { TEST_USER } from '../helpers/fixtures';
 
 let mockGetResult: any = null;
 let mockUpdateResult: any = null;
-let mockCapability: any = { available: false };
+let mockClaude: any = { available: false, chat: { available: false } };
+const getClaudeCapabilitiesSafe = vi.hoisted(() => vi.fn());
 
 const mockValidationError = new ZodError([
 	{
@@ -83,8 +84,8 @@ vi.mock('$lib/server/preferences', () => ({
 	DEFAULT_PREFERENCES: REAL_DEFAULT_PREFERENCES
 }));
 
-vi.mock('$lib/server/claude/capability', () => ({
-	getClaudeCapabilitySafe: async () => mockCapability
+vi.mock('$lib/server/claude/chat/capability', () => ({
+	getClaudeCapabilitiesSafe
 }));
 
 const { GET, PATCH } = await import('../../src/routes/api/preferences/+server');
@@ -93,7 +94,8 @@ describe('api/preferences', () => {
 	beforeEach(() => {
 		mockGetResult = null;
 		mockUpdateResult = null;
-		mockCapability = { available: false };
+		mockClaude = { available: false, chat: { available: false, blockedReason: 'no_access' } };
+		getClaudeCapabilitiesSafe.mockReset().mockImplementation(async () => mockClaude);
 	});
 
 	describe('GET /api/preferences', () => {
@@ -127,7 +129,12 @@ describe('api/preferences', () => {
 			const response = await GET(createMockEvent({ user: TEST_USER }));
 			await expectResponseContract('GET', '/api/preferences', response);
 			const data = await response.json();
-			expect(data.claude).toEqual({ available: false });
+			expect(data.claude).toEqual({
+				available: false,
+				chat: { available: false, blockedReason: 'no_access' }
+			});
+			expect(getClaudeCapabilitiesSafe).toHaveBeenCalledOnce();
+			expect(getClaudeCapabilitiesSafe).toHaveBeenCalledWith(TEST_USER.id);
 		});
 
 		test('reports claude as available with the remaining budget', async () => {
@@ -136,13 +143,38 @@ describe('api/preferences', () => {
 				aiTaskProcessor: 'assistant',
 				aiTaskProcessorKind: 'claude'
 			};
-			mockCapability = { available: true, remainingBudgetUsd: 7.5 };
+			mockClaude = {
+				available: true,
+				remainingBudgetUsd: 7.5,
+				chat: { available: true, remainingBudgetUsd: 7.5 }
+			};
 			const response = await GET(createMockEvent({ user: TEST_USER }));
 			await expectResponseContract('GET', '/api/preferences', response);
 			const data = await response.json();
-			expect(data.claude).toEqual({ available: true, remainingBudgetUsd: 7.5 });
+			expect(data.claude).toEqual({
+				available: true,
+				remainingBudgetUsd: 7.5,
+				chat: { available: true, remainingBudgetUsd: 7.5 }
+			});
 			expect(data.preferences.aiTaskProcessor).toBe('assistant');
 			expect(data.preferences.aiTaskProcessorKind).toBe('claude');
+		});
+
+		test('reports chat as unavailable while the task capability is available', async () => {
+			mockGetResult = TEST_PREFERENCES;
+			mockClaude = {
+				available: true,
+				remainingBudgetUsd: 0.4,
+				chat: { available: false, blockedReason: 'user_budget_exhausted' }
+			};
+			const response = await GET(createMockEvent({ user: TEST_USER }));
+			await expectResponseContract('GET', '/api/preferences', response);
+			const data = await response.json();
+			expect(data.claude).toEqual({
+				available: true,
+				remainingBudgetUsd: 0.4,
+				chat: { available: false, blockedReason: 'user_budget_exhausted' }
+			});
 		});
 
 		test('returns default preferences when user has no preferences', async () => {
