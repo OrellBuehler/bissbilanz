@@ -50,9 +50,15 @@ import {
 import { finalizeRun, type RunEnding } from './finalize';
 import { toChatLocale, toolLabel, type ChatLocale } from './labels';
 import { chatToolPolicy, needsConfirmation, type ConfirmLookup } from './policy';
-import { buildActionPreview } from './previews';
+import { buildActionPreview, loadAssistantLabels, loadDayDetails } from './previews';
 import { entryDate, getConversation, serializeAction, serializeRun, userToday } from './store';
-import { connectMcp, errorSummary, formatToolResult, type McpConnection } from './tools';
+import {
+	connectMcp,
+	errorSummary,
+	formatToolResult,
+	parseToolInput,
+	type McpConnection
+} from './tools';
 import {
 	appendRaw,
 	danglingToolUses,
@@ -493,7 +499,9 @@ const confirmLookup = (userId: string): ConfirmLookup => ({
 	foodInUse: async (id) =>
 		(await hasEntries(userId, foodEntries.foodId, id)) || (await inLoggedRecipe(userId, id)),
 	recipeHasEntries: (id) => hasEntries(userId, foodEntries.recipeId, id),
-	photoOf: (table, id) => photoOf(userId, table, id)
+	photoOf: (table, id) => photoOf(userId, table, id),
+	dayProperties: (date) => loadDayDetails(userId, date),
+	assistantLabels: (table, id) => loadAssistantLabels(userId, table, id)
 });
 
 /**
@@ -618,10 +626,17 @@ async function handleToolUse(
 	}
 
 	const policy = chatToolPolicy(block.name);
-	const input = asRecord(block.input);
 	const offered = policy && policy.kind !== 'excluded' ? policy : null;
+	// A write is decided, shown and run with the input as the tool parses it
+	// (coerced and defaulted), never with the model's raw arguments.
+	const parsed =
+		offered && offered.kind !== 'read'
+			? await parseToolInput(block.name, asRecord(block.input))
+			: { input: asRecord(block.input) };
+	const input = 'input' in parsed ? parsed.input : asRecord(block.input);
 	const confirm =
 		!!offered &&
+		'input' in parsed &&
 		((await needsConfirmation(offered, input, confirmLookup(ctx.userId))) ||
 			(offered.kind === 'write' && ctx.unconfirmedWrites >= MAX_UNCONFIRMED_WRITES_PER_RUN));
 	const kind = confirm ? 'confirm' : (offered?.kind ?? 'read');
@@ -645,7 +660,9 @@ async function handleToolUse(
 		? `Unknown tool ${block.name}.`
 		: index >= MAX_TOOL_CALLS_PER_RESPONSE
 			? 'Too many tool calls in one response. Make fewer calls per turn.'
-			: null;
+			: 'error' in parsed
+				? parsed.error
+				: null;
 	if (rejection) {
 		const text = JSON.stringify({ error: rejection });
 		await recordAnswer(row.id, text, true);

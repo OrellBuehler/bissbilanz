@@ -9,12 +9,14 @@ vi.mock('$lib/server/claude/config', () => ({
 
 const {
 	CHAT_TOOL_POLICY,
+	DAY_DETAIL_FIELDS,
 	FOOD_NUTRITION_FIELDS,
 	chatToolPolicy,
 	needsConfirmation,
 	possibleChanges
 } = await import('$lib/server/claude/chat/policy');
-const { listMcpTools, chatToolDefinitions } = await import('$lib/server/claude/chat/tools');
+const { listMcpTools, chatToolDefinitions, hasToolSchema, parseToolInput } =
+	await import('$lib/server/claude/chat/tools');
 const { FIELD_PREVIEW_BUILDERS, PREVIEW_BUILDERS, PREVIEW_SCHEMAS } =
 	await import('$lib/server/claude/chat/previews');
 const { hasMessage } = await import('$lib/server/claude/chat/labels');
@@ -203,10 +205,17 @@ describe('chat tool policy', () => {
 });
 
 describe('confirmations', () => {
-	const lookup = (entries: boolean, photo: string | null = null) => ({
+	const lookup = (
+		entries: boolean,
+		photo: string | null = null,
+		day: Record<string, unknown> | null = null,
+		labels: string[] = []
+	) => ({
 		foodInUse: async () => entries,
 		recipeHasEntries: async () => entries,
-		photoOf: async () => photo
+		photoOf: async () => photo,
+		dayProperties: async () => day,
+		assistantLabels: async () => labels
 	});
 	const confirms = (
 		name: string,
@@ -277,7 +286,12 @@ describe('confirmations', () => {
 		const recording = {
 			foodInUse: async (id: unknown) => (seen.push(['food', id]), false),
 			recipeHasEntries: async (id: unknown) => (seen.push(['recipe', id]), false),
-			photoOf: async (table: 'foods' | 'recipes', id: unknown) => (seen.push([table, id]), null)
+			photoOf: async (table: 'foods' | 'recipes', id: unknown) => (seen.push([table, id]), null),
+			dayProperties: async (date: unknown) => (seen.push(['day', date]), null),
+			assistantLabels: async (table: 'foods' | 'recipes', id: unknown) => (
+				seen.push(['labels', table, id]),
+				[]
+			)
 		};
 		await needsConfirmation(
 			chatToolPolicy('update_food')!,
@@ -289,12 +303,95 @@ describe('confirmations', () => {
 			{ recipeId: 'r', totalServings: 2, imageUrl: null },
 			recording
 		);
+		await needsConfirmation(
+			chatToolPolicy('set_day_properties')!,
+			{ date: '2026-11-18', notes: null },
+			recording
+		);
+		await needsConfirmation(
+			chatToolPolicy('set_food_labels')!,
+			{ foodId: 'f', labels: [] },
+			recording
+		);
+		await needsConfirmation(
+			chatToolPolicy('set_recipe_labels')!,
+			{ recipeId: 'r', labels: [] },
+			recording
+		);
 		expect(seen).toEqual([
 			['food', 'f'],
 			['foods', 'f'],
 			['recipe', 'r'],
-			['recipes', 'r']
+			['recipes', 'r'],
+			['day', '2026-11-18'],
+			['labels', 'foods', 'f'],
+			['labels', 'recipes', 'r']
 		]);
+	});
+
+	test('asks before a call clears day details or labels that hold a value', async () => {
+		const day = (input: Record<string, unknown>, stored: Record<string, unknown> | null) =>
+			needsConfirmation(
+				chatToolPolicy('set_day_properties')!,
+				{ date: '2026-11-18', ...input },
+				lookup(false, null, stored)
+			);
+		const full = { notes: 'Ran', waterMl: 1500, activityCalories: 300, activityNote: 'Run' };
+		for (const field of DAY_DETAIL_FIELDS) {
+			expect(await day({ [field]: null }, full), field).toBe(true);
+			expect(await day({ [field]: null }, { ...full, [field]: null }), field).toBe(false);
+		}
+		expect(await day({ notes: '' }, full)).toBe(true);
+		expect(await day({ notes: 'New' }, full)).toBe(false);
+		expect(await day({ waterMl: 0 }, full)).toBe(false);
+		expect(await day({ isFastingDay: false }, { ...full, isFastingDay: true })).toBe(false);
+		expect(await day({ notes: null }, null)).toBe(false);
+
+		const labels = (name: string, input: Record<string, unknown>, stored: string[]) =>
+			needsConfirmation(chatToolPolicy(name)!, input, lookup(false, null, null, stored));
+		expect(await labels('set_food_labels', { foodId: 'f', labels: [] }, ['banana'])).toBe(true);
+		expect(await labels('set_recipe_labels', { recipeId: 'r', labels: [] }, ['soup'])).toBe(true);
+		expect(await labels('set_food_labels', { foodId: 'f', labels: [] }, [])).toBe(false);
+		expect(await labels('set_food_labels', { foodId: 'f', labels: ['fruit'] }, ['banana'])).toBe(
+			false
+		);
+		for (const name of ['update_entry', 'update_goals', 'update_supplement']) {
+			expect(chatToolPolicy(name), name).toMatchObject({ kind: 'write' });
+		}
+		expect(await confirms('update_entry', { entryId: 'e', notes: null })).toBe(false);
+		expect(await confirms('update_goals', { targetWeightKg: null })).toBe(false);
+		expect(await confirms('update_supplement', { supplementId: 's', reminderTimes: null })).toBe(
+			false
+		);
+	});
+
+	test('every write the assistant can make has its MCP input schema for parsing', () => {
+		for (const [name, policy] of Object.entries(CHAT_TOOL_POLICY)) {
+			if (policy.kind === 'write' || policy.kind === 'confirm') {
+				expect(hasToolSchema(name), name).toBe(true);
+			}
+		}
+	});
+
+	test('parses an input the way the tool does, so the card shows what runs', async () => {
+		const FOOD = '6f1c0f0e-0c1e-4a52-9d4e-6f4d2a0a7a01';
+		expect(await parseToolInput('update_food', { foodId: FOOD, isFavorite: 'false' })).toEqual({
+			input: { foodId: FOOD, isFavorite: true }
+		});
+		expect(
+			await parseToolInput('set_day_properties', {
+				date: '2026-11-18',
+				waterMl: '750',
+				unknownField: 1
+			})
+		).toEqual({ input: { date: '2026-11-18', waterMl: 750 } });
+		const failed = await parseToolInput('update_food', { foodId: 'nope' });
+		expect(failed).toEqual({
+			error: expect.stringContaining('Invalid arguments for update_food: foodId')
+		});
+		expect(await parseToolInput('no_such_tool', {})).toEqual({
+			error: 'Unknown tool no_such_tool.'
+		});
 	});
 
 	test('reports the domains a write of unknown outcome may have touched, unscoped', async () => {
