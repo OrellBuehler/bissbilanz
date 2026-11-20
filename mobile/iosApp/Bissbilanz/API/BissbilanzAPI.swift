@@ -492,6 +492,73 @@ final class BissbilanzAPI {
         return (data, httpResponse)
     }
 
+    /// The event-stream counterpart of `executeRequestData`, with the same
+    /// auth: a token already past its expiry is refreshed first, the request
+    /// carries the client-version headers and the bearer token, a 426 trips
+    /// the update gate, and a 401 refreshes the token and opens the stream
+    /// once more. The status arrives before any event, so that retry always
+    /// happens before the first byte of the stream. Returns when the server
+    /// ends the stream or `onItem` returns false; any other non-200 throws
+    /// its `ServerSentEventRejection`, a transport failure `.networkError`.
+    func followEventStream(
+        _ request: URLRequest,
+        onItem: @MainActor (ServerSentEventItem) async -> Bool
+    ) async throws {
+        if authManager.isAccessTokenExpired {
+            _ = await authManager.refreshAccessToken()
+        }
+        ErrorReporter.addBreadcrumb("STREAM \(request.url?.path ?? "?")", category: "http")
+        var mayRefresh = true
+        while true {
+            var req = request
+            ClientVersionHeader.apply(to: &req)
+            let sentToken = authManager.accessToken
+            if let sentToken {
+                req.setValue("Bearer \(sentToken)", forHTTPHeaderField: "Authorization")
+            }
+            let rejection: ServerSentEventRejection
+            do {
+                guard let rejected = try await readEventStream(req, onItem: onItem) else { return }
+                rejection = rejected
+            } catch let error as CancellationError {
+                throw error
+            } catch {
+                throw APIError.networkError(error)
+            }
+            if rejection.status == 426 {
+                let minVersion = ClientVersionHeader.minVersion(header: rejection.minVersionHeader, data: rejection.body)
+                updateGate.flag(minVersion: minVersion)
+                throw APIError.updateRequired(minVersion: minVersion)
+            }
+            guard rejection.status == 401 else { throw rejection }
+            guard mayRefresh else { throw APIError.unauthorized }
+            mayRefresh = false
+            if await authManager.refreshAccessToken(rejecting: sentToken) {
+                continue
+            }
+            switch authManager.authState {
+            case .expired, .unauthenticated:
+                throw APIError.unauthorized
+            case .authenticated, .refreshing:
+                throw APIError.networkError(URLError(.cannotConnectToHost))
+            }
+        }
+    }
+
+    /// Nil when the stream ended or `onItem` stopped it.
+    private func readEventStream(
+        _ request: URLRequest,
+        onItem: @MainActor (ServerSentEventItem) async -> Bool
+    ) async throws -> ServerSentEventRejection? {
+        for try await item in ServerSentEventTransport.connect(session: session, request: request) {
+            if case let .rejected(rejection) = item {
+                return rejection
+            }
+            guard await onItem(item) else { return nil }
+        }
+        return nil
+    }
+
     /// Flags `updateGate` and throws `.updateRequired` on a 426 — called at
     /// every point `executeRequestData` obtains a fresh `HTTPURLResponse`
     /// (first attempt and the post-401-refresh retry alike), so every caller

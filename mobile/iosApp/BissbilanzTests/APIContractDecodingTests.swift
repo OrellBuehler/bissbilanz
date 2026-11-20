@@ -105,7 +105,18 @@ struct APIContractDecodingTests {
         entry("McpStatusResponse", McpStatusResponse.self),
         entry("OpenFoodFactsSearchResponse", BissbilanzAPI.OpenFoodFactsSearchResponse.self),
         entry("FoodUsageResponse", WhereUsed.self),
-        entry("RecipeUsageResponse", WhereUsed.self)
+        entry("RecipeUsageResponse", WhereUsed.self),
+        entry("ChatConversationsResponse", ChatConversationsResponse.self),
+        entry("ChatConversationResponse", ChatConversationResponse.self),
+        entry("ChatConversationDetailResponse", ChatConversationDetailResponse.self),
+        entry("ChatMessageAcceptedResponse", ChatMessageAcceptedResponse.self),
+        entry("ChatEventsResponse", ChatEventsResponse.self),
+        // One event of the `text/event-stream` form, decoded from each `data` line.
+        entry("ChatEvent", ChatEvent.self),
+        entry("ChatRunResponse", ChatRunResponse.self),
+        entry("ChatActionDecisionResponse", ChatActionDecisionResponse.self),
+        // The body of every rejected chat request (`ChatRejection`).
+        entry("ChatErrorResponse", ChatErrorResponse.self)
     ]
 
     private struct FixtureManifest: Decodable {

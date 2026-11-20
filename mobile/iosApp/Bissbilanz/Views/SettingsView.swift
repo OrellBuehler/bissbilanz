@@ -240,6 +240,8 @@ struct SettingsView: View {
                             // The queue only exists server-side — the assistant reaches it
                             // over MCP — so it has no meaning in Local mode.
                             screenLink(.aiTasks)
+                            // The assistant runs on the server, so the chat needs an account too.
+                            screenLink(.chat)
                         }
                     }
                 }
@@ -515,7 +517,7 @@ struct SettingsView: View {
     // MARK: - Screens
 
     /// Every screen the tab bar can hold, reachable here whatever the tab bar
-    /// shows. AI tasks sits under Integrations, as it needs an account.
+    /// shows. AI tasks and the chat sit under Integrations, as they need an account.
     @ViewBuilder
     private var destinationSections: some View {
         Section(L10n.settingsSectionFood) {

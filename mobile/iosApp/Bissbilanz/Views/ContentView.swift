@@ -18,6 +18,7 @@ extension NavigableTab {
         case .fasting: FastingView()
         case .supplements: SupplementsView()
         case .aiTasks: AiTasksView()
+        case .chat: ChatHomeView()
         }
     }
 
@@ -39,7 +40,7 @@ extension NavigableTab {
         switch self {
         case .favorites, .recipes, .recipeSuggestions, .insights, .weight, .sleep, .supplements:
             true
-        case .foods, .calendar, .fasting, .aiTasks:
+        case .foods, .calendar, .fasting, .aiTasks, .chat:
             false
         }
     }

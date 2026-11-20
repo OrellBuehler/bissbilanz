@@ -8,15 +8,17 @@ struct TabBarLayoutTests {
     func rawIds() {
         #expect(NavigableTab.allCases.map(\.rawValue) == [
             "foods", "favorites", "recipes", "recipe-suggestions", "insights", "calendar",
-            "weight", "sleep", "fasting", "supplements", "ai-tasks",
+            "weight", "sleep", "fasting", "supplements", "ai-tasks", "chat",
         ])
     }
 
-    @Test("Only AI tasks needs an account")
+    @Test("Only AI tasks and the chat need an account")
     func accountOnlyTabs() {
-        #expect(NavigableTab.allCases.filter(\.requiresAccount) == [.aiTasks])
+        #expect(NavigableTab.allCases.filter(\.requiresAccount) == [.aiTasks, .chat])
         #expect(!NavigableTab.aiTasks.isAvailable(signedIn: false))
         #expect(NavigableTab.aiTasks.isAvailable(signedIn: true))
+        #expect(!NavigableTab.chat.isAvailable(signedIn: false))
+        #expect(NavigableTab.chat.isAvailable(signedIn: true))
         #expect(NavigableTab.recipes.isAvailable(signedIn: false))
     }
 
@@ -36,7 +38,7 @@ struct TabBarLayoutTests {
 
     @Test("Unknown ids, blanks and repeats are dropped")
     func dropsUnknownAndRepeats() {
-        #expect(TabBarLayout(raw: "foods,chat,,foods,weight").tabs == [.foods, .weight])
+        #expect(TabBarLayout(raw: "foods,assistant,,foods,weight").tabs == [.foods, .weight])
         #expect(TabBarLayout(raw: " sleep , ai-tasks ").tabs == [.sleep, .aiTasks])
     }
 
@@ -49,7 +51,7 @@ struct TabBarLayoutTests {
     func emptyFallsBack() {
         let defaults: [NavigableTab] = [.foods, .favorites, .insights]
         #expect(TabBarLayout(raw: "").tabs == defaults)
-        #expect(TabBarLayout(raw: "chat,unknown").tabs == defaults)
+        #expect(TabBarLayout(raw: "assistant,unknown").tabs == defaults)
         #expect(TabBarLayout(tabs: []).tabs == defaults)
     }
 
@@ -66,6 +68,15 @@ struct TabBarLayoutTests {
         #expect(layout.visibleTabs(signedIn: false) == [.recipes])
         #expect(layout.visibleTabs(signedIn: true) == [.aiTasks, .recipes])
         #expect(layout.raw == "ai-tasks,recipes")
+    }
+
+    @Test("The chat tab is hidden without an account and comes back on sign-in")
+    func hidesChatWithoutAccount() {
+        let layout = TabBarLayout(raw: "chat,foods")
+        #expect(layout.visibleTabs(signedIn: false) == [.foods])
+        #expect(layout.visibleTabs(signedIn: true) == [.chat, .foods])
+        #expect(layout.landingTab("chat", signedIn: false) == TabBarLayout.homeId)
+        #expect(layout.landingTab("chat", signedIn: true) == "chat")
     }
 
     @Test("When only account-only tabs are stored, the defaults stand in without an account")

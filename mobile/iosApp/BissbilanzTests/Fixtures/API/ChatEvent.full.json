@@ -1,0 +1,103 @@
+{
+	"action": {
+		"conversationId": "2c01f85a-461e-4a8b-8d05-17687abcd781",
+		"createdAt": "sample-createdAt",
+		"decidedAt": "sample-decidedAt",
+		"expiresAt": "sample-expiresAt",
+		"id": "43e2024b-94f0-4428-8a66-25413e1ddae6",
+		"label": "sample-label",
+		"messageId": "b5ac4ae8-b09e-4501-8366-5fa6341f7de7",
+		"name": "sample-name",
+		"preview": {
+			"details": ["sample-details"],
+			"summary": "sample-summary"
+		},
+		"runId": "d15c0ac2-c383-40d3-83d9-341085b83b09",
+		"status": "sample-status",
+		"toolUseId": "sample-toolUseId"
+	},
+	"actionId": "05232fcf-71a6-4d5c-890b-3865f813f93a",
+	"capability": {
+		"available": true,
+		"blockedReason": "sample-blockedReason",
+		"remainingBudgetUsd": 12.5
+	},
+	"changed": ["sample-changed"],
+	"changes": [
+		{
+			"dates": ["sample-dates"],
+			"domain": "sample-domain",
+			"ids": ["sample-ids"]
+		}
+	],
+	"code": "sample-code",
+	"createdAt": "sample-createdAt",
+	"error": "sample-error",
+	"label": "sample-label",
+	"message": {
+		"conversationId": "18440d9d-758d-4212-8f50-1de3eeca13e0",
+		"createdAt": "sample-createdAt",
+		"id": "d2eff96c-43b4-4b35-82ac-5bcacf96d13b",
+		"parts": [
+			{
+				"actionId": "371800d0-3657-48c9-80d1-8bcea1257aef",
+				"changed": ["sample-changed"],
+				"changes": [
+					{
+						"dates": ["sample-dates"],
+						"domain": "sample-domain",
+						"ids": ["sample-ids"]
+					}
+				],
+				"expiresAt": "sample-expiresAt",
+				"label": "sample-label",
+				"name": "sample-name",
+				"preview": {
+					"details": ["sample-details"],
+					"summary": "sample-summary"
+				},
+				"status": "sample-status",
+				"summary": "sample-summary",
+				"text": "sample-text",
+				"toolUseId": "sample-toolUseId",
+				"type": "sample-type",
+				"url": "sample-url"
+			}
+		],
+		"reason": "sample-reason",
+		"role": "sample-role",
+		"runId": "026975ff-2b15-4fcc-8b76-e215ebbed92a",
+		"status": "sample-status",
+		"updatedAt": "sample-updatedAt"
+	},
+	"messageId": "a312e76a-178b-445b-8ae6-c4f8d4159dd1",
+	"name": "sample-name",
+	"partIndex": 3,
+	"reason": "sample-reason",
+	"run": {
+		"assistantMessageId": "892a0fbb-dd55-4cd8-8de9-0831b39d9b16",
+		"changed": ["sample-changed"],
+		"changes": [
+			{
+				"dates": ["sample-dates"],
+				"domain": "sample-domain",
+				"ids": ["sample-ids"]
+			}
+		],
+		"conversationId": "bafc93ab-33cb-4a08-8e7f-85a1f28923c6",
+		"createdAt": "sample-createdAt",
+		"finishedAt": "sample-finishedAt",
+		"id": "074e3c62-8881-41f3-8d49-ceb0c186d129",
+		"reason": "sample-reason",
+		"startedAt": "sample-startedAt",
+		"status": "sample-status",
+		"userMessageId": "4f6c1c84-53d0-4c6d-83e3-30a21fd94133"
+	},
+	"runId": "e2df6fe0-1479-4299-868d-b95ec586c13f",
+	"seq": 3,
+	"status": "sample-status",
+	"summary": "sample-summary",
+	"text": "sample-text",
+	"toolUseId": "sample-toolUseId",
+	"type": "sample-type"
+}

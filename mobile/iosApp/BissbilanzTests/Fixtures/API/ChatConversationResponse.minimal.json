@@ -1,0 +1,10 @@
+{
+	"conversation": {
+		"createdAt": "sample-createdAt",
+		"id": "59d5e516-30e3-4e97-8c52-48841b39486d",
+		"lastMessageAt": "sample-lastMessageAt",
+		"lastSeq": 3,
+		"title": null,
+		"updatedAt": "sample-updatedAt"
+	}
+}

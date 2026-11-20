@@ -94,7 +94,16 @@ const SCHEMA_NAMES: string[] = [
 	'McpStatusResponse',
 	'OpenFoodFactsSearchResponse',
 	'FoodUsageResponse',
-	'RecipeUsageResponse'
+	'RecipeUsageResponse',
+	'ChatConversationsResponse',
+	'ChatConversationResponse',
+	'ChatConversationDetailResponse',
+	'ChatMessageAcceptedResponse',
+	'ChatEventsResponse',
+	'ChatEvent',
+	'ChatRunResponse',
+	'ChatActionDecisionResponse',
+	'ChatErrorResponse'
 ];
 
 const REPO_ROOT = join(import.meta.dir, '..', '..');

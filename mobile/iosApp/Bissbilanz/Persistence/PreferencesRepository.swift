@@ -50,6 +50,16 @@ final class PreferencesRepository {
         storeCapability(nil)
     }
 
+    /// The chat half of the capability, as a conversation read, a finished
+    /// run or a refused send reports it. Without a stored capability the AI
+    /// task half stays unavailable, which is what unknown means to its callers.
+    func updateChatCapability(_ chat: ChatCapability) {
+        var capability = claudeCapability ?? ClaudeCapability(available: false)
+        guard capability.chat != chat else { return }
+        capability.chat = chat
+        storeCapability(capability)
+    }
+
     private func storeCapability(_ capability: ClaudeCapability?) {
         claudeCapability = capability
         if let data = Self.encodeCapability(capability) {

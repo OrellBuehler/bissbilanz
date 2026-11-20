@@ -62,6 +62,7 @@ struct BissbilanzApp: App {
     @State private var aiTaskStore: AiTaskStore
     @State private var mcpConnectionStatus: McpConnectionStatus
     @State private var aiTaskProcessor: AiTaskProcessor
+    @State private var chatStore: ChatStore
     private let modelContainer: ModelContainer
     /// Set when the on-disk store could not be opened in Local mode. The app then
     /// shows `StoreUnavailableView` instead of running against the empty in-memory
@@ -255,6 +256,28 @@ struct BissbilanzApp: App {
         aiTasks.onEntriesChanged = { date in
             try await entryRepo.refresh(date: date)
         }
+
+        // The assistant chat. A send first uploads the offline queue so the
+        // assistant sees local edits; what it changed is pulled again through
+        // the repositories, and visible screens re-read on the notification.
+        let chat = ChatStore(api: api, appMode: appMode, preferences: preferencesRepo)
+        let chatRefresher = ChatDataRefresher(
+            entryRepository: entryRepo,
+            foodRepository: foodRepo,
+            recipeRepository: recipeRepo,
+            goalsRepository: goalsRepo,
+            weightRepository: weightRepo,
+            sleepRepository: sleepRepo,
+            supplementRepository: supplementRepo,
+            preferencesRepository: preferencesRepo
+        )
+        chat.prepareToSend = {
+            _ = await sync.drainPendingQueue()
+        }
+        chat.refreshData = { plan in
+            await chatRefresher.run(plan)
+        }
+        _chatStore = State(wrappedValue: chat)
 
         let router = DeepLinkRouter()
         _deepLinkRouter = State(wrappedValue: router)
@@ -507,6 +530,7 @@ struct BissbilanzApp: App {
             .environment(aiTaskStore)
             .environment(mcpConnectionStatus)
             .environment(aiTaskProcessor)
+            .environment(chatStore)
             .modelContainer(modelContainer)
             .onOpenURL { url in
                 if url.isFileURL {
@@ -536,6 +560,7 @@ struct BissbilanzApp: App {
             .onChange(of: appModeManager.mode) { _, _ in
                 foodEnrichment.reset()
                 aiTaskStore.resetAccountState()
+                chatStore.resetAccountState()
                 defaultModeToSyncedIfNeeded()
             }
             .onChange(of: scenePhase) { _, phase in

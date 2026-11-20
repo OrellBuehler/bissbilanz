@@ -98,6 +98,101 @@
 				}
 			]
 		},
+		"ChatActionDecisionResponse": {
+			"enumVariants": [],
+			"full": "ChatActionDecisionResponse.full.json",
+			"minimal": "ChatActionDecisionResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "decideChatAction",
+					"path": "/api/chat/actions/{id}"
+				}
+			]
+		},
+		"ChatConversationDetailResponse": {
+			"enumVariants": [],
+			"full": "ChatConversationDetailResponse.full.json",
+			"minimal": "ChatConversationDetailResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "getChatConversation",
+					"path": "/api/chat/conversations/{id}"
+				}
+			]
+		},
+		"ChatConversationResponse": {
+			"enumVariants": [],
+			"full": "ChatConversationResponse.full.json",
+			"minimal": "ChatConversationResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "createChatConversation",
+					"path": "/api/chat/conversations"
+				},
+				{
+					"method": "PATCH",
+					"operationId": "renameChatConversation",
+					"path": "/api/chat/conversations/{id}"
+				}
+			]
+		},
+		"ChatConversationsResponse": {
+			"enumVariants": [],
+			"full": "ChatConversationsResponse.full.json",
+			"minimal": "ChatConversationsResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listChatConversations",
+					"path": "/api/chat/conversations"
+				}
+			]
+		},
+		"ChatErrorResponse": {
+			"enumVariants": [],
+			"full": "ChatErrorResponse.full.json",
+			"minimal": "ChatErrorResponse.minimal.json",
+			"operations": []
+		},
+		"ChatEvent": {
+			"enumVariants": [],
+			"full": "ChatEvent.full.json",
+			"minimal": "ChatEvent.minimal.json",
+			"operations": []
+		},
+		"ChatEventsResponse": {
+			"enumVariants": [],
+			"full": "ChatEventsResponse.full.json",
+			"minimal": "ChatEventsResponse.minimal.json",
+			"operations": [
+				{
+					"method": "GET",
+					"operationId": "listChatEvents",
+					"path": "/api/chat/conversations/{id}/events"
+				}
+			]
+		},
+		"ChatMessageAcceptedResponse": {
+			"enumVariants": [],
+			"full": "ChatMessageAcceptedResponse.full.json",
+			"minimal": "ChatMessageAcceptedResponse.minimal.json",
+			"operations": []
+		},
+		"ChatRunResponse": {
+			"enumVariants": [],
+			"full": "ChatRunResponse.full.json",
+			"minimal": "ChatRunResponse.minimal.json",
+			"operations": [
+				{
+					"method": "POST",
+					"operationId": "cancelChatRun",
+					"path": "/api/chat/runs/{id}/cancel"
+				}
+			]
+		},
 		"DailyStatsResponse": {
 			"enumVariants": [],
 			"full": "DailyStatsResponse.full.json",

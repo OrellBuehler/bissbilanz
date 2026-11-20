@@ -14,6 +14,9 @@ struct DashboardView: View {
     @Environment(SleepRepository.self) var sleepRepository
     @Environment(FastingTimerManager.self) var fastingManager
     @Environment(DeepLinkRouter.self) private var deepLinkRouter
+    @Environment(AppModeManager.self) private var appModeManager
+    @Environment(ChatStore.self) private var chatStore
+    @AppStorage(TabBarLayout.storageKey) private var selectedTabsRaw: String = TabBarLayout.defaultRaw
 
     @State var entries: [Entry] = []
     @State var goals: Goals = .defaults
@@ -88,6 +91,12 @@ struct DashboardView: View {
 
     var dateString: String {
         selectedDate.isoDateString
+    }
+
+    /// A way into the assistant chat when it is not in the tab bar already.
+    private var showsChatEntry: Bool {
+        let signedIn = !appModeManager.isLocal
+        return signedIn && !TabBarLayout(raw: selectedTabsRaw).visibleTabs(signedIn: signedIn).contains(.chat)
     }
 
     var totalCalories: Double {
@@ -204,6 +213,15 @@ struct DashboardView: View {
             // sits directly below, so a large title only cost vertical room.
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                if showsChatEntry {
+                    ToolbarItem(placement: .topBarLeading) {
+                        NavigationLink {
+                            ChatHomeView(contextDate: dateString)
+                        } label: {
+                            Label(L10n.chatOpenAssistant, systemImage: ChatSymbols.chat)
+                        }
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
                         DashboardLayoutView()
@@ -301,6 +319,14 @@ struct DashboardView: View {
             // weight/sleep cards pick up freshly imported entries.
             .onReceive(NotificationCenter.default.publisher(for: HealthKitImporter.didImportNotification)) { _ in
                 loadFromStore()
+            }
+            // The assistant changed diary data and the store pulled it again.
+            .onReceive(NotificationCenter.default.publisher(for: ChatStore.didChangeDataNotification)) { _ in
+                loadFromStore()
+            }
+            // The chat sends the day on screen as its message context.
+            .onChange(of: dateString, initial: true) { _, date in
+                chatStore.viewedDiaryDate = date
             }
             // A widget/Siri deep link (scan, log, weight, food, recipe) is
             // presented by ContentView above the tabs; the sheets this view

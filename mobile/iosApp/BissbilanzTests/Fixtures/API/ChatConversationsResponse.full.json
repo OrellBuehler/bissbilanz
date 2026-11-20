@@ -1,0 +1,32 @@
+{
+	"conversations": [
+		{
+			"activeRun": {
+				"assistantMessageId": "54c9dfb7-1aa8-4324-8b0a-ee8d9664b842",
+				"changed": ["sample-changed"],
+				"changes": [
+					{
+						"dates": ["sample-dates"],
+						"domain": "sample-domain",
+						"ids": ["sample-ids"]
+					}
+				],
+				"conversationId": "c8001307-ac3e-4c34-8fc4-1a5de775bfd2",
+				"createdAt": "sample-createdAt",
+				"finishedAt": "sample-finishedAt",
+				"id": "d7aa5f26-f9ec-4767-8805-f914b5e755bd",
+				"reason": "sample-reason",
+				"startedAt": "sample-startedAt",
+				"status": "sample-status",
+				"userMessageId": "a49edd90-6c86-4689-8f6d-968ee55c8eaf"
+			},
+			"createdAt": "sample-createdAt",
+			"id": "429cf207-26fb-4f34-8641-915daf236ad2",
+			"lastMessageAt": "sample-lastMessageAt",
+			"lastSeq": 3,
+			"title": "sample-title",
+			"updatedAt": "sample-updatedAt"
+		}
+	],
+	"total": 3
+}

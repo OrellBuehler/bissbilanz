@@ -227,15 +227,42 @@ struct PreferencesResponse: Codable {
 struct ClaudeCapability: Codable, Equatable, Sendable {
     var available: Bool
     var remainingBudgetUsd: Double?
+    /// Whether the assistant chat takes a message now. Sent on GET only, and
+    /// absent from servers older than the chat.
+    var chat: ChatCapability?
 
-    init(available: Bool, remainingBudgetUsd: Double? = nil) {
+    init(available: Bool, remainingBudgetUsd: Double? = nil, chat: ChatCapability? = nil) {
         self.available = available
+        self.remainingBudgetUsd = remainingBudgetUsd
+        self.chat = chat
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        available = try container.decodeIfPresent(Bool.self, forKey: .available) ?? false
+        remainingBudgetUsd = try container.decodeIfPresent(Double.self, forKey: .remainingBudgetUsd)
+        chat = try container.decodeIfPresent(ChatCapability.self, forKey: .chat)
+    }
+}
+
+/// Whether the assistant chat can take a message now. It needs more budget
+/// headroom than an AI task, so it can be unavailable while Claude is not.
+/// `blockedReason` is an extensible string, absent while available.
+struct ChatCapability: Codable, Equatable, Sendable {
+    var available: Bool
+    var blockedReason: String?
+    var remainingBudgetUsd: Double?
+
+    init(available: Bool, blockedReason: String? = nil, remainingBudgetUsd: Double? = nil) {
+        self.available = available
+        self.blockedReason = blockedReason
         self.remainingBudgetUsd = remainingBudgetUsd
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         available = try container.decodeIfPresent(Bool.self, forKey: .available) ?? false
+        blockedReason = try container.decodeIfPresent(String.self, forKey: .blockedReason)
         remainingBudgetUsd = try container.decodeIfPresent(Double.self, forKey: .remainingBudgetUsd)
     }
 }

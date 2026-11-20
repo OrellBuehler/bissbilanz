@@ -1,0 +1,36 @@
+{
+	"action": {
+		"conversationId": "2c01f85a-461e-4a8b-8d05-17687abcd781",
+		"createdAt": "sample-createdAt",
+		"decidedAt": null,
+		"expiresAt": null,
+		"id": "43e2024b-94f0-4428-8a66-25413e1ddae6",
+		"label": "sample-label",
+		"messageId": null,
+		"name": "sample-name",
+		"preview": {
+			"details": ["sample-details"],
+			"summary": "sample-summary"
+		},
+		"runId": "d15c0ac2-c383-40d3-83d9-341085b83b09",
+		"status": "sample-status",
+		"toolUseId": "sample-toolUseId"
+	},
+	"run": {
+		"assistantMessageId": null,
+		"changed": ["sample-changed"],
+		"changes": [
+			{
+				"domain": "sample-domain"
+			}
+		],
+		"conversationId": "bafc93ab-33cb-4a08-8e7f-85a1f28923c6",
+		"createdAt": "sample-createdAt",
+		"finishedAt": null,
+		"id": "074e3c62-8881-41f3-8d49-ceb0c186d129",
+		"reason": null,
+		"startedAt": null,
+		"status": "sample-status",
+		"userMessageId": "4f6c1c84-53d0-4c6d-83e3-30a21fd94133"
+	}
+}

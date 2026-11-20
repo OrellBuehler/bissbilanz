@@ -141,6 +141,11 @@ struct DayLogView: View {
                 Task { await loadEntries() }
             }
         }
+        // The assistant changed entries and the store already pulled them again.
+        .onReceive(NotificationCenter.default.publisher(for: ChatStore.didChangeDataNotification)) { _ in
+            entries = entryRepository.entries(date: date)
+            resolveEntryImages()
+        }
         .toast(message: $toastMessage)
         .alert(L10n.error, isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button(L10n.ok, role: .cancel) {}
