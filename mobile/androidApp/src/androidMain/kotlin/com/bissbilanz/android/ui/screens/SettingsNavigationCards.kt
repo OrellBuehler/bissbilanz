@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
@@ -81,6 +82,8 @@ internal fun SettingsNavigationCard(
                 // over MCP — so it has no meaning in Local mode.
                 HorizontalDivider()
                 SettingsNavItem(stringResource(R.string.ai_tasks_title), Icons.Default.AutoAwesome) { open("ai-tasks") }
+                HorizontalDivider()
+                SettingsNavItem(stringResource(R.string.chat_title), Icons.AutoMirrored.Filled.Chat) { open("chat") }
                 HorizontalDivider()
                 SettingsNavItem(stringResource(R.string.connect_assistant_title), Icons.Default.SmartToy) {
                     navController.navigate("connect-claude") { launchSingleTop = true }

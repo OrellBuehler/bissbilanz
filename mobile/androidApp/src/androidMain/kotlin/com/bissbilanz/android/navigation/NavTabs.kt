@@ -24,13 +24,14 @@ object NavTabs {
             "recipe-suggestions",
             "recipes",
             "ai-tasks",
+            "chat",
             "sleep",
             "calendar",
             "fasting",
         )
 
     /** Tabs that only exist with an account: hidden in Local mode, but kept in storage. */
-    val ACCOUNT_ONLY = setOf("ai-tasks")
+    val ACCOUNT_ONLY = setOf("ai-tasks", "chat")
 
     val DEFAULT = listOf("foods", "favorites", "insights")
 

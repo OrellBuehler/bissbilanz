@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
+import com.bissbilanz.android.chat.ViewedDiaryDay
 import com.bissbilanz.android.navigation.PendingLogConfirmation
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.AddFoodSheet
@@ -81,6 +82,8 @@ fun DayLogScreen(
 ) {
     val viewModel: DayLogViewModel = koinViewModel()
     val refreshManager: RefreshManager = koinInject()
+    val viewedDiaryDay: ViewedDiaryDay = koinInject()
+    LaunchedEffect(date) { viewedDiaryDay.viewing(date) }
     val appModeManager: AppModeManager = koinInject()
     val context = LocalContext.current
     val visibleEntries by viewModel.visibleEntries.collectAsStateWithLifecycle()

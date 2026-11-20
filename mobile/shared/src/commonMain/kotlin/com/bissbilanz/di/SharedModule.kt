@@ -95,4 +95,5 @@ val sharedModule =
         single { LocalAnalytics(get(), get()) }
         single { AnalyticsRepository(get(), get()) }
         single { AiTaskRepository(get(), get(), get()) }
+        single { ChatRepository(get<BissbilanzApi>(), get()) }
     }

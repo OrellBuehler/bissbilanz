@@ -322,7 +322,7 @@ private fun RetryHint(draft: ReplyDraft) {
 }
 
 @Composable
-private fun retryAfterText(seconds: Long): String =
+internal fun retryAfterText(seconds: Long): String =
     when {
         seconds < 60 -> stringResource(R.string.ai_tasks_reply_retry_soon)
         seconds < 3600 -> {
