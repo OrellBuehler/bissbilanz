@@ -74,7 +74,10 @@ import kotlin.time.Instant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SleepScreen(navController: NavController) {
+fun SleepScreen(
+    navController: NavController,
+    showBack: Boolean = false,
+) {
     val viewModel: SleepViewModel = koinViewModel()
     val refreshManager: RefreshManager = koinInject()
     val tipStore: TipStore = koinInject()
@@ -173,7 +176,7 @@ fun SleepScreen(navController: NavController) {
             AppTopBar(
                 scrollBehavior = scrollBehavior,
                 title = stringResource(R.string.sleep_section_title),
-                onBack = { navController.popBackStack() },
+                onBack = if (showBack) ({ navController.popBackStack() }) else null,
             )
         },
         floatingActionButton = {

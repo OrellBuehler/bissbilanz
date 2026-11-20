@@ -141,29 +141,35 @@ class AiTasksViewModel(
     private val _loadFailed = MutableStateFlow(false)
     val loadFailed: StateFlow<Boolean> = _loadFailed.asStateFlow()
 
-    private var loadStarted = false
+    // As a bottom bar tab the list keeps this ViewModel while the user is on other tabs,
+    // so what opening it does has to run per visit, not once per ViewModel.
+    private var away = true
 
     /**
-     * Initial load: pull, then clear the unread badge because the user is looking at it. Runs
-     * once per ViewModel, so a configuration change keeps the list, its scroll and the composer.
+     * The list came on screen: pull, pick the filter, then clear the unread badge because the
+     * user is looking at it. A configuration change is not a new visit (the screen does not
+     * call [onHidden] for one), so it keeps the list, its scroll and the composer. Only the
+     * first visit shows the spinner.
      */
-    fun load() {
-        if (loadStarted) return
-        loadStarted = true
+    fun onShown() {
+        if (!away) return
+        away = false
         viewModelScope.launch {
-            _isLoading.value = true
             _loadFailed.value = false
             try {
                 aiTaskRepo.refresh()
-                // Show the tab holding what the user came here for. Opening from a
+                // Show the filter holding what the user came here for. Opening from a
                 // dismissal notification would otherwise land on Open, which by
-                // definition cannot contain the task they just tapped. A separate key,
-                // because getStateFlow already stored the default under KEY_FILTER.
+                // definition cannot contain the task they just tapped. A filter the user
+                // picked during this visit wins; a separate key marks it, because
+                // getStateFlow already stored the default under KEY_FILTER.
                 if (savedStateHandle.get<Boolean>(KEY_FILTER_CHOSEN) != true) {
-                    when {
-                        aiTaskRepo.unreadCount() > 0 -> savedStateHandle[KEY_FILTER] = Filter.DISMISSED.name
-                        aiTaskRepo.unreadReplyCount() > 0 -> savedStateHandle[KEY_FILTER] = Filter.COMPLETED.name
-                    }
+                    savedStateHandle[KEY_FILTER] =
+                        when {
+                            aiTaskRepo.unreadCount() > 0 -> Filter.DISMISSED.name
+                            aiTaskRepo.unreadReplyCount() > 0 -> Filter.COMPLETED.name
+                            else -> Filter.OPEN.name
+                        }
                 }
                 aiTaskRepo.acknowledgeAll()
             } catch (e: Exception) {
@@ -173,6 +179,16 @@ class AiTasksViewModel(
             }
             _isLoading.value = false
         }
+    }
+
+    /**
+     * The user left the list: another tab, another screen, or the app went to the background.
+     * The next [onShown] is a new visit, which starts from what is unread (or Open) again; a
+     * filter picked during this one, by the user or for them, does not carry over.
+     */
+    fun onHidden() {
+        away = true
+        savedStateHandle[KEY_FILTER_CHOSEN] = false
     }
 
     /** Suspends so pull-to-refresh keeps its spinner up until the pull actually ends. */
