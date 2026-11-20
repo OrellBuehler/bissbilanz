@@ -20,8 +20,10 @@ import FoundationModels
 ///    way, since a label/packaging shot isn't a photo of the meal itself).
 ///    A barcode resolves to a real food immediately either way — a
 ///    deterministic local/Open Food Facts lookup, not an AI guess — via
-///    `FoodRepository.findLocalByBarcode` then
-///    `findOrCreateFromOpenFoodFacts(barcode:)`. Absent a barcode, a valid
+///    `resolveBarcode(_:taskId:foodRepository:)`: the user's own food, else
+///    the Open Food Facts product. A failed Open Food Facts lookup is
+///    reported and read as "no food for this barcode", so the passes below
+///    still run. Absent a barcode, a valid
 ///    label's own numbers become a `FoodCreate` — created immediately in
 ///    auto-log mode, held as a draft (`ProcessedAiTaskDraft.pendingFoods`)
 ///    for review-first.
@@ -134,10 +136,13 @@ final class AiTaskProcessor {
 
             if let detectedBarcode {
                 // Nil here means OFF has no record of this barcode (an
-                // unbranded or region-specific product) — the label pass
-                // below still has a shot at it, and carries the barcode
-                // along so the food it creates isn't missing it.
-                resolvedFood = try await resolveBarcode(detectedBarcode)
+                // unbranded or region-specific product) or the lookup itself
+                // failed (reported) — the label pass below still has a shot
+                // at it, and carries the barcode along so the food it
+                // creates isn't missing it.
+                resolvedFood = try await Self.resolveBarcode(
+                    detectedBarcode, taskId: task.id, foodRepository: foodRepository
+                )
             }
 
             if resolvedFood == nil,
@@ -301,11 +306,59 @@ final class AiTaskProcessor {
             && a.eatenAt == b.eatenAt
     }
 
-    private func resolveBarcode(_ barcode: String) async throws -> Food? {
-        if let local = foodRepository.findLocalByBarcode(barcode) {
-            return local
+    static func resolveBarcode(_ barcode: String, taskId: String, foodRepository: FoodRepository) async throws -> Food? {
+        if let existing = try await foodRepository.findByBarcode(barcode) {
+            return existing
         }
-        return try await foodRepository.findOrCreateFromOpenFoodFacts(barcode: barcode)
+        let hit: BissbilanzAPI.OpenFoodFactsHit?
+        do {
+            hit = try await foodRepository.lookupOpenFoodFacts(barcode: barcode)
+        } catch {
+            let kind = barcodeLookupFailureKind(error)
+            guard kind != .cancelled else { throw error }
+            reportBarcodeLookupFallback(kind, error: error, taskId: taskId)
+            return nil
+        }
+        guard let hit else { return nil }
+        return try await foodRepository.createFood(FoodCreate(openFoodFacts: hit, barcode: barcode))
+    }
+
+    nonisolated static func barcodeLookupFailureKind(_ error: Error) -> BarcodeLookupFailureKind {
+        if ErrorReporter.reason(for: error) == "cancelled" {
+            return .cancelled
+        }
+        if let failure = error as? OpenFoodFactsLookupFailure {
+            switch failure {
+            case .invalidResponse: return .permanent
+            case .unavailable: return .transient
+            }
+        }
+        switch error as? APIError {
+        case .decodingError:
+            return .permanent
+        case .some:
+            return AiTaskStore.isRetryable(error) ? .transient : .permanent
+        case nil:
+            return .transient
+        }
+    }
+
+    private static func reportBarcodeLookupFallback(_ kind: BarcodeLookupFailureKind, error: Error, taskId: String) {
+        let reason = OpenFoodFactsLookupFailure.reason(for: error)
+        switch kind {
+        case .permanent:
+            ErrorReporter.captureWarning("AiTaskProcessor: barcode lookup unreadable, continuing without it", context: [
+                "task_id": taskId,
+                "reason": reason,
+            ])
+        case .transient, .cancelled:
+            ErrorReporter.addBreadcrumb(
+                "AiTaskProcessor: barcode lookup failed, continuing without it",
+                category: "ai_task",
+                level: .warning,
+                data: ["task_id": taskId, "reason": reason]
+            )
+        }
     }
 
     /// Logs every item as its own entry (matched food when `matchedFoodId` is
@@ -544,6 +597,12 @@ final class AiTaskProcessor {
         #endif
         return nil
     }
+}
+
+enum BarcodeLookupFailureKind: Equatable {
+    case cancelled
+    case permanent
+    case transient
 }
 
 #if canImport(FoundationModels)
