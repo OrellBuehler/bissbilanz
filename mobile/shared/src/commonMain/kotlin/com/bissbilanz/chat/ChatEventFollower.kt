@@ -51,9 +51,11 @@ sealed interface ChatFeedItem {
  * Follows one conversation's events until cancelled: the SSE stream, reconnected with the
  * last applied seq after it ends or breaks, with a backoff of 3 s doubling to 30 s on errors.
  * After [STREAM_FAILURES_BEFORE_POLLING] failed attempts in a row it falls back to polling
- * the JSON form for the rest of this follow. The caller decides when to stop (the run is over,
- * the screen is gone) by cancelling the collection. An error a retry cannot fix (signed out,
- * the conversation is gone, another 4xx) ends the flow with that error.
+ * the JSON form for the rest of this follow. An attempt only counts as working once something
+ * came through the body (an event or the heartbeat): a proxy that sends the headers but holds
+ * the body back would otherwise reconnect forever. The caller decides when to stop (the run
+ * is over, the screen is gone) by cancelling the collection. An error a retry cannot fix
+ * (signed out, the conversation is gone, another 4xx) ends the flow with that error.
  */
 class ChatEventFollower(
     private val source: ChatEventSource,
@@ -68,6 +70,7 @@ class ChatEventFollower(
             var reconnectMillis = DEFAULT_RECONNECT_MS
             var polling = false
             var pollAfter = 0
+            var catchUps = 0
             while (true) {
                 if (polling) {
                     val page =
@@ -85,19 +88,31 @@ class ChatEventFollower(
                     page.events.forEach { emit(it.toFeedItem()) }
                     pollAfter = page.nextAfter
                     if (page.hasMore) continue
+                    // The page's events were read before its lastSeq, so newer events may exist
+                    // (the end of the run among them). A conversation whose newest events were
+                    // pruned stays behind forever, hence the bound.
+                    if (page.lastSeq > page.nextAfter && catchUps < MAX_CATCH_UPS) {
+                        catchUps++
+                        wait(POLL_CATCH_UP_MS)
+                        continue
+                    }
+                    catchUps = 0
                     emit(ChatFeedItem.Polled(page.activeRun))
                     wait(if (ChatStatus.isWorking(page.activeRun?.status)) POLL_WORKING_MS else POLL_IDLE_MS)
                 } else {
                     var failure: Throwable? = null
+                    var bodyArrived = false
                     source
                         .stream(conversationId, after())
                         .catch { failure = it }
                         .collect { item ->
+                            if (item != ChatStreamItem.Opened && !bodyArrived) {
+                                bodyArrived = true
+                                failures = 0
+                                emit(ChatFeedItem.Connection(ChatConnection.LIVE))
+                            }
                             when (item) {
-                                ChatStreamItem.Opened -> {
-                                    failures = 0
-                                    emit(ChatFeedItem.Connection(ChatConnection.LIVE))
-                                }
+                                ChatStreamItem.Opened, ChatStreamItem.Heartbeat -> {}
                                 is ChatStreamItem.Retry -> reconnectMillis = item.millis
                                 else -> emit(item.toFeedItem())
                             }
@@ -136,6 +151,8 @@ class ChatEventFollower(
         const val STREAM_FAILURES_BEFORE_POLLING = 3
         const val POLL_WORKING_MS = 1_500L
         const val POLL_IDLE_MS = 30_000L
+        const val POLL_CATCH_UP_MS = 250L
+        const val MAX_CATCH_UPS = 3
 
         fun backoffMillis(failures: Int): Long {
             var millis = DEFAULT_RECONNECT_MS

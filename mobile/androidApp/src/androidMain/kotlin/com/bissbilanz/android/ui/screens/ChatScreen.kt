@@ -48,6 +48,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -65,6 +66,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -133,7 +136,8 @@ fun ChatScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val conversations by viewModel.conversations.collectAsStateWithLifecycle()
     val capability by viewModel.capability.collectAsStateWithLifecycle()
-    val draft by viewModel.draft.collectAsStateWithLifecycle()
+    val pending by viewModel.pending.collectAsStateWithLifecycle()
+    val draftRevision by viewModel.draftRevision.collectAsStateWithLifecycle()
     val attachments by viewModel.attachments.collectAsStateWithLifecycle()
     val photoRoom by viewModel.photoRoom.collectAsStateWithLifecycle()
     val noticeSeen by chatPrefs.noticeSeen.collectAsStateWithLifecycle()
@@ -159,6 +163,12 @@ fun ChatScreen(
     }
 
     val openId = state.openId
+    // The field owns its text while the user types (a round trip through a flow drops keys
+    // and moves the cursor); it is only re-read when the view model sets the draft itself.
+    var draft by remember(openId, draftRevision) {
+        val text = viewModel.draftFor(openId)
+        mutableStateOf(TextFieldValue(text, TextRange(text.length)))
+    }
     val openItem = conversations.orEmpty().firstOrNull { it.id == openId }
     val hasList = conversations.orEmpty().any { it.id != openId || !state.isNew }
     BackHandler(enabled = openId != null && hasList) { viewModel.close() }
@@ -192,7 +202,7 @@ fun ChatScreen(
                         else -> null
                     },
                 actions = {
-                    val freshChat = state.isNew && state.outbox.none { it.conversationId == openId }
+                    val freshChat = state.isNew && pending.none { it.conversationId == openId }
                     if (openId != null && !freshChat) {
                         IconButton(onClick = { viewModel.startNew() }) {
                             Icon(Icons.Outlined.AddComment, stringResource(R.string.chat_new))
@@ -263,35 +273,39 @@ fun ChatScreen(
                                 }
                             thread == null -> LoadingScreen()
                             else -> {
-                                val outbox = state.outbox.filter { it.conversationId == openId }
+                                val outbox = pending.filter { it.conversationId == openId && it.accepted == null }
                                 val rows =
-                                    remember(
-                                        thread.messages,
-                                        outbox,
-                                        thread.activeRun,
-                                    ) { chatRows(thread.messages, outbox, thread.activeRun) }
-                                ConversationView(
-                                    rows = rows,
-                                    viewModel = viewModel,
-                                    stateDeciding = state.deciding,
-                                    activeRun = thread.activeRun,
-                                    onSuggestion = { suggestion ->
-                                        viewModel.updateDraft(suggestion)
-                                        focusRequester.requestFocus()
-                                    },
-                                    onOpenPhoto = { urls, index -> gallery = urls to index },
-                                )
+                                    remember(thread, outbox) {
+                                        chatRows(thread.messages, outbox, thread.activeRun, thread.unansweredRuns)
+                                    }
+                                // Keyed so another conversation starts with its own scroll position.
+                                key(openId) {
+                                    ConversationView(
+                                        rows = rows,
+                                        viewModel = viewModel,
+                                        stateDeciding = state.deciding,
+                                        activeRun = thread.activeRun,
+                                        onSuggestion = { suggestion ->
+                                            viewModel.setDraft(suggestion)
+                                            focusRequester.requestFocus()
+                                        },
+                                        onOpenPhoto = { urls, index -> gallery = urls to index },
+                                    )
+                                }
                             }
                         }
                     }
                     ChatComposer(
                         text = draft,
-                        onTextChange = viewModel::updateDraft,
+                        onTextChange = {
+                            draft = it
+                            viewModel.updateDraft(it.text)
+                        },
                         attachments = attachments,
                         photoRoom = photoRoom,
                         onAttach = viewModel::attach,
                         onRemoveAttachment = viewModel::removeAttachment,
-                        canSend = viewModel.canSend(draft) && thread != null,
+                        canSend = viewModel.canSend(draft.text) && thread != null,
                         working = state.activeRunWorking,
                         stopping = state.stopping,
                         enabled = block == null && thread != null,
@@ -403,7 +417,8 @@ private fun ConversationView(
             onReject = viewModel::reject,
             onRetry = viewModel::retry,
             onDiscard = viewModel::discard,
-            onNewChat = viewModel::startNew,
+            onNewChatFromRun = viewModel::startNewFromRun,
+            onNewChatWith = viewModel::startNewWith,
             onOpenPhoto = onOpenPhoto,
             onSuggestion = onSuggestion,
         )

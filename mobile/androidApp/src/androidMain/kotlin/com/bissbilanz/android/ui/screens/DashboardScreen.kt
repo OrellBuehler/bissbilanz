@@ -152,7 +152,11 @@ fun DashboardScreen(navController: NavController) {
     // The assistant chat refers to "this day" as the one on screen, and its changes to the
     // day's water, activity or notes are read here once, so they are reloaded when it reports them.
     val viewedDiaryDay: ViewedDiaryDay = koinInject()
-    LaunchedEffect(selectedDate) { viewedDiaryDay.viewing(selectedDate.toString()) }
+    DisposableEffect(selectedDate) {
+        val day = selectedDate.toString()
+        viewedDiaryDay.viewing(day)
+        onDispose { viewedDiaryDay.left(day) }
+    }
     val chatRefresher: ChatDataRefresher = koinInject()
     LaunchedEffect(chatRefresher) {
         chatRefresher.refreshed.collect { plan ->

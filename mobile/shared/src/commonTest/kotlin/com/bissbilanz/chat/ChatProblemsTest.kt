@@ -30,6 +30,7 @@ class ChatProblemsTest {
                 failure(409, "run_active") to ChatSendProblem.RUN_ACTIVE,
                 failure(409, "conversation_too_long") to ChatSendProblem.CONVERSATION_TOO_LONG,
                 failure(409, "message_id_conflict") to ChatSendProblem.MESSAGE_ID_CONFLICT,
+                failure(409, "upload_quota_exceeded") to ChatSendProblem.UPLOAD_QUOTA,
                 failure(429, "daily_limit_reached") to ChatSendProblem.DAILY_LIMIT,
                 failure(429) to ChatSendProblem.RATE_LIMITED,
                 failure(503) to ChatSendProblem.NETWORK,

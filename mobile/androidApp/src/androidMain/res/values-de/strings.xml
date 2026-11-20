@@ -1749,6 +1749,8 @@
     <string name="chat_problem_invalid_image">Ein Foto konnte nicht verwendet werden. Verwirf die Nachricht, entferne das Foto und sende sie erneut.</string>
     <string name="chat_problem_invalid">Diese Nachricht kann so nicht gesendet werden.</string>
     <string name="chat_problem_gone">Diesen Chat gibt es nicht mehr.</string>
+    <string name="chat_problem_upload_quota">Dein Fotospeicher ist voll. Verwirf die Nachricht, entferne die Fotos oder schaffe Platz und sende sie dann erneut.</string>
+    <string name="chat_discard_unverified">Es ließ sich nicht prüfen, ob diese Nachricht angekommen ist. Versuch es erneut, wenn du online bist.</string>
     <string name="chat_problem_unknown">Etwas ist schiefgelaufen. Versuch es erneut.</string>
     <string name="chat_blocked_not_configured">Der Assistent ist auf diesem Server nicht eingerichtet.</string>
     <string name="chat_blocked_disabled">Der Assistent ist vorübergehend ausgeschaltet.</string>

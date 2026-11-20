@@ -166,10 +166,11 @@ class BissbilanzApiChatTest {
             assertEquals(ChatStreamItem.Opened, items[0])
             assertEquals(ChatStreamItem.Retry(3000), items[1])
             assertEquals("Hi", assertIs<ChatStreamItem.Event>(items[2]).event.text)
-            assertEquals(2, assertIs<ChatStreamItem.Malformed>(items[3]).seq)
-            assertEquals("telepathy", assertIs<ChatStreamItem.Event>(items[4]).event.type)
-            assertEquals(4, assertIs<ChatStreamItem.Malformed>(items[5]).seq)
-            assertEquals(6, items.size)
+            assertEquals(ChatStreamItem.Heartbeat, items[3])
+            assertEquals(2, assertIs<ChatStreamItem.Malformed>(items[4]).seq)
+            assertEquals("telepathy", assertIs<ChatStreamItem.Event>(items[5]).event.type)
+            assertEquals(4, assertIs<ChatStreamItem.Malformed>(items[6]).seq)
+            assertEquals(7, items.size)
         }
 
     @Test

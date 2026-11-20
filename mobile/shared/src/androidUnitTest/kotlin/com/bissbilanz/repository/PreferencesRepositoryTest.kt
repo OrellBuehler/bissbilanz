@@ -1,6 +1,7 @@
 package com.bissbilanz.repository
 
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.ChatCapability
 import com.bissbilanz.api.generated.model.ClaudeCapability
 import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.api.generated.model.PreferencesResponse
@@ -215,6 +216,20 @@ class PreferencesRepositoryTest {
 
             assertNull(repository.claudeCapability.value)
         }
+
+    @Test
+    fun aChatCapabilityFromBeforeASignOutIsDropped() {
+        val before = repository.accountGeneration
+        repository.updateChatCapability(ChatCapability(available = true), before)
+        assertEquals(true, repository.chatCapability.value?.available)
+
+        repository.clearClaudeCapability()
+        repository.updateChatCapability(ChatCapability(available = true), before)
+
+        assertNull(repository.chatCapability.value)
+        repository.updateChatCapability(ChatCapability(false, "no_access"), repository.accountGeneration)
+        assertEquals("no_access", repository.chatCapability.value?.blockedReason)
+    }
 
     @Test
     fun aRefreshInFlightDuringASignOutIsDropped() =

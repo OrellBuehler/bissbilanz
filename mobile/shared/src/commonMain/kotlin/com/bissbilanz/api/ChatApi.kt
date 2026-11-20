@@ -46,6 +46,9 @@ sealed interface ChatStreamItem {
     /** The stream answered 200 and is open. */
     data object Opened : ChatStreamItem
 
+    /** A comment line (`: ping`, every 20 s): the body is coming through. */
+    data object Heartbeat : ChatStreamItem
+
     /** The server's `retry:` hint, the delay before reconnecting after the stream ends. */
     data class Retry(
         val millis: Long,
@@ -192,6 +195,7 @@ interface ChatApi : ApiTransport {
                             }
                         if (stalled) throw ChatStreamStalledException(idleTimeoutMillis)
                         if (line == null) break
+                        if (line.startsWith(":")) emit(ChatStreamItem.Heartbeat)
                         val message = parser.feed(line)
                         if (parser.retryMillis != retry) {
                             retry = parser.retryMillis

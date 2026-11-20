@@ -6,7 +6,6 @@ import com.bissbilanz.api.ChatEventPage
 import com.bissbilanz.api.ChatStreamItem
 import com.bissbilanz.api.chatError
 import com.bissbilanz.api.generated.model.ChatActionDecisionResponse
-import com.bissbilanz.api.generated.model.ChatCapability
 import com.bissbilanz.api.generated.model.ChatConversation
 import com.bissbilanz.api.generated.model.ChatConversationDetailResponse
 import com.bissbilanz.api.generated.model.ChatConversationListItem
@@ -15,11 +14,15 @@ import com.bissbilanz.api.generated.model.ChatMessageCreate
 import com.bissbilanz.api.generated.model.ChatRun
 import com.bissbilanz.chat.ChatEventFollower
 import com.bissbilanz.chat.ChatEventSource
+import com.bissbilanz.chat.ChatEventType
 import com.bissbilanz.chat.ChatFeedItem
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 
 /**
@@ -62,8 +65,9 @@ class ChatRepository(
     }
 
     suspend fun conversation(id: String): ChatConversationDetailResponse {
+        val generation = prefsRepo.accountGeneration
         val detail = api.getChatConversation(id)
-        prefsRepo.updateChatCapability(detail.capability)
+        prefsRepo.updateChatCapability(detail.capability, generation)
         _conversations.update { list ->
             list?.map { item ->
                 if (item.id == id) {
@@ -98,13 +102,15 @@ class ChatRepository(
     suspend fun send(
         conversationId: String,
         message: ChatMessageCreate,
-    ): ChatMessageAcceptedResponse =
-        try {
+    ): ChatMessageAcceptedResponse {
+        val generation = prefsRepo.accountGeneration
+        return try {
             api.sendChatMessage(conversationId, message)
         } catch (e: ApiException) {
-            if (e.statusCode == 403) e.chatError()?.capability?.let { prefsRepo.updateChatCapability(it) }
+            if (e.statusCode == 403) e.chatError()?.capability?.let { prefsRepo.updateChatCapability(it, generation) }
             throw e
         }
+    }
 
     suspend fun cancel(runId: String): ChatRun = api.cancelChatRun(runId)
 
@@ -113,12 +119,20 @@ class ChatRepository(
         approve: Boolean,
     ): ChatActionDecisionResponse = api.decideChatAction(actionId, approve)
 
+    /** The events of a conversation; the capability each `run_finished` carries is applied on the way. */
     fun follow(
         conversationId: String,
         after: () -> Int,
-    ): Flow<ChatFeedItem> = follower.follow(conversationId, after)
-
-    fun updateCapability(capability: ChatCapability) = prefsRepo.updateChatCapability(capability)
+    ): Flow<ChatFeedItem> =
+        flow {
+            val generation = prefsRepo.accountGeneration
+            emitAll(
+                follower.follow(conversationId, after).onEach { item ->
+                    val event = (item as? ChatFeedItem.Event)?.event
+                    if (event?.type == ChatEventType.RUN_FINISHED) event.capability?.let { prefsRepo.updateChatCapability(it, generation) }
+                },
+            )
+        }
 
     /** Run state seen while a conversation is open, so the list shows it without a reload. */
     fun noteActiveRun(

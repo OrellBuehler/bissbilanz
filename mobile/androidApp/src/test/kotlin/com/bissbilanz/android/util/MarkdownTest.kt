@@ -132,11 +132,24 @@ class MarkdownTest {
     }
 
     @Test
-    fun onlyWebAndMailLinksAreSafe() {
+    fun onlyWebLinksAreSafe() {
         assertTrue(Markdown.isSafeUrl("https://x.y"))
-        assertTrue(Markdown.isSafeUrl("mailto:a@b.c"))
+        assertTrue(Markdown.isSafeUrl("HTTP://x.y"))
+        assertFalse(Markdown.isSafeUrl("mailto:a@b.c"))
         assertFalse(Markdown.isSafeUrl("intent://x"))
         assertFalse(Markdown.isSafeUrl("file:///data"))
+    }
+
+    @Test
+    fun parenthesesInsideAUrlBelongToIt() {
+        val wiki = "https://en.wikipedia.org/wiki/Quark_(dairy_product)"
+
+        assertEquals(listOf(MdSpan("Quark", url = wiki)), Markdown.inline("[Quark]($wiki)"))
+        assertEquals(listOf(plain("See "), MdSpan(wiki, url = wiki), plain(".")), Markdown.inline("See $wiki."))
+        assertEquals(
+            listOf(plain("("), MdSpan("https://x.org/a", url = "https://x.org/a"), plain(")")),
+            Markdown.inline("(https://x.org/a)"),
+        )
     }
 
     @Test

@@ -291,7 +291,22 @@ object Markdown {
                 }
             }
             if (labelEnd <= at + 1 || labelEnd + 1 >= end || text[labelEnd + 1] != '(') return null
-            val close = text.indexOf(')', labelEnd + 2).takeIf { it in 0..<end } ?: return null
+            // Parentheses inside the URL (Wikipedia's "Foo_(bar)") are balanced, not its end.
+            var open = 0
+            var close = -1
+            for (j in labelEnd + 2 until end) {
+                when (text[j]) {
+                    '(' -> open++
+                    ')' ->
+                        if (open == 0) {
+                            close = j
+                            break
+                        } else {
+                            open--
+                        }
+                }
+            }
+            if (close == -1) return null
             val url = text.substring(labelEnd + 2, close).trim()
             if (url.isEmpty() || url.any { it.isWhitespace() }) return null
             return Triple(labelEnd, url, close + 1)
@@ -304,15 +319,25 @@ object Markdown {
             if (!text.startsWith("https://", at) && !text.startsWith("http://", at)) return null
             var stop = at
             while (stop < end && !text[stop].isWhitespace() && text[stop] != '<' && text[stop] != '>') stop++
-            while (stop > at && text[stop - 1] in TRAILING_PUNCTUATION) stop--
+            while (stop > at && text[stop - 1] in TRAILING_PUNCTUATION && !closesParenthesis(at, stop)) stop--
             val url = text.substring(at, stop)
             return url.takeIf { it.length > "https://".length }
+        }
+
+        /** Whether the `)` that ends text[at, stop) closes a `(` opened inside the URL. */
+        private fun closesParenthesis(
+            at: Int,
+            stop: Int,
+        ): Boolean {
+            if (text[stop - 1] != ')') return false
+            val url = text.substring(at, stop)
+            return url.count { it == '(' } >= url.count { it == ')' }
         }
     }
 
     fun isSafeUrl(url: String): Boolean {
         val lower = url.lowercase()
-        return lower.startsWith("https://") || lower.startsWith("http://") || lower.startsWith("mailto:")
+        return lower.startsWith("https://") || lower.startsWith("http://")
     }
 
     private const val ESCAPABLE = "\\`*_[]()#+-.!>"

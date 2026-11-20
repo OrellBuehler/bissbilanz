@@ -61,10 +61,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.bissbilanz.android.R
+import com.bissbilanz.android.chat.ChatPhoto
+import com.bissbilanz.android.chat.OutgoingChatMessage
 import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.LocalIsDarkTheme
-import com.bissbilanz.android.ui.viewmodels.ChatPhoto
-import com.bissbilanz.android.ui.viewmodels.OutgoingChatMessage
 import com.bissbilanz.android.util.formatIsoDateTime
 import com.bissbilanz.api.generated.model.ChatMessage
 import com.bissbilanz.api.generated.model.ChatMessagePart
@@ -73,6 +73,7 @@ import com.bissbilanz.chat.ChatBlock
 import com.bissbilanz.chat.ChatPartType
 import com.bissbilanz.chat.ChatProblems
 import com.bissbilanz.chat.ChatRole
+import com.bissbilanz.chat.ChatRunEnd
 import com.bissbilanz.chat.ChatRunOutcome
 import com.bissbilanz.chat.ChatSendProblem
 import com.bissbilanz.chat.ChatStatus
@@ -84,8 +85,10 @@ import kotlin.time.Instant
 sealed interface ChatRow {
     val key: String
 
+    /** [unanswered] is how the run of a user message ended when it never got an answer. */
     data class Message(
         val message: ChatMessage,
+        val unanswered: ChatRunEnd? = null,
     ) : ChatRow {
         override val key = "m-${message.id}"
     }
@@ -111,11 +114,15 @@ fun chatRows(
     messages: List<ChatMessage>,
     outbox: List<OutgoingChatMessage>,
     activeRun: ChatRun?,
+    unansweredRuns: Map<String, ChatRunEnd> = emptyMap(),
 ): List<ChatRow> {
     val known = messages.mapTo(mutableSetOf()) { it.id }
     val rows = mutableListOf<ChatRow>()
     if (messages.isEmpty() && outbox.isEmpty()) rows += ChatRow.Intro
-    messages.forEach { rows += ChatRow.Message(it) }
+    messages.forEach { message ->
+        val unanswered = if (message.role == ChatRole.USER) message.runId?.let { unansweredRuns[it] } else null
+        rows += ChatRow.Message(message, unanswered)
+    }
     outbox.filter { it.id !in known }.forEach { rows += ChatRow.Outgoing(it) }
     val answering = messages.any { it.role != ChatRole.USER && it.status == ChatStatus.IN_PROGRESS }
     if (ChatStatus.isWorking(activeRun?.status) && !answering) rows += ChatRow.Waiting
@@ -132,7 +139,8 @@ fun ChatMessageList(
     onReject: (String) -> Unit,
     onRetry: (String) -> Unit,
     onDiscard: (String) -> Unit,
-    onNewChat: () -> Unit,
+    onNewChatFromRun: (String?) -> Unit,
+    onNewChatWith: (String) -> Unit,
     onOpenPhoto: (List<String>, Int) -> Unit,
     onSuggestion: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -155,7 +163,7 @@ fun ChatMessageList(
             when (row) {
                 is ChatRow.Message ->
                     if (row.message.role == ChatRole.USER) {
-                        UserMessage(row.message, onOpenPhoto)
+                        UserMessage(row.message, row.unanswered, onOpenPhoto) { onNewChatFromRun(row.message.runId) }
                     } else {
                         AssistantMessage(
                             message = row.message,
@@ -164,10 +172,10 @@ fun ChatMessageList(
                             now = now,
                             onApprove = onApprove,
                             onReject = onReject,
-                            onNewChat = onNewChat,
+                            onNewChat = { onNewChatFromRun(row.message.runId) },
                         )
                     }
-                is ChatRow.Outgoing -> OutgoingMessage(row.message, onRetry, onDiscard, onNewChat)
+                is ChatRow.Outgoing -> OutgoingMessage(row.message, onRetry, onDiscard) { onNewChatWith(row.message.id) }
                 ChatRow.Waiting -> AssistantBubble { ThinkingRow() }
                 ChatRow.Intro -> ChatIntro(onSuggestion)
             }
@@ -226,9 +234,27 @@ private fun UserBubble(
 @Composable
 private fun UserMessage(
     message: ChatMessage,
+    unanswered: ChatRunEnd?,
     onOpenPhoto: (List<String>, Int) -> Unit,
+    onNewChat: () -> Unit,
 ) {
     val photos = message.parts.filter { it.type == ChatPartType.IMAGE }.mapNotNull { it.url }
+    val outcome = unanswered?.let { ChatProblems.runOutcome(it.status, it.reason) }
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
+        UserMessageBubble(message, photos, onOpenPhoto)
+        if (outcome != null) {
+            Box(modifier = Modifier.padding(start = 48.dp, top = 4.dp)) { OutcomeHint(outcome, onNewChat) }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun UserMessageBubble(
+    message: ChatMessage,
+    photos: List<String>,
+    onOpenPhoto: (List<String>, Int) -> Unit,
+) {
     UserBubble {
         if (photos.isNotEmpty()) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -671,7 +697,8 @@ fun ChatSendProblem.retryable(): Boolean =
     this != ChatSendProblem.CONVERSATION_TOO_LONG &&
         this != ChatSendProblem.CONVERSATION_GONE &&
         this != ChatSendProblem.INVALID &&
-        this != ChatSendProblem.INVALID_IMAGE
+        this != ChatSendProblem.INVALID_IMAGE &&
+        this != ChatSendProblem.UPLOAD_QUOTA
 
 @StringRes
 fun ChatSendProblem.message(): Int =
@@ -686,6 +713,7 @@ fun ChatSendProblem.message(): Int =
         ChatSendProblem.CONVERSATION_TOO_LONG -> R.string.chat_problem_too_long
         ChatSendProblem.RUN_ACTIVE -> R.string.chat_problem_run_active
         ChatSendProblem.MESSAGE_ID_CONFLICT -> R.string.chat_problem_unknown
+        ChatSendProblem.UPLOAD_QUOTA -> R.string.chat_problem_upload_quota
         ChatSendProblem.INVALID_IMAGE -> R.string.chat_problem_invalid_image
         ChatSendProblem.INVALID -> R.string.chat_problem_invalid
         ChatSendProblem.CONVERSATION_GONE -> R.string.chat_problem_gone

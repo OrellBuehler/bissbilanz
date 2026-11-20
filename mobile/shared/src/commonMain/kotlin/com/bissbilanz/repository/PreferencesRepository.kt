@@ -66,12 +66,20 @@ class PreferencesRepository(
      */
     val chatCapability: StateFlow<ChatCapability?> = _chatCapability.asStateFlow()
 
-    fun updateChatCapability(capability: ChatCapability) {
-        if (appModeManager.isLocal) return
+    /**
+     * [generation] is [accountGeneration] from before the request that carried [capability]: an
+     * answer that lands after a sign-out or account switch belongs to the previous account.
+     */
+    fun updateChatCapability(
+        capability: ChatCapability,
+        generation: Int,
+    ) {
+        if (appModeManager.isLocal || generation != accountGeneration) return
         _chatCapability.value = capability
     }
 
-    private var accountGeneration = 0
+    var accountGeneration = 0
+        private set
 
     /**
      * Called on sign-out and account switches so one account's capability never shows for

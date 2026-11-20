@@ -3,6 +3,7 @@ package com.bissbilanz.chat
 import com.bissbilanz.api.ApiException
 import com.bissbilanz.api.ChatEventPage
 import com.bissbilanz.api.ChatStreamItem
+import com.bissbilanz.api.ChatStreamStalledException
 import com.bissbilanz.api.UnauthorizedException
 import com.bissbilanz.api.generated.model.ChatRun
 import com.bissbilanz.chat.ChatFixtures.event
@@ -80,7 +81,11 @@ class ChatEventFollowerTest {
                     emit(ChatStreamItem.Retry(5_000))
                     events(1, 2).forEach { emit(it) }
                 }
-            source.streams += flow { emit(ChatStreamItem.Opened) }
+            source.streams +=
+                flow {
+                    emit(ChatStreamItem.Opened)
+                    emit(ChatStreamItem.Heartbeat)
+                }
 
             val items = follow(4)
 
@@ -130,12 +135,13 @@ class ChatEventFollowerTest {
         }
 
     @Test
-    fun aStreamThatOpenedResetsTheFailureCount() =
+    fun aStreamWhoseBodyCameThroughResetsTheFailureCount() =
         runTest {
             repeat(4) {
                 source.streams +=
                     flow {
                         emit(ChatStreamItem.Opened)
+                        emit(ChatStreamItem.Heartbeat)
                         throw RuntimeException("dropped")
                     }
             }
@@ -147,10 +153,63 @@ class ChatEventFollowerTest {
         }
 
     @Test
+    fun headersWithoutABodyCountAsFailuresAndEndInPolling() =
+        runTest {
+            repeat(3) {
+                source.streams +=
+                    flow {
+                        emit(ChatStreamItem.Opened)
+                        throw ChatStreamStalledException(45_000)
+                    }
+            }
+            source.polls += { page(1) }
+
+            val items = follow(5)
+
+            assertEquals(ChatFeedItem.Connection(ChatConnection.POLLING), items[2])
+            assertTrue(items.none { it == ChatFeedItem.Connection(ChatConnection.LIVE) })
+            assertEquals(listOf(3_000L, 6_000L, 12_000L), waits)
+        }
+
+    @Test
+    fun aPollThatSawNewerEventsThanItReturnedAsksAgainAtOnce() =
+        runTest {
+            repeat(3) { source.streams += failingStream() }
+            source.polls += {
+                ChatEventPage(events(1), nextAfter = 1, lastSeq = 3, hasMore = false, activeRun = null)
+            }
+            source.polls += { page(2, 3) }
+
+            val items = follow(7)
+
+            assertEquals(listOf(1, 2, 3), items.filterIsInstance<ChatFeedItem.Event>().map { it.event.seq })
+            assertEquals(ChatFeedItem.Polled(null), items.last())
+            assertEquals(1, items.count { it is ChatFeedItem.Polled })
+            assertEquals(ChatEventFollower.POLL_CATCH_UP_MS, waits[3])
+            assertEquals(listOf(0, 1), source.pollAfters)
+        }
+
+    @Test
+    fun aPollThatStaysBehindIsNotRepeatedForever() =
+        runTest {
+            repeat(3) { source.streams += failingStream() }
+            repeat(4) { source.polls += { ChatEventPage(emptyList(), nextAfter = 5, lastSeq = 9, hasMore = false, activeRun = null) } }
+
+            val items = follow(4)
+
+            assertEquals(ChatFeedItem.Polled(null), items.last())
+            assertEquals(List(ChatEventFollower.MAX_CATCH_UPS) { ChatEventFollower.POLL_CATCH_UP_MS }, waits.drop(3))
+        }
+
+    @Test
     fun aRateLimitWaitsForRetryAfterWithoutCountingAsAFailure() =
         runTest {
             repeat(3) { source.streams += failingStream(ApiException("busy", 429, retryAfterSeconds = 7)) }
-            source.streams += flow { emit(ChatStreamItem.Opened) }
+            source.streams +=
+                flow {
+                    emit(ChatStreamItem.Opened)
+                    emit(ChatStreamItem.Heartbeat)
+                }
 
             val items = follow(4)
 

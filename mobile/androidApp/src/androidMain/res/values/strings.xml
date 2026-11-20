@@ -1751,6 +1751,8 @@
     <string name="chat_problem_invalid_image">A photo could not be used. Discard the message, remove the photo and send it again.</string>
     <string name="chat_problem_invalid">This message could not be sent as it is.</string>
     <string name="chat_problem_gone">This chat no longer exists.</string>
+    <string name="chat_problem_upload_quota">Your photo storage is full. Discard the message, remove the photos or free up space, then send it again.</string>
+    <string name="chat_discard_unverified">Could not check whether this message arrived. Try again when you are online.</string>
     <string name="chat_problem_unknown">Something went wrong. Try again.</string>
     <string name="chat_blocked_not_configured">The assistant is not set up on this server.</string>
     <string name="chat_blocked_disabled">The assistant is switched off for now.</string>

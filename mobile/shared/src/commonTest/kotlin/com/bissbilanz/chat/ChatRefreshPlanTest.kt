@@ -47,28 +47,12 @@ class ChatRefreshPlanTest {
     }
 
     @Test
-    fun whatARunRepeatsAtTheEndIsNotRefreshedAgain() {
-        val duringTheRun = ChatRefreshPlan.of(null, listOf(ChatChange(domain = ChatDomain.ENTRIES, dates = listOf("2026-11-18"))))
-        val atTheEnd =
-            ChatRefreshPlan.of(
-                listOf(ChatDomain.ENTRIES, ChatDomain.GOALS),
-                listOf(ChatChange(domain = ChatDomain.ENTRIES, dates = listOf("2026-11-18", "2026-11-17"))),
-            )
+    fun theSameScopeTwiceStaysInThePlan() {
+        val logged = ChatRefreshPlan.of(null, listOf(ChatChange(domain = ChatDomain.ENTRIES, dates = listOf("2026-11-18"))))
+        val deleted = ChatRefreshPlan.of(null, listOf(ChatChange(domain = ChatDomain.ENTRIES, dates = listOf("2026-11-18"))))
 
-        val left = atTheEnd - duringTheRun
-
-        assertEquals(setOf("2026-11-17"), left[ChatDomain.ENTRIES]?.dates)
-        assertEquals(ChatChangeScope.EVERYTHING, left[ChatDomain.GOALS])
-        assertTrue((duringTheRun - atTheEnd).isEmpty)
-    }
-
-    @Test
-    fun aFullRefreshCoversAnyScopeButNotTheOtherWayRound() {
-        val full = ChatRefreshPlan.of(listOf(ChatDomain.SLEEP), null)
-        val scoped = ChatRefreshPlan.of(null, listOf(ChatChange(domain = ChatDomain.SLEEP, ids = listOf("s1"))))
-
-        assertTrue((scoped - full).isEmpty)
-        assertEquals(ChatChangeScope.EVERYTHING, (full - scoped)[ChatDomain.SLEEP])
+        assertEquals(ChatChangeScope(dates = setOf("2026-11-18")), (logged + deleted)[ChatDomain.ENTRIES])
+        assertEquals(logged, logged + ChatRefreshPlan.EMPTY)
     }
 
     @Test

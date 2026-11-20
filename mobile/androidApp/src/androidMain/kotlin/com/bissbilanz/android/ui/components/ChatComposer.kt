@@ -56,11 +56,12 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.chat.ChatPhoto
 import com.bissbilanz.android.ui.theme.Dimens
-import com.bissbilanz.android.ui.viewmodels.ChatPhoto
 import com.bissbilanz.android.ui.viewmodels.ChatViewModel
 import com.bissbilanz.android.util.createImageUri
 import com.bissbilanz.android.util.hasPermission
@@ -82,8 +83,8 @@ import org.koin.compose.koinInject
  */
 @Composable
 fun ChatComposer(
-    text: String,
-    onTextChange: (String) -> Unit,
+    text: TextFieldValue,
+    onTextChange: (TextFieldValue) -> Unit,
     attachments: List<ChatPhoto>,
     photoRoom: Int,
     onAttach: (List<ByteArray>) -> Unit,
@@ -214,7 +215,7 @@ fun ChatComposer(
                         )
                     }
                 }
-                val length = text.trim().length
+                val length = text.text.trim().length
                 val tooLong = length > ChatViewModel.MAX_TEXT_CHARS
                 OutlinedTextField(
                     value = text,

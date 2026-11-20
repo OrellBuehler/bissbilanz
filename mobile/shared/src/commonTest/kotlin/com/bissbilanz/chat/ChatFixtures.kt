@@ -102,6 +102,7 @@ object ChatFixtures {
         name: String? = null,
         label: String? = null,
         toolUseId: String? = null,
+        code: String? = null,
     ) = ChatEvent(
         seq = seq,
         type = type,
@@ -122,6 +123,7 @@ object ChatFixtures {
         message = message,
         run = run,
         capability = capability,
+        code = code,
     )
 
     fun detail(

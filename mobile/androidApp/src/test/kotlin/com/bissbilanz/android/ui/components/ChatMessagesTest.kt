@@ -1,10 +1,12 @@
 package com.bissbilanz.android.ui.components
 
+import com.bissbilanz.android.chat.OutgoingChatMessage
+import com.bissbilanz.android.ui.viewmodels.ChatTestFixtures
 import com.bissbilanz.android.ui.viewmodels.ChatTestFixtures.message
 import com.bissbilanz.android.ui.viewmodels.ChatTestFixtures.run
 import com.bissbilanz.android.ui.viewmodels.ChatTestFixtures.text
-import com.bissbilanz.android.ui.viewmodels.OutgoingChatMessage
 import com.bissbilanz.api.generated.model.ChatMessageContext
+import com.bissbilanz.chat.ChatRunEnd
 import com.bissbilanz.chat.ChatSendProblem
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -62,6 +64,17 @@ class ChatMessagesTest {
         assertFalse(isExpired("2026-11-19T21:56:15.139Z", now))
         assertFalse(isExpired(null, now))
         assertFalse(isExpired("soon", now))
+        assertFalse(isExpired("", now))
+    }
+
+    @Test
+    fun aQuestionWhoseRunEndedWithoutAnAnswerCarriesHowItEnded() {
+        val question = message("u1", "c1", "user", listOf(text("Hi")))
+        val end = ChatRunEnd("cancelled", "user_cancelled")
+
+        val rows = chatRows(listOf(question), emptyList(), null, mapOf(ChatTestFixtures.RUN to end))
+
+        assertEquals(ChatRow.Message(question, end), rows.single())
     }
 
     @Test

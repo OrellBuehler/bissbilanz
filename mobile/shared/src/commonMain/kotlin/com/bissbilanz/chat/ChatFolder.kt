@@ -4,8 +4,15 @@ import com.bissbilanz.api.generated.model.ChatAction
 import com.bissbilanz.api.generated.model.ChatConversationDetailResponse
 import com.bissbilanz.api.generated.model.ChatEvent
 import com.bissbilanz.api.generated.model.ChatMessage
+import com.bissbilanz.api.generated.model.ChatMessageAcceptedResponse
 import com.bissbilanz.api.generated.model.ChatMessagePart
 import com.bissbilanz.api.generated.model.ChatRun
+
+/** How a run ended that never got an answer message (cancelled while queued, refused up front). */
+data class ChatRunEnd(
+    val status: String,
+    val reason: String?,
+)
 
 /** One conversation as the client shows it: messages in display form, folded up to [lastSeq]. */
 data class ChatThread(
@@ -13,6 +20,12 @@ data class ChatThread(
     val messages: List<ChatMessage> = emptyList(),
     val lastSeq: Int = 0,
     val activeRun: ChatRun? = null,
+    /** The seq of the newest accepted send: a reload older than this would drop that message. */
+    val seqFloor: Int = 0,
+    /** Runs whose end is known here; a late response never makes one of them active again. */
+    val finishedRunIds: Set<String> = emptySet(),
+    /** Ends of runs without an answer message, by run id (a user message carries its run's id). */
+    val unansweredRuns: Map<String, ChatRunEnd> = emptyMap(),
 )
 
 /**
@@ -28,21 +41,50 @@ object ChatFolder {
             messages = detail.messages,
             lastSeq = detail.lastSeq,
             activeRun = detail.activeRun?.takeIf { ChatStatus.isActiveRun(it.status) },
+            finishedRunIds =
+                detail.messages
+                    .filter { it.role != ChatRole.USER && it.status != ChatStatus.IN_PROGRESS }
+                    .mapNotNullTo(mutableSetOf()) { it.runId },
         )
 
     /**
      * A conversation GET replaces what was folded so far, unless it is older: a stream that
-     * kept running while the GET was in flight may already be past its lastSeq.
+     * kept running while the GET was in flight may already be past its lastSeq, and a send
+     * accepted meanwhile may be past it too ([ChatThread.seqFloor]).
      */
     fun reseed(
         current: ChatThread?,
         detail: ChatConversationDetailResponse,
+    ): ChatThread {
+        if (current == null || current.conversationId != detail.conversation.id) return seed(detail)
+        if (detail.lastSeq < maxOf(current.lastSeq, current.seqFloor)) return current
+        val seeded = seed(detail)
+        val answered = seeded.messages.filter { it.role != ChatRole.USER }.mapNotNullTo(mutableSetOf()) { it.runId }
+        return seeded.copy(
+            seqFloor = current.seqFloor,
+            finishedRunIds = seeded.finishedRunIds + current.finishedRunIds,
+            unansweredRuns = current.unansweredRuns.filterKeys { it !in answered },
+        )
+    }
+
+    /** A send's 202: its message, its run, and a floor no older reload may go below. */
+    fun accept(
+        thread: ChatThread,
+        accepted: ChatMessageAcceptedResponse,
     ): ChatThread =
-        if (current == null || current.conversationId != detail.conversation.id || detail.lastSeq >= current.lastSeq) {
-            seed(detail)
-        } else {
-            current
-        }
+        thread
+            .upserting(accepted.message)
+            .withActiveRun(accepted.run)
+            .let { it.copy(seqFloor = maxOf(it.seqFloor, accepted.seq)) }
+
+    /**
+     * The run a poll reported. No active run in a page is not taken as the end of the run: the
+     * page may have been read before its `run_finished` was written, so that event decides.
+     */
+    fun polled(
+        thread: ChatThread,
+        run: ChatRun?,
+    ): ChatThread = if (run == null) thread else thread.withActiveRun(run)
 
     fun apply(
         thread: ChatThread,
@@ -89,6 +131,7 @@ object ChatFolder {
                 }
                 ChatEventType.ACTION_RESOLVED -> thread.resolveAction(event)
                 ChatEventType.RUN_FINISHED -> thread.finish(event)
+                ChatEventType.ERROR -> thread.failedUnanswered(event)
                 else -> thread
             }
         return folded.copy(lastSeq = event.seq)
@@ -99,12 +142,6 @@ object ChatFolder {
         thread: ChatThread,
         seq: Int?,
     ): ChatThread = if (seq != null && seq > thread.lastSeq) thread.copy(lastSeq = seq) else thread
-
-    /** Adds or replaces [message] without moving [ChatThread.lastSeq], e.g. from a send's 202. */
-    fun upsert(
-        thread: ChatThread,
-        message: ChatMessage,
-    ): ChatThread = thread.upserting(message)
 
     /** Takes a run state from a response: active runs are followed, a final one ends following. */
     fun withRun(
@@ -142,10 +179,19 @@ object ChatFolder {
     private fun ChatThread.withActiveRun(run: ChatRun?): ChatThread =
         when {
             run == null -> this
-            ChatStatus.isActiveRun(run.status) -> copy(activeRun = run)
-            activeRun?.id == run.id -> copy(activeRun = null)
-            else -> this
+            ChatStatus.isActiveRun(run.status) -> if (run.id in finishedRunIds) this else copy(activeRun = run)
+            activeRun?.id == run.id -> copy(activeRun = null, finishedRunIds = finishedRunIds + run.id)
+            else -> copy(finishedRunIds = finishedRunIds + run.id)
         }
+
+    private fun ChatThread.hasAnswer(runId: String): Boolean = messages.any { it.role != ChatRole.USER && it.runId == runId }
+
+    /** An `error` before the answer started: shown until its `run_finished` says how the run ended. */
+    private fun ChatThread.failedUnanswered(event: ChatEvent): ChatThread {
+        val runId = event.runId ?: return this
+        if (hasAnswer(runId) || runId in unansweredRuns) return this
+        return copy(unansweredRuns = unansweredRuns + (runId to ChatRunEnd(ChatStatus.FAILED, event.code)))
+    }
 
     private fun ChatThread.awaiting(runId: String?): ChatThread {
         val run = activeRun ?: return this
@@ -235,7 +281,18 @@ object ChatFolder {
                 }
             }
         val run = if (runId != null && activeRun?.id == runId) null else activeRun
-        return copy(messages = settled, activeRun = run)
+        val unanswered =
+            if (runId != null && messageId == null && finalStatus != null && !hasAnswer(runId)) {
+                unansweredRuns + (runId to ChatRunEnd(finalStatus, event.reason ?: event.run?.reason))
+            } else {
+                unansweredRuns
+            }
+        return copy(
+            messages = settled,
+            activeRun = run,
+            finishedRunIds = if (runId != null) finishedRunIds + runId else finishedRunIds,
+            unansweredRuns = unanswered,
+        )
     }
 
     private fun ChatAction.toPart() =

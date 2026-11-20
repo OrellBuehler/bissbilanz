@@ -17,6 +17,7 @@ enum class ChatSendProblem {
     CONVERSATION_TOO_LONG,
     RUN_ACTIVE,
     MESSAGE_ID_CONFLICT,
+    UPLOAD_QUOTA,
     INVALID_IMAGE,
     INVALID,
     CONVERSATION_GONE,
@@ -67,6 +68,7 @@ object ChatProblems {
                     "run_active" -> ChatSendProblem.RUN_ACTIVE
                     "conversation_too_long" -> ChatSendProblem.CONVERSATION_TOO_LONG
                     "message_id_conflict" -> ChatSendProblem.MESSAGE_ID_CONFLICT
+                    "upload_quota_exceeded" -> ChatSendProblem.UPLOAD_QUOTA
                     else -> ChatSendProblem.UNKNOWN
                 }
             429 -> if (code == "daily_limit_reached") ChatSendProblem.DAILY_LIMIT else ChatSendProblem.RATE_LIMITED

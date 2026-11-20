@@ -13,10 +13,6 @@ data class ChatChangeScope(
 
     operator fun plus(other: ChatChangeScope) = ChatChangeScope(everything || other.everything, dates + other.dates, ids + other.ids)
 
-    /** What is left after [done] was refreshed: a full refresh covers any scope. */
-    operator fun minus(done: ChatChangeScope): ChatChangeScope =
-        if (done.everything) NONE else ChatChangeScope(everything, dates - done.dates, ids - done.ids)
-
     companion object {
         val NONE = ChatChangeScope()
         val EVERYTHING = ChatChangeScope(everything = true)
@@ -25,8 +21,9 @@ data class ChatChangeScope(
 
 /**
  * The data the assistant changed, per domain (`docs/ai-chat.md` §10), merged across events so
- * a burst of tool calls costs one refresh. A domain in `changed` without an entry in
- * `changes`, or an entry with neither dates nor ids, means the whole domain.
+ * a burst of tool calls costs one refresh. A domain in `changed` without an entry in `changes`,
+ * or an entry with neither dates nor ids, means the whole domain. Plans are only ever added up,
+ * never subtracted: a later write to a day that was already refreshed needs another refresh.
  */
 data class ChatRefreshPlan(
     val domains: Map<String, ChatChangeScope> = emptyMap(),
@@ -41,13 +38,6 @@ data class ChatRefreshPlan(
         other.domains.forEach { (domain, scope) -> merged[domain] = (merged[domain] ?: ChatChangeScope.NONE) + scope }
         return ChatRefreshPlan(merged)
     }
-
-    operator fun minus(done: ChatRefreshPlan): ChatRefreshPlan =
-        ChatRefreshPlan(
-            domains
-                .mapValues { (domain, scope) -> done.domains[domain]?.let { scope - it } ?: scope }
-                .filterValues { !it.isEmpty },
-        )
 
     companion object {
         val EMPTY = ChatRefreshPlan()

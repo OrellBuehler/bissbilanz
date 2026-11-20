@@ -2,6 +2,7 @@ package com.bissbilanz.chat
 
 import com.bissbilanz.api.generated.model.ChatChange
 import com.bissbilanz.api.generated.model.ChatEvent
+import com.bissbilanz.api.generated.model.ChatMessageAcceptedResponse
 import com.bissbilanz.api.generated.model.ChatMessagePart
 import com.bissbilanz.chat.ChatFixtures.ASSISTANT_MESSAGE
 import com.bissbilanz.chat.ChatFixtures.CONVERSATION
@@ -253,6 +254,69 @@ class ChatFolderTest {
         val queued = ChatFolder.withRun(idle, run(ChatStatus.QUEUED))
         assertEquals(ChatStatus.QUEUED, queued.activeRun?.status)
         assertNull(ChatFolder.withRun(queued, run(ChatStatus.CANCELLED)).activeRun)
-        assertEquals(queued, ChatFolder.withRun(queued, run(ChatStatus.CANCELLED, id = "other")))
+        assertEquals(queued.activeRun, ChatFolder.withRun(queued, run(ChatStatus.CANCELLED, id = "other")).activeRun)
+    }
+
+    @Test
+    fun aLateResponseDoesNotRestartARunThatAlreadyEnded() {
+        val finished = fold(confirmedRun + approvedAndFinished)
+
+        assertNull(ChatFolder.withRun(finished, run(ChatStatus.QUEUED)).activeRun)
+        assertNull(ChatFolder.polled(finished, run(ChatStatus.RUNNING)).activeRun)
+        assertEquals(ChatStatus.QUEUED, ChatFolder.withRun(finished, run(ChatStatus.QUEUED, id = "r2")).activeRun?.status)
+    }
+
+    @Test
+    fun aPollWithoutAnActiveRunDoesNotEndTheRunItsEventsHaveNotEnded() {
+        val running = fold(confirmedRun.take(4))
+
+        assertEquals(running, ChatFolder.polled(running, null))
+        assertEquals(
+            ChatStatus.AWAITING_CONFIRMATION,
+            ChatFolder.polled(running, run(ChatStatus.AWAITING_CONFIRMATION)).activeRun?.status,
+        )
+    }
+
+    @Test
+    fun anAcceptedSendKeepsOlderReloadsFromDroppingIt() {
+        val sent = userMessage(id = "m-new")
+        val thread =
+            ChatFolder.accept(
+                ChatThread(CONVERSATION, lastSeq = 4),
+                ChatMessageAcceptedResponse(message = sent, run = run(ChatStatus.QUEUED, id = "r2"), seq = 5),
+            )
+
+        assertEquals(5, thread.seqFloor)
+        assertEquals(4, thread.lastSeq)
+        assertEquals("r2", thread.activeRun?.id)
+        assertSame(thread, ChatFolder.reseed(thread, detail(emptyList(), lastSeq = 4)))
+        assertEquals(5, ChatFolder.reseed(thread, detail(listOf(sent), lastSeq = 5)).seqFloor)
+    }
+
+    @Test
+    fun aRunThatEndsWithoutAnAnswerIsRememberedForItsQuestion() {
+        val queued =
+            fold(
+                listOf(event(1, ChatEventType.MESSAGE_CREATED, message = userMessage())),
+                ChatThread(CONVERSATION, activeRun = run(ChatStatus.QUEUED)),
+            )
+
+        val failing = ChatFolder.apply(queued, event(2, ChatEventType.ERROR, code = "user_budget_exhausted").copy(messageId = null))
+        assertEquals(ChatRunEnd(ChatStatus.FAILED, "user_budget_exhausted"), failing.unansweredRuns[ChatFixtures.RUN])
+
+        val cancelled =
+            ChatFolder.apply(
+                failing,
+                event(3, ChatEventType.RUN_FINISHED, status = ChatStatus.CANCELLED, reason = "user_cancelled").copy(messageId = null),
+            )
+        assertEquals(ChatRunEnd(ChatStatus.CANCELLED, "user_cancelled"), cancelled.unansweredRuns[ChatFixtures.RUN])
+        assertNull(cancelled.activeRun)
+    }
+
+    @Test
+    fun anAnsweredRunIsNotUnanswered() {
+        val answered = fold(confirmedRun.take(3) + event(4, ChatEventType.ERROR, code = "api_error"))
+
+        assertEquals(emptyMap(), answered.unansweredRuns)
     }
 }

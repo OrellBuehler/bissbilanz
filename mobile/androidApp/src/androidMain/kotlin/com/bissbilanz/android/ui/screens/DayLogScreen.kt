@@ -83,7 +83,10 @@ fun DayLogScreen(
     val viewModel: DayLogViewModel = koinViewModel()
     val refreshManager: RefreshManager = koinInject()
     val viewedDiaryDay: ViewedDiaryDay = koinInject()
-    LaunchedEffect(date) { viewedDiaryDay.viewing(date) }
+    DisposableEffect(date) {
+        viewedDiaryDay.viewing(date)
+        onDispose { viewedDiaryDay.left(date) }
+    }
     val appModeManager: AppModeManager = koinInject()
     val context = LocalContext.current
     val visibleEntries by viewModel.visibleEntries.collectAsStateWithLifecycle()

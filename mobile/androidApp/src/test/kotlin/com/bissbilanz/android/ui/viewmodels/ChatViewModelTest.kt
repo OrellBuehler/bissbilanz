@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.chat.ChatDataRefresher
+import com.bissbilanz.android.chat.ChatOutbox
 import com.bissbilanz.android.chat.ViewedDiaryDay
 import com.bissbilanz.android.ui.viewmodels.ChatTestFixtures.accepted
 import com.bissbilanz.android.ui.viewmodels.ChatTestFixtures.action
@@ -19,6 +20,7 @@ import com.bissbilanz.api.generated.model.ChatActionDecisionResponse
 import com.bissbilanz.api.generated.model.ChatCapability
 import com.bissbilanz.api.generated.model.ChatChange
 import com.bissbilanz.api.generated.model.ChatConversationListItem
+import com.bissbilanz.api.generated.model.ChatMessageAcceptedResponse
 import com.bissbilanz.api.generated.model.ChatMessageCreate
 import com.bissbilanz.api.generated.model.ChatMessagePart
 import com.bissbilanz.chat.ChatChangeScope
@@ -37,9 +39,13 @@ import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -71,9 +77,12 @@ class ChatViewModelTest {
     private lateinit var chatRepo: ChatRepository
     private lateinit var refresher: ChatDataRefresher
     private lateinit var errorReporter: ErrorReporter
+    private lateinit var outboxScope: CoroutineScope
+    private lateinit var outbox: ChatOutbox
     private lateinit var viewModel: ChatViewModel
     private val viewedDay = ViewedDiaryDay()
     private val entries = listOf(ChatChange(domain = ChatDomain.ENTRIES, dates = listOf("2026-11-18")))
+    private val entriesPlan = ChatRefreshPlan(mapOf(ChatDomain.ENTRIES to ChatChangeScope(dates = setOf("2026-11-18"))))
 
     @BeforeTest
     fun setup() {
@@ -87,11 +96,7 @@ class ChatViewModelTest {
                 }
             }
         coEvery { chatRepo.refreshConversations() } answers { if (conversations.value == null) conversations.value = emptyList() }
-        coEvery { chatRepo.send(any(), any()) } answers {
-            val request = secondArg<ChatMessageCreate>()
-            sent += request
-            accepted(firstArg(), request)
-        }
+        acceptSends()
         refresher = mockk(relaxed = true)
         errorReporter = mockk(relaxed = true)
         val prefsRepo: PreferencesRepository = mockk { every { chatCapability } returns capability }
@@ -99,11 +104,13 @@ class ChatViewModelTest {
         val appModeManager: AppModeManager = mockk { every { isLocal } returns false }
         val aiTaskRepo: AiTaskRepository = mockk(relaxed = true)
         coEvery { aiTaskRepo.uploadPhotos(any()) } returns listOf("/uploads/p1.webp")
+        outboxScope = CoroutineScope(SupervisorJob() + testDispatcher)
+        outbox = ChatOutbox(chatRepo, aiTaskRepo, refresher, errorReporter, outboxScope)
         viewModel =
             ChatViewModel(
                 chatRepo,
                 prefsRepo,
-                aiTaskRepo,
+                outbox,
                 refresher,
                 viewedDay,
                 connectivity,
@@ -115,7 +122,23 @@ class ChatViewModelTest {
 
     @AfterTest
     fun tearDown() {
+        outboxScope.cancel()
         Dispatchers.resetMain()
+    }
+
+    private fun acceptSends(respond: (String, ChatMessageCreate) -> ChatMessageAcceptedResponse = ::accepted) {
+        coEvery { chatRepo.send(any(), any()) } answers {
+            val request = secondArg<ChatMessageCreate>()
+            sent += request
+            respond(firstArg(), request)
+        }
+    }
+
+    private fun failSends(error: () -> Exception) {
+        coEvery { chatRepo.send(any(), any()) } answers {
+            sent += secondArg<ChatMessageCreate>()
+            throw error()
+        }
     }
 
     private var visibleJob: Job? = null
@@ -138,6 +161,13 @@ class ChatViewModelTest {
     private fun TestScope.emit(item: ChatFeedItem) {
         feed.trySend(item)
         runCurrent()
+    }
+
+    private fun openId() = viewModel.state.value.openId!!
+
+    private fun sendText(text: String) {
+        viewModel.updateDraft(text)
+        viewModel.send()
     }
 
     private fun TestScope.openWithPendingAction(): String {
@@ -179,12 +209,11 @@ class ChatViewModelTest {
     fun aMessageIsSentAfterTheQueueIsFlushedAndTheAnswerIsFollowedToItsEnd() =
         runTest {
             visible()
-            val id = viewModel.state.value.openId!!
+            val id = openId()
             viewedDay.viewing("2026-11-18")
             viewModel.clientLocale = "de"
 
-            viewModel.updateDraft("Log 150 g yogurt")
-            viewModel.send()
+            sendText("Log 150 g yogurt")
 
             coVerifyOrder {
                 refresher.flushLocalChanges()
@@ -197,34 +226,30 @@ class ChatViewModelTest {
             assertEquals("de", request.context?.locale)
             val state = viewModel.state.value
             assertFalse(state.isNew)
-            assertEquals(emptyList(), state.outbox)
+            assertEquals(emptyList(), outbox.messages.value)
             assertEquals(listOf(request.id), state.thread?.messages?.map { it.id })
-            assertEquals("", viewModel.draft.value)
+            assertEquals("", viewModel.draftFor(id))
             assertEquals(listOf(0), followedFrom)
 
             emit(ChatFeedItem.Event(event(2, "run_started", run = run("running", id))))
             emit(ChatFeedItem.Event(event(3, "text_delta", partIndex = 0, text = "Logged.")))
             emit(ChatFeedItem.Event(event(4, "tool_finished", partIndex = 1, status = "ok", changes = entries)))
-            verify(exactly = 1) {
-                refresher.request(ChatRefreshPlan(mapOf(ChatDomain.ENTRIES to ChatChangeScope(dates = setOf("2026-11-18")))), "2026-11-18")
-            }
+            verify(exactly = 1) { refresher.request(entriesPlan, "2026-11-18") }
 
             val goals = ChatChange(domain = ChatDomain.GOALS)
-            emit(
-                ChatFeedItem.Event(
-                    event(
-                        5,
-                        "run_finished",
-                        status = "completed",
-                        run = run("completed", id),
-                        changes = entries + goals,
-                        capability = ChatCapability(false, "user_budget_exhausted"),
-                    ),
-                ),
-            )
+            emit(ChatFeedItem.Event(event(5, "run_finished", status = "completed", run = run("completed", id), changes = entries + goals)))
 
-            verify(exactly = 1) { refresher.request(ChatRefreshPlan(mapOf(ChatDomain.GOALS to ChatChangeScope.EVERYTHING)), "2026-11-18") }
-            verify { chatRepo.updateCapability(ChatCapability(false, "user_budget_exhausted")) }
+            verify(exactly = 1) {
+                refresher.request(
+                    ChatRefreshPlan(
+                        mapOf(
+                            ChatDomain.ENTRIES to ChatChangeScope(dates = setOf("2026-11-18")),
+                            ChatDomain.GOALS to ChatChangeScope.EVERYTHING,
+                        ),
+                    ),
+                    "2026-11-18",
+                )
+            }
             assertNull(
                 viewModel.state.value.thread
                     ?.activeRun,
@@ -242,32 +267,40 @@ class ChatViewModelTest {
         }
 
     @Test
+    fun aLaterWriteToTheSameDayIsRefreshedAgain() =
+        runTest {
+            val id = openWithPendingAction()
+
+            emit(ChatFeedItem.Event(event(7, "tool_finished", partIndex = 2, status = "ok", changes = entries)))
+            emit(ChatFeedItem.Event(event(8, "tool_finished", partIndex = 3, status = "ok", changes = entries)))
+            emit(ChatFeedItem.Event(event(9, "run_finished", status = "completed", run = run("completed", id), changes = entries)))
+
+            verify(exactly = 3) { refresher.request(entriesPlan, any()) }
+        }
+
+    @Test
     fun aFailedSendStaysInTheChatAndARetryReusesItsId() =
         runTest {
             visible()
-            coEvery { chatRepo.send(any(), any()) } answers {
-                sent += secondArg<ChatMessageCreate>()
-                throw ApiException("down", 503)
-            }
-            viewModel.updateDraft("Hello")
-            viewModel.send()
+            failSends { ApiException("down", 503) }
+            sendText("Hello")
 
-            val failed =
-                viewModel.state.value.outbox
-                    .single()
+            val failed = outbox.messages.value.single()
             assertEquals(ChatSendProblem.NETWORK, failed.problem)
             assertFalse(failed.sending)
 
-            coEvery { chatRepo.send(any(), any()) } answers {
-                val request = secondArg<ChatMessageCreate>()
-                sent += request
-                accepted(firstArg(), request)
-            }
+            acceptSends()
             viewModel.retry(failed.id)
 
             assertEquals(2, sent.size)
             assertEquals(sent[0].id, sent[1].id)
-            assertEquals(emptyList(), viewModel.state.value.outbox)
+            assertEquals(emptyList(), outbox.messages.value)
+            assertEquals(
+                listOf(sent[0].id),
+                viewModel.state.value.thread
+                    ?.messages
+                    ?.map { it.id },
+            )
         }
 
     @Test
@@ -285,42 +318,108 @@ class ChatViewModelTest {
                 accepted(firstArg(), request)
             }
 
-            viewModel.updateDraft("Hello")
-            viewModel.send()
+            sendText("Hello")
 
             assertEquals(2, sent.size)
             assertNotEquals(sent[0].id, sent[1].id)
-            assertEquals(emptyList(), viewModel.state.value.outbox)
+            assertEquals(emptyList(), outbox.messages.value)
         }
 
     @Test
     fun aBudgetRefusalShowsItsProblemAndPhotosAreUploadedOnlyOnce() =
         runTest {
             visible()
-            coEvery { chatRepo.send(any(), any()) } answers {
-                sent += secondArg<ChatMessageCreate>()
-                throw ApiException(
+            failSends {
+                ApiException(
                     "budget",
                     403,
                     responseBody = """{"error":"x","code":"budget_exhausted","capability":{"available":false}}""",
                 )
             }
             viewModel.attach(listOf(byteArrayOf(1, 2)))
-            viewModel.updateDraft("What is this?")
-            viewModel.send()
-            val failed =
-                viewModel.state.value.outbox
+            sendText("What is this?")
+            viewModel.retry(
+                outbox.messages.value
                     .single()
-            viewModel.retry(failed.id)
+                    .id,
+            )
 
             assertEquals(
                 ChatSendProblem.BUDGET_EXHAUSTED,
-                viewModel.state.value.outbox
+                outbox.messages.value
                     .single()
                     .problem,
             )
             assertEquals(listOf("/uploads/p1.webp"), sent.last().imageFilenames)
             coVerify(exactly = 1) { chatRepo.createConversation(any()) }
+        }
+
+    @Test
+    fun aRetriedSendWhoseRunAlreadyEndedReadsTheAnswer() =
+        runTest {
+            visible()
+            val id = openId()
+            val changes = listOf(ChatChange(domain = ChatDomain.WEIGHT))
+            acceptSends {
+                conversation,
+                request,
+                ->
+                accepted(conversation, request).copy(run = run("completed", conversation, changes = changes))
+            }
+            coEvery { chatRepo.conversation(id) } answers {
+                val request = sent.last()
+                detail(
+                    id,
+                    listOf(
+                        message(request.id, id, "user", listOf(text(request.text))),
+                        message(ChatTestFixtures.ASSISTANT, id, "assistant", listOf(text("Done"))),
+                    ),
+                    lastSeq = 6,
+                )
+            }
+
+            sendText("Log 80 kg")
+
+            coVerify { chatRepo.conversation(id) }
+            verify { refresher.request(ChatRefreshPlan(mapOf(ChatDomain.WEIGHT to ChatChangeScope.EVERYTHING)), any()) }
+            assertEquals(
+                "Done",
+                viewModel.state.value.thread
+                    ?.messages
+                    ?.last()
+                    ?.parts
+                    ?.single()
+                    ?.text,
+            )
+            verify(exactly = 0) { chatRepo.follow(any(), any()) }
+        }
+
+    @Test
+    fun theSendGoesOnWhileTheScreenIsStopped() =
+        runTest {
+            visible()
+            val id = openId()
+            val gate = CompletableDeferred<Unit>()
+            coEvery { chatRepo.send(any(), any()) } coAnswers {
+                gate.await()
+                val request = secondArg<ChatMessageCreate>()
+                sent += request
+                accepted(firstArg(), request)
+            }
+
+            sendText("Hello")
+            stopped()
+            gate.complete(Unit)
+            runCurrent()
+
+            assertEquals(1, sent.size)
+            assertEquals(
+                listOf(sent[0].id),
+                viewModel.state.value.thread
+                    ?.messages
+                    ?.map { it.id },
+            )
+            assertEquals(id, openId())
         }
 
     @Test
@@ -330,11 +429,10 @@ class ChatViewModelTest {
             visible()
             online.value = false
 
-            viewModel.updateDraft("Hello")
-            viewModel.send()
+            sendText("Hello")
 
-            assertEquals(emptyList(), viewModel.state.value.outbox)
-            assertEquals("Hello", viewModel.draft.value)
+            assertEquals(emptyList(), outbox.messages.value)
+            assertEquals("Hello", viewModel.draftFor(openId()))
             assertEquals(listOf(R.string.chat_send_offline), messages)
             coVerify(exactly = 0) { chatRepo.send(any(), any()) }
         }
@@ -345,8 +443,7 @@ class ChatViewModelTest {
             visible()
             capability.value = ChatCapability(false, "no_access")
 
-            viewModel.updateDraft("Hello")
-            viewModel.send()
+            sendText("Hello")
 
             assertFalse(viewModel.canSend("Hello"))
             coVerify(exactly = 0) { chatRepo.send(any(), any()) }
@@ -370,6 +467,24 @@ class ChatViewModelTest {
             )
             assertEquals("queued", thread.activeRun?.status)
             assertEquals(emptySet(), viewModel.state.value.deciding)
+        }
+
+    @Test
+    fun aSlowApprovalDoesNotRestartARunThatAlreadyEnded() =
+        runTest {
+            val id = openWithPendingAction()
+            val answer = CompletableDeferred<ChatActionDecisionResponse>()
+            coEvery { chatRepo.decide("a1", true) } coAnswers { answer.await() }
+
+            viewModel.approve("a1")
+            emit(ChatFeedItem.Event(event(7, "run_finished", status = "completed", run = run("completed", id))))
+            answer.complete(ChatActionDecisionResponse(action(id, "approved"), run("queued", id)))
+            runCurrent()
+
+            assertNull(
+                viewModel.state.value.thread
+                    ?.activeRun,
+            )
         }
 
     @Test
@@ -398,11 +513,7 @@ class ChatViewModelTest {
             val id = openWithPendingAction()
             val expired = action(id, "expired")
             coEvery { chatRepo.decide("a1", true) } throws
-                ApiException(
-                    "expired",
-                    409,
-                    responseBody = """{"error":"x","code":"action_expired","action":${actionJson(id)}}""",
-                )
+                ApiException("expired", 409, responseBody = """{"error":"x","code":"action_expired","action":${actionJson(id)}}""")
             coEvery { chatRepo.conversation(id) } returns
                 detail(
                     id,
@@ -438,6 +549,7 @@ class ChatViewModelTest {
         runTest {
             val id = openWithPendingAction()
             emit(ChatFeedItem.Event(event(7, "run_resumed", run = run("running", id))))
+            coEvery { chatRepo.cancel(ChatTestFixtures.RUN) } returns run("running", id)
 
             viewModel.stop()
 
@@ -449,6 +561,30 @@ class ChatViewModelTest {
                 viewModel.state.value.thread
                     ?.activeRun,
             )
+        }
+
+    @Test
+    fun aCancelThatEndedTheRunStopsStoppingAndReadsTheAnswerBack() =
+        runTest {
+            val id = openWithPendingAction()
+            emit(ChatFeedItem.Event(event(7, "run_resumed", run = run("running", id))))
+            coEvery { chatRepo.cancel(ChatTestFixtures.RUN) } returns run("cancelled", id, changes = entries)
+            coEvery { chatRepo.conversation(id) } returns
+                detail(
+                    id,
+                    listOf(message(ChatTestFixtures.ASSISTANT, id, "assistant", listOf(text("Stopped")), status = "cancelled")),
+                    lastSeq = 9,
+                )
+
+            viewModel.stop()
+
+            assertFalse(viewModel.state.value.stopping)
+            assertNull(
+                viewModel.state.value.thread
+                    ?.activeRun,
+            )
+            verify { refresher.request(entriesPlan, any()) }
+            coVerify(exactly = 2) { chatRepo.conversation(id) }
         }
 
     @Test
@@ -509,7 +645,7 @@ class ChatViewModelTest {
             visible()
             runCurrent()
 
-            verify { refresher.request(ChatRefreshPlan(mapOf(ChatDomain.ENTRIES to ChatChangeScope(dates = setOf("2026-11-18")))), null) }
+            verify { refresher.request(entriesPlan, null) }
             assertNull(
                 viewModel.state.value.thread
                     ?.activeRun,
@@ -555,21 +691,121 @@ class ChatViewModelTest {
         }
 
     @Test
-    fun discardingAFailedMessagePutsItsTextBack() =
+    fun discardingARefusedMessagePutsItsTextBack() =
         runTest {
             visible()
-            coEvery { chatRepo.send(any(), any()) } throws
-                ApiException("too long", 409, responseBody = """{"error":"x","code":"conversation_too_long"}""")
-            viewModel.updateDraft("One more")
-            viewModel.send()
-            val failed =
-                viewModel.state.value.outbox
-                    .single()
-            assertEquals(ChatSendProblem.CONVERSATION_TOO_LONG, failed.problem)
+            val revision = viewModel.draftRevision.value
+            failSends { ApiException("invalid", 400, responseBody = """{"error":"x","code":"invalid_image"}""") }
+            sendText("One more")
+            val failed = outbox.messages.value.single()
+            assertEquals(ChatSendProblem.INVALID_IMAGE, failed.problem)
 
             viewModel.discard(failed.id)
 
-            assertEquals(emptyList(), viewModel.state.value.outbox)
-            assertEquals("One more", viewModel.draft.value)
+            assertEquals(emptyList(), outbox.messages.value)
+            assertEquals("One more", viewModel.draftFor(openId()))
+            assertTrue(viewModel.draftRevision.value > revision)
+        }
+
+    @Test
+    fun discardingAfterALostAnswerDropsAMessageTheServerHas() =
+        runTest {
+            visible()
+            val id = openId()
+            failSends { RuntimeException("timeout") }
+            sendText("Log a banana")
+            val failed = outbox.messages.value.single()
+            coEvery { chatRepo.conversation(id) } returns
+                detail(id, listOf(message(failed.id, id, "user", listOf(text("Log a banana")))), lastSeq = 3)
+
+            viewModel.discard(failed.id)
+
+            assertEquals(emptyList(), outbox.messages.value)
+            assertEquals("", viewModel.draftFor(id))
+            assertEquals(
+                listOf(failed.id),
+                viewModel.state.value.thread
+                    ?.messages
+                    ?.map { it.id },
+            )
+        }
+
+    @Test
+    fun discardingAfterALostAnswerPutsBackAMessageTheServerLacks() =
+        runTest {
+            visible()
+            val id = openId()
+            failSends { RuntimeException("timeout") }
+            sendText("Log a banana")
+            coEvery { chatRepo.conversation(id) } returns detail(id, emptyList(), lastSeq = 0)
+
+            viewModel.discard(
+                outbox.messages.value
+                    .single()
+                    .id,
+            )
+
+            assertEquals(emptyList(), outbox.messages.value)
+            assertEquals("Log a banana", viewModel.draftFor(id))
+        }
+
+    @Test
+    fun aDiscardThatCannotCheckTheServerKeepsTheMessage() =
+        runTest {
+            val messages = collectMessages()
+            visible()
+            val id = openId()
+            failSends { RuntimeException("timeout") }
+            sendText("Log a banana")
+            coEvery { chatRepo.conversation(id) } throws RuntimeException("offline")
+
+            viewModel.discard(
+                outbox.messages.value
+                    .single()
+                    .id,
+            )
+
+            assertEquals(1, outbox.messages.value.size)
+            assertEquals(listOf(R.string.chat_discard_unverified), messages)
+        }
+
+    @Test
+    fun aNewChatForAFullOneTakesTheMessageAndItsPhotosAlong() =
+        runTest {
+            visible()
+            val full = openId()
+            failSends { ApiException("too long", 409, responseBody = """{"error":"x","code":"conversation_too_long"}""") }
+            viewModel.attach(listOf(byteArrayOf(7)))
+            sendText("One more")
+            val failed = outbox.messages.value.single()
+
+            viewModel.startNewWith(failed.id)
+
+            val fresh = openId()
+            assertNotEquals(full, fresh)
+            assertTrue(viewModel.state.value.isNew)
+            assertEquals("One more", viewModel.draftFor(fresh))
+            assertEquals(
+                listOf(7.toByte()),
+                viewModel.attachments.value
+                    .single()
+                    .jpeg
+                    .toList(),
+            )
+            assertEquals(emptyList(), outbox.messages.value)
+        }
+
+    @Test
+    fun aSuggestionSetsTheDraftButTypingDoesNotRewriteTheField() =
+        runTest {
+            visible()
+            val revision = viewModel.draftRevision.value
+
+            viewModel.updateDraft("typed")
+            assertEquals(revision, viewModel.draftRevision.value)
+
+            viewModel.setDraft("How am I doing today?")
+            assertEquals("How am I doing today?", viewModel.draftFor(openId()))
+            assertEquals(revision + 1, viewModel.draftRevision.value)
         }
 }
