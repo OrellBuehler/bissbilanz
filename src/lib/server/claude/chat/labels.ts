@@ -31,6 +31,22 @@ export function formatDate(date: string, locale: ChatLocale): string {
 	}).format(parsed);
 }
 
+export function formatDateTime(instant: Date, locale: ChatLocale, timeZone: string): string {
+	return new Intl.DateTimeFormat(locale === 'de' ? 'de-CH' : 'en-GB', {
+		dateStyle: 'medium',
+		timeStyle: 'short',
+		timeZone
+	}).format(instant);
+}
+
+// 0 = Sunday, as reminders and supplement schedules count weekdays.
+export function formatWeekday(day: number, locale: ChatLocale): string {
+	return new Intl.DateTimeFormat(locale === 'de' ? 'de-CH' : 'en-GB', {
+		weekday: 'short',
+		timeZone: 'UTC'
+	}).format(new Date(Date.UTC(2026, 10, 15 + day)));
+}
+
 export function formatNumber(value: number, locale: ChatLocale, maximumFractionDigits = 1): string {
 	return new Intl.NumberFormat(locale === 'de' ? 'de-CH' : 'en-GB', {
 		maximumFractionDigits

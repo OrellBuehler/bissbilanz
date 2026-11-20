@@ -3,7 +3,10 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import { getDB } from '../../db';
 import {
+	customMealTypes,
 	dayProperties,
+	fastingSessions,
+	favoriteMealTimeframes,
 	foodEntries,
 	foodLabels,
 	foods,
@@ -11,14 +14,27 @@ import {
 	recipeLabels,
 	recipes,
 	recipeSteps,
+	reminders,
 	sleepEntries,
 	supplementIngredients,
 	supplements,
+	userPreferences,
 	weightEntries
 } from '../../schema';
 import type { ChatActionPreview } from './events';
-import { formatDate, formatNumber, message, toolLabel, type ChatLocale } from './labels';
+import {
+	formatDate,
+	formatDateTime,
+	formatNumber,
+	formatWeekday,
+	message,
+	toolLabel,
+	type ChatLocale
+} from './labels';
 import { holdsValue, isCleared } from './policy';
+import { DEFAULT_VISIBLE_NUTRIENTS } from '$lib/nutrients';
+import { DEFAULT_PREFERENCES } from '../../preferences';
+import { resolvePreferencePatch } from '../../mcp/meal-names';
 
 // input is exactly what runs on approval: defaults the tool would resolve
 // later (such as "today") are made explicit, so the card and the call agree.
@@ -45,7 +61,10 @@ export const PREVIEW_SCHEMAS = {
 	unlog_supplement: z.strictObject({ supplementId: uuid, date: day.optional() }),
 	delete_weight: z.strictObject({ weightId: uuid }),
 	delete_sleep: z.strictObject({ id: uuid }),
-	delete_day_properties: z.strictObject({ date: day })
+	delete_day_properties: z.strictObject({ date: day }),
+	delete_fast: z.strictObject({ fastId: uuid }),
+	delete_reminder: z.strictObject({ reminderId: uuid }),
+	delete_meal_type: z.strictObject({ mealTypeId: uuid })
 };
 
 export type PreviewContext = {
@@ -503,6 +522,371 @@ const deleteDayProperties: Builder = async (input, { locale }) => {
 	};
 };
 
+const deleteFast: Builder = async (input, { userId, locale }) => {
+	const parsed = parse(PREVIEW_SCHEMAS.delete_fast, input);
+	if ('error' in parsed) return parsed;
+	const [row] = await getDB()
+		.select({
+			startedAt: fastingSessions.startedAt,
+			endedAt: fastingSessions.endedAt,
+			targetHours: fastingSessions.targetHours,
+			timeZone: userPreferences.timeZone
+		})
+		.from(fastingSessions)
+		.leftJoin(userPreferences, eq(userPreferences.userId, fastingSessions.userId))
+		.where(and(eq(fastingSessions.id, parsed.data.fastId), eq(fastingSessions.userId, userId)));
+	if (!row) return notFound('Fast');
+	const minutes = Math.round((row.endedAt.getTime() - row.startedAt.getTime()) / 60_000);
+	return {
+		input: parsed.data,
+		preview: {
+			summary: message(
+				'chat_action_delete_fast',
+				{ start: formatDateTime(row.startedAt, locale, row.timeZone ?? 'UTC') },
+				locale
+			),
+			details: [
+				message(
+					'chat_action_fast_detail',
+					{ hours: Math.floor(minutes / 60), minutes: minutes % 60, target: row.targetHours },
+					locale
+				)
+			]
+		}
+	};
+};
+
+const deleteReminder: Builder = async (input, { userId, locale }) => {
+	const parsed = parse(PREVIEW_SCHEMAS.delete_reminder, input);
+	if ('error' in parsed) return parsed;
+	const [row] = await getDB()
+		.select({
+			kind: reminders.kind,
+			mealType: reminders.mealType,
+			time: reminders.time,
+			weekdays: reminders.weekdays
+		})
+		.from(reminders)
+		.where(and(eq(reminders.id, parsed.data.reminderId), eq(reminders.userId, userId)));
+	if (!row) return notFound('Reminder');
+	const days = [...new Set(row.weekdays)].sort((a, b) => a - b);
+	return {
+		input: parsed.data,
+		preview: {
+			summary: message(
+				`chat_action_delete_${row.kind}_reminder`,
+				{ time: row.time, meal: row.mealType ?? '' },
+				locale
+			),
+			details: [
+				days.length === 7
+					? message('chat_action_reminder_every_day', {}, locale)
+					: days.map((day) => formatWeekday(day, locale)).join(', ')
+			]
+		}
+	};
+};
+
+const deleteMealType: Builder = async (input, { userId, locale }) => {
+	const parsed = parse(PREVIEW_SCHEMAS.delete_meal_type, input);
+	if ('error' in parsed) return parsed;
+	const db = getDB();
+	const [mealType] = await db
+		.select({ name: customMealTypes.name })
+		.from(customMealTypes)
+		.where(and(eq(customMealTypes.id, parsed.data.mealTypeId), eq(customMealTypes.userId, userId)));
+	if (!mealType) return notFound('Meal type');
+	const [[windows], [entries], [mealReminders]] = await Promise.all([
+		db
+			.select({ count: count() })
+			.from(favoriteMealTimeframes)
+			.where(
+				and(
+					eq(favoriteMealTimeframes.userId, userId),
+					eq(favoriteMealTimeframes.customMealTypeId, parsed.data.mealTypeId)
+				)
+			),
+		db
+			.select({ count: count() })
+			.from(foodEntries)
+			.where(and(eq(foodEntries.userId, userId), eq(foodEntries.mealType, mealType.name))),
+		db
+			.select({ count: count() })
+			.from(reminders)
+			.where(
+				and(
+					eq(reminders.userId, userId),
+					eq(reminders.kind, 'meal'),
+					eq(reminders.mealType, mealType.name)
+				)
+			)
+	]);
+	if (Number(windows?.count ?? 0) > 0) {
+		return {
+			error:
+				'Meal type is used in favorites meal timeframes and cannot be deleted. Change favoriteMealTimeframes with update_preferences first.'
+		};
+	}
+	const entryCount = Number(entries?.count ?? 0);
+	const reminderCount = Number(mealReminders?.count ?? 0);
+	return {
+		input: parsed.data,
+		preview: {
+			summary: message('chat_action_delete_meal_type', { name: mealType.name }, locale),
+			details: [
+				...(entryCount > 0
+					? [
+							message(
+								'chat_action_meal_type_entries',
+								{ count: entryCount, name: mealType.name },
+								locale
+							)
+						]
+					: []),
+				...(reminderCount > 0
+					? [
+							message(
+								'chat_action_meal_type_reminders',
+								{ count: reminderCount, name: mealType.name },
+								locale
+							)
+						]
+					: [])
+			]
+		}
+	};
+};
+
+const hhmm = (minute: number) =>
+	`${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+
+const windowLine = (locale: ChatLocale) => (item: unknown, index: number) =>
+	isRecord(item) &&
+	typeof item.mealType === 'string' &&
+	typeof item.startTime === 'string' &&
+	typeof item.endTime === 'string'
+		? message(
+				'chat_action_list_item',
+				{ index, value: `${item.mealType} ${item.startTime}–${item.endTime}` },
+				locale
+			)
+		: null;
+
+/** A replacement of the favourite time windows: every new window and every current one. */
+function timeframeLines(
+	value: unknown,
+	current: { mealType: string; startMinute: number; endMinute: number }[],
+	locale: ChatLocale
+): string[] {
+	if (!Array.isArray(value)) {
+		return fieldLine('favoriteMealTimeframes', value, null, new Map(), locale);
+	}
+	const removed =
+		current.length > 0
+			? [
+					message('chat_action_timeframes_current', {}, locale),
+					...itemLines(
+						current.map((window) => ({
+							mealType: window.mealType,
+							startTime: hhmm(window.startMinute),
+							endTime: hhmm(window.endMinute)
+						})),
+						windowLine(locale),
+						new Map(),
+						locale
+					)
+				]
+			: [];
+	if (value.length === 0) {
+		return [
+			message('chat_action_timeframes_cleared', { count: current.length }, locale),
+			...removed
+		];
+	}
+	return [
+		message('chat_action_timeframes_replaced', { from: current.length, to: value.length }, locale),
+		...itemLines(value, windowLine(locale), new Map(), locale),
+		...removed
+	];
+}
+
+const preferenceLists = (row: Record<string, unknown> | null) => ({
+	visibleNutrients: (row?.visibleNutrients as string[] | undefined) ?? [
+		...DEFAULT_VISIBLE_NUTRIENTS
+	],
+	pinnedInsights: (row?.pinnedInsights as string[] | undefined) ?? []
+});
+
+/** The visible nutrients and pinned insights as they are now (defaults without a row). */
+export async function loadPreferenceLists(userId: string) {
+	const [row] = await getDB()
+		.select({
+			visibleNutrients: userPreferences.visibleNutrients,
+			pinnedInsights: userPreferences.pinnedInsights
+		})
+		.from(userPreferences)
+		.where(eq(userPreferences.userId, userId));
+	return preferenceLists(row ?? null);
+}
+
+/** One preference the call sets: a reset to the default, a list that drops items, any other field. */
+function preferenceLine(
+	field: string,
+	value: unknown,
+	row: Record<string, unknown> | null,
+	locale: ChatLocale
+): string[] {
+	if (field === 'waterGoalMl' && value === null) {
+		return [
+			message(
+				'chat_action_reset_default',
+				{ field, value: formatNumber(DEFAULT_PREFERENCES.waterGoalMl, locale, 0) },
+				locale
+			)
+		];
+	}
+	const lines = fieldLine(field, value, row, new Map(), locale);
+	if (field !== 'visibleNutrients' && field !== 'pinnedInsights') return lines;
+	if (!Array.isArray(value)) return lines;
+	const removed = preferenceLists(row)[field].filter((item) => !value.includes(item));
+	return removed.length > 0
+		? [...lines, message('chat_action_list_removed', { field, values: removed.join(', ') }, locale)]
+		: lines;
+}
+
+/**
+ * Every preference the call sets, as it is stored (meal names resolved,
+ * repeats dropped), what a replaced list removes, and the favourite time
+ * windows it replaces.
+ */
+const updatePreferences: Builder = async (input, { userId, locale }) => {
+	const db = getDB();
+	const [[current], windows, custom] = await Promise.all([
+		db.select().from(userPreferences).where(eq(userPreferences.userId, userId)),
+		db
+			.select({
+				mealType: favoriteMealTimeframes.mealType,
+				startMinute: favoriteMealTimeframes.startMinute,
+				endMinute: favoriteMealTimeframes.endMinute
+			})
+			.from(favoriteMealTimeframes)
+			.where(eq(favoriteMealTimeframes.userId, userId))
+			.orderBy(asc(favoriteMealTimeframes.startMinute)),
+		db
+			.select({ id: customMealTypes.id, name: customMealTypes.name })
+			.from(customMealTypes)
+			.where(eq(customMealTypes.userId, userId))
+	]);
+	const resolved = resolvePreferencePatch(input, custom);
+	if ('error' in resolved) return resolved;
+	const row = (current as Record<string, unknown> | undefined) ?? null;
+	return {
+		input: resolved.patch,
+		preview: {
+			summary: message('chat_action_update_preferences', {}, locale),
+			details: Object.entries(resolved.patch)
+				.filter(([, value]) => value !== undefined)
+				.flatMap(([field, value]) =>
+					field === 'favoriteMealTimeframes'
+						? timeframeLines(value, windows, locale)
+						: preferenceLine(field, value, row, locale)
+				)
+		}
+	};
+};
+
+/**
+ * A meal type change; a rename also lists what moves with it (meal reminders,
+ * time windows, the place in the meal order) and the entries that keep the
+ * old name.
+ */
+const updateMealType: Builder = async (input, { userId, locale }) => {
+	const id = input.mealTypeId;
+	if (typeof id !== 'string' || !UUID_RE.test(id)) {
+		return { error: 'Invalid arguments: mealTypeId: Invalid UUID' };
+	}
+	const db = getDB();
+	const [mealType] = await db
+		.select({ name: customMealTypes.name, sortOrder: customMealTypes.sortOrder })
+		.from(customMealTypes)
+		.where(and(eq(customMealTypes.id, id), eq(customMealTypes.userId, userId)));
+	if (!mealType) return notFound('Meal type');
+	const lines =
+		input.sortOrder !== undefined
+			? fieldLine('sortOrder', input.sortOrder, mealType, new Map(), locale)
+			: [];
+	const name = typeof input.name === 'string' ? input.name.trim() : null;
+	if (name !== null && name !== mealType.name) {
+		const [[mealReminders], [timeWindows], [ordered], [entries]] = await Promise.all([
+			db
+				.select({ count: count() })
+				.from(reminders)
+				.where(
+					and(
+						eq(reminders.userId, userId),
+						eq(reminders.kind, 'meal'),
+						eq(reminders.mealType, mealType.name)
+					)
+				),
+			db
+				.select({ count: count() })
+				.from(favoriteMealTimeframes)
+				.where(
+					and(
+						eq(favoriteMealTimeframes.userId, userId),
+						eq(favoriteMealTimeframes.customMealTypeId, id)
+					)
+				),
+			db
+				.select({ count: count() })
+				.from(userPreferences)
+				.where(
+					and(
+						eq(userPreferences.userId, userId),
+						sql`${mealType.name} = ANY(${userPreferences.mealOrder})`
+					)
+				),
+			db
+				.select({ count: count() })
+				.from(foodEntries)
+				.where(and(eq(foodEntries.userId, userId), eq(foodEntries.mealType, mealType.name)))
+		]);
+		const counted = (row: { count: number } | undefined) => Number(row?.count ?? 0);
+		lines.unshift(
+			message('chat_action_field_changed', { field: 'name', from: mealType.name, to: name }, locale)
+		);
+		if (counted(mealReminders) > 0) {
+			lines.push(
+				message('chat_action_rename_reminders', { count: counted(mealReminders), name }, locale)
+			);
+		}
+		if (counted(timeWindows) > 0) {
+			lines.push(
+				message('chat_action_rename_windows', { count: counted(timeWindows), name }, locale)
+			);
+		}
+		if (counted(ordered) > 0) {
+			lines.push(message('chat_action_rename_order', { name, from: mealType.name }, locale));
+		}
+		if (counted(entries) > 0) {
+			lines.push(
+				message(
+					'chat_action_meal_type_entries',
+					{ count: counted(entries), name: mealType.name },
+					locale
+				)
+			);
+		}
+	}
+	return {
+		input,
+		preview: {
+			summary: message('chat_action_update_meal_type', { name: mealType.name }, locale),
+			details: lines
+		}
+	};
+};
+
 type Loaded = { row: Record<string, unknown>; extra: Record<string, unknown> };
 
 /**
@@ -850,7 +1234,10 @@ export const PREVIEW_BUILDERS: Record<string, Builder> = {
 	unlog_supplement: unlogSupplement,
 	delete_weight: deleteWeight,
 	delete_sleep: deleteSleep,
-	delete_day_properties: deleteDayProperties
+	delete_day_properties: deleteDayProperties,
+	delete_fast: deleteFast,
+	delete_reminder: deleteReminder,
+	delete_meal_type: deleteMealType
 };
 
 // Builders that list every field the call sets.
@@ -858,6 +1245,8 @@ export const FIELD_PREVIEW_BUILDERS: Record<string, Builder> = {
 	update_food: updateFood,
 	update_recipe: updateRecipe,
 	update_supplement: updateSupplement,
+	update_preferences: updatePreferences,
+	update_meal_type: updateMealType,
 	set_day_properties: setDayProperties,
 	set_food_labels: setLabels('foods'),
 	set_recipe_labels: setLabels('recipes')

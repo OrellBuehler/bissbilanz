@@ -79,5 +79,27 @@ export const toolNames = [
 	'list_ai_tasks',
 	'get_ai_task',
 	'complete_ai_task',
-	'dismiss_ai_task'
+	'dismiss_ai_task',
+	// Fasting sessions
+	'list_fasts',
+	'log_fast',
+	'update_fast',
+	'delete_fast',
+	// Reminders
+	'list_reminders',
+	'create_reminder',
+	'update_reminder',
+	'delete_reminder',
+	// Preferences
+	'get_preferences',
+	'update_preferences',
+	// Custom meal types
+	'create_meal_type',
+	'update_meal_type',
+	'delete_meal_type',
+	// Where-used, brands, nutrient database
+	'get_food_usage',
+	'get_recipe_usage',
+	'list_food_brands',
+	'search_nutrient_database'
 ] as const;

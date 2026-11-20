@@ -8,7 +8,7 @@
 <div class="mx-auto max-w-2xl px-6 py-12">
 	<h1 class="mb-2 text-3xl font-bold">{m.privacy_page_title()}</h1>
 	<p class="mb-8 text-sm text-muted-foreground">
-		{m.privacy_effective_date({ date: 'November 19, 2026' })}
+		{m.privacy_effective_date({ date: 'November 20, 2026' })}
 	</p>
 
 	<p class="mb-6">
@@ -171,9 +171,10 @@
 		earlier messages of the conversation, your language, time zone and the day you have open, and
 		whatever data from your account the assistant looks up to answer you. Depending on what you ask,
 		that can be any of your data: food entries, foods, recipes, goals, weight, sleep, supplements,
-		day notes, statistics and the details of what it changes for you. To answer, the assistant can
-		also search the web and look products up in Open Food Facts. Anthropic processes this data under
-		its commercial terms and
+		fasts, reminders, meal types, app settings, day notes, statistics and the details of what it
+		changes for you. To answer, the assistant can also search the web, look products up in Open Food
+		Facts and look foods up in USDA FoodData Central. Anthropic processes this data under its
+		commercial terms and
 		<a href="https://www.anthropic.com/legal/privacy" class="underline">privacy policy</a>. The
 		assistant only acts on your account. These changes wait for your confirmation: deleting, merging
 		foods, copying a day, removing a supplement log, changing the nutrition, serving size or photo
@@ -181,7 +182,8 @@
 		removing the photo of any food or recipe, clearing a day's note, water or activity details or
 		all the labels the assistant gave a food or recipe, changing a recipe's ingredients or steps (or
 		the servings or cooked weight of a recipe that has diary entries), changing a supplement's
-		ingredients, anything the assistant wants to force, and every change after the first ten in one
+		ingredients, replacing the time windows for favourites, removing visible nutrients or pinned
+		insights, anything the assistant wants to force, and every change after the first ten in one
 		answer. Photos you attach are copied into the chat, and the conversations and their photos stay
 		stored until you delete them.
 	</p>
@@ -273,10 +275,11 @@
 		</li>
 		<li>
 			<strong>USDA FoodData Central (nutrient lookups):</strong> When a meal you queued for AI
-			logging is processed on the Bissbilanz server, the AI can look foods up in this nutrient
-			database. Every lookup sends a food name (for example "pear, raw") to the FoodData Central API
-			of the U.S. Department of Agriculture. No personal data or account identifier is sent.
-			FoodData Central is a public nutrient database whose data is in the public domain. Their
+			logging is processed on the Bissbilanz server, or when the in-app assistant or an AI assistant
+			you connected over MCP searches it for you, the Bissbilanz server looks foods up in this
+			nutrient database. Every lookup sends a food name (for example "pear, raw") to the FoodData
+			Central API of the U.S. Department of Agriculture. No personal data or account identifier is
+			sent. FoodData Central is a public nutrient database whose data is in the public domain. Their
 			privacy policy is available at
 			<a href="https://www.usda.gov/privacy-policy" class="underline">usda.gov</a>. While
 			researching nutrition facts for such a meal, the AI provider may also search the web and fetch

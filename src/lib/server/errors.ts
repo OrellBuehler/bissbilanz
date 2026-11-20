@@ -30,6 +30,10 @@ function extractPgError(error: unknown): PgErrorCause | null {
 	return null;
 }
 
+/** The constraint a database error violated, or null for any other error. */
+export const pgConstraintName = (error: unknown): string | null =>
+	extractPgError(error)?.constraint_name ?? null;
+
 /**
  * True for errors raised by the database layer, whose messages embed the SQL
  * and its parameters and must never reach an API or MCP caller.

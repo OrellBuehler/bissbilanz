@@ -27,7 +27,7 @@ const LEADING_SECTION_KEYS = ['fasting', 'day-properties'];
 const DAY_DETAIL_SECTION_KEYS = ['water', 'activity', 'notes'];
 
 export const normalizeSectionOrder = (order: string[]): string[] => {
-	const result = order.filter((k) => ALL_SECTION_KEYS.includes(k));
+	const result = order.filter((k, i) => ALL_SECTION_KEYS.includes(k) && order.indexOf(k) === i);
 	let leadingInsertAt = 0;
 	for (const key of ALL_SECTION_KEYS) {
 		if (!result.includes(key)) {
