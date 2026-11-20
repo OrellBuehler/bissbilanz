@@ -25,7 +25,7 @@ import kotlinx.serialization.encoding.*
  *
  * @param id Client-generated message id and idempotency key: sending the same id again returns the stored message and its run and never starts a second run.
  * @param text
- * @param imageFilenames Photos uploaded with POST /api/ai-tasks/photo (or /api/images/upload) by this user, as `<uuid>.webp` or `/uploads/<uuid>.webp`. At most 5; files over 4 MB are not sent to the model.
+ * @param imageFilenames Photos uploaded with POST /api/ai-tasks/photo (or /api/images/upload) by this user, as `<uuid>.webp` or `/uploads/<uuid>.webp`. At most 5. A file that is not one of the user's uploads, is missing on the server or is over 4 MB is rejected with 400 `invalid_image`. The server copies each photo into the chat (the copies count against the upload storage quota).
  * @param context
  */
 @Serializable
@@ -33,7 +33,7 @@ data class ChatMessageCreate(
     // Client-generated message id and idempotency key: sending the same id again returns the stored message and its run and never starts a second run.
     @SerialName(value = "id") @Required val id: kotlin.String,
     @SerialName(value = "text") @Required val text: kotlin.String,
-    // Photos uploaded with POST /api/ai-tasks/photo (or /api/images/upload) by this user, as `<uuid>.webp` or `/uploads/<uuid>.webp`. At most 5; files over 4 MB are not sent to the model.
+    // Photos uploaded with POST /api/ai-tasks/photo (or /api/images/upload) by this user, as `<uuid>.webp` or `/uploads/<uuid>.webp`. At most 5. A file that is not one of the user's uploads, is missing on the server or is over 4 MB is rejected with 400 `invalid_image`. The server copies each photo into the chat (the copies count against the upload storage quota).
     @SerialName(value = "imageFilenames") val imageFilenames: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "context") val context: ChatMessageContext? = null,
 )

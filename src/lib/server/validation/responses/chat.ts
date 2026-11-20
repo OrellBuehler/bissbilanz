@@ -244,10 +244,10 @@ export const chatMessageAcceptedResponseSchema = z
 
 export const chatEventSchema = z
 	.object({
-		seq: z
-			.number()
-			.int()
-			.meta({ description: 'Increases by one per event within a conversation.' }),
+		seq: z.number().int().meta({
+			description:
+				'Increases with every event within a conversation. Readers can see gaps (text_delta events are deleted after 24 hours): apply events in order without requiring contiguous seqs.'
+		}),
 		type: z.string().meta({
 			description: `Ignore events of an unknown type (but still advance past their seq). ${UNKNOWN_HINT}`,
 			'x-extensible-enum': [...chatEventTypeValues]
