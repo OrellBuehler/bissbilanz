@@ -81,10 +81,10 @@ export const chatMessagePartSchema = z
 		changes: z.array(chatChangeSchema).optional().meta({ description: 'tool parts.' }),
 		actionId: z.string().uuid().optional().meta({ description: 'action parts.' }),
 		preview: chatActionPreviewSchema.optional().meta({ description: 'action parts.' }),
-		expiresAt: z
-			.string()
-			.optional()
-			.meta({ description: 'action parts: when a pending action expires.' })
+		expiresAt: z.string().optional().meta({
+			description:
+				'action parts: when the action expires (ISO 8601). Set on every action the server creates, never an empty string.'
+		})
 	})
 	.meta({
 		id: 'ChatMessagePart',

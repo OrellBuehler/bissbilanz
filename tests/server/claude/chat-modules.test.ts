@@ -165,8 +165,7 @@ describe('event folding', () => {
 				name: 'delete_entry',
 				label: 'Deleting an entry',
 				status: 'approved',
-				preview: { summary: 'Delete', details: [] },
-				expiresAt: ''
+				preview: { summary: 'Delete', details: [] }
 			},
 			{ type: 'text', text: 'Done' }
 		]);

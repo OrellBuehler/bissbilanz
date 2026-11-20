@@ -4055,7 +4055,7 @@ export interface components {
 			actionId?: string;
 			/** @description action parts. */
 			preview?: components['schemas']['ChatActionPreview'];
-			/** @description action parts: when a pending action expires. */
+			/** @description action parts: when the action expires (ISO 8601). Set on every action the server creates, never an empty string. */
 			expiresAt?: string;
 		};
 		ChatMessageAcceptedResponse: {
