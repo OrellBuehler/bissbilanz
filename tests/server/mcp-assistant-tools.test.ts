@@ -81,7 +81,10 @@ const deps = {
 	getFoodUsage: vi.fn(),
 	getRecipeUsage: vi.fn(),
 	listFoodBrands: vi.fn(),
-	searchFdcFoods: vi.fn()
+	searchFdcFoods: vi.fn(),
+	todayForUser: vi.fn(),
+	getSupplementById: vi.fn(),
+	logSupplement: vi.fn()
 };
 
 const h = createHandlers(deps as unknown as HandlerDeps);
@@ -719,6 +722,18 @@ describe('meal type tools', () => {
 		await expect(h.handleDeleteMealType(USER, { mealTypeId: MEAL_TYPE_ID })).rejects.toThrow(
 			'Failed to delete meal type: Meal type is used in favorites meal timeframes and cannot be deleted'
 		);
+	});
+});
+
+describe('log_supplement', () => {
+	test('reports an unknown supplement with a fixed message instead of logging', async () => {
+		deps.todayForUser.mockResolvedValue('2026-11-19');
+		deps.getSupplementById.mockResolvedValue(null);
+		expect(await h.handleLogSupplement(USER, { supplementId: REMINDER_ID })).toEqual({
+			success: false,
+			error: 'Supplement not found'
+		});
+		expect(deps.logSupplement).not.toHaveBeenCalled();
 	});
 });
 
