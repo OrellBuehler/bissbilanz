@@ -51,6 +51,15 @@ struct ChatHomeView: View {
         .task {
             await load()
         }
+        // A run left working in the background ends without this screen
+        // following it; the rows catch up while one is shown as working.
+        .task(id: hasActiveRun) {
+            while hasActiveRun, !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                if Task.isCancelled { return }
+                await store.loadConversations()
+            }
+        }
         .alert(L10n.chatRenameTitle, isPresented: $showRename) {
             TextField(L10n.chatTitlePlaceholder, text: $renameText)
             Button(L10n.save) {
@@ -79,6 +88,10 @@ struct ChatHomeView: View {
         } message: {
             if let errorMessage { Text(errorMessage) }
         }
+    }
+
+    private var hasActiveRun: Bool {
+        openChat == nil && store.conversations.contains { $0.activeRun?.isActive == true }
     }
 
     @ViewBuilder
