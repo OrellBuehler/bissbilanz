@@ -8,7 +8,10 @@ export const chatChangeDomainValues = [
 	'supplements',
 	'dayProperties',
 	'labels',
-	'preferences'
+	'preferences',
+	'fasting',
+	'reminders',
+	'mealTypes'
 ] as const;
 export type ChatChangeDomain = (typeof chatChangeDomainValues)[number];
 

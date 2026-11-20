@@ -12,6 +12,15 @@ import { dayPropertiesSetSchema } from '$lib/server/validation/day-properties';
 import { weightCreateSchema, weightUpdateSchema } from '$lib/server/validation/weight';
 import { sleepCreateSchema, sleepUpdateSchema } from '$lib/server/validation/sleep';
 import { topFoodsSortSchema } from '$lib/server/validation/stats';
+import {
+	fastingSessionUpsertSchema,
+	fastingSessionUpdateSchema
+} from '$lib/server/validation/fasting';
+import { reminderCreateSchema, reminderUpdateSchema } from '$lib/server/validation/reminders';
+import { preferencesUpdateSchema } from '$lib/server/validation/preferences';
+import { mealTypeCreateSchema, mealTypeUpdateSchema } from '$lib/server/validation/meal-types';
+import { MAX_PINNED_INSIGHTS } from '$lib/insights/card-ids';
+import { ASSISTANT_PREFERENCE_FIELDS } from './create-handlers';
 import { scheduleTypeValues } from '$lib/supplement-units';
 import { aiTaskStatusValues } from '$lib/server/schema';
 import { MAX_BATCH_ITEMS, MAX_LABELS_PER_FOOD } from '$lib/server/labels';
@@ -88,7 +97,24 @@ import {
 	handleListAiTasks,
 	handleGetAiTask,
 	handleCompleteAiTask,
-	handleDismissAiTask
+	handleDismissAiTask,
+	handleListFasts,
+	handleLogFast,
+	handleUpdateFast,
+	handleDeleteFast,
+	handleListReminders,
+	handleCreateReminder,
+	handleUpdateReminder,
+	handleDeleteReminder,
+	handleGetPreferences,
+	handleUpdatePreferences,
+	handleCreateMealType,
+	handleUpdateMealType,
+	handleDeleteMealType,
+	handleGetFoodUsage,
+	handleGetRecipeUsage,
+	handleListFoodBrands,
+	handleSearchNutrientDatabase
 } from './handlers';
 import { ALL_NUTRIENTS } from '$lib/nutrients';
 import { INCLUDE_RECIPES_DOC, includeRecipesSchema } from './include-recipes';
@@ -97,6 +123,8 @@ const READ_ONLY = { readOnlyHint: true, destructiveHint: false } as const;
 const WRITE = { readOnlyHint: false, destructiveHint: false } as const;
 const UPDATE = { readOnlyHint: false, destructiveHint: false, idempotentHint: true } as const;
 const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true, idempotentHint: true } as const;
+
+const INT4_MAX = 2_147_483_647;
 
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD format');
 
@@ -108,10 +136,10 @@ const dateRangeSchema = {
 const MCP_SERVER_NAME = 'bissbilanz';
 const MCP_SERVER_VERSION = '0.1.0';
 
-export const MCP_INSTRUCTIONS = `Bissbilanz is the user's personal diary for food, body weight, sleep and supplements. Tools operate on the authenticated user's data only.
+export const MCP_INSTRUCTIONS = `Bissbilanz is the user's personal diary for food, body weight, sleep, supplements and fasting. Tools operate on the authenticated user's data only.
 
 Conventions that apply to every tool:
-- Dates are "YYYY-MM-DD" in the user's own timezone. "Today" is resolved server-side from the user's timezone preference, so omit the date to mean today instead of computing it yourself. Timestamps (eatenAt, bedtime, wakeTime) are ISO 8601 with an explicit UTC offset.
+- Dates are "YYYY-MM-DD" in the user's own timezone. "Today" is resolved server-side from the user's timezone preference, so omit the date to mean today instead of computing it yourself. Timestamps (eatenAt, bedtime, wakeTime, a fast's startedAt and endedAt) are ISO 8601 with an explicit UTC offset.
 - Meal types are capitalized: "Breakfast", "Lunch", "Dinner", "Snacks". Lowercase aliases are normalized, but custom meal types are matched verbatim; call list_meal_types when unsure.
 - Search before you create. Check search_foods (and find_food_by_barcode or search_openfoodfacts for packaged products) before create_food, and prefer logging an existing foodId or recipeId over a quick log. Create a food only when you have a nutrition-label photo, a specific product description with nutrition facts, or a web link carrying them — always pass barcode when one is visible, and try find_food_by_barcode first. For a plain meal description, log a matched existing foodId or a quick entry; use quickName/quickCalories only for one-off estimates such as restaurant meals, never to justify creating a food.
 - Amounts are in servings of the food's own serving size (servingSize + servingUnit), not raw grams. Weight is kilograms; sleep duration is minutes. A recipe with a cookedWeight (grams of the finished dish) can be logged by weight: call get_recipe first, then servings = grams / (cookedWeight / totalServings).
@@ -1751,6 +1779,361 @@ export function createMcpServer(userId: string): McpServer {
 			annotations: UPDATE
 		},
 		safe((args) => handleDismissAiTask(userId, args))
+	);
+
+	// Fasting sessions
+	const FAST_DOC =
+		"Fasts are finished fasting sessions: startedAt and endedAt are ISO 8601 instants with an explicit UTC offset, targetHours is the goal length in hours (1-168). A fast that is running right now exists only in the fasting timer on the user's device: the server cannot see, start or stop it.";
+
+	const FAST_FIELD_DOCS = {
+		startedAt: 'When the fast started, ISO 8601 with UTC offset (e.g. "2026-11-19T20:00:00+01:00")',
+		endedAt: 'When the fast ended, ISO 8601 with UTC offset; must be after startedAt',
+		targetHours: 'Goal length of the fast in whole hours (1-168), e.g. 16 for 16:8'
+	};
+
+	server.registerTool(
+		'list_fasts',
+		{
+			title: 'List Fasts',
+			description: `List the user's recorded fasts, most recent first, with their length in minutes and whether the target was reached. ${FAST_DOC}`,
+			inputSchema: {
+				from: z
+					.string()
+					.datetime({ offset: true })
+					.optional()
+					.describe('Only fasts that started at or after this instant (ISO 8601 with UTC offset)'),
+				to: z
+					.string()
+					.datetime({ offset: true })
+					.optional()
+					.describe('Only fasts that started at or before this instant (ISO 8601 with UTC offset)'),
+				limit: z
+					.number()
+					.int()
+					.min(1)
+					.max(500)
+					.optional()
+					.describe('Max fasts to return. Defaults to 30.')
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleListFasts(userId, args))
+	);
+
+	const { startedAt, endedAt, targetHours } = fastingSessionUpsertSchema.shape;
+
+	server.registerTool(
+		'log_fast',
+		{
+			title: 'Log Fast',
+			description: `Record a finished fast, e.g. one the user tells you about afterwards. ${FAST_DOC} The fast must be over (endedAt not in the future), last at most 14 days and not overlap a fast already recorded (see list_fasts). If the user is still timing the fast in the app, let them end it there: the app saves it itself, so logging it here as well would record it twice. Ending a fast with the app's timer also flags the day it ended as a fasting day; do that with set_day_properties (isFastingDay) when the user wants the same.`,
+			inputSchema: describeShape({ startedAt, endedAt, targetHours }, FAST_FIELD_DOCS),
+			annotations: WRITE
+		},
+		safe((args) => handleLogFast(userId, args))
+	);
+
+	server.registerTool(
+		'update_fast',
+		{
+			title: 'Update Fast',
+			description:
+				'Change the start, end or target of a recorded fast (see list_fasts). Omitted fields keep their value. The changed fast must be over, last at most 14 days and not overlap another recorded fast.',
+			inputSchema: {
+				fastId: z.string().uuid().describe('ID of the fast to update'),
+				...describeShape(fastingSessionUpdateSchema.shape, FAST_FIELD_DOCS)
+			},
+			annotations: UPDATE
+		},
+		safe((args) => handleUpdateFast(userId, args))
+	);
+
+	server.registerTool(
+		'delete_fast',
+		{
+			title: 'Delete Fast',
+			description: 'Delete a recorded fast.',
+			inputSchema: {
+				fastId: z.string().uuid().describe('ID of the fast to delete')
+			},
+			annotations: DESTRUCTIVE
+		},
+		safe((args) => handleDeleteFast(userId, args))
+	);
+
+	// Reminders
+	const REMINDER_DOC =
+		'A reminder prompts the user to log their weight, their sleep or a meal (kind "meal" with mealType) at a local wall-clock time on the chosen weekdays. The Android and iOS apps schedule it as a local notification with Snooze and Skip-today actions once they have synced it; the web app gets a Web Push notification from the server if the user has turned push notifications on. A reminder stays silent on a day when what it asks for is already logged (any weight entry, any sleep entry, or any entry in that meal), and enabled: false keeps it without notifying. Supplement reminders are separate: they are the reminderTimes of each supplement. mealType must be a meal the user has (a default or one of their custom meal types; "lunch" is stored as "Lunch"), and a reminder identical to an existing one (same kind, meal, time and weekdays) is refused.';
+
+	const REMINDER_FIELD_DOCS = {
+		kind: 'What to log: "weight", "sleep" or "meal"',
+		mealType:
+			'The meal a "meal" reminder is for, e.g. "Lunch" or a custom meal type from list_meal_types. Required for kind "meal", omitted otherwise.',
+		time: 'Local time it fires, HH:MM (24h), e.g. "07:30"'
+	};
+
+	server.registerTool(
+		'list_reminders',
+		{
+			title: 'List Reminders',
+			description: `List the user's logging reminders with their time, weekdays and whether they are enabled. ${REMINDER_DOC}`,
+			inputSchema: {},
+			annotations: READ_ONLY
+		},
+		safe(() => handleListReminders(userId))
+	);
+
+	server.registerTool(
+		'create_reminder',
+		{
+			title: 'Create Reminder',
+			description: `Create a logging reminder. ${REMINDER_DOC}`,
+			inputSchema: describeShape(reminderCreateSchema.shape, {
+				...REMINDER_FIELD_DOCS,
+				weekdays: 'Days of the week it fires, 0=Sun..6=Sat. Defaults to every day.',
+				enabled: 'Whether it notifies. Defaults to true.'
+			}),
+			annotations: WRITE
+		},
+		safe((args) => handleCreateReminder(userId, args))
+	);
+
+	server.registerTool(
+		'update_reminder',
+		{
+			title: 'Update Reminder',
+			description:
+				'Change a logging reminder (see list_reminders). Omitted fields keep their value; weekdays replaces the whole list. Switching kind to "meal" needs mealType; switching away from "meal" drops it.',
+			inputSchema: {
+				reminderId: z.string().uuid().describe('ID of the reminder to update'),
+				...describeShape(reminderUpdateSchema.shape, {
+					...REMINDER_FIELD_DOCS,
+					weekdays: 'New days of the week it fires, 0=Sun..6=Sat, at least one',
+					enabled: 'Whether it notifies; false keeps the reminder without notifying'
+				})
+			},
+			annotations: UPDATE
+		},
+		safe((args) => handleUpdateReminder(userId, args))
+	);
+
+	server.registerTool(
+		'delete_reminder',
+		{
+			title: 'Delete Reminder',
+			description:
+				'Delete a logging reminder. The devices stop notifying once they have synced the change.',
+			inputSchema: {
+				reminderId: z.string().uuid().describe('ID of the reminder to delete')
+			},
+			annotations: DESTRUCTIVE
+		},
+		safe((args) => handleDeleteReminder(userId, args))
+	);
+
+	// Preferences
+	server.registerTool(
+		'get_preferences',
+		{
+			title: 'Get Preferences',
+			description:
+				"Get the user's app preferences: which dashboard widgets are shown and in which order (widgetOrder), the meal order, the extra nutrients shown in the food form, what tapping a favourite does and the favourite meal time windows, the water goal, the start page, pinned insights, and whether activity calories raise the day's goals. Also includes settings update_preferences cannot change: the app language (locale), the time zone, the biological sex used for nutrient references and how queued AI tasks are processed.",
+			inputSchema: {},
+			annotations: READ_ONLY
+		},
+		safe(() => handleGetPreferences(userId))
+	);
+
+	const preferenceShape = Object.fromEntries(
+		ASSISTANT_PREFERENCE_FIELDS.map((key) => [key, preferencesUpdateSchema.shape[key]])
+	) as Pick<typeof preferencesUpdateSchema.shape, (typeof ASSISTANT_PREFERENCE_FIELDS)[number]>;
+
+	server.registerTool(
+		'update_preferences',
+		{
+			title: 'Update Preferences',
+			description:
+				'Change the user\'s app preferences. Omitted fields keep their value; widgetOrder, mealOrder, visibleNutrients, pinnedInsights and favoriteMealTimeframes each replace the whole list, and repeated items are dropped. Meal names in mealOrder and favoriteMealTimeframes must be meals the user has and are stored under their stored names ("lunch" becomes "Lunch"); a custom meal named without customMealTypeId is matched to it, and a mealType that does not fit its customMealTypeId is refused. Only the fields listed here can be changed: the language, time zone, biological sex, AI task processing and account settings are for the user to change in the app\'s settings. Returns the stored values of the fields you changed.',
+			inputSchema: describeShape(preferenceShape, {
+				showChartWidget: 'Show the calorie and macro chart on the dashboard',
+				showFavoritesWidget: 'Show the favourites card for one-tap logging',
+				showSupplementsWidget: 'Show the supplement checklist',
+				showWeightWidget: 'Show the weight card',
+				showMealBreakdownWidget: 'Show the per-meal breakdown',
+				showTopFoodsWidget: 'Show the most-logged foods',
+				showSleepWidget: 'Show the sleep card',
+				showFastingWidget: 'Show the fasting timer',
+				showWaterWidget: 'Show the water card',
+				showActivityWidget: 'Show the activity card',
+				showNotesWidget: 'Show the day notes card',
+				showRecipeSuggestionsWidget: 'Show recipe suggestions',
+				widgetOrder:
+					'Dashboard sections from top to bottom, by key. Keys left out are put back at their default place; "day-properties" is a placeholder kept for older apps.',
+				startPage: 'The page the app opens on',
+				favoriteTapAction:
+					'"instant" logs one serving of a favourite on tap; "picker" asks for the amount first',
+				favoriteMealAssignmentMode:
+					'"time_based" files a tapped favourite into the meal whose time window (favoriteMealTimeframes) contains the current time and asks outside the windows; "ask_meal" always asks which meal',
+				favoriteMealTimeframes:
+					'Time windows for time_based assignment, each { mealType, customMealTypeId?, startTime, endTime } with local HH:MM times; windows must not overlap. For a custom meal type pass its id from list_meal_types as customMealTypeId. Replaces every window; [] removes them all.',
+				mealOrder:
+					'Order of the meals in the diary, by name (default and custom meal types). Meals left out are appended.',
+				pinnedInsights: `Insight cards pinned on the insights page, by id, at most ${MAX_PINNED_INSIGHTS}`,
+				visibleNutrients:
+					'Extended nutrient keys shown in the food form, named like the create_food fields',
+				waterGoalMl: 'Daily water goal in ml (250-10000); null resets it to 2000',
+				activityGoalAdjustment:
+					"When true, a day's activity calories (set_day_properties activityCalories) raise that day's goals",
+				activityCreditPercent:
+					'Share of the activity calories added to the goals when activityGoalAdjustment is on, 0-100'
+			}),
+			annotations: UPDATE
+		},
+		safe((args) => handleUpdatePreferences(userId, args))
+	);
+
+	// Custom meal types
+	server.registerTool(
+		'create_meal_type',
+		{
+			title: 'Create Meal Type',
+			description:
+				'Create a custom meal type (e.g. "Pre-workout") next to Breakfast, Lunch, Dinner and Snacks, for entries, meal reminders and favourite time windows. Names are unique ignoring case, and a default meal name is refused. It goes to the end of the meal order; move it with update_preferences (mealOrder).',
+			inputSchema: describeShape(
+				{
+					...mealTypeCreateSchema.shape,
+					sortOrder: mealTypeCreateSchema.shape.sortOrder.max(INT4_MAX).optional()
+				},
+				{
+					name: 'Meal type name, up to 50 characters',
+					sortOrder:
+						'Position among the custom meal types (0 or more). Rarely needed: the diary follows the mealOrder preference. Defaults to after the last one.'
+				}
+			),
+			annotations: WRITE
+		},
+		safe((args) => handleCreateMealType(userId, args))
+	);
+
+	server.registerTool(
+		'update_meal_type',
+		{
+			title: 'Update Meal Type',
+			description:
+				'Rename a custom meal type (from list_meal_types), or change its sortOrder. A renamed meal keeps its place in the meal order, its favourite time windows and its meal reminders. Diary entries already logged under the old name keep that name and still show under it; move them with update_entry if the user wants them under the new one. Default meal types cannot be renamed.',
+			inputSchema: {
+				mealTypeId: z.string().uuid().describe('ID of the custom meal type'),
+				...describeShape(
+					{
+						...mealTypeUpdateSchema.shape,
+						sortOrder: mealTypeCreateSchema.shape.sortOrder.max(INT4_MAX).optional()
+					},
+					{
+						name: 'New name, up to 50 characters',
+						sortOrder: 'New position among the custom meal types'
+					}
+				)
+			},
+			annotations: UPDATE
+		},
+		safe((args) => handleUpdateMealType(userId, args))
+	);
+
+	server.registerTool(
+		'delete_meal_type',
+		{
+			title: 'Delete Meal Type',
+			description:
+				'Delete a custom meal type. Diary entries logged with it keep its name and still show under it, but it can no longer be picked for new entries. Meal reminders for it keep notifying under that name until deleted with delete_reminder. Refused while a favourite time window uses it: change favoriteMealTimeframes with update_preferences first.',
+			inputSchema: {
+				mealTypeId: z.string().uuid().describe('ID of the custom meal type to delete')
+			},
+			annotations: DESTRUCTIVE
+		},
+		safe((args) => handleDeleteMealType(userId, args))
+	);
+
+	// Where-used, brands, nutrient database
+	const usageLimit = z
+		.number()
+		.int()
+		.min(1)
+		.max(200)
+		.optional()
+		.describe('Most recent entries to return, 1-200. Defaults to 20.');
+
+	server.registerTool(
+		'get_food_usage',
+		{
+			title: 'Get Food Usage',
+			description:
+				'Where a food is used: how many diary entries log it (totalEntries) with the most recent ones (date, mealType, servings, eatenAt), the recipes that use it as an ingredient (totalRecipes, up to 50 listed; isLastIngredient: it is their only ingredient, so delete_food cannot remove it), and the supplements it backs (totalSupplements, up to 50 listed). Check it before deleting, merging or changing the nutrition of a food.',
+			inputSchema: {
+				foodId: z.string().uuid().describe('ID of the food'),
+				limit: usageLimit
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleGetFoodUsage(userId, args))
+	);
+
+	server.registerTool(
+		'get_recipe_usage',
+		{
+			title: 'Get Recipe Usage',
+			description:
+				'How many diary entries log a recipe (totalEntries), with the most recent ones (date, mealType, servings, eatenAt). Check it before deleting a recipe or changing its servings or cooked weight.',
+			inputSchema: {
+				recipeId: z.string().uuid().describe('ID of the recipe'),
+				limit: usageLimit
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleGetRecipeUsage(userId, args))
+	);
+
+	server.registerTool(
+		'list_food_brands',
+		{
+			title: 'List Food Brands',
+			description:
+				"The brands in the user's food database with how many foods carry each, most common first, and how many brands match (total). Spellings that differ only in case or spacing count as one brand, shown in its most common spelling.",
+			inputSchema: {
+				query: z
+					.string()
+					.max(200)
+					.optional()
+					.describe('Only brands containing this text, ignoring case'),
+				limit: z
+					.number()
+					.int()
+					.min(1)
+					.max(500)
+					.optional()
+					.describe('Max brands to return. Defaults to 100.')
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleListFoodBrands(userId, args))
+	);
+
+	server.registerTool(
+		'search_nutrient_database',
+		{
+			title: 'Search Nutrient Database',
+			description:
+				'Search the USDA FoodData Central nutrient database for generic and whole foods and plain packaged foods (produce, meat, fish, eggs, grains, nuts, milk, juice), raw or cooked. Returns up to six records with energy and macros (per100g) and every other nutrient the record has (nutrientsPer100g, keyed like the create_food fields), all per 100 g. To create a food from a record, scale the values to its serving and pass them to create_food. When the database is not configured on this server or cannot be reached, the result carries unavailable: true and a hint: use another source then.',
+			inputSchema: {
+				query: z
+					.string()
+					.trim()
+					.min(1)
+					.max(200)
+					.describe('Food name in English, e.g. "pear raw" or "chicken breast roasted"')
+			},
+			annotations: READ_ONLY
+		},
+		safe((args) => handleSearchNutrientDatabase(userId, args))
 	);
 
 	registerPrompts(server);

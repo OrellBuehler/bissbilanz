@@ -5,7 +5,8 @@ import {
 	listFoods,
 	listRecentFoods,
 	getFood,
-	findFoodByBarcode
+	findFoodByBarcode,
+	listFoodBrands
 } from '$lib/server/foods';
 import { mergeFoods } from '$lib/server/food-merge';
 import { findDuplicateGroups } from '$lib/server/food-duplicates';
@@ -47,7 +48,13 @@ import {
 } from '$lib/server/stats';
 import { formatDailyStatus } from '$lib/server/mcp/format';
 import { todayInTimeZone } from '$lib/utils/dates';
-import { getUserTimeZone, getPreferences } from '$lib/server/preferences';
+import {
+	getUserTimeZone,
+	getPreferences,
+	getUserLocale,
+	updatePreferences,
+	DEFAULT_PREFERENCES
+} from '$lib/server/preferences';
 import { getClaudeCapabilitySafe } from '$lib/server/claude/capability';
 import {
 	createSupplement,
@@ -85,7 +92,30 @@ import {
 } from '$lib/server/nutrient-insights';
 import { listLabelStats, setFoodLabels, setFoodLabelsBatch } from '$lib/server/food-labels';
 import { setRecipeLabels, setRecipeLabelsBatch } from '$lib/server/recipe-labels';
-import { listMealTypes } from '$lib/server/meal-types';
+import {
+	listMealTypes,
+	createMealType,
+	updateMealType,
+	renameMealType,
+	deleteMealType
+} from '$lib/server/meal-types';
+import {
+	listFastingSessions,
+	getFastingSession,
+	findOverlappingFast,
+	upsertFastingSession,
+	updateFastingSession,
+	deleteFastingSession
+} from '$lib/server/fasting';
+import {
+	listReminders,
+	getReminderById,
+	createReminder,
+	updateReminder,
+	deleteReminder
+} from '$lib/server/reminders';
+import { getFoodUsage, getRecipeUsage } from '$lib/server/usage';
+import { searchFdcFoods } from '$lib/server/fooddata-central';
 import {
 	getDayProperties,
 	getDayPropertiesRange,
@@ -172,7 +202,24 @@ export const {
 	handleListAiTasks,
 	handleGetAiTask,
 	handleCompleteAiTask,
-	handleDismissAiTask
+	handleDismissAiTask,
+	handleListFasts,
+	handleLogFast,
+	handleUpdateFast,
+	handleDeleteFast,
+	handleListReminders,
+	handleCreateReminder,
+	handleUpdateReminder,
+	handleDeleteReminder,
+	handleGetPreferences,
+	handleUpdatePreferences,
+	handleCreateMealType,
+	handleUpdateMealType,
+	handleDeleteMealType,
+	handleGetFoodUsage,
+	handleGetRecipeUsage,
+	handleListFoodBrands,
+	handleSearchNutrientDatabase
 } = createHandlers({
 	listFoods,
 	createFood,
@@ -251,8 +298,30 @@ export const {
 	getBiologicalSex,
 	getUserTimeZone,
 	getPreferences,
+	getUserLocale,
+	updatePreferences,
+	defaultPreferences: DEFAULT_PREFERENCES,
 	getClaudeCapabilitySafe,
 	listMealTypes,
+	createMealType,
+	updateMealType,
+	renameMealType,
+	deleteMealType,
+	listFastingSessions,
+	getFastingSession,
+	findOverlappingFast,
+	upsertFastingSession,
+	updateFastingSession,
+	deleteFastingSession,
+	listReminders,
+	getReminderById,
+	createReminder,
+	updateReminder,
+	deleteReminder,
+	getFoodUsage,
+	getRecipeUsage,
+	listFoodBrands,
+	searchFdcFoods,
 	getDayProperties,
 	getDayPropertiesRange,
 	setDayProperties,

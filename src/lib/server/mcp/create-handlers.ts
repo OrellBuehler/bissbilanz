@@ -27,7 +27,8 @@ import type {
 	deleteFood,
 	getFood,
 	findFoodByBarcode,
-	listRecentFoods
+	listRecentFoods,
+	listFoodBrands
 } from '$lib/server/foods';
 import type { mergeFoods } from '$lib/server/food-merge';
 import type { findDuplicateGroups } from '$lib/server/food-duplicates';
@@ -96,8 +97,46 @@ import type {
 	getExtendedNutrientEntries,
 	getDailyNutrientTotals
 } from '$lib/server/analytics';
-import type { listMealTypes } from '$lib/server/meal-types';
-import type { getPreferences } from '$lib/server/preferences';
+import type {
+	listMealTypes,
+	createMealType,
+	updateMealType,
+	renameMealType,
+	deleteMealType
+} from '$lib/server/meal-types';
+import type {
+	getPreferences,
+	getUserLocale,
+	updatePreferences,
+	DEFAULT_PREFERENCES
+} from '$lib/server/preferences';
+import type {
+	listFastingSessions,
+	getFastingSession,
+	findOverlappingFast,
+	upsertFastingSession,
+	updateFastingSession,
+	deleteFastingSession,
+	FastingSessionRow
+} from '$lib/server/fasting';
+import type {
+	listReminders,
+	getReminderById,
+	createReminder,
+	updateReminder,
+	deleteReminder,
+	ReminderRow
+} from '$lib/server/reminders';
+import type { getFoodUsage, getRecipeUsage } from '$lib/server/usage';
+import { NutrientDatabaseError, type searchFdcFoods } from '$lib/server/fooddata-central';
+import { DEFAULT_MEAL_TYPES, normalizeMealType } from '$lib/utils/meals';
+import {
+	canonicalMeal,
+	dedupe,
+	needsMealTypes,
+	resolvePreferencePatch,
+	unknownMeal
+} from './meal-names';
 import type { getClaudeCapabilitySafe } from '$lib/server/claude/capability';
 import type {
 	getDayProperties,
@@ -107,6 +146,7 @@ import type {
 	getFastingDays
 } from '$lib/server/day-properties';
 import type { DayPropertiesPatch } from '$lib/server/validation/day-properties';
+import type { preferencesUpdateSchema } from '$lib/server/validation/preferences';
 import type { TopFoodsSort } from '$lib/server/validation/stats';
 import type { getCalendarStats } from '$lib/server/stats';
 import type {
@@ -119,7 +159,7 @@ import type { listLabelStats, setFoodLabels, setFoodLabelsBatch } from '$lib/ser
 import type { setRecipeLabels, setRecipeLabelsBatch } from '$lib/server/recipe-labels';
 import type { AiTask, AiTaskStatus } from '$lib/server/schema';
 import * as Sentry from '@sentry/sveltekit';
-import { ApiError, McpUserError, isDatabaseError, isZodError } from '$lib/server/errors';
+import { ApiError, McpUserError, isZodError, pgConstraintName } from '$lib/server/errors';
 import { asText, type McpResult } from './safe';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -214,9 +254,34 @@ export type HandlerDeps = {
 	getUserTimeZone: (userId: string) => Promise<string>;
 	// Meal types
 	listMealTypes: typeof listMealTypes;
-	// Preferences (activity goal adjustment)
+	createMealType: typeof createMealType;
+	updateMealType: typeof updateMealType;
+	renameMealType: typeof renameMealType;
+	deleteMealType: typeof deleteMealType;
+	// Preferences
 	getPreferences: typeof getPreferences;
+	getUserLocale: typeof getUserLocale;
+	updatePreferences: typeof updatePreferences;
+	defaultPreferences: typeof DEFAULT_PREFERENCES;
 	getClaudeCapabilitySafe: typeof getClaudeCapabilitySafe;
+	// Fasting sessions
+	listFastingSessions: typeof listFastingSessions;
+	getFastingSession: typeof getFastingSession;
+	findOverlappingFast: typeof findOverlappingFast;
+	upsertFastingSession: typeof upsertFastingSession;
+	updateFastingSession: typeof updateFastingSession;
+	deleteFastingSession: typeof deleteFastingSession;
+	// Reminders
+	listReminders: typeof listReminders;
+	getReminderById: typeof getReminderById;
+	createReminder: typeof createReminder;
+	updateReminder: typeof updateReminder;
+	deleteReminder: typeof deleteReminder;
+	// Where-used, brands, nutrient database
+	getFoodUsage: typeof getFoodUsage;
+	getRecipeUsage: typeof getRecipeUsage;
+	listFoodBrands: typeof listFoodBrands;
+	searchFdcFoods: typeof searchFdcFoods;
 	// Day properties
 	getDayProperties: typeof getDayProperties;
 	getDayPropertiesRange: typeof getDayPropertiesRange;
@@ -241,6 +306,46 @@ export type HandlerDeps = {
 	searchProductsResult: typeof searchProductsResult;
 };
 
+/**
+ * The preferences an assistant may change: what the app shows and how logging
+ * a favourite behaves. Language, time zone, biological sex, AI-task routing
+ * (which decides what server-side Claude is billed for), the caloric-lag
+ * override of one insight card and the legacy combined day-details toggle
+ * stay with the user's own settings screen.
+ */
+export const ASSISTANT_PREFERENCE_FIELDS = [
+	'showChartWidget',
+	'showFavoritesWidget',
+	'showSupplementsWidget',
+	'showWeightWidget',
+	'showMealBreakdownWidget',
+	'showTopFoodsWidget',
+	'showSleepWidget',
+	'showFastingWidget',
+	'showWaterWidget',
+	'showActivityWidget',
+	'showNotesWidget',
+	'showRecipeSuggestionsWidget',
+	'widgetOrder',
+	'startPage',
+	'favoriteTapAction',
+	'favoriteMealAssignmentMode',
+	'favoriteMealTimeframes',
+	'mealOrder',
+	'pinnedInsights',
+	'visibleNutrients',
+	'waterGoalMl',
+	'activityGoalAdjustment',
+	'activityCreditPercent'
+] as const satisfies readonly (keyof (typeof preferencesUpdateSchema)['shape'])[];
+
+// Checks a partial update can trip although each field it sends is valid.
+const CONSTRAINT_ERRORS: Record<string, string> = {
+	fasting_sessions_range_valid: 'endedAt must be after startedAt',
+	reminders_meal_type_required:
+		"mealType is required when kind is 'meal', and must be omitted otherwise"
+};
+
 function errorPayload(e: unknown): {
 	error: string;
 	issues?: Array<{ path: string; message: string }>;
@@ -251,7 +356,15 @@ function errorPayload(e: unknown): {
 			issues: e.issues.map((i) => ({ path: i.path.join('.'), message: i.message }))
 		};
 	}
-	if (e instanceof Error && !isDatabaseError(e)) return { error: e.message };
+	const constraint = pgConstraintName(e);
+	if (constraint && Object.hasOwn(CONSTRAINT_ERRORS, constraint)) {
+		return { error: CONSTRAINT_ERRORS[constraint]! };
+	}
+	// Only messages written for the caller reach the model; anything else may
+	// carry internals and is an unexpected failure worth reporting.
+	if (e instanceof McpUserError || (e instanceof ApiError && e.status < 500)) {
+		return { error: e.message };
+	}
 	Sentry.captureException(e, { tags: { source: 'mcp' } });
 	return { error: 'Internal error. The request could not be completed.' };
 }
@@ -536,12 +649,14 @@ export function createHandlers(d: HandlerDeps) {
 				return { success: false, error: 'Provide either name or supplementId' };
 			}
 
+			const supplement = await d.getSupplementById(userId, id);
+			if (!supplement) return { success: false, error: 'Supplement not found' };
+
 			const result = await d.logSupplement(userId, id, targetDate);
 			if (!result.success) {
 				return { success: false, ...errorPayload(result.error) };
 			}
 
-			const supplement = await d.getSupplementById(userId, id);
 			const items = await d.getSupplementChecklist(userId, targetDate);
 			const checklist = items.map((item) => ({
 				id: item.supplement.id,
@@ -553,8 +668,8 @@ export function createHandlers(d: HandlerDeps) {
 			return {
 				success: true,
 				logged: {
-					name: supplement?.name ?? 'Unknown',
-					ingredients: (supplement?.ingredients ?? []).map((ing) => ({
+					name: supplement.name,
+					ingredients: (supplement.ingredients ?? []).map((ing) => ({
 						foodId: ing.foodId,
 						name: ing.food.name,
 						servings: ing.servings
@@ -2011,6 +2126,470 @@ export function createHandlers(d: HandlerDeps) {
 		}
 	};
 
+	// ── Fasting sessions ───────────────────────────────────────────
+	// The server only holds finished fasts; a running one lives on the device.
+	const DEFAULT_FASTS = 30;
+	const MAX_FAST_MS = 14 * 24 * 60 * 60_000;
+	const FUTURE_SLACK_MS = 5 * 60_000;
+
+	const NOTHING_TO_CHANGE = { error: 'Nothing to change: pass at least one field to update' };
+	const hasFields = (patch: Record<string, unknown>) =>
+		Object.values(patch).some((value) => value !== undefined);
+
+	const serializeFast = (row: FastingSessionRow) => {
+		const durationMinutes = Math.round((row.endedAt.getTime() - row.startedAt.getTime()) / 60_000);
+		return {
+			id: row.id,
+			startedAt: row.startedAt,
+			endedAt: row.endedAt,
+			targetHours: row.targetHours,
+			durationMinutes,
+			targetReached: durationMinutes >= row.targetHours * 60
+		};
+	};
+
+	/** Why an assistant may not record this fast: not finished, too long, or overlapping another. */
+	const fastProblem = async (
+		userId: string,
+		startedAt: Date,
+		endedAt: Date,
+		excludeId?: string
+	): Promise<string | null> => {
+		if (endedAt <= startedAt) return 'endedAt must be after startedAt';
+		if (endedAt.getTime() > Date.now() + FUTURE_SLACK_MS) {
+			return 'endedAt is in the future: only a finished fast can be recorded';
+		}
+		if (endedAt.getTime() - startedAt.getTime() > MAX_FAST_MS) {
+			return 'A fast can last at most 14 days';
+		}
+		const overlap = await d.findOverlappingFast(userId, startedAt, endedAt, excludeId);
+		return overlap
+			? `This overlaps the recorded fast ${overlap.id} from ${overlap.startedAt.toISOString()} to ${overlap.endedAt.toISOString()}`
+			: null;
+	};
+
+	const handleListFasts = async (
+		userId: string,
+		args: { from?: string; to?: string; limit?: number }
+	) => {
+		try {
+			const sessions = await d.listFastingSessions(userId, {
+				...args,
+				limit: args.limit ?? DEFAULT_FASTS
+			});
+			return { fasts: sessions.map(serializeFast) };
+		} catch (e) {
+			wrapError('list fasts', e);
+		}
+	};
+
+	const handleLogFast = async (
+		userId: string,
+		args: { startedAt: string; endedAt: string; targetHours: number }
+	) => {
+		try {
+			const problem = await fastProblem(userId, new Date(args.startedAt), new Date(args.endedAt));
+			if (problem) return { error: problem };
+			const result = await d.upsertFastingSession(userId, {
+				startedAt: args.startedAt,
+				endedAt: args.endedAt,
+				targetHours: args.targetHours
+			});
+			if (!result.success) return errorPayload(result.error);
+			if (!result.data) return { error: 'The fast could not be saved' };
+			return { success: true, fastId: result.data.id, fast: serializeFast(result.data) };
+		} catch (e) {
+			wrapError('log fast', e);
+		}
+	};
+
+	const handleUpdateFast = async (
+		userId: string,
+		args: { fastId: string; startedAt?: string; endedAt?: string; targetHours?: number }
+	) => {
+		try {
+			const { fastId, ...patch } = args;
+			if (!hasFields(patch)) return NOTHING_TO_CHANGE;
+			if (patch.startedAt !== undefined || patch.endedAt !== undefined) {
+				const current = await d.getFastingSession(userId, fastId);
+				if (!current) return { error: 'Fast not found' };
+				const problem = await fastProblem(
+					userId,
+					new Date(patch.startedAt ?? current.startedAt),
+					new Date(patch.endedAt ?? current.endedAt),
+					fastId
+				);
+				if (problem) return { error: problem };
+			}
+			const result = await d.updateFastingSession(userId, fastId, patch);
+			if (!result.success) return errorPayload(result.error);
+			if (!result.data) return { error: 'Fast not found' };
+			return { success: true, fastId, fast: serializeFast(result.data) };
+		} catch (e) {
+			wrapError('update fast', e);
+		}
+	};
+
+	const handleDeleteFast = async (userId: string, args: { fastId: string }) => {
+		try {
+			const deleted = await d.deleteFastingSession(userId, args.fastId);
+			if (!deleted) return { error: 'Fast not found' };
+			return { success: true };
+		} catch (e) {
+			wrapError('delete fast', e);
+		}
+	};
+
+	// ── Reminders ──────────────────────────────────────────────────
+	const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6];
+
+	const serializeReminder = (row: ReminderRow) => ({
+		id: row.id,
+		kind: row.kind,
+		mealType: row.mealType,
+		time: row.time,
+		weekdays: row.weekdays,
+		enabled: row.enabled
+	});
+
+	const days = (weekdays: number[]) =>
+		dedupe(weekdays)
+			.sort((a, b) => a - b)
+			.join(',');
+
+	// Entries file "lunch" as "Lunch"; a reminder must name the meal the same
+	// way, and one the user has, or a logged meal never silences it.
+	const withStoredMealName = async <T extends { mealType?: string | null }>(
+		userId: string,
+		args: T
+	): Promise<{ args: T } | { error: string }> => {
+		if (typeof args.mealType !== 'string') return { args };
+		const meal = canonicalMeal(args.mealType, await d.listMealTypes(userId));
+		return meal
+			? { args: { ...args, mealType: meal.name } }
+			: { error: unknownMeal(args.mealType) };
+	};
+
+	const identicalReminder = async (
+		userId: string,
+		reminder: { kind: string; mealType: string | null; time: string; weekdays: number[] },
+		excludeId?: string
+	) =>
+		(await d.listReminders(userId)).find(
+			(row) =>
+				row.id !== excludeId &&
+				row.kind === reminder.kind &&
+				(row.mealType ?? null) === reminder.mealType &&
+				row.time === reminder.time &&
+				days(row.weekdays) === days(reminder.weekdays)
+		);
+
+	const duplicateError = (row: ReminderRow) => ({
+		error: `An identical reminder already exists (${row.id}); change that one instead`
+	});
+
+	const handleListReminders = async (userId: string) => {
+		try {
+			const reminders = await d.listReminders(userId);
+			return { reminders: reminders.map(serializeReminder) };
+		} catch (e) {
+			wrapError('list reminders', e);
+		}
+	};
+
+	const handleCreateReminder = async (
+		userId: string,
+		input: {
+			kind: string;
+			mealType?: string | null;
+			time: string;
+			weekdays?: number[];
+			enabled?: boolean;
+		}
+	) => {
+		try {
+			const named = await withStoredMealName(userId, input);
+			if ('error' in named) return named;
+			const { args } = named;
+			const twin = await identicalReminder(userId, {
+				kind: args.kind,
+				mealType: args.kind === 'meal' ? (args.mealType ?? null) : null,
+				time: args.time,
+				weekdays: args.weekdays?.length ? args.weekdays : EVERY_DAY
+			});
+			if (twin) return duplicateError(twin);
+			const result = await d.createReminder(userId, args);
+			if (!result.success) return errorPayload(result.error);
+			return {
+				success: true,
+				reminderId: result.data.id,
+				reminder: serializeReminder(result.data)
+			};
+		} catch (e) {
+			wrapError('create reminder', e);
+		}
+	};
+
+	const handleUpdateReminder = async (
+		userId: string,
+		input: {
+			reminderId: string;
+			kind?: string;
+			mealType?: string | null;
+			time?: string;
+			weekdays?: number[];
+			enabled?: boolean;
+		}
+	) => {
+		try {
+			const { reminderId, ...rest } = input;
+			if (!hasFields(rest)) return NOTHING_TO_CHANGE;
+			const current = await d.getReminderById(userId, reminderId);
+			if (!current) return { error: 'Reminder not found' };
+			const named = await withStoredMealName(userId, rest);
+			if ('error' in named) return named;
+			const patch = named.args;
+			const kind = patch.kind ?? current.kind;
+			const twin = await identicalReminder(
+				userId,
+				{
+					kind,
+					mealType:
+						kind !== 'meal'
+							? null
+							: patch.mealType !== undefined
+								? patch.mealType
+								: current.mealType,
+					time: patch.time ?? current.time,
+					weekdays: patch.weekdays ?? current.weekdays
+				},
+				reminderId
+			);
+			if (twin) return duplicateError(twin);
+			const result = await d.updateReminder(userId, reminderId, patch);
+			if (!result.success) return errorPayload(result.error);
+			if (!result.data) return { error: 'Reminder not found' };
+			return { success: true, reminderId, reminder: serializeReminder(result.data) };
+		} catch (e) {
+			wrapError('update reminder', e);
+		}
+	};
+
+	const handleDeleteReminder = async (userId: string, args: { reminderId: string }) => {
+		try {
+			// deleteReminder reports nothing, so a foreign or unknown id is caught here.
+			if (!(await d.getReminderById(userId, args.reminderId))) {
+				return { error: 'Reminder not found' };
+			}
+			await d.deleteReminder(userId, args.reminderId);
+			return { success: true };
+		} catch (e) {
+			wrapError('delete reminder', e);
+		}
+	};
+
+	// ── Preferences ────────────────────────────────────────────────
+	const handleGetPreferences = async (userId: string) => {
+		try {
+			const stored = await d.getPreferences(userId);
+			if (!stored) {
+				return {
+					preferences: { ...d.defaultPreferences, locale: await d.getUserLocale(userId) }
+				};
+			}
+			const { userId: _owner, ...preferences } = stored;
+			return { preferences };
+		} catch (e) {
+			wrapError('get preferences', e);
+		}
+	};
+
+	const handleUpdatePreferences = async (userId: string, args: Record<string, unknown>) => {
+		try {
+			const allowed = new Set<string>(ASSISTANT_PREFERENCE_FIELDS);
+			const requested = Object.fromEntries(
+				Object.entries(args).filter(([key, value]) => allowed.has(key) && value !== undefined)
+			);
+			if (Object.keys(requested).length === 0) {
+				return { error: 'Pass at least one preference to change' };
+			}
+			const resolved = resolvePreferencePatch(
+				requested,
+				needsMealTypes(requested) ? await d.listMealTypes(userId) : []
+			);
+			if ('error' in resolved) return resolved;
+			const result = await d.updatePreferences(userId, resolved.patch);
+			if (!result.success) return errorPayload(result.error);
+			const saved = (result.data ?? {}) as Record<string, unknown>;
+			return {
+				success: true,
+				preferences: Object.fromEntries(Object.keys(resolved.patch).map((key) => [key, saved[key]]))
+			};
+		} catch (e) {
+			wrapError('update preferences', e);
+		}
+	};
+
+	// ── Custom meal types ──────────────────────────────────────────
+	type MealTypeRow = Awaited<ReturnType<HandlerDeps['listMealTypes']>>[number];
+	const INT4_MAX = 2_147_483_647;
+
+	const mealTypeTaken = (name: string, others: MealTypeRow[]) => {
+		const key = normalizeMealType(name).toLowerCase();
+		return [...DEFAULT_MEAL_TYPES, ...others.map((mealType) => mealType.name)].some(
+			(existing) => existing.toLowerCase() === key
+		);
+	};
+
+	const handleCreateMealType = async (
+		userId: string,
+		args: { name: string; sortOrder?: number }
+	) => {
+		try {
+			const existing = await d.listMealTypes(userId);
+			const name = args.name.trim();
+			if (name && mealTypeTaken(name, existing)) {
+				return { error: `A meal type named "${name}" already exists` };
+			}
+			const last = Math.max(0, ...existing.map((mealType) => mealType.sortOrder));
+			const result = await d.createMealType(userId, {
+				name,
+				sortOrder: args.sortOrder ?? Math.min(last + 1, INT4_MAX)
+			});
+			if (!result.success) return errorPayload(result.error);
+			return { success: true, mealTypeId: result.data.id, mealType: result.data };
+		} catch (e) {
+			wrapError('create meal type', e);
+		}
+	};
+
+	const handleUpdateMealType = async (
+		userId: string,
+		args: { mealTypeId: string; name?: string; sortOrder?: number }
+	) => {
+		try {
+			const { mealTypeId, ...patch } = args;
+			if (!hasFields(patch)) return NOTHING_TO_CHANGE;
+			const mealTypes = await d.listMealTypes(userId);
+			const current = mealTypes.find((mealType) => mealType.id === mealTypeId);
+			if (!current) return { error: 'Meal type not found' };
+			const name = patch.name?.trim();
+			if (
+				name &&
+				name !== current.name &&
+				mealTypeTaken(
+					name,
+					mealTypes.filter((mealType) => mealType.id !== current.id)
+				)
+			) {
+				return { error: `A meal type named "${name}" already exists` };
+			}
+			const sortOrder = patch.sortOrder !== undefined ? { sortOrder: patch.sortOrder } : {};
+			// A rename carries the reminders, time windows and meal order in one transaction.
+			const result =
+				name !== undefined
+					? await d.renameMealType(userId, current.id, { name, ...sortOrder })
+					: await d.updateMealType(userId, current.id, sortOrder);
+			if (!result.success) return errorPayload(result.error);
+			if (!result.data) return { error: 'Meal type not found' };
+			return { success: true, mealTypeId: current.id, mealType: result.data };
+		} catch (e) {
+			wrapError('update meal type', e);
+		}
+	};
+
+	const handleDeleteMealType = async (userId: string, args: { mealTypeId: string }) => {
+		try {
+			const mealTypes = await d.listMealTypes(userId);
+			if (!mealTypes.some((mealType) => mealType.id === args.mealTypeId)) {
+				return { error: 'Meal type not found' };
+			}
+			await d.deleteMealType(userId, args.mealTypeId);
+			return { success: true };
+		} catch (e) {
+			wrapError('delete meal type', e);
+		}
+	};
+
+	// ── Where-used, brands, nutrient database ──────────────────────
+	// Defaults sized so a whole result fits the chat's tool-result limit.
+	const DEFAULT_USAGE_ENTRIES = 20;
+	const MAX_USAGE_ITEMS = 50;
+	const DEFAULT_BRANDS = 100;
+
+	const handleGetFoodUsage = async (userId: string, args: { foodId: string; limit?: number }) => {
+		try {
+			const usage = await d.getFoodUsage(userId, args.foodId);
+			if (!usage) return { error: 'Food not found' };
+			return {
+				totalEntries: usage.totalEntries,
+				entries: usage.entries.slice(0, args.limit ?? DEFAULT_USAGE_ENTRIES),
+				totalRecipes: usage.recipes.length,
+				recipes: usage.recipes.slice(0, MAX_USAGE_ITEMS),
+				totalSupplements: usage.supplements.length,
+				supplements: usage.supplements.slice(0, MAX_USAGE_ITEMS)
+			};
+		} catch (e) {
+			wrapError('get food usage', e);
+		}
+	};
+
+	const handleGetRecipeUsage = async (
+		userId: string,
+		args: { recipeId: string; limit?: number }
+	) => {
+		try {
+			const usage = await d.getRecipeUsage(userId, args.recipeId);
+			if (!usage) return { error: 'Recipe not found' };
+			return {
+				totalEntries: usage.totalEntries,
+				entries: usage.entries.slice(0, args.limit ?? DEFAULT_USAGE_ENTRIES)
+			};
+		} catch (e) {
+			wrapError('get recipe usage', e);
+		}
+	};
+
+	const handleListFoodBrands = async (
+		userId: string,
+		args: { query?: string; limit?: number } = {}
+	) => {
+		try {
+			const query = args.query?.trim().toLowerCase();
+			const brands = (await d.listFoodBrands(userId)).filter(
+				(brand) => !query || brand.brand.toLowerCase().includes(query)
+			);
+			return { total: brands.length, brands: brands.slice(0, args.limit ?? DEFAULT_BRANDS) };
+		} catch (e) {
+			wrapError('list food brands', e);
+		}
+	};
+
+	const handleSearchNutrientDatabase = async (userId: string, args: { query: string }) => {
+		try {
+			const foods = await d.searchFdcFoods(userId, args.query);
+			return {
+				foods: foods.map((food) => ({
+					fdcId: food.fdcId,
+					description: food.description,
+					dataType: food.dataType,
+					per100g: food.per100g,
+					nutrientsPer100g: food.nutrients
+				})),
+				...(foods.length === 0
+					? { note: 'No records. Try a shorter English name, or use another source.' }
+					: {})
+			};
+		} catch (e) {
+			// Not configured, rate limited, unreachable or an unreadable query: the
+			// model should use another source, as with Open Food Facts.
+			if (e instanceof NutrientDatabaseError) {
+				return { foods: [], unavailable: true, hint: e.message };
+			}
+			wrapError('search the nutrient database', e);
+		}
+	};
+
 	return {
 		handleGetDailyStatus,
 		handleSearchFoods,
@@ -2084,6 +2663,23 @@ export function createHandlers(d: HandlerDeps) {
 		handleListAiTasks,
 		handleGetAiTask,
 		handleCompleteAiTask,
-		handleDismissAiTask
+		handleDismissAiTask,
+		handleListFasts,
+		handleLogFast,
+		handleUpdateFast,
+		handleDeleteFast,
+		handleListReminders,
+		handleCreateReminder,
+		handleUpdateReminder,
+		handleDeleteReminder,
+		handleGetPreferences,
+		handleUpdatePreferences,
+		handleCreateMealType,
+		handleUpdateMealType,
+		handleDeleteMealType,
+		handleGetFoodUsage,
+		handleGetRecipeUsage,
+		handleListFoodBrands,
+		handleSearchNutrientDatabase
 	};
 }

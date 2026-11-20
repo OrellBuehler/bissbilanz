@@ -185,6 +185,288 @@ describe('confirmation previews', () => {
 		expect(await preview('delete_day_properties', {})).toHaveProperty('error');
 	});
 
+	test('delete_fast names its start in the user’s time zone, its length and target', async () => {
+		queueResults([
+			[
+				{
+					startedAt: new Date('2026-11-18T19:00:00Z'),
+					endedAt: new Date('2026-11-19T11:30:00Z'),
+					targetHours: 16,
+					timeZone: 'Europe/Zurich'
+				}
+			]
+		]);
+		expect(await preview('delete_fast', { fastId: ID })).toEqual({
+			input: { fastId: ID },
+			preview: {
+				summary: 'Delete the fast started 18 Nov 2026, 20:00',
+				details: ['16 h 30 min, target 16 h']
+			}
+		});
+		queueResults([
+			[
+				{
+					startedAt: new Date('2026-11-18T19:00:00Z'),
+					endedAt: new Date('2026-11-19T07:00:00Z'),
+					targetHours: 14,
+					timeZone: null
+				}
+			]
+		]);
+		expect(await preview('delete_fast', { fastId: ID }, 'de')).toEqual({
+			input: { fastId: ID },
+			preview: {
+				summary: 'Fastenzeit vom 18.11.2026, 19:00 löschen',
+				details: ['12 h 0 min, Ziel 14 h']
+			}
+		});
+		queueResults([[]]);
+		expect(await preview('delete_fast', { fastId: ID })).toEqual({ error: 'Fast not found' });
+		expect(await preview('delete_fast', { fastId: ID, force: true })).toHaveProperty('error');
+	});
+
+	test('delete_reminder says what the reminder is for, when and on which days', async () => {
+		queueResults([[{ kind: 'meal', mealType: 'Lunch', time: '12:00', weekdays: [5, 1, 3] }]]);
+		expect(await preview('delete_reminder', { reminderId: ID })).toEqual({
+			input: { reminderId: ID },
+			preview: { summary: 'Delete the Lunch reminder at 12:00', details: ['Mon, Wed, Fri'] }
+		});
+		queueResults([
+			[{ kind: 'weight', mealType: null, time: '07:30', weekdays: [0, 1, 2, 3, 4, 5, 6] }]
+		]);
+		expect(await preview('delete_reminder', { reminderId: ID }, 'de')).toEqual({
+			input: { reminderId: ID },
+			preview: { summary: 'Gewichtserinnerung um 07:30 löschen', details: ['Jeden Tag'] }
+		});
+		queueResults([[{ kind: 'sleep', mealType: null, time: '22:00', weekdays: [0] }]]);
+		expect(await preview('delete_reminder', { reminderId: ID })).toMatchObject({
+			preview: { summary: 'Delete the sleep reminder at 22:00', details: ['Sun'] }
+		});
+		queueResults([[]]);
+		expect(await preview('delete_reminder', { reminderId: ID })).toEqual({
+			error: 'Reminder not found'
+		});
+		expect(await preview('delete_reminder', {})).toHaveProperty('error');
+	});
+
+	test('delete_meal_type counts the entries and reminders that keep its name', async () => {
+		queueResults([[{ name: 'Pre-workout' }], [{ count: 0 }], [{ count: 12 }], [{ count: 1 }]]);
+		expect(await preview('delete_meal_type', { mealTypeId: ID })).toEqual({
+			input: { mealTypeId: ID },
+			preview: {
+				summary: 'Delete the meal type “Pre-workout”',
+				details: [
+					'12 diary entries keep “Pre-workout” as their meal',
+					'1 reminders for “Pre-workout” keep notifying'
+				]
+			}
+		});
+		queueResults([[{ name: 'Brunch' }], [{ count: 0 }], [{ count: 0 }], [{ count: 0 }]]);
+		expect(await preview('delete_meal_type', { mealTypeId: ID }, 'de')).toEqual({
+			input: { mealTypeId: ID },
+			preview: { summary: 'Mahlzeitentyp „Brunch“ löschen', details: [] }
+		});
+		queueResults([[{ name: 'Brunch' }], [{ count: 1 }], [{ count: 0 }], [{ count: 0 }]]);
+		expect(await preview('delete_meal_type', { mealTypeId: ID })).toEqual({
+			error:
+				'Meal type is used in favorites meal timeframes and cannot be deleted. Change favoriteMealTimeframes with update_preferences first.'
+		});
+		queueResults([[]]);
+		expect(await preview('delete_meal_type', { mealTypeId: ID })).toEqual({
+			error: 'Meal type not found'
+		});
+		expect(await preview('delete_meal_type', { mealTypeId: 'x' })).toHaveProperty('error');
+	});
+
+	test('update_preferences shows every setting as stored and the time windows it replaces', async () => {
+		queueResults([
+			[{ userId: 'u', waterGoalMl: 2500, showChartWidget: true, visibleNutrients: ['sodium'] }],
+			[
+				{ mealType: 'Breakfast', startMinute: 360, endMinute: 600 },
+				{ mealType: 'Gym', startMinute: 690, endMinute: 840 }
+			],
+			[{ id: ID, name: 'Gym' }]
+		]);
+		expect(
+			await preview('update_preferences', {
+				waterGoalMl: null,
+				showChartWidget: false,
+				mealOrder: ['gym', 'breakfast', 'Gym'],
+				favoriteMealTimeframes: [
+					{ mealType: 'breakfast', startTime: '07:00', endTime: '09:30' },
+					{ mealType: 'GYM', startTime: '17:00', endTime: '18:00' }
+				]
+			})
+		).toEqual({
+			input: {
+				waterGoalMl: null,
+				showChartWidget: false,
+				mealOrder: ['Gym', 'Breakfast'],
+				favoriteMealTimeframes: [
+					{ mealType: 'Breakfast', customMealTypeId: null, startTime: '07:00', endTime: '09:30' },
+					{ mealType: 'Gym', customMealTypeId: ID, startTime: '17:00', endTime: '18:00' }
+				]
+			},
+			preview: {
+				summary: 'Change your settings',
+				details: [
+					'waterGoalMl: back to the default (2,000)',
+					'showChartWidget: true → false',
+					'mealOrder: Gym, Breakfast',
+					'Favourite time windows: the current 2 are replaced by these 2:',
+					'1. Breakfast 07:00–09:30',
+					'2. Gym 17:00–18:00',
+					'Current windows, which are removed:',
+					'1. Breakfast 06:00–10:00',
+					'2. Gym 11:30–14:00'
+				]
+			}
+		});
+		queueResults([[], [], []]);
+		expect(
+			await preview(
+				'update_preferences',
+				{ favoriteMealTimeframes: [], startPage: 'favorites' },
+				'de'
+			)
+		).toEqual({
+			input: { favoriteMealTimeframes: [], startPage: 'favorites' },
+			preview: {
+				summary: 'Deine Einstellungen ändern',
+				details: ['Favoriten-Zeitfenster: alle 0 werden entfernt', 'startPage: favorites']
+			}
+		});
+		queueResults([[], [{ mealType: 'Brunch', startMinute: 600, endMinute: 660 }], []]);
+		expect(await preview('update_preferences', { favoriteMealTimeframes: [] })).toMatchObject({
+			preview: {
+				details: [
+					'Favourite time windows: all 1 are removed',
+					'Current windows, which are removed:',
+					'1. Brunch 10:00–11:00'
+				]
+			}
+		});
+		queueResults([[], [], []]);
+		expect(await preview('update_preferences', { favoriteMealTimeframes: 'all' })).toMatchObject({
+			preview: { details: ['favoriteMealTimeframes: all'] }
+		});
+	});
+
+	test('update_preferences names the nutrients and insights a replaced list removes', async () => {
+		queueResults([
+			[
+				{ userId: 'u', visibleNutrients: ['sodium', 'sugar'], pinnedInsights: ['tef', 'dii-score'] }
+			],
+			[],
+			[]
+		]);
+		expect(
+			await preview('update_preferences', {
+				visibleNutrients: ['sugar', 'iron', 'iron'],
+				pinnedInsights: ['tef', 'dii-score']
+			})
+		).toEqual({
+			input: { visibleNutrients: ['sugar', 'iron'], pinnedInsights: ['tef', 'dii-score'] },
+			preview: {
+				summary: 'Change your settings',
+				details: [
+					'visibleNutrients: sugar, iron',
+					'visibleNutrients: removes sodium',
+					'pinnedInsights: tef, dii-score'
+				]
+			}
+		});
+		queueResults([[], [], []]);
+		const defaults = await preview('update_preferences', { visibleNutrients: ['iron'] }, 'de');
+		expect(defaults).toMatchObject({
+			preview: { details: ['visibleNutrients: iron', expect.any(String)] }
+		});
+		expect('preview' in defaults && defaults.preview.details[1]).toMatch(
+			/^visibleNutrients: entfernt saturatedFat, .*, salt$/
+		);
+	});
+
+	test('update_preferences refuses meals the card cannot place, before asking', async () => {
+		queueResults([[], [], [{ id: ID, name: 'Gym' }]]);
+		expect(await preview('update_preferences', { mealOrder: ['Elevenses'] })).toEqual({
+			error: expect.stringContaining('Unknown meal type "Elevenses"')
+		});
+		queueResults([[], [], [{ id: ID, name: 'Gym' }]]);
+		expect(
+			await preview('update_preferences', {
+				favoriteMealTimeframes: [
+					{ mealType: 'Lunch', customMealTypeId: ID, startTime: '12:00', endTime: '13:00' }
+				]
+			})
+		).toEqual({
+			error: `mealType "Lunch" does not match customMealTypeId ${ID}, which is "Gym"`
+		});
+	});
+
+	test('reads the lists an update_preferences call replaces, defaults without a row', async () => {
+		const { loadPreferenceLists } = await import('$lib/server/claude/chat/previews');
+		queueResults([[{ visibleNutrients: ['iron'], pinnedInsights: ['tef'] }], []]);
+		expect(await loadPreferenceLists('u')).toEqual({
+			visibleNutrients: ['iron'],
+			pinnedInsights: ['tef']
+		});
+		expect(await loadPreferenceLists('u')).toMatchObject({
+			visibleNutrients: expect.arrayContaining(['sodium', 'vitaminC']),
+			pinnedInsights: []
+		});
+	});
+
+	test('update_meal_type lists what a rename carries and what keeps the old name', async () => {
+		queueResults([
+			[{ name: 'Pre-workout', sortOrder: 3 }],
+			[{ count: 2 }],
+			[{ count: 1 }],
+			[{ count: 1 }],
+			[{ count: 12 }]
+		]);
+		expect(
+			await preview('update_meal_type', { mealTypeId: ID, name: 'Pre-training', sortOrder: 5 })
+		).toEqual({
+			input: { mealTypeId: ID, name: 'Pre-training', sortOrder: 5 },
+			preview: {
+				summary: 'Change the meal type “Pre-workout”',
+				details: [
+					'name: Pre-workout → Pre-training',
+					'sortOrder: 3 → 5',
+					'2 meal reminders are renamed to “Pre-training”',
+					'1 favourite time windows move to “Pre-training”',
+					'“Pre-training” keeps the place of “Pre-workout” in the meal order',
+					'12 diary entries keep “Pre-workout” as their meal'
+				]
+			}
+		});
+		queueResults([
+			[{ name: 'Pre-workout', sortOrder: 3 }],
+			[{ count: 0 }],
+			[{ count: 0 }],
+			[{ count: 0 }],
+			[{ count: 0 }]
+		]);
+		expect(await preview('update_meal_type', { mealTypeId: ID, name: 'Gym' }, 'de')).toEqual({
+			input: { mealTypeId: ID, name: 'Gym' },
+			preview: {
+				summary: 'Mahlzeitentyp „Pre-workout“ ändern',
+				details: ['name: Pre-workout → Gym']
+			}
+		});
+		queueResults([[{ name: 'Gym', sortOrder: 3 }]]);
+		expect(await preview('update_meal_type', { mealTypeId: ID, sortOrder: 1 })).toMatchObject({
+			preview: { details: ['sortOrder: 3 → 1'] }
+		});
+		queueResults([[]]);
+		expect(await preview('update_meal_type', { mealTypeId: ID, name: 'Gym' })).toEqual({
+			error: 'Meal type not found'
+		});
+		expect(await preview('update_meal_type', { mealTypeId: 'x' })).toEqual({
+			error: 'Invalid arguments: mealTypeId: Invalid UUID'
+		});
+	});
+
 	test('update_food lists every field in full, with the current value', async () => {
 		const nutrients = Object.fromEntries(
 			Array.from({ length: 24 }, (_, index) => [`nutrient${index}`, index + 0.125])

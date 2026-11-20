@@ -50,7 +50,12 @@ import {
 import { finalizeRun, type RunEnding } from './finalize';
 import { toChatLocale, toolLabel, type ChatLocale } from './labels';
 import { chatToolPolicy, needsConfirmation, type ConfirmLookup } from './policy';
-import { buildActionPreview, loadAssistantLabels, loadDayDetails } from './previews';
+import {
+	buildActionPreview,
+	loadAssistantLabels,
+	loadDayDetails,
+	loadPreferenceLists
+} from './previews';
 import { entryDate, getConversation, serializeAction, serializeRun, userToday } from './store';
 import {
 	connectMcp,
@@ -501,7 +506,8 @@ const confirmLookup = (userId: string): ConfirmLookup => ({
 	recipeHasEntries: (id) => hasEntries(userId, foodEntries.recipeId, id),
 	photoOf: (table, id) => photoOf(userId, table, id),
 	dayProperties: (date) => loadDayDetails(userId, date),
-	assistantLabels: (table, id) => loadAssistantLabels(userId, table, id)
+	assistantLabels: (table, id) => loadAssistantLabels(userId, table, id),
+	preferenceLists: () => loadPreferenceLists(userId)
 });
 
 /**
