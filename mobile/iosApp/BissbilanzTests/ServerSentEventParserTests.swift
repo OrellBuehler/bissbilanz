@@ -53,6 +53,7 @@ struct ServerSentEventParserTests {
         #expect(outputs == [
             .retry(3000),
             .event(ServerSentEvent(id: "3", event: "text_delta", data: #"{"seq":3,"type":"text_delta","text":"Let me "}"#)),
+            .heartbeat,
             .event(ServerSentEvent(id: "4", event: "run_finished", data: #"{"seq":4,"type":"run_finished"}"#))
         ])
     }
@@ -65,9 +66,10 @@ struct ServerSentEventParserTests {
         }
     }
 
-    @Test("Comments and heartbeats dispatch nothing")
+    @Test("Comments are heartbeats and dispatch no event")
     func comments() {
-        #expect(Self.parse(": ping\n\n:\n\n: another\n\n").isEmpty)
+        #expect(Self.parse(": ping\n\n:\n\n: another\n\n") == [.heartbeat, .heartbeat, .heartbeat])
+        #expect(Self.events(Self.parse(": ping\ndata: x\n\n")).map(\.data) == ["x"])
     }
 
     @Test("Several data lines join with line feeds")

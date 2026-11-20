@@ -16,6 +16,8 @@ struct ChatComposerSeed: Equatable {
 struct ChatComposer: View {
     let conversationId: String
     let isEnabled: Bool
+    /// A message of this chat is still on its way: one at a time.
+    let isSending: Bool
     /// The run is queued or running: Stop instead of Send.
     let isAnswering: Bool
     /// The run waits for a confirmation: Stop is offered while the box is empty.
@@ -50,7 +52,7 @@ struct ChatComposer: View {
     }
 
     private var canSend: Bool {
-        isEnabled && !isAnswering && !trimmed.isEmpty && !isTooLong
+        isEnabled && !isSending && !isAnswering && !trimmed.isEmpty && !isTooLong
     }
 
     private var showsStop: Bool {

@@ -55,11 +55,17 @@ enum ChatConnection: Equatable {
     case polling
 }
 
+/// Only the seq of an event that could not be read, so the fold moves past it.
+private struct ChatEventHeader: Decodable {
+    let seq: Int
+}
+
 /// The assistant chat, in memory: the conversation list and the open
 /// conversation, folded from its read and the events after it. Chat is online
 /// only; nothing here goes through the sync queue. The open conversation
 /// follows its run over server-sent events, falls back to polling when the
-/// stream keeps failing, and stops once no run is active or the screen closes.
+/// stream keeps failing, and stops once no run is active or the screen closes;
+/// a run left behind is watched quietly until it ends, for the data it changes.
 @MainActor
 @Observable
 final class ChatStore {
@@ -70,17 +76,25 @@ final class ChatStore {
 
     /// Uploads the offline queue before a send, so the assistant sees local edits.
     @ObservationIgnored var prepareToSend: (@MainActor () async -> Void)?
-    /// Runs the refreshes a plan names; set once by the app.
-    @ObservationIgnored var refreshData: (@MainActor (ChatRefreshPlan) async -> Void)?
+    /// Runs the refreshes a plan names; set once by the app. The second
+    /// argument says whether the account the plan belongs to is still the
+    /// signed-in one, so nothing of an old account is written after sign-out.
+    @ObservationIgnored var refreshData: (@MainActor (ChatRefreshPlan, @MainActor () -> Bool) async -> Void)?
 
     /// Posted after the diary data the assistant changed was pulled again.
     nonisolated static let didChangeDataNotification = Notification.Name("ChatStoreDidChangeData")
     nonisolated static let draftsKey = "chat_drafts"
     nonisolated static let privacyAcknowledgedKey = "chat_privacy_acknowledged"
     nonisolated static let streamFailuresBeforePolling = 3
+    /// How long polling stands in for a stream that failed, across follows.
+    nonisolated static let pollingFallbackDuration: TimeInterval = 10 * 60
     nonisolated static let maxConsecutiveGaps = 3
     nonisolated static let activePollInterval: TimeInterval = 1.5
     nonisolated static let confirmationPollInterval: TimeInterval = 30
+    /// A run left behind is polled this often, and for at most this long.
+    nonisolated static let watchPollInterval: TimeInterval = 5
+    nonisolated static let watchLimit: TimeInterval = 20 * 60
+    nonisolated static let unreadableEventType = "unreadable"
     nonisolated static let photoMaxDimension: CGFloat = 1024
     nonisolated static let photoQuality: CGFloat = 0.75
 
@@ -96,7 +110,8 @@ final class ChatStore {
     private(set) var detailState: ChatDetailState = .idle
     private(set) var connection: ChatConnection = .idle
     private(set) var pending: [ChatPendingMessage] = []
-    /// A failure outside a send: a cancel, a re-read, the stream giving up.
+    /// A failure outside a send: a cancel, a re-read, the stream giving up, a
+    /// run that ended without an answer.
     private(set) var notice: ChatNotice?
     private(set) var actionsInFlight: Set<String> = []
     private(set) var actionNotices: [String: ChatNotice] = [:]
@@ -108,11 +123,17 @@ final class ChatStore {
     @ObservationIgnored private var knownIds: Set<String> = []
     @ObservationIgnored private var isVisible = false
     @ObservationIgnored private var openGeneration = 0
+    /// Bumped by `resetAccountState`; work that started for another account
+    /// drops its result.
+    @ObservationIgnored private var account = 0
     @ObservationIgnored private var followTask: Task<Void, Never>?
     @ObservationIgnored private var followToken = 0
     /// Failed streams or polls in a row; an arriving event resets it.
     @ObservationIgnored private var followFailures = 0
+    /// Set when the stream failed: polling stands in until then.
+    @ObservationIgnored private var pollingUntil: Date?
     @ObservationIgnored private var retryBase: TimeInterval = 3
+    @ObservationIgnored private var runWatches: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private var pendingPlan = ChatRefreshPlan()
     /// The last accepted send per conversation, so a read that started before
     /// it cannot drop the message it just showed.
@@ -135,6 +156,10 @@ final class ChatStore {
         drafts = defaults.dictionary(forKey: Self.draftsKey) as? [String: String] ?? [:]
     }
 
+    private func isCurrent(_ account: Int) -> Bool {
+        account == self.account
+    }
+
     // MARK: - Capability
 
     /// The last known chat capability; nil means unknown, which lets the user
@@ -150,6 +175,11 @@ final class ChatStore {
     private func adopt(_ capability: ChatCapability?) {
         guard let capability else { return }
         preferences.updateChatCapability(capability)
+    }
+
+    /// A message for the conversation is still on its way.
+    func isSending(in conversationId: String) -> Bool {
+        pending.contains { $0.conversationId == conversationId && $0.state == .sending }
     }
 
     // MARK: - Drafts
@@ -194,12 +224,15 @@ final class ChatStore {
 
     func loadConversations() async {
         guard !appMode.isLocal else { return }
+        let account = self.account
         do {
             let response = try await api.listChatConversations()
+            guard isCurrent(account) else { return }
             conversations = Self.sortedNewestFirst(response.conversations)
             knownIds.formUnion(response.conversations.map(\.id))
             listNotice = nil
         } catch {
+            guard isCurrent(account) else { return }
             listNotice = ChatNotice.forFailure(error)
         }
         hasLoadedList = true
@@ -219,14 +252,16 @@ final class ChatStore {
             maxUTF16: ChatLimits.maxTitleLength
         )
         let newTitle: String? = trimmed.isEmpty ? nil : trimmed
+        let account = self.account
         do {
             let renamed: ChatConversation
             if knownIds.contains(id) {
                 renamed = try await api.renameChatConversation(id: id, title: newTitle)
             } else {
                 renamed = try await api.createChatConversation(id: id, title: newTitle)
-                knownIds.insert(id)
             }
+            guard isCurrent(account) else { return nil }
+            knownIds.insert(id)
             remember(renamed)
             return nil
         } catch {
@@ -235,6 +270,7 @@ final class ChatStore {
     }
 
     func deleteConversation(id: String) async -> ChatNotice? {
+        let account = self.account
         if knownIds.contains(id) {
             do {
                 try await api.deleteChatConversation(id: id)
@@ -244,6 +280,7 @@ final class ChatStore {
                 return ChatNotice.forFailure(error)
             }
         }
+        guard isCurrent(account) else { return nil }
         forget(id)
         return nil
     }
@@ -254,6 +291,7 @@ final class ChatStore {
         pending.removeAll { $0.conversationId == id }
         setDraft("", for: id)
         attachmentDrafts[id] = nil
+        runWatches.removeValue(forKey: id)?.cancel()
         guard openId == id else { return }
         stopFollowing()
         openGeneration += 1
@@ -315,9 +353,13 @@ final class ChatStore {
         await reload(generation: generation, follow: true)
     }
 
-    /// The screen went away: the stream closes, as the contract asks.
+    /// The screen went away: the stream closes, as the contract asks. A run
+    /// still working is watched quietly, so what it changes is still pulled.
     func close(_ conversationId: String) {
         guard openId == conversationId else { return }
+        if let run = transcript.activeRun, run.isActive {
+            watchRun(in: conversationId, after: transcript.lastSeq)
+        }
         isVisible = false
         openGeneration += 1
         stopFollowing()
@@ -342,17 +384,22 @@ final class ChatStore {
         detailState == .loaded
     }
 
-    /// False when the read failed or was superseded.
+    /// Reads the open conversation and puts it on screen. A follow that is
+    /// running is stopped before the read is applied and started again after,
+    /// so it replays from the read's `lastSeq` instead of going on past events
+    /// the older read does not have. False when the read failed or was
+    /// superseded.
     @discardableResult
     private func reload(generation: Int, follow: Bool) async -> Bool {
         guard let id = openId else { return false }
+        let account = self.account
         let previous: ChatTranscript? = hasTranscript ? transcript : nil
         if !hasTranscript {
             detailState = .loading
         }
         do {
             let detail = try await api.getChatConversation(id: id)
-            guard generation == openGeneration, openId == id else { return false }
+            guard isCurrent(account), generation == openGeneration, openId == id else { return false }
             var next = ChatTranscript(detail: detail)
             if let accepted = lastAccepted[id] {
                 if accepted.seq > detail.lastSeq {
@@ -371,6 +418,8 @@ final class ChatStore {
                 let changes = ChatTranscript.finishedToolChanges(from: previous, to: next)
                 scheduleRefresh(ChatRefreshPlan(changes: changes), immediately: true)
             }
+            let wasFollowing = followTask != nil
+            stopFollowing()
             transcript = next
             knownIds.insert(id)
             remember(detail.conversation)
@@ -382,12 +431,12 @@ final class ChatStore {
             }
             notice = nil
             detailState = .loaded
-            if follow {
+            if follow || wasFollowing {
                 followIfNeeded()
             }
             return true
         } catch {
-            guard generation == openGeneration, openId == id else { return false }
+            guard isCurrent(account), generation == openGeneration, openId == id else { return false }
             let failure = ChatNotice.forFailure(error)
             if failure == .conversationMissing {
                 forget(id)
@@ -414,6 +463,15 @@ final class ChatStore {
         }
     }
 
+    /// After a decision, a send or a cancel the run moves on; a poll waiting
+    /// out its interval starts over so the screen does not lag behind it.
+    private func resumeFollowing() {
+        if connection == .polling {
+            stopFollowing()
+        }
+        followIfNeeded()
+    }
+
     private func stopFollowing() {
         followToken += 1
         followTask?.cancel()
@@ -426,14 +484,33 @@ final class ChatStore {
             && transcript.activeRun != nil
     }
 
+    private var isPolling: Bool {
+        pollingUntil.map { $0 > Date() } ?? false
+    }
+
     private enum StreamEnd {
         /// The server closed it (the 10-minute cap, a newer stream): reconnect.
         case closed
         /// No run is active any more.
         case idle
-        /// The events and the run disagree (an unreadable event, a run that
-        /// ended without its `run_finished` in the page): read the chat again.
+        /// The events and the run disagree (a page whose run ended without its
+        /// `run_finished`): read the chat again.
         case gap
+    }
+
+    /// What one stream connection brought.
+    private struct StreamOutcome {
+        var end = StreamEnd.closed
+        var opened = false
+        var sawEvent = false
+        var sawHeartbeat = false
+        var error: Error?
+
+        /// Answered, then nothing, not even the 20-second ping: something
+        /// between the app and the server holds the stream back.
+        var wasHeldBack: Bool {
+            opened && !sawEvent && !sawHeartbeat && (error != nil || end == .closed)
+        }
     }
 
     private func follow(conversationId: String, token: Int) async {
@@ -443,69 +520,81 @@ final class ChatStore {
                 connection = .idle
             }
         }
-        followFailures = 0
         var gaps = 0
-        var polling = false
         while isFollowing(conversationId, token: token) {
-            do {
-                let end: StreamEnd
-                if polling {
-                    connection = .polling
+            let end: StreamEnd
+            if isPolling {
+                connection = .polling
+                do {
                     end = try await poll(conversationId: conversationId, token: token)
                     followFailures = 0
-                } else {
-                    connection = followFailures == 0 ? .connecting : .reconnecting
-                    let streamed = try await stream(conversationId: conversationId, token: token)
-                    end = streamed.end
-                    // Only an event proves the stream works (the count is reset
-                    // when the first one arrives): a proxy that answers but
-                    // holds the events back still fails, and ends in polling.
-                    if !streamed.sawEvent, end == .closed {
-                        polling = countFollowFailure(polling: polling, reason: "no_events")
-                        await pause(for: Self.backoff(failures: followFailures, base: retryBase))
-                        continue
-                    }
-                }
-                guard end == .gap else {
-                    gaps = 0
+                } catch {
+                    guard isFollowing(conversationId, token: token) else { return }
+                    guard await recover(from: error, in: conversationId) else { return }
                     continue
                 }
-                gaps += 1
-                if gaps > Self.maxConsecutiveGaps {
-                    notice = .failed
-                    ErrorReporter.captureWarning("Chat events kept disagreeing with the run", context: ["gaps": gaps])
-                    return
-                }
-                let reloaded = await reload(generation: openGeneration, follow: false)
-                if !reloaded {
-                    polling = countFollowFailure(polling: polling, reason: "reload_failed")
-                    await pause(for: Self.backoff(failures: followFailures, base: retryBase))
-                }
-            } catch {
+            } else {
+                connection = followFailures == 0 ? .connecting : .reconnecting
+                let outcome = await stream(conversationId: conversationId, token: token)
                 guard isFollowing(conversationId, token: token) else { return }
-                switch Self.followRecovery(after: error) {
-                case .stop:
-                    notice = ChatNotice.forFailure(error)
-                    return
-                case .missing:
-                    forget(conversationId)
-                    return
-                case let .wait(seconds):
-                    await pause(for: seconds)
-                case .backOff:
-                    polling = countFollowFailure(polling: polling, reason: ErrorReporter.reason(for: error))
-                    await pause(for: Self.backoff(failures: followFailures, base: retryBase))
+                if outcome.wasHeldBack {
+                    startPolling(reason: "stream_held_back")
+                    continue
                 }
+                if let error = outcome.error {
+                    guard await recover(from: error, in: conversationId) else { return }
+                    continue
+                }
+                end = outcome.end
+            }
+            guard end == .gap else {
+                gaps = 0
+                continue
+            }
+            gaps += 1
+            if gaps > Self.maxConsecutiveGaps {
+                notice = .failed
+                ErrorReporter.captureWarning("Chat events kept disagreeing with the run", context: ["gaps": gaps])
+                return
+            }
+            // A read that lands starts a new follow from its `lastSeq`.
+            let reloaded = await reload(generation: openGeneration, follow: true)
+            if !reloaded, isFollowing(conversationId, token: token) {
+                countFollowFailure(reason: "reload_failed")
+                await pause(for: Self.backoff(failures: followFailures, base: retryBase))
             }
         }
     }
 
-    /// One more failure in a row; whether to poll from now on.
-    private func countFollowFailure(polling: Bool, reason: String) -> Bool {
+    /// Acts on a failed stream or poll. False when following has to stop.
+    private func recover(from error: Error, in conversationId: String) async -> Bool {
+        switch Self.followRecovery(after: error) {
+        case .stop:
+            notice = ChatNotice.forFailure(error)
+            return false
+        case .missing:
+            forget(conversationId)
+            return false
+        case let .wait(seconds):
+            await pause(for: seconds)
+            return true
+        case .backOff:
+            countFollowFailure(reason: ErrorReporter.reason(for: error))
+            await pause(for: Self.backoff(failures: followFailures, base: retryBase))
+            return true
+        }
+    }
+
+    private func countFollowFailure(reason: String) {
         followFailures += 1
-        guard !polling, followFailures >= Self.streamFailuresBeforePolling else { return polling }
+        if followFailures >= Self.streamFailuresBeforePolling, !isPolling {
+            startPolling(reason: reason)
+        }
+    }
+
+    private func startPolling(reason: String) {
+        pollingUntil = Date().addingTimeInterval(Self.pollingFallbackDuration)
         ErrorReporter.addBreadcrumb("Chat stream fell back to polling", category: "chat", data: ["reason": reason])
-        return true
     }
 
     /// Cancellation ends the wait early; the loop condition then stops the loop.
@@ -552,42 +641,51 @@ final class ChatStore {
         return min(30, max(1, base) * pow(2, exponent))
     }
 
-    private func stream(conversationId: String, token: Int) async throws -> (end: StreamEnd, sawEvent: Bool) {
-        var end = StreamEnd.closed
-        var sawEvent = false
-        try await api.followChatEvents(conversationId: conversationId, after: transcript.lastSeq) { item in
-            switch item {
-            case .opened:
-                connection = .live
-                return true
-            case let .retry(milliseconds):
-                retryBase = min(30, max(1, Double(milliseconds) / 1000))
-                return true
-            case .rejected:
-                return false
-            case let .event(message):
-                sawEvent = true
-                followFailures = 0
-                guard let event = Self.decodeEvent(message.data) else {
-                    end = .gap
+    /// One connection. Every item is checked against the follow first: an
+    /// element still buffered after a cancel must not land in another
+    /// conversation, nor reset this one's failure count.
+    private func stream(conversationId: String, token: Int) async -> StreamOutcome {
+        var outcome = StreamOutcome()
+        do {
+            try await api.followChatEvents(conversationId: conversationId, after: transcript.lastSeq) { item in
+                guard isFollowing(conversationId, token: token) else { return false }
+                switch item {
+                case .opened:
+                    outcome.opened = true
+                    connection = .live
+                    return true
+                case .heartbeat:
+                    outcome.sawHeartbeat = true
+                    return true
+                case let .retry(milliseconds):
+                    retryBase = min(30, max(1, Double(milliseconds) / 1000))
+                    return true
+                case .rejected:
                     return false
+                case let .event(message):
+                    outcome.sawEvent = true
+                    followFailures = 0
+                    if let event = Self.decodeEvent(message.data) {
+                        receive(event, in: conversationId)
+                    }
+                    if transcript.activeRun == nil {
+                        outcome.end = .idle
+                        return false
+                    }
+                    return true
                 }
-                receive(event)
-                if transcript.activeRun == nil {
-                    end = .idle
-                    return false
-                }
-                return isFollowing(conversationId, token: token)
             }
+        } catch {
+            outcome.error = error
         }
-        return (end, sawEvent)
+        return outcome
     }
 
     private func poll(conversationId: String, token: Int) async throws -> StreamEnd {
         let page = try await api.chatEvents(conversationId: conversationId, after: transcript.lastSeq)
         guard isFollowing(conversationId, token: token) else { return .idle }
         for event in page.events {
-            receive(event)
+            receive(event, in: conversationId)
         }
         if page.hasMore {
             return .closed
@@ -598,10 +696,10 @@ final class ChatStore {
             return page.events.isEmpty ? .gap : .closed
         }
         if let run = page.activeRun {
-            transcript.adopt(run)
+            transcript.adopt(run, fromSnapshot: true)
         } else if transcript.activeRun != nil {
-            // The run ended between the events read and the run read; the
-            // conversation read has both in step.
+            // A page is one snapshot, so this should not happen; the
+            // conversation read puts events and run back in step.
             return .gap
         }
         guard let run = transcript.activeRun else { return .idle }
@@ -611,21 +709,27 @@ final class ChatStore {
         return .closed
     }
 
+    /// An event that cannot be read is reported and, when its seq can still be
+    /// read, kept as an event of an unknown type: the fold moves past it and
+    /// following goes on.
     nonisolated static func decodeEvent(_ data: String) -> ChatEvent? {
+        let bytes = Data(data.utf8)
         do {
-            return try JSONDecoder().decode(ChatEvent.self, from: Data(data.utf8))
+            return try JSONDecoder().decode(ChatEvent.self, from: bytes)
         } catch {
             ErrorReporter.capture(error, context: ["op": "decodeChatEvent", "length": data.count])
-            return nil
+            guard let header = try? JSONDecoder().decode(ChatEventHeader.self, from: bytes) else { return nil }
+            return ChatEvent(seq: header.seq, type: unreadableEventType)
         }
     }
 
-    /// Applies one event and acts on its effects: the accepted message leaves
-    /// the pending list, changed data is refreshed, the capability is kept.
-    @discardableResult
-    private func receive(_ event: ChatEvent) -> ChatEventOutcome {
+    /// Applies one event of the open conversation and acts on its effects: the
+    /// accepted message leaves the pending list, changed data is refreshed, the
+    /// capability is kept. Events of any other conversation are dropped.
+    private func receive(_ event: ChatEvent, in conversationId: String) {
+        guard openId == conversationId else { return }
         let effect = transcript.apply(event)
-        guard effect.outcome == .applied else { return effect.outcome }
+        guard effect.outcome == .applied else { return }
         if let messageId = event.message?.id {
             pending.removeAll { $0.messageId == messageId }
         }
@@ -636,25 +740,102 @@ final class ChatStore {
         scheduleRefresh(plan, immediately: effect.finishedRunId != nil)
         if effect.finishedRunId != nil {
             isCancelling = false
-            noticeRunWithoutMessage(event)
-            if let id = openId {
-                updateListRun(id, run: transcript.activeRun)
-            }
+            noticeEndedRun(
+                status: event.status ?? event.run?.status,
+                reason: event.reason ?? event.run?.reason,
+                messageId: event.messageId
+            )
+            updateListRun(conversationId, run: transcript.activeRun)
         }
         adopt(effect.capability)
         if let code = effect.errorCode {
             ErrorReporter.addBreadcrumb("Chat run error", category: "chat", data: ["code": code])
         }
-        return .applied
     }
 
     /// A run that ended before it had a message (cancelled while queued, failed
     /// at once) still says how it ended.
-    private func noticeRunWithoutMessage(_ event: ChatEvent) {
-        let hasMessage = event.messageId.map { id in transcript.messages.contains { $0.id == id } } ?? false
-        guard !hasMessage, let status = event.status ?? event.run?.status else { return }
-        if let ended = ChatNotice.forMessage(status: status, reason: event.reason ?? event.run?.reason) {
-            notice = ended
+    private func noticeEndedRun(status: String?, reason: String?, messageId: String?) {
+        let hasMessage = messageId.map { id in transcript.messages.contains { $0.id == id } } ?? false
+        guard !hasMessage, let status, let ended = ChatNotice.forMessage(status: status, reason: reason) else { return }
+        notice = ended
+    }
+
+    // MARK: - A run left behind
+
+    /// Polls the events of a run the screen stopped following, slowly and only
+    /// for the data it changes and the capability, until it ends.
+    private func watchRun(in conversationId: String, after: Int) {
+        guard runWatches[conversationId] == nil else { return }
+        let account = self.account
+        runWatches[conversationId] = Task { [weak self] in
+            await self?.watch(conversationId: conversationId, after: after, account: account)
+        }
+    }
+
+    private func watch(conversationId: String, after: Int, account: Int) async {
+        defer {
+            if isCurrent(account) {
+                runWatches[conversationId] = nil
+            }
+        }
+        var cursor = after
+        var failures = 0
+        let deadline = Date().addingTimeInterval(Self.watchLimit)
+        while !Task.isCancelled, isCurrent(account), Date() < deadline {
+            var wait = Self.watchPollInterval
+            do {
+                let page = try await api.chatEvents(conversationId: conversationId, after: cursor)
+                guard isCurrent(account) else { return }
+                failures = 0
+                var ended = false
+                for event in page.events {
+                    cursor = max(cursor, event.seq)
+                    ended = takeLeftBehind(event) || ended
+                }
+                if page.hasMore || (page.lastSeq > page.nextAfter && !page.events.isEmpty) { continue }
+                if ended || page.activeRun?.isActive != true {
+                    updateListRun(conversationId, run: nil)
+                    return
+                }
+                if page.activeRun?.status == ChatRunStatus.awaitingConfirmation {
+                    wait = Self.confirmationPollInterval
+                }
+            } catch {
+                guard isCurrent(account) else { return }
+                switch Self.followRecovery(after: error) {
+                case .stop, .missing:
+                    return
+                case let .wait(seconds):
+                    wait = seconds
+                case .backOff:
+                    failures += 1
+                    wait = Self.backoff(failures: failures, base: retryBase)
+                }
+            }
+            try? await Task.sleep(for: .seconds(wait))
+        }
+    }
+
+    /// The refresh and capability half of an event of a run left behind.
+    /// True for its `run_finished`.
+    private func takeLeftBehind(_ event: ChatEvent) -> Bool {
+        switch event.type {
+        case ChatEventType.toolFinished:
+            scheduleRefresh(ChatRefreshPlan(changes: event.changes ?? [], changed: event.changed ?? []))
+            return false
+        case ChatEventType.runFinished:
+            scheduleRefresh(
+                ChatRefreshPlan(
+                    changes: event.changes ?? event.run?.changes ?? [],
+                    changed: event.changed ?? event.run?.changed ?? []
+                ),
+                immediately: true
+            )
+            adopt(event.capability)
+            return true
+        default:
+            return false
         }
     }
 
@@ -676,10 +857,15 @@ final class ChatStore {
         let plan = pendingPlan
         pendingPlan = ChatRefreshPlan()
         guard !plan.isEmpty, let refreshData else { return }
+        let account = self.account
         let previous = refreshTask
-        refreshTask = Task {
+        refreshTask = Task { [weak self] in
             await previous?.value
-            await refreshData(plan)
+            guard let self, isCurrent(account) else { return }
+            await refreshData(plan) { [weak self] in
+                self?.account == account
+            }
+            guard isCurrent(account) else { return }
             NotificationCenter.default.post(name: Self.didChangeDataNotification, object: nil)
         }
     }
@@ -751,6 +937,7 @@ final class ChatStore {
 
     private func deliver(_ localId: UUID) async {
         guard var message = pending.first(where: { $0.id == localId }) else { return }
+        let account = self.account
         // The store owns the send, so leaving the screen does not cancel it;
         // this keeps it going for the seconds iOS grants after leaving the app.
         sendTasks[localId] = UIApplication.shared.beginBackgroundTask(withName: "chat-send") { [weak self] in
@@ -761,12 +948,14 @@ final class ChatStore {
         do {
             if !knownIds.contains(message.conversationId) {
                 let created = try await api.createChatConversation(id: message.conversationId)
+                guard isCurrent(account) else { return }
                 knownIds.insert(created.id)
                 remember(created)
             }
             await prepareToSend?()
             if message.imageFilenames == nil {
                 let filenames = try await upload(message.images)
+                guard isCurrent(account) else { return }
                 message.imageFilenames = filenames
                 updatePending(localId) { $0.imageFilenames = filenames }
             }
@@ -781,8 +970,10 @@ final class ChatStore {
                     context: message.context
                 )
             )
+            guard isCurrent(account) else { return }
             accept(accepted, for: message)
         } catch {
+            guard isCurrent(account) else { return }
             fail(localId, message: message, error: error, afterSending: sending)
         }
     }
@@ -793,9 +984,10 @@ final class ChatStore {
     }
 
     private func accept(_ accepted: ChatMessageAcceptedResponse, for message: ChatPendingMessage) {
+        let conversationId = message.conversationId
         pending.removeAll { $0.id == message.id }
-        updateListRun(message.conversationId, run: accepted.run)
-        if let index = conversations.firstIndex(where: { $0.id == message.conversationId }) {
+        updateListRun(conversationId, run: accepted.run)
+        if let index = conversations.firstIndex(where: { $0.id == conversationId }) {
             conversations[index].lastMessageAt = accepted.message.createdAt ?? conversations[index].lastMessageAt
             let untitled = conversations[index].title == nil
             conversations = Self.sortedNewestFirst(conversations)
@@ -804,15 +996,20 @@ final class ChatStore {
                 Task { await loadConversations() }
             }
         }
-        lastAccepted[message.conversationId] = accepted
-        guard openId == message.conversationId else { return }
+        lastAccepted[conversationId] = accepted
+        guard openId == conversationId else { return }
         transcript.upsert(accepted.message)
         if accepted.run.isActive {
             transcript.adopt(accepted.run)
-            followIfNeeded()
+            resumeFollowing()
         } else {
-            // A retry answered from the first attempt, whose run already ended.
-            Task { await reload(generation: openGeneration, follow: true) }
+            // A retry answered from the first attempt, whose run already
+            // ended; one that ended before it had an answer says how.
+            let run = accepted.run
+            Task {
+                guard await reload(generation: openGeneration, follow: true), openId == conversationId else { return }
+                noticeEndedRun(status: run.status, reason: run.reason, messageId: run.assistantMessageId)
+            }
         }
     }
 
@@ -875,17 +1072,24 @@ final class ChatStore {
 
     // MARK: - Confirmations and cancel
 
+    /// Applied only to the conversation that asked: a late answer must not
+    /// make another conversation follow this run, where Stop would cancel it.
     func decide(actionId: String, approve: Bool) async {
-        guard !actionsInFlight.contains(actionId) else { return }
+        guard !actionsInFlight.contains(actionId), let conversationId = openId else { return }
+        let account = self.account
         actionsInFlight.insert(actionId)
         actionNotices[actionId] = nil
         defer { actionsInFlight.remove(actionId) }
         do {
             let response = try await api.decideChatAction(id: actionId, approve: approve)
+            guard isCurrent(account), openId == conversationId,
+                  response.run.conversationId.map({ $0 == conversationId }) ?? true
+            else { return }
             transcript.applyDecision(response.action)
             transcript.adopt(response.run)
-            followIfNeeded()
+            resumeFollowing()
         } catch {
+            guard isCurrent(account), openId == conversationId else { return }
             actionNotices[actionId] = ChatNotice.forFailure(error)
             guard let rejection = (error as? ChatFailure)?.rejection else { return }
             if let action = rejection.body?.action {
@@ -898,10 +1102,12 @@ final class ChatStore {
     }
 
     func cancelRun() async {
-        guard let run = transcript.activeRun, run.isActive, !isCancelling else { return }
+        guard let run = transcript.activeRun, run.isActive, !isCancelling, let conversationId = openId else { return }
+        let account = self.account
         isCancelling = true
         do {
             let cancelled = try await api.cancelChatRun(id: run.id)
+            guard isCurrent(account), openId == conversationId else { return }
             // `adopt` ignores a run whose `run_finished` already came.
             if transcript.activeRun?.id == cancelled.id {
                 transcript.adopt(cancelled)
@@ -909,8 +1115,9 @@ final class ChatStore {
             if !cancelled.isActive {
                 isCancelling = false
             }
-            followIfNeeded()
+            resumeFollowing()
         } catch {
+            guard isCurrent(account), openId == conversationId else { return }
             isCancelling = false
             let rejection = (error as? ChatFailure)?.rejection
             if rejection?.status == 404 || rejection?.status == 409 {
@@ -924,13 +1131,20 @@ final class ChatStore {
     // MARK: - Account
 
     /// Forgets everything that belongs to the account; called on sign-out and
-    /// a mode change.
+    /// a mode change. Work still out for it drops its result.
     func resetAccountState() {
+        account += 1
         stopFollowing()
         openGeneration += 1
+        for watch in runWatches.values {
+            watch.cancel()
+        }
+        runWatches = [:]
         flushTask?.cancel()
         flushTask = nil
         pendingPlan = ChatRefreshPlan()
+        followFailures = 0
+        pollingUntil = nil
         conversations = []
         hasLoadedList = false
         listNotice = nil

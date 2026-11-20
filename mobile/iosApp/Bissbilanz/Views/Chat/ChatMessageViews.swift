@@ -4,13 +4,16 @@ import SwiftUI
 /// the assistant's full width, its parts top to bottom.
 struct ChatMessageView: View {
     let message: ChatMessage
+    /// The answer that is still streaming: its text is parsed on every delta,
+    /// the others come from the cache.
+    var isStreaming = false
     var onNewChat: () -> Void
 
     var body: some View {
         if message.isFromUser {
             ChatUserMessage(message: message)
         } else {
-            ChatAssistantMessage(message: message, onNewChat: onNewChat)
+            ChatAssistantMessage(message: message, isStreaming: isStreaming, onNewChat: onNewChat)
         }
     }
 }
@@ -96,6 +99,7 @@ struct ChatPhotoStrip<Item: View>: View {
 
 private struct ChatAssistantMessage: View {
     let message: ChatMessage
+    let isStreaming: Bool
     var onNewChat: () -> Void
 
     private var notice: ChatNotice? {
@@ -104,8 +108,8 @@ private struct ChatAssistantMessage: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(Array(message.parts.enumerated()), id: \.offset) { _, part in
-                ChatPartView(part: part)
+            ForEach(Array(message.parts.enumerated()), id: \.offset) { index, part in
+                ChatPartView(part: part, isStreaming: isStreaming && index == message.parts.count - 1)
             }
             if let notice {
                 ChatNoticeRow(notice: notice, onNewChat: onNewChat)
@@ -117,11 +121,12 @@ private struct ChatAssistantMessage: View {
 
 private struct ChatPartView: View {
     let part: ChatMessagePart
+    let isStreaming: Bool
 
     var body: some View {
         switch part.type {
         case ChatMessagePart.textType:
-            ChatMarkdownView(text: part.text ?? "")
+            ChatMarkdownView(text: part.text ?? "", isStreaming: isStreaming)
                 .textSelection(.enabled)
         case ChatMessagePart.toolType:
             ChatToolRow(part: part)

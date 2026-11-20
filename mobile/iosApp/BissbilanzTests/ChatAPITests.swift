@@ -1,6 +1,7 @@
 @testable import Bissbilanz
 import Foundation
 import Testing
+import UIKit
 
 /// What the chat store asked the app to do around a send.
 @MainActor
@@ -259,7 +260,7 @@ struct ChatAPITests {
         )))
         let store = Self.store(harness)
         let recorder = ChatHookRecorder()
-        store.refreshData = { plan in recorder.plans.append(plan) }
+        store.refreshData = { plan, _ in recorder.plans.append(plan) }
         store.prepareToSend = { recorder.drains += 1 }
 
         await store.open(ChatRoute(id: Self.conversationId, isNew: true))
@@ -449,25 +450,126 @@ struct ChatAPITests {
         #expect(store.transcript.activeRun == nil)
     }
 
+    private static func photo() -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { context in
+            UIColor.orange.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 4, height: 4))
+        }
+    }
+
     @Test("A message a full chat refused moves to a new chat with its photos")
     func moveToNewChat() async throws {
         let harness = try RepositoryHarness()
         try Self.stubCreate(harness)
         harness.stub(
+            "POST", "/api/ai-tasks/photo",
+            json: #"{"photoUrl":"/uploads/aa11.webp","photoUrls":["/uploads/aa11.webp"]}"#
+        )
+        harness.stub(
             "POST", Self.messagesPath, status: 409,
             json: #"{"error":"Too long","code":"conversation_too_long"}"#
         )
         let store = Self.store(harness)
+        let photo = Self.photo()
         await store.open(ChatRoute(id: Self.conversationId, isNew: true))
-        store.send(text: "One more", images: [], in: Self.conversationId, contextDate: nil)
+        store.send(text: "One more", images: [photo], in: Self.conversationId, contextDate: nil)
         await Self.waitUntil { store.pending.first?.state != .sending }
         let failed = try #require(store.pending.first)
         #expect(failed.state == .failed(.conversationTooLong))
         #expect(!failed.mayHaveLanded)
+        let body = try #require(harness.recordedBodies("POST", Self.messagesPath).first)
+        #expect(try JSONDecoder().decode(ChatMessageCreate.self, from: body).imageFilenames == ["/uploads/aa11.webp"])
+
         let route = store.moveToNewChat(failed.id)
         #expect(route.isNew)
         #expect(store.draft(for: route.id) == "One more")
+        #expect(store.attachments(for: route.id) == [photo])
         #expect(store.pending.isEmpty)
+    }
+
+    @Test("A replayed send whose run ended before an answer says how it ended")
+    func replayedRunWithoutAnswer() async throws {
+        let harness = try RepositoryHarness()
+        try Self.stubCreate(harness)
+        var cancelled = Fixture.run(status: "cancelled")
+        cancelled.reason = "user_cancelled"
+        cancelled.assistantMessageId = nil
+        harness.stub("POST", Self.messagesPath, status: 202, json: try Self.json(ChatMessageAcceptedResponse(
+            message: Fixture.userMessage, run: cancelled, seq: 1
+        )))
+        harness.stub("GET", Self.detailPath, json: try Self.detail(messages: [Fixture.userMessage], lastSeq: 2))
+        let store = Self.store(harness)
+        await store.open(ChatRoute(id: Self.conversationId, isNew: true))
+        store.send(text: "Hello", images: [], in: Self.conversationId, contextDate: nil)
+        await Self.waitUntil { store.notice != nil }
+        #expect(store.notice == .stopped)
+        #expect(store.transcript.messages.map(\.id) == [Fixture.userMessageId])
+    }
+
+    @Test("Only one message of a chat is on its way at a time")
+    func isSending() async throws {
+        let harness = try RepositoryHarness()
+        try Self.stubCreate(harness)
+        harness.stub("POST", Self.messagesPath, status: 202, json: try Self.accepted(runStatus: "completed"), delayMs: 300)
+        harness.stub("GET", Self.detailPath, json: try Self.detail(messages: [Fixture.userMessage], lastSeq: 1))
+        let store = Self.store(harness)
+        await store.open(ChatRoute(id: Self.conversationId, isNew: true))
+        store.send(text: "Hello", images: [], in: Self.conversationId, contextDate: nil)
+        #expect(store.isSending(in: Self.conversationId))
+        #expect(!store.isSending(in: "another"))
+        await Self.waitUntil { store.pending.isEmpty }
+        #expect(!store.isSending(in: Self.conversationId))
+    }
+
+    @Test("After sign-out, a send that was out writes nothing")
+    func resetDropsLateResults() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub(
+            "POST", Self.conversationsPath, status: 201,
+            json: try Self.json(ChatConversationResponse(conversation: Self.conversation)), delayMs: 300
+        )
+        let store = Self.store(harness)
+        await store.open(ChatRoute(id: Self.conversationId, isNew: true))
+        store.send(text: "Hello", images: [], in: Self.conversationId, contextDate: nil)
+        store.resetAccountState()
+        await Self.waitUntil { harness.recordedRequests.contains("POST \(Self.conversationsPath)") }
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(store.conversations.isEmpty)
+        #expect(store.pending.isEmpty)
+        #expect(store.openId == nil)
+        #expect(!harness.recordedRequests.contains("POST \(Self.messagesPath)"))
+    }
+
+    @Test("A run left behind is still watched for the data it changes")
+    func watchAfterLeaving() async throws {
+        let harness = try RepositoryHarness()
+        harness.stub("GET", Self.detailPath, json: try Self.detail(
+            messages: [Fixture.userMessage], lastSeq: 1, activeRun: Fixture.run(status: "running")
+        ))
+        let events = Array(Fixture.documentedRun.dropFirst(1))
+        harness.stub("GET", Self.eventsPath, json: try Self.json(ChatEventsResponse(
+            events: events, nextAfter: 13, lastSeq: 13, hasMore: false, activeRun: nil
+        )))
+        let store = Self.store(harness)
+        let recorder = ChatHookRecorder()
+        store.refreshData = { plan, _ in recorder.plans.append(plan) }
+        await store.open(ChatRoute(id: Self.conversationId, isNew: false))
+        store.close(Self.conversationId)
+        await Self.waitUntil { !recorder.plans.isEmpty }
+        await store.refreshTask?.value
+        #expect(recorder.plans.reduce(into: Set<String>()) { $0.formUnion($1.entryDates) } == ["2026-11-18"])
+        #expect(store.capability == ChatCapability(available: true, remainingBudgetUsd: 9.98))
+    }
+
+    @Test("An event that cannot be read keeps its seq and is skipped")
+    func unreadableEvent() throws {
+        let event = try #require(ChatStore.decodeEvent(#"{"seq":7,"type":"text_delta","partIndex":"zero"}"#))
+        #expect(event.seq == 7)
+        #expect(event.type == ChatStore.unreadableEventType)
+        #expect(ChatStore.decodeEvent("not json") == nil)
+        var transcript = ChatTranscript(lastSeq: 6)
+        #expect(transcript.apply(event).outcome == .skipped)
+        #expect(transcript.lastSeq == 7)
     }
 
     @Test("Drafts are kept per conversation and dropped when it is deleted")

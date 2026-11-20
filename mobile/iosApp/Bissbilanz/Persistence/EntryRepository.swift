@@ -206,6 +206,18 @@ final class EntryRepository {
         })
     }
 
+    /// The same for recipes: days whose cached entries log one of `recipeIds`,
+    /// whose macros come from the recipe's ingredients.
+    func localDates(referencingRecipeIds recipeIds: Set<String>) -> Set<String> {
+        guard !recipeIds.isEmpty else { return [] }
+        let descriptor = FetchDescriptor<LocalEntry>(predicate: #Predicate { $0.recipeId != nil })
+        let rows = (try? context.fetch(descriptor)) ?? []
+        return Set(rows.compactMap { row in
+            guard let recipeId = row.recipeId, recipeIds.contains(recipeId) else { return nil }
+            return row.date
+        })
+    }
+
     // MARK: - Writes (local first + queued upload)
 
     @discardableResult

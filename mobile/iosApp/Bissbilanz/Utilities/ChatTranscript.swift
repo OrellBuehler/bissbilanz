@@ -137,10 +137,15 @@ struct ChatTranscript: Equatable, Sendable {
         }
     }
 
-    /// Follows `run` (from an accepted send, a decision or a poll) unless its
-    /// `run_finished` was already applied.
-    mutating func adopt(_ run: ChatRun) {
+    /// Follows `run` unless its `run_finished` was already applied. A response
+    /// (an accepted send, a decision, a cancel) can be older than the events
+    /// already applied, so for the run already followed it only counts when it
+    /// says the run is over; a poll page is a snapshot and always counts.
+    mutating func adopt(_ run: ChatRun, fromSnapshot: Bool = false) {
         guard !finishedRunIds.contains(run.id) else { return }
+        if !fromSnapshot, activeRun?.id == run.id, run.isActive {
+            return
+        }
         activeRun = run
     }
 

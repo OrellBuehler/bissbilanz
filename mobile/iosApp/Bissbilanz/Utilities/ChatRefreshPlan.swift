@@ -20,6 +20,9 @@ struct ChatRefreshPlan: Equatable, Sendable {
     var sleep = false
     var supplements = false
     var preferences = false
+    /// Finished fasts; the running timer lives on this device and is left alone.
+    var fasting = false
+    var reminders = false
 
     /// More ids than this are cheaper as one incremental mirror or list pull.
     static let maxScopedIds = 20
@@ -66,6 +69,8 @@ struct ChatRefreshPlan: Equatable, Sendable {
         sleep = sleep || other.sleep
         supplements = supplements || other.supplements
         preferences = preferences || other.preferences
+        fasting = fasting || other.fasting
+        reminders = reminders || other.reminders
         normalize()
     }
 
@@ -114,7 +119,14 @@ struct ChatRefreshPlan: Equatable, Sendable {
             supplements = true
         case "preferences":
             preferences = true
+        case "fasting":
+            fasting = true
+        case "reminders":
+            reminders = true
         default:
+            // Unknown, and `mealTypes`: the app keeps no copy of the custom
+            // meal types (the screens that list them read them each time),
+            // and the meal order is fixed on iOS.
             break
         }
     }

@@ -9,7 +9,8 @@ struct ServerSentEvent: Equatable, Sendable {
 
 /// A `text/event-stream` parser after the WHATWG event-stream rules: lines end
 /// in LF, CR or CRLF (also when split across chunks), `:` lines are comments
-/// (the server's heartbeat), `data` lines accumulate until a blank line
+/// (the server's heartbeat, reported so a quiet stream reads as alive), `data`
+/// lines accumulate until a blank line
 /// dispatches them, and a `retry` field reports the reconnection delay.
 /// Pure and incremental: bytes can arrive in any chunking.
 struct ServerSentEventParser: Sendable {
@@ -17,6 +18,8 @@ struct ServerSentEventParser: Sendable {
         case event(ServerSentEvent)
         /// The reconnection time the server asked for, in milliseconds.
         case retry(Int)
+        /// A comment line, the server's ping.
+        case heartbeat
     }
 
     /// The last `id` seen, kept across events like an `EventSource` does.
@@ -66,6 +69,7 @@ struct ServerSentEventParser: Sendable {
             return
         }
         if text.hasPrefix(":") {
+            outputs.append(.heartbeat)
             return
         }
         let field: Substring
@@ -142,6 +146,7 @@ enum ServerSentEventItem: Equatable, Sendable {
     case rejected(ServerSentEventRejection)
     case event(ServerSentEvent)
     case retry(Int)
+    case heartbeat
 }
 
 /// Reads an event stream off `URLSession.bytes`. Everything that touches the
@@ -214,6 +219,8 @@ enum ServerSentEventTransport {
                 continuation.yield(.event(event))
             case let .retry(milliseconds):
                 continuation.yield(.retry(milliseconds))
+            case .heartbeat:
+                continuation.yield(.heartbeat)
             }
         }
     }

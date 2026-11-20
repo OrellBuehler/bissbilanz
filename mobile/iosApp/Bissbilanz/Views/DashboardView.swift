@@ -215,7 +215,7 @@ struct DashboardView: View {
                 if showsChatEntry {
                     ToolbarItem(placement: .topBarLeading) {
                         NavigationLink {
-                            ChatHomeView(contextDate: dateString)
+                            ChatHomeView(contextDate: { dateString })
                         } label: {
                             Label(L10n.chatOpenAssistant, systemImage: ChatSymbols.chat)
                         }

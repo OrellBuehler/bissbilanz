@@ -6,7 +6,7 @@ import SwiftUI
 /// is in the foreground; coming back reads the conversation again.
 struct ChatConversationView: View {
     let route: ChatRoute
-    var contextDate: String?
+    var contextDate: @MainActor () -> String? = { nil }
     /// Replaces this conversation with another one (a new chat).
     var onOpen: (ChatRoute) -> Void
 
@@ -17,6 +17,8 @@ struct ChatConversationView: View {
     @AppStorage(ChatStore.privacyAcknowledgedKey) private var privacyAcknowledged = false
     @State private var seed: ChatComposerSeed?
     @State private var isNearBottom = true
+    /// Bumped by a send, so the list follows the user's own message down.
+    @State private var scrollToBottom = 0
     @State private var wasBackgrounded = false
     @State private var showAbout = false
     @State private var showRename = false
@@ -142,6 +144,9 @@ struct ChatConversationView: View {
             } action: { _, nearBottom in
                 isNearBottom = nearBottom
             }
+            .onChange(of: scrollToBottom) { _, _ in
+                proxy.scrollTo(Self.bottomId, anchor: .bottom)
+            }
             .onChange(of: scrollSignature) { _, _ in
                 guard isNearBottom else { return }
                 if reduceMotion {
@@ -166,7 +171,11 @@ struct ChatConversationView: View {
             ChatEmptyState(isEnabled: store.unavailableNotice == nil, onSelect: select)
         }
         ForEach(messages) { message in
-            ChatMessageView(message: message, onNewChat: { startNewChat(after: message) })
+            ChatMessageView(
+                message: message,
+                isStreaming: message.isInProgress && message.id == messages.last?.id,
+                onNewChat: { startNewChat(after: message) }
+            )
         }
         ForEach(pending) { message in
             ChatPendingMessageView(
@@ -229,7 +238,8 @@ struct ChatConversationView: View {
             }
             ChatComposer(
                 conversationId: route.id,
-                isEnabled: store.unavailableNotice == nil,
+                isEnabled: canCompose,
+                isSending: store.isSending(in: route.id),
                 isAnswering: isAnswering,
                 isWaiting: activeRun?.status == ChatRunStatus.awaitingConfirmation,
                 isStopping: store.isCancelling,
@@ -240,6 +250,12 @@ struct ChatConversationView: View {
             .id(route.id)
         }
         .background(.bar)
+    }
+
+    /// Only once the chat is on screen: a send into a chat still loading, or
+    /// one that failed to load, would land next to messages it cannot show.
+    private var canCompose: Bool {
+        store.unavailableNotice == nil && isCurrent && store.detailState == .loaded
     }
 
     private var isAnswering: Bool {
@@ -282,7 +298,9 @@ struct ChatConversationView: View {
     // MARK: - Actions
 
     private func send(_ text: String, _ images: [UIImage]) {
-        store.send(text: text, images: images, in: route.id, contextDate: contextDate)
+        isNearBottom = true
+        scrollToBottom += 1
+        store.send(text: text, images: images, in: route.id, contextDate: contextDate())
     }
 
     private func select(_ suggestion: ChatSuggestion) {

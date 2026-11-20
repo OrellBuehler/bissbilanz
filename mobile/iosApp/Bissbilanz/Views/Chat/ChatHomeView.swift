@@ -5,7 +5,8 @@ import SwiftUI
 /// straight to a new chat. Needs an account; in Local mode it says so.
 struct ChatHomeView: View {
     /// The diary day the screen that opened the chat shows, sent as context.
-    var contextDate: String?
+    /// Read when a message goes out, not when the chat opened.
+    var contextDate: @MainActor () -> String? = { nil }
 
     @Environment(ChatStore.self) private var store
     @Environment(AppModeManager.self) private var appModeManager
@@ -53,9 +54,9 @@ struct ChatHomeView: View {
         }
         // A run left working in the background ends without this screen
         // following it; the rows catch up while one is shown as working.
-        .task(id: hasActiveRun) {
-            while hasActiveRun, !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(5))
+        .task(id: listPollInterval) {
+            while let interval = listPollInterval, !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(interval))
                 if Task.isCancelled { return }
                 await store.loadConversations()
             }
@@ -90,8 +91,15 @@ struct ChatHomeView: View {
         }
     }
 
-    private var hasActiveRun: Bool {
-        openChat == nil && store.conversations.contains { $0.activeRun?.isActive == true }
+    /// Every 5 s while a run works, every 30 s while one only waits for a
+    /// confirmation, not at all otherwise or while a chat is open on top.
+    private var listPollInterval: TimeInterval? {
+        guard openChat == nil else { return nil }
+        let runs = store.conversations.compactMap(\.activeRun).filter(\.isActive)
+        if runs.contains(where: { $0.status != ChatRunStatus.awaitingConfirmation }) {
+            return 5
+        }
+        return runs.isEmpty ? nil : 30
     }
 
     @ViewBuilder

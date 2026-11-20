@@ -365,13 +365,24 @@ struct ChatTranscriptTests {
         reread.adopt(Fixture.run(status: "queued"))
         #expect(reread.activeRun == nil)
 
-        var following = ChatTranscript(activeRun: ChatRun(id: "gone", status: "running"))
+        let following = ChatTranscript(activeRun: ChatRun(id: "gone", status: "running"))
         var after = ChatTranscript(lastSeq: 20)
         after.carryFinishedRuns(from: following)
         after.adopt(ChatRun(id: "gone", status: "queued"))
         #expect(after.activeRun == nil)
-        following.adopt(ChatRun(id: "gone", status: "queued"))
-        #expect(following.activeRun?.status == "queued")
+    }
+
+    @Test("A late response never moves the followed run back; a final one or a poll snapshot counts")
+    func adoptKeepsNewerStatus() {
+        var transcript = ChatTranscript(activeRun: ChatRun(id: "r", status: "running"))
+        transcript.adopt(ChatRun(id: "r", status: "queued"))
+        #expect(transcript.activeRun?.status == "running")
+        transcript.adopt(ChatRun(id: "r", status: "awaiting_confirmation"), fromSnapshot: true)
+        #expect(transcript.activeRun?.status == "awaiting_confirmation")
+        transcript.adopt(ChatRun(id: "r", status: "cancelled", reason: "user_cancelled"))
+        #expect(transcript.activeRun?.status == "cancelled")
+        transcript.adopt(ChatRun(id: "other", status: "queued"))
+        #expect(transcript.activeRun?.id == "other")
     }
 
     @Test("run_finished settles a message whose message_completed never came")

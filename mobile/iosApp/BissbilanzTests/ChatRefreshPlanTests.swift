@@ -65,9 +65,20 @@ struct ChatRefreshPlanTests {
         #expect(withFoods.foodIds == ["f1"])
     }
 
-    @Test("Unknown domains are ignored")
+    @Test("Unknown domains, and meal types with no copy on iOS, are ignored")
     func unknownDomain() {
-        #expect(ChatRefreshPlan(changes: [ChatChange(domain: "fasting")], changed: ["reminders"]).isEmpty)
+        #expect(ChatRefreshPlan(changes: [ChatChange(domain: "bookmarks")], changed: ["themes"]).isEmpty)
+        #expect(ChatRefreshPlan(changes: [ChatChange(domain: "mealTypes", ids: ["m1"])]).isEmpty)
+    }
+
+    @Test("Fasts and reminders refresh as a whole")
+    func fastingAndReminders() {
+        let plan = ChatRefreshPlan(changes: [ChatChange(domain: "fasting", ids: ["f1"])], changed: ["reminders"])
+        #expect(plan.fasting)
+        #expect(plan.reminders)
+        var merged = ChatRefreshPlan()
+        merged.formUnion(plan)
+        #expect(merged == plan)
     }
 
     @Test("Plans merge; a whole domain absorbs its ids")
