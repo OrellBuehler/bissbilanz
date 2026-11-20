@@ -64,7 +64,10 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FoodSearchScreen(navController: NavController) {
+fun FoodSearchScreen(
+    navController: NavController,
+    showBack: Boolean = false,
+) {
     val viewModel: FoodSearchViewModel = koinViewModel()
     val refreshManager: RefreshManager = koinInject()
     val packageViewModel: FoodPackageViewModel = koinViewModel()
@@ -159,7 +162,11 @@ fun FoodSearchScreen(navController: NavController) {
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            AppTopBar(stringResource(R.string.food_search_title), scrollBehavior) {
+            AppTopBar(
+                stringResource(R.string.food_search_title),
+                scrollBehavior,
+                onBack = if (showBack) ({ navController.popBackStack() }) else null,
+            ) {
                 IconButton(onClick = { navController.navigate("food-duplicates") }) {
                     Icon(Icons.Default.JoinFull, stringResource(R.string.food_duplicates_title))
                 }

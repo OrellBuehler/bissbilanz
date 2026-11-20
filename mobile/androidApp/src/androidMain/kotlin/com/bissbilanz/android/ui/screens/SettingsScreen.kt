@@ -1,6 +1,5 @@
 package com.bissbilanz.android.ui.screens
 
-import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -20,11 +19,14 @@ import androidx.navigation.NavController
 import com.bissbilanz.android.R
 import com.bissbilanz.android.bulk.formatCount
 import com.bissbilanz.android.health.HealthConnectService
+import com.bissbilanz.android.navigation.LocalBarRoutes
+import com.bissbilanz.android.navigation.NavTabPrefs
 import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.rememberHaptic
+import com.bissbilanz.android.ui.util.rememberPreference
 import com.bissbilanz.android.ui.viewmodels.SettingsViewModel
 import com.bissbilanz.android.ui.viewmodels.UiMessageSnackbar
 import com.bissbilanz.auth.AuthManager
@@ -78,13 +80,9 @@ fun SettingsScreen(navController: NavController) {
     val tipStore: TipStore = koinInject()
     val scope = rememberCoroutineScope()
     val tipsResetMessage = stringResource(R.string.settings_tips_reset_message)
-    val tabPrefs = context.getSharedPreferences("nav_tabs", Context.MODE_PRIVATE)
-    var selectedTabs by remember {
-        mutableStateOf(
-            tabPrefs.getStringSet("selected_tabs", com.bissbilanz.android.navigation.defaultTabRoutes)
-                ?: com.bissbilanz.android.navigation.defaultTabRoutes,
-        )
-    }
+    val tabPrefs = remember(context) { NavTabPrefs(context) }
+    val tabConfig by rememberPreference(tabPrefs.prefs) { tabPrefs.read() }
+    val barRoutes = LocalBarRoutes.current
     UiMessageSnackbar(snackbarMessage, snackbarHostState, viewModel::clearSnackbar)
 
     val exportingData by viewModel.exportingData.collectAsStateWithLifecycle()
@@ -189,14 +187,16 @@ fun SettingsScreen(navController: NavController) {
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp),
             ) {
-                SettingsNavigationCard(navController, selectedTabs, isLocalMode, healthAvailable)
+                SettingsNavigationCard(navController, barRoutes, isLocalMode, healthAvailable)
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 NavigationTabsCard(
-                    selectedTabs = selectedTabs,
-                    onSelectedTabsChange = { selectedTabs = it },
-                    tabPrefs = tabPrefs,
+                    tabs = tabConfig.tabs,
+                    landing = tabConfig.landing,
+                    signedIn = !isLocalMode,
+                    onTabsChange = tabPrefs::setTabs,
+                    onLandingChange = tabPrefs::setLanding,
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -233,6 +233,10 @@ fun SettingsScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(12.dp))
 
                 LanguageCard()
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                AppearanceCard()
 
                 Spacer(modifier = Modifier.height(12.dp))
 

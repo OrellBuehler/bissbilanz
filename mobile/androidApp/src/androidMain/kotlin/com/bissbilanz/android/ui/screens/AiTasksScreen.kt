@@ -2,6 +2,7 @@ package com.bissbilanz.android.ui.screens
 
 import android.Manifest
 import android.os.Build
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
@@ -67,6 +68,7 @@ import com.bissbilanz.util.TaskResolver
 import com.bissbilanz.util.claudeTaskState
 import com.bissbilanz.util.hasUnreadReply
 import com.bissbilanz.util.resolver
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -76,7 +78,10 @@ import kotlin.time.Instant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AiTasksScreen(navController: NavController) {
+fun AiTasksScreen(
+    navController: NavController,
+    showBack: Boolean = false,
+) {
     val viewModel: AiTasksViewModel = koinViewModel()
     val context = LocalContext.current
     val tasks by viewModel.visibleTasks.collectAsStateWithLifecycle()
@@ -122,6 +127,21 @@ fun AiTasksScreen(navController: NavController) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.whileScreenVisible() }
     }
 
+    // Opening the list is what marks the outcomes as read — posting a notification does
+    // not, so the user's other devices still get to tell them. Every visit counts: as a
+    // tab the screen comes back to the same view model. A rotation is not a new visit.
+    val activity = LocalActivity.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewModel.onShown()
+            try {
+                awaitCancellation()
+            } finally {
+                if (activity?.isChangingConfigurations != true) viewModel.onHidden()
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (!permissionAsked &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -130,9 +150,6 @@ fun AiTasksScreen(navController: NavController) {
             permissionAsked = true
             permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
-        // Opening the list is what marks the outcomes as read — posting a
-        // notification does not, so the user's other devices still get to tell them.
-        viewModel.load()
     }
 
     taskToDelete?.let { task ->
@@ -165,7 +182,7 @@ fun AiTasksScreen(navController: NavController) {
             AppTopBar(
                 scrollBehavior = scrollBehavior,
                 title = stringResource(R.string.ai_tasks_title),
-                onBack = { navController.popBackStack() },
+                onBack = if (showBack) ({ navController.popBackStack() }) else null,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },

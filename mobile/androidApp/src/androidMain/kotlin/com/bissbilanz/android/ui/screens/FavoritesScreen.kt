@@ -42,7 +42,10 @@ import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FavoritesScreen(navController: NavController) {
+fun FavoritesScreen(
+    navController: NavController,
+    showBack: Boolean = false,
+) {
     val viewModel: FavoritesViewModel = koinViewModel()
     val refreshManager: RefreshManager = koinInject()
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
@@ -137,7 +140,13 @@ fun FavoritesScreen(navController: NavController) {
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = { AppTopBar(stringResource(R.string.favorites_title), scrollBehavior) },
+        topBar = {
+            AppTopBar(
+                stringResource(R.string.favorites_title),
+                scrollBehavior,
+                onBack = if (showBack) ({ navController.popBackStack() }) else null,
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         PullToRefreshWrapper(
