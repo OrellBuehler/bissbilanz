@@ -68,9 +68,11 @@
 	passieren: Löschen, Lebensmittel zusammenführen, einen Tag kopieren, ein Supplement zurücksetzen,
 	Nährwerte, Portionsgrösse oder Foto eines Lebensmittels ändern, das du schon erfasst hast (direkt
 	oder in einem erfassten Rezept), das Foto eines Lebensmittels oder Rezepts ersetzen oder
-	entfernen, die Zutaten oder Schritte eines Rezepts ändern (oder Portionen und gekochtes Gewicht
-	eines Rezepts, das du schon erfasst hast), die Zutaten eines Supplements ändern, alles Erzwungene
-	und jede Änderung nach den ersten zehn in einer Antwort.
+	entfernen, die Notiz, das Wasser oder die Aktivität eines Tages leeren oder alle Labels entfernen,
+	die der Assistent einem Lebensmittel oder Rezept gegeben hat, die Zutaten oder Schritte eines
+	Rezepts ändern (oder Portionen und gekochtes Gewicht eines Rezepts, das du schon erfasst hast),
+	die Zutaten eines Supplements ändern, alles Erzwungene und jede Änderung nach den ersten zehn in
+	einer Antwort.
 </p>
 <p class="mb-6">
 	Deine Nachrichten, angehängte Fotos, das bisherige Gespräch und alle Tagebuchdaten, die der

@@ -745,6 +745,75 @@ describe('review fixes, second round', () => {
 		expect(unchanged!.protein).toBe(10);
 	});
 
+	it('asks before a day detail with a value is cleared, naming what it held', async () => {
+		const user = await seedUser(db);
+		await db
+			.insert(schema.dayProperties)
+			.values({ userId: user.id, date: '2026-11-18', notes: 'Ran 5 km', waterMl: 1500 });
+		const conversation = await newConversation(user.id);
+		const clear = toolUse('set_day_properties', { date: '2026-11-18', notes: null });
+		fakeClaude([message([clear], 'tool_use')]);
+		await send(user.id, conversation.id, 'Remove the note');
+		const [action] = await db
+			.select()
+			.from(chatToolCalls)
+			.where(eq(chatToolCalls.toolUseId, clear.id as string));
+		expect(action).toMatchObject({ kind: 'confirm', actionStatus: 'pending' });
+		expect(action!.preview).toEqual({
+			summary: 'Change the day details of 18 Nov 2026',
+			details: ['notes: cleared (was Ran 5 km)']
+		});
+		const [day] = await db
+			.select()
+			.from(schema.dayProperties)
+			.where(eq(schema.dayProperties.userId, user.id));
+		expect(day!.notes).toBe('Ran 5 km');
+	});
+
+	it('shows, stores and runs the input as the tool parses it', async () => {
+		const user = await seedUser(db);
+		const food = await seedFood(user.id);
+		await seedEntry(user.id, food.id);
+		const conversation = await newConversation(user.id);
+		const update = toolUse('update_food', { foodId: food.id, calories: '75', isFavorite: 'false' });
+		const fake = fakeClaude([message([update], 'tool_use')]);
+		await send(user.id, conversation.id, 'Fix it');
+		const [action] = await db
+			.select()
+			.from(chatToolCalls)
+			.where(eq(chatToolCalls.toolUseId, update.id as string));
+		expect(action!.input).toEqual({ foodId: food.id, calories: 75, isFavorite: true });
+		expect(action!.preview).toEqual({
+			summary: 'Change the food “Greek yogurt”',
+			details: ['calories: 60 → 75', 'isFavorite: false → true']
+		});
+		fake.queue.push(message([textBlock('Done.')], 'end_turn'));
+		await service.decideAction(user.id, action!.id, 'approve');
+		await executor.settleChatRunsForTests();
+		const [updated] = await db.select().from(foods).where(eq(foods.id, food.id));
+		expect(updated).toMatchObject({ calories: 75, isFavorite: true });
+	});
+
+	it('answers arguments the tool cannot parse with an error and changes nothing', async () => {
+		const user = await seedUser(db);
+		const food = await seedFood(user.id);
+		const conversation = await newConversation(user.id);
+		const update = toolUse('update_food', { foodId: food.id, calories: 'lots' });
+		const fake = fakeClaude([
+			message([update], 'tool_use'),
+			message([textBlock('Sorry')], 'end_turn')
+		]);
+		const accepted = await send(user.id, conversation.id, 'Fix it');
+		expect((await runOf(accepted.run.id)).status).toBe('completed');
+		const [result] = toolResultsOf(fake.calls[1]!);
+		expect(result).toMatchObject({ is_error: true });
+		expect(JSON.stringify(result!.content)).toContain(
+			'Invalid arguments for update_food: calories'
+		);
+		const [unchanged] = await db.select().from(foods).where(eq(foods.id, food.id));
+		expect(unchanged!.calories).toBe(60);
+	});
+
 	it('asks before removing the photo of a food nobody logged', async () => {
 		const user = await seedUser(db);
 		const food = await seedFood(user.id, { imageUrl: '/uploads/old.webp' });

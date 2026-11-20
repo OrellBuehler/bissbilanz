@@ -40,6 +40,59 @@ export async function connectMcp(userId: string): Promise<McpConnection> {
 	};
 }
 
+type ToolSchemas = Record<
+	string,
+	{
+		inputSchema?: {
+			safeParseAsync(
+				input: unknown
+			): Promise<
+				| { success: true; data: unknown }
+				| { success: false; error: { issues: { path: PropertyKey[]; message: string }[] } }
+			>;
+		};
+	}
+>;
+
+let toolSchemas: ToolSchemas | null = null;
+
+// The input schemas callTool validates with. The SDK keeps registered tools on
+// a private field; chat-policy.test.ts fails if a write tool's schema is
+// missing, so an SDK change shows up in CI and not as unparsed input.
+function registeredTools(): ToolSchemas {
+	if (!toolSchemas) {
+		const server = createMcpServer('00000000-0000-0000-0000-000000000000') as unknown as {
+			_registeredTools?: ToolSchemas;
+		};
+		if (!server._registeredTools) throw new Error('The MCP server exposes no registered tools');
+		toolSchemas = server._registeredTools;
+	}
+	return toolSchemas;
+}
+
+export const hasToolSchema = (name: string): boolean => !!registeredTools()[name]?.inputSchema;
+
+/**
+ * The arguments exactly as the tool receives them: parsed with its own MCP
+ * input schema (coerced, defaulted, unknown keys dropped), as JSON. A
+ * confirmation card shows this and the call runs with it.
+ */
+export async function parseToolInput(
+	name: string,
+	input: Record<string, unknown>
+): Promise<{ input: Record<string, unknown> } | { error: string }> {
+	const schema = registeredTools()[name]?.inputSchema;
+	if (!schema) return { error: `Unknown tool ${name}.` };
+	const parsed = await schema.safeParseAsync(input);
+	if (!parsed.success) {
+		const issues = parsed.error.issues
+			.map((issue) => `${issue.path.map(String).join('.') || 'input'}: ${issue.message}`)
+			.join('; ');
+		return { error: `Invalid arguments for ${name}: ${issues}` };
+	}
+	return { input: JSON.parse(JSON.stringify(parsed.data ?? {})) as Record<string, unknown> };
+}
+
 let listing: Promise<McpToolInfo[]> | null = null;
 
 /** The MCP tools as the server registers them; the same for every user. */

@@ -61,10 +61,11 @@
 	foods, recipes, goals, weight, sleep and supplements for you, and says what it changed. These only
 	happen after you confirm them in the chat: deleting, merging foods, copying a day, removing a
 	supplement log, changing the nutrition, serving size or photo of a food you already logged
-	(directly or in a logged recipe), replacing or removing the photo of any food or recipe, changing
-	a recipe's ingredients or steps (or the servings or cooked weight of a recipe you already logged),
-	changing a supplement's ingredients, anything forced, and every change after the first ten in one
-	answer.
+	(directly or in a logged recipe), replacing or removing the photo of any food or recipe, clearing
+	a day's note, water or activity details or all the labels the assistant gave a food or recipe,
+	changing a recipe's ingredients or steps (or the servings or cooked weight of a recipe you already
+	logged), changing a supplement's ingredients, anything forced, and every change after the first
+	ten in one answer.
 </p>
 <p class="mb-6">
 	Your messages, the photos you attach, the earlier conversation and whatever diary data the
