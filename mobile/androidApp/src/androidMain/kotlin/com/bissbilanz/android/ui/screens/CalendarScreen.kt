@@ -46,7 +46,10 @@ import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CalendarScreen(navController: NavController) {
+fun CalendarScreen(
+    navController: NavController,
+    showBack: Boolean = false,
+) {
     val statsRepo: StatsRepository = koinInject()
     val goalsRepo: GoalsRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
@@ -92,7 +95,7 @@ fun CalendarScreen(navController: NavController) {
             AppTopBar(
                 scrollBehavior = scrollBehavior,
                 title = stringResource(R.string.calendar_title),
-                onBack = { navController.popBackStack() },
+                onBack = if (showBack) ({ navController.popBackStack() }) else null,
             )
         },
     ) { padding ->

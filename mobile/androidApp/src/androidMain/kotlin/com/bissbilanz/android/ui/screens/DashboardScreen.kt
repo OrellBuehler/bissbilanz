@@ -38,7 +38,9 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.bissbilanz.android.R
+import com.bissbilanz.android.navigation.LocalBarRoutes
 import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
+import com.bissbilanz.android.navigation.openDestination
 import com.bissbilanz.android.tips.AnchoredTip
 import com.bissbilanz.android.tips.HelpSlugs
 import com.bissbilanz.android.tips.HintCard
@@ -97,6 +99,7 @@ import kotlin.time.Clock
 @Composable
 fun DashboardScreen(navController: NavController) {
     val viewModel: DashboardViewModel = koinViewModel()
+    val barRoutes = LocalBarRoutes.current
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val goals by viewModel.goals.collectAsStateWithLifecycle()
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
@@ -512,7 +515,7 @@ fun DashboardScreen(navController: NavController) {
                                         DashboardSection.FASTING -> {
                                             if (selectedDate == today) {
                                                 Spacer(modifier = Modifier.height(Dimens.CardGap))
-                                                FastingCard(onClick = { navController.navigate("fasting") })
+                                                FastingCard(onClick = { navController.openDestination("fasting", barRoutes) })
                                             }
 
                                             if (totalCalories == 0.0 && !refreshFailed) {
@@ -658,7 +661,7 @@ fun DashboardScreen(navController: NavController) {
                                                 Spacer(modifier = Modifier.height(Dimens.CardGap))
                                                 FavoritesQuickLogWidget(
                                                     date = selectedDate.toString(),
-                                                    onViewAll = { navController.navigate("favorites") },
+                                                    onViewAll = { navController.openDestination("favorites", barRoutes) },
                                                     onLogged = { name ->
                                                         scope.launch {
                                                             snackbarHostState.showSnackbar(loggedFormat.format(name))
@@ -678,7 +681,7 @@ fun DashboardScreen(navController: NavController) {
                                                     date = selectedDate.toString(),
                                                     entries = entries,
                                                     activityCalories = activityCalories,
-                                                    onViewAll = { navController.navigate("recipe-suggestions") },
+                                                    onViewAll = { navController.openDestination("recipe-suggestions", barRoutes) },
                                                     onLogged = { name ->
                                                         scope.launch {
                                                             snackbarHostState.showSnackbar(loggedFormat.format(name))
@@ -693,7 +696,7 @@ fun DashboardScreen(navController: NavController) {
                                             Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             SupplementsWidget(
                                                 date = selectedDate.toString(),
-                                                onViewAll = { navController.navigate("supplements") },
+                                                onViewAll = { navController.openDestination("supplements", barRoutes) },
                                             )
                                         }
 
@@ -701,14 +704,17 @@ fun DashboardScreen(navController: NavController) {
                                             Spacer(modifier = Modifier.height(Dimens.CardGap))
                                             WeightWidget(
                                                 date = selectedDate.toString(),
-                                                onViewAll = { navController.navigate("weight") },
+                                                onViewAll = { navController.openDestination("weight", barRoutes) },
                                                 onError = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
                                             )
                                         }
 
                                         DashboardSection.SLEEP -> {
                                             Spacer(modifier = Modifier.height(Dimens.CardGap))
-                                            SleepWidget(date = selectedDate.toString(), onViewAll = { navController.navigate("sleep") })
+                                            SleepWidget(
+                                                date = selectedDate.toString(),
+                                                onViewAll = { navController.openDestination("sleep", barRoutes) },
+                                            )
                                         }
 
                                         DashboardSection.MEAL_BREAKDOWN -> {

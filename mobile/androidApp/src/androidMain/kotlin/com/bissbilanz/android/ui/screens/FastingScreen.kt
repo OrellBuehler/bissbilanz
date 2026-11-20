@@ -74,7 +74,10 @@ private val TARGET_OPTIONS = listOf(14, 16, 18, 20, 24, 36)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FastingScreen(navController: NavController) {
+fun FastingScreen(
+    navController: NavController,
+    showBack: Boolean = false,
+) {
     val fastingManager: FastingManager = koinInject()
     val session by fastingManager.session.collectAsStateWithLifecycle()
     val history by fastingManager.history.collectAsStateWithLifecycle()
@@ -201,7 +204,7 @@ fun FastingScreen(navController: NavController) {
             AppTopBar(
                 scrollBehavior = scrollBehavior,
                 title = stringResource(R.string.fasting_title),
-                onBack = { navController.popBackStack() },
+                onBack = if (showBack) ({ navController.popBackStack() }) else null,
             )
         },
     ) { padding ->

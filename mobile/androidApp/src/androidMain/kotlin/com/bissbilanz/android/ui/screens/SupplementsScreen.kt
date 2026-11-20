@@ -67,7 +67,10 @@ private fun dosageSummary(supplement: Supplement): String {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SupplementsScreen(navController: NavController) {
+fun SupplementsScreen(
+    navController: NavController,
+    showBack: Boolean = false,
+) {
     val supplementRepo: SupplementRepository = koinInject()
     val refreshManager: RefreshManager = koinInject()
     val errorReporter: ErrorReporter = koinInject()
@@ -140,7 +143,7 @@ fun SupplementsScreen(navController: NavController) {
             AppTopBar(
                 scrollBehavior = scrollBehavior,
                 title = stringResource(R.string.chart_supplements),
-                onBack = { navController.popBackStack() },
+                onBack = if (showBack) ({ navController.popBackStack() }) else null,
                 actions = {
                     IconButton(onClick = { navController.navigate("supplement-history") }) {
                         Icon(Icons.Default.DateRange, stringResource(R.string.calendar_title))

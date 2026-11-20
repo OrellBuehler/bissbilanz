@@ -16,6 +16,8 @@ import com.bissbilanz.android.ui.AppLanguage
 import com.bissbilanz.android.ui.components.CheckboxRow
 import com.bissbilanz.android.ui.components.ChoiceDropdown
 import com.bissbilanz.android.ui.components.ToggleRow
+import com.bissbilanz.android.ui.theme.ThemeMode
+import com.bissbilanz.android.ui.util.rememberPreference
 import com.bissbilanz.android.util.formatUsd
 import com.bissbilanz.api.generated.model.ClaudeCapability
 import com.bissbilanz.model.MealType
@@ -343,6 +345,37 @@ internal fun LanguageCard() {
                     }
                 }
             }
+        }
+    }
+}
+
+/** Light, dark, or the system's choice. Device-local, like the language. */
+@Composable
+internal fun AppearanceCard() {
+    val context = LocalContext.current
+    val prefs = remember(context) { ThemeMode.prefs(context) }
+    val mode by rememberPreference(prefs) { ThemeMode.read(prefs) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.settings_appearance),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            val options =
+                listOf(
+                    stringResource(R.string.settings_theme_system) to ThemeMode.SYSTEM,
+                    stringResource(R.string.settings_theme_light) to ThemeMode.LIGHT,
+                    stringResource(R.string.settings_theme_dark) to ThemeMode.DARK,
+                )
+            ChoiceDropdown(
+                selectedLabel = options.first { it.second == mode }.first,
+                options = options,
+                onSelect = { ThemeMode.save(context, it) },
+                label = stringResource(R.string.settings_theme),
+            )
         }
     }
 }

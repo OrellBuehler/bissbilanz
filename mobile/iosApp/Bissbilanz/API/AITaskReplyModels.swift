@@ -476,7 +476,8 @@ enum AiTaskThreadChanges {
     }
 
     /// The status tab holding what the user has to look at: an unread
-    /// dismissal first, then an unread answer or a correction still running.
+    /// dismissal first, then an unread answer or a correction still running,
+    /// then a proposal waiting for review.
     static func statusWithNews(in tasks: [AiTask]) -> String? {
         if let dismissal = tasks.first(where: \.isUnreadDismissal) {
             return dismissal.status
@@ -484,7 +485,10 @@ enum AiTaskThreadChanges {
         let news = tasks.first { task in
             task.hasUnreadReplies || task.claudeThread?.correction.isInFlight == true
         }
-        return news?.status
+        if let news {
+            return news.status
+        }
+        return tasks.first { $0.openProposal != nil }?.status
     }
 
     /// An acknowledgement the server refused for good: retrying the same ids

@@ -70,7 +70,10 @@ import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WeightScreen(navController: NavController) {
+fun WeightScreen(
+    navController: NavController,
+    showBack: Boolean = false,
+) {
     val viewModel: WeightViewModel = koinViewModel()
     val weightRepo: WeightRepository = koinInject()
     val errorReporter: ErrorReporter = koinInject()
@@ -210,7 +213,7 @@ fun WeightScreen(navController: NavController) {
             AppTopBar(
                 scrollBehavior = scrollBehavior,
                 title = stringResource(R.string.weight_screen_title),
-                onBack = { navController.popBackStack() },
+                onBack = if (showBack) ({ navController.popBackStack() }) else null,
             )
         },
         floatingActionButton = {

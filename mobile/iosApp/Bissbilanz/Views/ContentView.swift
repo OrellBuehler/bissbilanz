@@ -1,55 +1,46 @@
 import AuthenticationServices
 import SwiftUI
 
-enum NavigableTab: String, CaseIterable, Identifiable {
-    case foods
-    case favorites
-    case insights
-    case weight
-    case supplements
-    case recipeSuggestions = "recipe-suggestions"
-
-    var id: String {
-        rawValue
-    }
-
-    var label: String {
-        switch self {
-        case .foods: L10n.foods
-        case .favorites: L10n.favorites
-        case .insights: L10n.insights
-        case .weight: L10n.weight
-        case .supplements: L10n.supplements
-        case .recipeSuggestions: L10n.recipeSuggestions
-        }
-    }
-
-    var icon: String {
-        switch self {
-        case .foods: "fork.knife"
-        case .favorites: "star"
-        case .insights: "chart.bar"
-        case .weight: "scalemass"
-        case .supplements: "pills"
-        case .recipeSuggestions: "fork.knife.circle"
-        }
-    }
-
-    /// @MainActor because `NavigationStack.init(root:)` is main-actor-isolated;
-    /// this builder is only ever read from `ContentView.body` (the main actor).
+extension NavigableTab {
+    /// The screen on its own, for a navigation stack that already exists — a
+    /// push from Settings.
     @MainActor @ViewBuilder
-    var destination: some View {
+    var screen: some View {
         switch self {
-        // FoodSearchView relies on a navigation container for its search bar,
-        // title, toolbar, and navigation destinations (unlike the other tab
-        // views, it doesn't wrap itself). The deep-link sheet supplies one; the
-        // tab destination must too, otherwise the search field never appears.
-        case .foods: NavigationStack { FoodSearchView() }
+        case .foods: FoodSearchView()
         case .favorites: FavoritesView()
-        case .insights: InsightsView()
-        case .weight: WeightView()
-        case .supplements: SupplementsView()
+        case .recipes: RecipeListView()
         case .recipeSuggestions: RecipeSuggestionsView()
+        case .insights: InsightsView()
+        case .calendar: CalendarView()
+        case .weight: WeightView()
+        case .sleep: SleepView()
+        case .fasting: FastingView()
+        case .supplements: SupplementsView()
+        case .aiTasks: AiTasksView()
+        }
+    }
+
+    /// The screen as a tab root. @MainActor because `NavigationStack.init(root:)`
+    /// is main-actor-isolated; only ever read from `ContentView.body`.
+    @MainActor @ViewBuilder
+    var tabRoot: some View {
+        if wrapsItsOwnNavigationStack {
+            screen
+        } else {
+            // FoodSearchView relies on a navigation container for its search
+            // bar, title, toolbar and navigation destinations; the others need
+            // one for their title and pushes.
+            NavigationStack { screen }
+        }
+    }
+
+    private var wrapsItsOwnNavigationStack: Bool {
+        switch self {
+        case .favorites, .recipes, .recipeSuggestions, .insights, .weight, .sleep, .supplements:
+            true
+        case .foods, .calendar, .fasting, .aiTasks:
+            false
         }
     }
 }
@@ -59,34 +50,71 @@ struct ContentView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(DeepLinkRouter.self) private var deepLinkRouter
     @Environment(FoodPackageInbox.self) private var foodPackageInbox
-    @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
+    @Environment(AiTaskStore.self) private var aiTaskStore
+    @AppStorage(TabBarLayout.storageKey) private var selectedTabsRaw: String = TabBarLayout.defaultRaw
+    @AppStorage(TabBarLayout.landingStorageKey) private var landingTabRaw: String = TabBarLayout.homeId
+    /// Nil until the user switches tabs, so the app opens on the landing tab.
+    @State private var selectedTab: String?
     @State private var showSessionExpiredPrompt = false
     @State private var reauthSession: ASWebAuthenticationSession?
     @State private var reauthPrompt: SignInPrompt?
 
-    private var selectedTabs: [NavigableTab] {
-        selectedTabsRaw.split(separator: ",").compactMap { NavigableTab(rawValue: String($0)) }
+    private var tabLayout: TabBarLayout {
+        TabBarLayout(raw: selectedTabsRaw)
+    }
+
+    /// Account-only tabs are hidden in Local mode, without touching what is
+    /// stored, so they come back after signing in.
+    private var visibleTabs: [NavigableTab] {
+        tabLayout.visibleTabs(signedIn: !appModeManager.isLocal)
+    }
+
+    private var tabSelection: Binding<String> {
+        Binding(
+            get: {
+                tabLayout.selection(
+                    current: selectedTab,
+                    landing: landingTabRaw,
+                    signedIn: !appModeManager.isLocal
+                )
+            },
+            set: { selectedTab = $0 }
+        )
+    }
+
+    /// Only the AI tasks tab carries a badge; the store is read only while
+    /// that tab is in the bar.
+    private func badgeCount(for tab: NavigableTab) -> Int {
+        tab == .aiTasks ? aiTaskStore.attentionCount : 0
     }
 
     var body: some View {
         @Bindable var deepLinkRouter = deepLinkRouter
         @Bindable var foodPackageInbox = foodPackageInbox
-        TabView {
-            Tab(L10n.home, systemImage: "house") {
+        TabView(selection: tabSelection) {
+            Tab(L10n.home, systemImage: "house", value: TabBarLayout.homeId) {
                 DashboardView()
             }
 
-            ForEach(selectedTabs) { tab in
-                Tab(tab.label, systemImage: tab.icon) {
-                    tab.destination
+            ForEach(visibleTabs) { tab in
+                Tab(tab.label, systemImage: tab.icon, value: tab.rawValue) {
+                    tab.tabRoot
                 }
+                .badge(badgeCount(for: tab))
             }
 
-            Tab(L10n.settings, systemImage: "gear") {
+            Tab(L10n.settings, systemImage: "gear", value: TabBarLayout.settingsId) {
                 SettingsView()
             }
         }
         .minimizableTabBar()
+        // A widget's plain tap promises the dashboard, also when the app
+        // opens on another tab.
+        .onChange(of: deepLinkRouter.homeRequested, initial: true) { _, requested in
+            guard requested else { return }
+            selectedTab = TabBarLayout.homeId
+            deepLinkRouter.homeRequested = false
+        }
         // Outside the tabs so a lost offline edit is visible wherever the user
         // happens to be. Sits above the tab bar, where every other transient
         // message (`.toast`) already appears — at the top it covered the
