@@ -70,26 +70,19 @@ struct ChatRefreshPlanTests {
         #expect(ChatRefreshPlan(changes: [ChatChange(domain: "fasting")], changed: ["reminders"]).isEmpty)
     }
 
-    @Test("Plans merge, and what already ran is subtracted")
-    func mergeAndSubtract() {
+    @Test("Plans merge; a whole domain absorbs its ids")
+    func merge() {
         var first = ChatRefreshPlan(changes: [ChatChange(domain: "entries", dates: ["2026-11-18"])])
-        first.formUnion(ChatRefreshPlan(changes: [ChatChange(domain: "foods", ids: ["f1"])]))
-        #expect(first.entryDates == ["2026-11-18"])
-        #expect(first.foodIds == ["f1"])
-
-        let finished = ChatRefreshPlan(changes: [
+        first.formUnion(ChatRefreshPlan(changes: [
             ChatChange(domain: "entries", dates: ["2026-11-18", "2026-11-19"]),
             ChatChange(domain: "foods", ids: ["f1"]),
             ChatChange(domain: "goals")
-        ])
-        let rest = finished.subtracting(first)
-        #expect(rest.entryDates == ["2026-11-19"])
-        #expect(rest.foodIds.isEmpty)
-        #expect(rest.goals)
-        #expect(finished.subtracting(finished).isEmpty)
+        ]))
+        #expect(first.entryDates == ["2026-11-18", "2026-11-19"])
+        #expect(first.foodIds == ["f1"])
+        #expect(first.goals)
 
         var all = ChatRefreshPlan(changes: [ChatChange(domain: "foods")])
-        #expect(finished.subtracting(all).foodIds.isEmpty)
         all.formUnion(ChatRefreshPlan(changes: [ChatChange(domain: "foods", ids: ["f2"])]))
         #expect(all.allFoods)
         #expect(all.foodIds.isEmpty)

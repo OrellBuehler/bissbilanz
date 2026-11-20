@@ -15,7 +15,6 @@ struct DashboardView: View {
     @Environment(FastingTimerManager.self) var fastingManager
     @Environment(DeepLinkRouter.self) private var deepLinkRouter
     @Environment(AppModeManager.self) private var appModeManager
-    @Environment(ChatStore.self) private var chatStore
     @AppStorage(TabBarLayout.storageKey) private var selectedTabsRaw: String = TabBarLayout.defaultRaw
 
     @State var entries: [Entry] = []
@@ -323,10 +322,6 @@ struct DashboardView: View {
             // The assistant changed diary data and the store pulled it again.
             .onReceive(NotificationCenter.default.publisher(for: ChatStore.didChangeDataNotification)) { _ in
                 loadFromStore()
-            }
-            // The chat sends the day on screen as its message context.
-            .onChange(of: dateString, initial: true) { _, date in
-                chatStore.viewedDiaryDate = date
             }
             // A widget/Siri deep link (scan, log, weight, food, recipe) is
             // presented by ContentView above the tabs; the sheets this view

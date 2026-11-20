@@ -306,6 +306,23 @@ struct ChatTranscriptTests {
         #expect(transcript.activeRun?.id == "next-run")
     }
 
+    @Test("Runs known to be over stay over across a re-read")
+    func finishedRunsSurviveRereads() {
+        let (finished, _) = Self.folded(Fixture.documentedRun)
+        var reread = ChatTranscript(lastSeq: 13)
+        reread.carryFinishedRuns(from: finished)
+        reread.adopt(Fixture.run(status: "queued"))
+        #expect(reread.activeRun == nil)
+
+        var following = ChatTranscript(activeRun: ChatRun(id: "gone", status: "running"))
+        var after = ChatTranscript(lastSeq: 20)
+        after.carryFinishedRuns(from: following)
+        after.adopt(ChatRun(id: "gone", status: "queued"))
+        #expect(after.activeRun == nil)
+        following.adopt(ChatRun(id: "gone", status: "queued"))
+        #expect(following.activeRun?.status == "queued")
+    }
+
     @Test("run_finished settles a message whose message_completed never came")
     func runFinishedSettlesMessage() {
         var transcript = ChatTranscript()

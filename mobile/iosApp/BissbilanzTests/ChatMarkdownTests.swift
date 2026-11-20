@@ -89,6 +89,39 @@ struct ChatMarkdownTests {
         #expect(links == [URL(string: "https://example.com")!])
     }
 
+    private static func links(_ text: AttributedString) -> [URL] {
+        var links: [URL] = []
+        for run in text.runs {
+            if let link = run.link, links.last != link {
+                links.append(link)
+            }
+        }
+        return links
+    }
+
+    @Test("Only web links survive, also with parentheses in the address")
+    func webLinksOnly() throws {
+        let text = ChatMarkdown.inline(
+            "[Bread](https://en.wikipedia.org/wiki/Bread_(food)), [mail](mailto:a@example.com), [x](javascript:alert(1))"
+        )
+        let bread = try #require(URL(string: "https://en.wikipedia.org/wiki/Bread_(food)"))
+        #expect(Self.links(text) == [bread])
+    }
+
+    @Test("Bare web addresses become links; a parenthesis around them stays outside")
+    func bareAddresses() throws {
+        let text = ChatMarkdown.inline(
+            "See https://en.wikipedia.org/wiki/Bread_(food) or (https://example.com/a). `https://code.example`"
+        )
+        let bread = try #require(URL(string: "https://en.wikipedia.org/wiki/Bread_(food)"))
+        let example = try #require(URL(string: "https://example.com/a"))
+        #expect(Self.links(text) == [bread, example])
+        let secure = try #require(URL(string: "HTTPS://example.com"))
+        let phone = try #require(URL(string: "tel:123"))
+        #expect(ChatMarkdown.isWebLink(secure))
+        #expect(!ChatMarkdown.isWebLink(phone))
+    }
+
     @Test("Unbalanced markers stay readable")
     func unbalanced() {
         #expect(String(ChatMarkdown.inline("2 * 3 = 6 and **open").characters).contains("2"))

@@ -346,6 +346,130 @@ struct ChatAPITests {
         #expect(store.unavailableNotice == .budgetExhausted)
     }
 
+    private static func detail(
+        messages: [ChatMessage] = [],
+        lastSeq: Int = 0,
+        activeRun: ChatRun? = nil
+    ) throws -> String {
+        try json(ChatConversationDetailResponse(
+            conversation: conversation,
+            messages: messages,
+            pendingActions: [],
+            activeRun: activeRun,
+            lastSeq: lastSeq,
+            capability: ChatCapability(available: true)
+        ))
+    }
+
+    private static func stubCreate(_ harness: RepositoryHarness) throws {
+        harness.stub(
+            "POST", conversationsPath, status: 201,
+            json: try json(ChatConversationResponse(conversation: conversation))
+        )
+    }
+
+    @Test("A conversation read that predates a send keeps the sent message")
+    func readRacingSend() async throws {
+        let harness = try RepositoryHarness()
+        try Self.stubCreate(harness)
+        harness.stub("POST", Self.messagesPath, status: 202, json: try Self.accepted(runStatus: "completed"))
+        harness.stub("GET", Self.detailPath, json: try Self.detail(), delayMs: 200)
+        let store = Self.store(harness)
+
+        let opening = Task { await store.open(ChatRoute(id: Self.conversationId, isNew: false)) }
+        store.send(text: "Log 150 g yogurt", images: [], in: Self.conversationId, contextDate: nil)
+        await opening.value
+        await Self.waitUntil {
+            store.pending.isEmpty && harness.recordedRequests.filter { $0 == "GET \(Self.detailPath)" }.count >= 2
+        }
+        await Self.waitUntil { store.detailState == .loaded }
+        try await Task.sleep(for: .milliseconds(300))
+
+        #expect(store.transcript.messages.map(\.id) == [Fixture.userMessageId])
+        #expect(store.transcript.activeRun == nil)
+    }
+
+    @Test("Discarding a send of unknown outcome reads the chat first, so a message that landed stays")
+    func discardAfterUnknownOutcome() async throws {
+        let harness = try RepositoryHarness()
+        try Self.stubCreate(harness)
+        harness.stubError("POST", Self.messagesPath, code: .networkConnectionLost)
+        let store = Self.store(harness)
+        await store.open(ChatRoute(id: Self.conversationId, isNew: true))
+        store.send(text: "Hello", images: [], in: Self.conversationId, contextDate: nil)
+        await Self.waitUntil { store.pending.first?.state != .sending }
+        let failed = try #require(store.pending.first)
+        #expect(failed.mayHaveLanded)
+
+        harness.stubError("GET", Self.detailPath, code: .notConnectedToInternet)
+        let unchecked = await store.discard(failed.id)
+        #expect(unchecked == nil)
+        #expect(store.pending.count == 1)
+
+        var landed = Fixture.userMessage
+        landed = ChatMessage(
+            id: failed.messageId, conversationId: landed.conversationId, role: "user", status: "completed",
+            runId: landed.runId, parts: landed.parts
+        )
+        harness.stub("GET", Self.detailPath, json: try Self.detail(messages: [landed], lastSeq: 1))
+        let kept = await store.discard(failed.id)
+        #expect(kept == nil)
+        #expect(store.pending.isEmpty)
+        #expect(store.transcript.messages.map(\.id) == [failed.messageId])
+    }
+
+    @Test("A refused send is not of unknown outcome and discards at once")
+    func mayHaveLanded() {
+        let refused = ChatFailure.rejected(ChatRejection(status: 409, body: nil, retryAfter: nil))
+        let broken = ChatFailure.rejected(ChatRejection(status: 503, body: nil, retryAfter: nil))
+        #expect(!ChatStore.mayHaveLanded(refused))
+        #expect(ChatStore.mayHaveLanded(broken))
+        #expect(ChatStore.mayHaveLanded(ChatFailure.transport(.networkError(URLError(.timedOut)))))
+        #expect(!ChatStore.mayHaveLanded(ChatFailure.transport(.unauthorized)))
+        #expect(!ChatStore.mayHaveLanded(CancellationError()))
+    }
+
+    @Test("A run that ends before its answer still says how it ended")
+    func runEndedWithoutMessage() async throws {
+        let harness = try RepositoryHarness()
+        try Self.stubCreate(harness)
+        harness.stub("POST", Self.messagesPath, status: 202, json: try Self.accepted(runStatus: "queued"))
+        var created = ChatEvent(seq: 1, type: ChatEventType.messageCreated, runId: Fixture.runId)
+        created.message = Fixture.userMessage
+        var finished = ChatEvent(seq: 2, type: ChatEventType.runFinished, runId: Fixture.runId)
+        finished.status = "cancelled"
+        finished.reason = "user_cancelled"
+        finished.run = Fixture.run(status: "cancelled")
+        harness.stub("GET", Self.eventsPath, json: try Self.streamBody([created, finished]), headers: Self.streamHeaders)
+        let store = Self.store(harness)
+        await store.open(ChatRoute(id: Self.conversationId, isNew: true))
+        store.send(text: "Hello", images: [], in: Self.conversationId, contextDate: nil)
+        await Self.waitUntil { store.transcript.lastSeq == 2 && store.connection == .idle }
+        #expect(store.notice == .stopped)
+        #expect(store.transcript.activeRun == nil)
+    }
+
+    @Test("A message a full chat refused moves to a new chat with its photos")
+    func moveToNewChat() async throws {
+        let harness = try RepositoryHarness()
+        try Self.stubCreate(harness)
+        harness.stub(
+            "POST", Self.messagesPath, status: 409,
+            json: #"{"error":"Too long","code":"conversation_too_long"}"#
+        )
+        let store = Self.store(harness)
+        await store.open(ChatRoute(id: Self.conversationId, isNew: true))
+        store.send(text: "One more", images: [], in: Self.conversationId, contextDate: nil)
+        await Self.waitUntil { store.pending.first?.state != .sending }
+        let failed = try #require(store.pending.first)
+        #expect(failed.state == .failed(.conversationTooLong))
+        #expect(!failed.mayHaveLanded)
+        let route = store.moveToNewChat(failed.id)
+        #expect(route.isNew)
+        #expect(store.draft(for: route.id) == "One more")
+        #expect(store.pending.isEmpty)
+    }
+
     @Test("Drafts are kept per conversation and dropped when it is deleted")
     func drafts() async throws {
         let harness = try RepositoryHarness()

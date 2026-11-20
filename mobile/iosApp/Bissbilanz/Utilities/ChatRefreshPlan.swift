@@ -69,26 +69,6 @@ struct ChatRefreshPlan: Equatable, Sendable {
         normalize()
     }
 
-    /// What is left after `other` already ran: a run's `run_finished` repeats
-    /// every change its tool calls reported on the way.
-    func subtracting(_ other: ChatRefreshPlan) -> ChatRefreshPlan {
-        var result = self
-        result.entryDates.subtract(other.entryDates)
-        result.recentEntries = recentEntries && !other.recentEntries
-        result.dayPropertyDates.subtract(other.dayPropertyDates)
-        result.recentDayProperties = recentDayProperties && !other.recentDayProperties
-        result.foodIds = other.allFoods ? [] : foodIds.subtracting(other.foodIds)
-        result.allFoods = allFoods && !other.allFoods
-        result.recipeIds = other.allRecipes ? [] : recipeIds.subtracting(other.recipeIds)
-        result.allRecipes = allRecipes && !other.allRecipes
-        result.goals = goals && !other.goals
-        result.weight = weight && !other.weight
-        result.sleep = sleep && !other.sleep
-        result.supplements = supplements && !other.supplements
-        result.preferences = preferences && !other.preferences
-        return result
-    }
-
     private mutating func add(_ change: ChatChange, labelsCovered: Bool) {
         let dates = change.dates ?? []
         let ids = change.ids ?? []

@@ -166,21 +166,21 @@ struct ChatConversationView: View {
             ChatEmptyState(isEnabled: store.unavailableNotice == nil, onSelect: select)
         }
         ForEach(messages) { message in
-            ChatMessageView(message: message, onNewChat: { startNewChat() })
+            ChatMessageView(message: message, onNewChat: { startNewChat(after: message) })
         }
         ForEach(pending) { message in
             ChatPendingMessageView(
                 message: message,
                 onRetry: { store.retry(message.id) },
                 onDiscard: { discard(message.id) },
-                onNewChat: { startNewChatCarrying(message.text) }
+                onNewChat: { onOpen(store.moveToNewChat(message.id)) }
             )
         }
         if let thinking = thinkingText {
             ChatThinkingRow(text: thinking)
         }
         if isCurrent, let notice = store.notice {
-            ChatNoticeRow(notice: notice, onNewChat: { startNewChat() })
+            ChatNoticeRow(notice: notice, onNewChat: { startNewChat(after: nil) })
         }
     }
 
@@ -293,9 +293,11 @@ struct ChatConversationView: View {
     }
 
     private func discard(_ localId: UUID) {
-        guard let message = store.discard(localId) else { return }
-        if store.draft(for: route.id).isEmpty {
-            seed = ChatComposerSeed(text: message.text, images: message.images)
+        Task {
+            guard let message = await store.discard(localId) else { return }
+            if store.draft(for: route.id).isEmpty {
+                seed = ChatComposerSeed(text: message.text, images: message.images)
+            }
         }
     }
 
@@ -303,7 +305,18 @@ struct ChatConversationView: View {
         onOpen(store.startNewChat())
     }
 
-    private func startNewChatCarrying(_ text: String) {
+    /// From a run that ended because the chat is full: the message that asked
+    /// for it (or, for a run without an answer, the last one) goes along.
+    private func startNewChat(after message: ChatMessage?) {
+        var asked: ChatMessage?
+        if let runId = message?.runId {
+            asked = messages.last { $0.isFromUser && $0.runId == runId }
+        }
+        if asked == nil {
+            asked = messages.last { $0.isFromUser }
+        }
+        let text = asked?.parts.filter { $0.type == ChatMessagePart.textType }.compactMap(\.text)
+            .joined(separator: "\n")
         onOpen(store.startNewChat(carrying: text))
     }
 

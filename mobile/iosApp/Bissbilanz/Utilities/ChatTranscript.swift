@@ -148,9 +148,15 @@ struct ChatTranscript: Equatable, Sendable {
         activeRun = run
     }
 
-    /// Takes a poll's or a cancel's word that no run is active any more.
-    mutating func clearActiveRun() {
-        activeRun = nil
+    /// Keeps the runs known to be over across a re-read of the conversation:
+    /// those whose `run_finished` was applied, and one the read no longer
+    /// shows as active. A late answer to a decision or a send then still
+    /// cannot make one active again.
+    mutating func carryFinishedRuns(from previous: ChatTranscript) {
+        finishedRunIds.formUnion(previous.finishedRunIds)
+        if let run = previous.activeRun, activeRun?.id != run.id {
+            finishedRunIds.insert(run.id)
+        }
     }
 
     /// The action as the server now has it, from a decision or a 409 body.

@@ -27,9 +27,14 @@ enum ChatMarkdown {
         return reader.blocks
     }
 
+    /// Inline Markdown as attributes. Bare web addresses become links too, with
+    /// the parser's rules for parentheses (a balanced `(food)` belongs to the
+    /// address, a closing one after it does not). Only http and https links
+    /// survive: a tap must never open anything but the web.
     static func inline(_ text: String) -> AttributedString {
+        let parsed: AttributedString
         do {
-            return try AttributedString(
+            parsed = try AttributedString(
                 markdown: text,
                 options: AttributedString.MarkdownParsingOptions(
                     interpretedSyntax: .inlineOnlyPreservingWhitespace,
@@ -43,7 +48,54 @@ enum ChatMarkdown {
                 level: .warning,
                 data: ["reason": error.localizedDescription]
             )
-            return AttributedString(text)
+            parsed = AttributedString(text)
+        }
+        return linkingBareAddresses(in: parsed).transformingAttributes(\.link) { link in
+            if let url = link.value, !isWebLink(url) {
+                link.value = nil
+            }
+        }
+    }
+
+    static func isWebLink(_ url: URL) -> Bool {
+        switch url.scheme?.lowercased() {
+        case "http"?, "https"?: true
+        default: false
+        }
+    }
+
+    private static func linkingBareAddresses(in text: AttributedString) -> AttributedString {
+        let plain = String(text.characters)
+        guard plain.localizedCaseInsensitiveContains("http") || plain.localizedCaseInsensitiveContains("www.") else {
+            return text
+        }
+        let detector: NSDataDetector
+        do {
+            detector = try NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        } catch {
+            ErrorReporter.addBreadcrumb("Chat link detection unavailable", category: "chat", data: [
+                "reason": error.localizedDescription
+            ])
+            return text
+        }
+        var result = text
+        let matches = detector.matches(in: plain, range: NSRange(plain.startIndex..., in: plain))
+        for match in matches {
+            guard let url = match.url, isWebLink(url), let range = Range(match.range, in: plain) else { continue }
+            let offset = plain.distance(from: plain.startIndex, to: range.lowerBound)
+            let length = plain.distance(from: range.lowerBound, to: range.upperBound)
+            let lower = result.index(result.startIndex, offsetByCharacters: offset)
+            let upper = result.index(lower, offsetByCharacters: length)
+            guard isPlainText(result[lower ..< upper]) else { continue }
+            result[lower ..< upper].link = url
+        }
+        return result
+    }
+
+    /// Not a link already, and not inline code.
+    private static func isPlainText(_ text: AttributedSubstring) -> Bool {
+        text.runs.allSatisfy { run in
+            run.link == nil && run.inlinePresentationIntent?.contains(.code) != true
         }
     }
 
