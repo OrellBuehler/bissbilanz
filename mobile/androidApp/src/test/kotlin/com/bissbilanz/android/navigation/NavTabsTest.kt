@@ -30,7 +30,7 @@ class NavTabsTest {
 
     @Test
     fun unknownIdsAreDroppedAndDoNotCountTowardTheMaximum() {
-        assertEquals(listOf("foods", "weight", "sleep"), NavTabs.load("foods,chat,weight,bogus,sleep", legacy = null))
+        assertEquals(listOf("foods", "weight", "sleep"), NavTabs.load("foods,history,weight,bogus,sleep", legacy = null))
     }
 
     @Test
@@ -46,7 +46,7 @@ class NavTabsTest {
     @Test
     fun aStoredListWithNothingKnownFallsBackToTheDefaults() {
         assertEquals(NavTabs.DEFAULT, NavTabs.load("", legacy = null))
-        assertEquals(NavTabs.DEFAULT, NavTabs.load("chat", legacy = null))
+        assertEquals(NavTabs.DEFAULT, NavTabs.load("history", legacy = null))
     }
 
     @Test
@@ -62,6 +62,14 @@ class NavTabsTest {
 
         assertEquals(listOf("foods", "sleep"), NavTabs.visible(stored, signedIn = false))
         assertEquals(stored, NavTabs.visible(stored, signedIn = true))
+    }
+
+    @Test
+    fun theAssistantChatIsATabOnlyWithAnAccount() {
+        assertTrue("chat" in NavTabs.CANDIDATES)
+        assertEquals(listOf("foods"), NavTabs.visible(listOf("chat", "foods"), signedIn = false))
+        assertEquals(listOf("foods"), NavTabs.add(listOf("foods"), "chat", signedIn = false))
+        assertEquals(listOf("foods", "chat"), NavTabs.add(listOf("foods"), "chat", signedIn = true))
     }
 
     @Test
@@ -83,7 +91,7 @@ class NavTabsTest {
         val tabs = listOf("foods")
 
         assertEquals(tabs, NavTabs.add(tabs, "foods", signedIn = true))
-        assertEquals(tabs, NavTabs.add(tabs, "chat", signedIn = true))
+        assertEquals(tabs, NavTabs.add(tabs, "history", signedIn = true))
         assertEquals(tabs, NavTabs.add(tabs, "ai-tasks", signedIn = false))
         assertEquals(listOf("foods", "ai-tasks"), NavTabs.add(tabs, "ai-tasks", signedIn = true))
     }

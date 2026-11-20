@@ -10,6 +10,7 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.navigation.testing.TestNavHostController
 import androidx.test.core.app.ApplicationProvider
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.chat.ViewedDiaryDay
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.theme.BissbilanzTheme
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
@@ -76,6 +77,7 @@ class DayLogScreenTest {
                     single<RefreshManager> { refreshManager }
                     single<ErrorReporter> { errorReporter }
                     single<AppModeManager> { appModeManager }
+                    single { ViewedDiaryDay() }
                     viewModelOf(::DayLogViewModel)
                 },
             )

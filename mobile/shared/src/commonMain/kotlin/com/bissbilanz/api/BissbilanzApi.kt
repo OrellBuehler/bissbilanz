@@ -48,7 +48,8 @@ class BissbilanzApi(
     RemindersApi,
     AiTasksApi,
     ImagesApi,
-    FoodPackageApi {
+    FoodPackageApi,
+    ChatApi {
     override val client =
         HttpClient(engine) {
             install(ContentNegotiation) {

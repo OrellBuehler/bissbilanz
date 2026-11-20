@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -73,6 +74,8 @@ sealed class Screen(
 
     data object AiTasks : Screen("ai-tasks", R.string.ai_tasks_title, Icons.Default.AutoAwesome)
 
+    data object Chat : Screen("chat", R.string.chat_title, Icons.AutoMirrored.Filled.Chat)
+
     data object Sleep : Screen("sleep", R.string.sleep_section_title, Icons.Default.Bedtime)
 
     data object Calendar : Screen("calendar", R.string.settings_nav_calendar, Icons.Default.CalendarMonth)
@@ -92,6 +95,7 @@ private val tabScreens =
         Screen.RecipeSuggestions,
         Screen.Recipes,
         Screen.AiTasks,
+        Screen.Chat,
         Screen.Sleep,
         Screen.Calendar,
         Screen.Fasting,
@@ -459,6 +463,10 @@ internal fun NavGraphBuilder.bissbilanzDestinations(
     tabCandidate(Screen.AiTasks) { showBack ->
         com.bissbilanz.android.ui.screens
             .AiTasksScreen(navController, showBack)
+    }
+    tabCandidate(Screen.Chat) { showBack ->
+        com.bissbilanz.android.ui.screens
+            .ChatScreen(navController, showBack)
     }
     composable("connect-claude") {
         com.bissbilanz.android.ui.screens

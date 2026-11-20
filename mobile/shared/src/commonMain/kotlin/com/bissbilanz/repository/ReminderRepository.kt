@@ -65,6 +65,9 @@ class ReminderRepository(
         if (appModeManager.isLocal) return
         val reminders = api.getReminders()
         withContext(Dispatchers.IO) { cacheReminders(reminders) }
+        // Caching fires the hook once per reminder; an empty list (the last one was deleted
+        // elsewhere) fires none, and its alarm would stay armed.
+        errorReporter.runHook { onRemindersChanged?.invoke() }
     }
 
     suspend fun createReminder(reminder: ReminderCreate): Reminder {

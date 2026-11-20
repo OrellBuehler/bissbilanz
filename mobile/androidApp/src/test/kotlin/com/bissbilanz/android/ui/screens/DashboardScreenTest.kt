@@ -7,6 +7,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.navigation.testing.TestNavHostController
 import androidx.test.core.app.ApplicationProvider
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.chat.ChatDataRefresher
+import com.bissbilanz.android.chat.ViewedDiaryDay
 import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.tips.TipStore
@@ -26,6 +28,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -105,6 +108,8 @@ class DashboardScreenTest {
                     single<AppModeManager> { appModeManager }
                     single<ErrorReporter> { errorReporter }
                     single { TipStore(ApplicationProvider.getApplicationContext()) }
+                    single { ViewedDiaryDay() }
+                    single<ChatDataRefresher> { mockk(relaxed = true) { every { refreshed } returns MutableSharedFlow() } }
                     viewModelOf(::DashboardViewModel)
                 },
             )

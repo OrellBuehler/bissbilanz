@@ -3,6 +3,7 @@ package com.bissbilanz.repository
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.bissbilanz.api.BissbilanzApi
+import com.bissbilanz.api.generated.model.ChatCapability
 import com.bissbilanz.api.generated.model.ClaudeCapability
 import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.api.generated.model.PreferencesUpdate
@@ -57,7 +58,28 @@ class PreferencesRepository(
      */
     val claudeCapability: StateFlow<ClaudeCapability?> = _claudeCapability.asStateFlow()
 
-    private var accountGeneration = 0
+    private val _chatCapability = MutableStateFlow<ChatCapability?>(null)
+
+    /**
+     * Whether the assistant chat takes a message now. The preferences GET carries it, and so do
+     * the chat's own responses ([updateChatCapability]); null means unknown, e.g. offline.
+     */
+    val chatCapability: StateFlow<ChatCapability?> = _chatCapability.asStateFlow()
+
+    /**
+     * [generation] is [accountGeneration] from before the request that carried [capability]: an
+     * answer that lands after a sign-out or account switch belongs to the previous account.
+     */
+    fun updateChatCapability(
+        capability: ChatCapability,
+        generation: Int,
+    ) {
+        if (appModeManager.isLocal || generation != accountGeneration) return
+        _chatCapability.value = capability
+    }
+
+    var accountGeneration = 0
+        private set
 
     /**
      * Called on sign-out and account switches so one account's capability never shows for
@@ -67,17 +89,20 @@ class PreferencesRepository(
     fun clearClaudeCapability() {
         accountGeneration++
         _claudeCapability.value = null
+        _chatCapability.value = null
     }
 
     suspend fun refresh() {
         if (appModeManager.isLocal) {
             _claudeCapability.value = null
+            _chatCapability.value = null
             return
         }
         val generation = accountGeneration
         val response = api.getPreferencesResponse()
         if (generation != accountGeneration) return
         _claudeCapability.value = response.claude
+        _chatCapability.value = response.claude?.chat ?: _chatCapability.value
         // A preferences edit still waiting to upload is newer than what the server holds.
         if (syncQueue.hasPending("preferences")) return
         withContext(Dispatchers.IO) { cachePreferences(response.preferences) }
@@ -94,6 +119,7 @@ class PreferencesRepository(
         val response = api.getPreferencesResponse()
         if (generation != accountGeneration) return
         _claudeCapability.value = response.claude
+        _chatCapability.value = response.claude?.chat ?: _chatCapability.value
         val current = response.preferences
         if (current.timeZone == deviceTimeZone) return
         updatePreferences(PreferencesUpdate(timeZone = deviceTimeZone))

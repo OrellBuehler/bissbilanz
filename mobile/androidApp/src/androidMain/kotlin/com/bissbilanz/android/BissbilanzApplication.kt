@@ -19,6 +19,11 @@ import com.bissbilanz.android.bulk.BulkUploadController
 import com.bissbilanz.android.bulk.BulkUploadPreferences
 import com.bissbilanz.android.bulk.BulkUploadWorker
 import com.bissbilanz.android.bulk.PreferencesBulkImportCheckpoints
+import com.bissbilanz.android.chat.ChatDataRefresher
+import com.bissbilanz.android.chat.ChatOutbox
+import com.bissbilanz.android.chat.ChatPreferences
+import com.bissbilanz.android.chat.ChatRunWatcher
+import com.bissbilanz.android.chat.ViewedDiaryDay
 import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.fasting.FastingSessionStore
 import com.bissbilanz.android.health.HealthConnectService
@@ -42,6 +47,7 @@ import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.ui.viewmodels.AddFoodViewModel
 import com.bissbilanz.android.ui.viewmodels.AiTasksViewModel
+import com.bissbilanz.android.ui.viewmodels.ChatViewModel
 import com.bissbilanz.android.ui.viewmodels.DashboardViewModel
 import com.bissbilanz.android.ui.viewmodels.DashboardWidgetsViewModel
 import com.bissbilanz.android.ui.viewmodels.DayLogViewModel
@@ -219,8 +225,31 @@ class BissbilanzApplication :
                 single { HealthExporter(androidContext(), get(), get(), get(), get(), get(), get()) }
                 single { WearStatePublisher(androidContext(), get(), get(), get(), get(), get(), get(), get()) }
                 single { AssistantFoodLogger(get(), get(), get()) }
+                single { ViewedDiaryDay() }
+                single { ChatPreferences(androidContext()) }
+                single {
+                    ChatDataRefresher(
+                        entryRepo = get(),
+                        foodRepo = get(),
+                        recipeRepo = get(),
+                        goalsRepo = get(),
+                        weightRepo = get(),
+                        sleepRepo = get(),
+                        supplementRepo = get(),
+                        prefsRepo = get(),
+                        reminderRepo = get(),
+                        fastingManager = get(),
+                        syncManager = get(),
+                        syncQueue = get(),
+                        errorReporter = get(),
+                        scope = get(),
+                    )
+                }
+                single { ChatOutbox(chatRepo = get(), aiTaskRepo = get(), refresher = get(), errorReporter = get(), scope = get()) }
+                single { ChatRunWatcher(chatRepo = get(), refresher = get(), viewedDay = get(), errorReporter = get(), scope = get()) }
 
                 viewModelOf(::AiTasksViewModel)
+                viewModelOf(::ChatViewModel)
                 viewModelOf(::DashboardViewModel)
                 viewModelOf(::DashboardWidgetsViewModel)
                 viewModelOf(::DayLogViewModel)
@@ -324,6 +353,10 @@ class BissbilanzApplication :
             LocalImageStore.clear(this@BissbilanzApplication)
             mcpConnectionStore.clear()
             koin.get<PreferencesRepository>().clearClaudeCapability()
+            koin.get<ChatRepository>().clear()
+            koin.get<ChatOutbox>().clear()
+            koin.get<ChatRunWatcher>().clear()
+            koin.get<ChatDataRefresher>().clear()
             // Shortcuts and thumbnails were drawn from the data just wiped. The widgets
             // redraw once the logout drops the token (see the signed-in observer below).
             FoodShortcutPublisher.clear(this@BissbilanzApplication)

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
@@ -38,8 +39,11 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.bissbilanz.android.R
+import com.bissbilanz.android.chat.ChatDataRefresher
+import com.bissbilanz.android.chat.ViewedDiaryDay
 import com.bissbilanz.android.navigation.LocalBarRoutes
 import com.bissbilanz.android.navigation.NAV_KEY_CREATE_FOOD_BARCODE
+import com.bissbilanz.android.navigation.Screen
 import com.bissbilanz.android.navigation.openDestination
 import com.bissbilanz.android.tips.AnchoredTip
 import com.bissbilanz.android.tips.HelpSlugs
@@ -77,6 +81,7 @@ import com.bissbilanz.android.util.dayLabel
 import com.bissbilanz.android.util.millisUntilNextDay
 import com.bissbilanz.android.util.resolveDashboardSections
 import com.bissbilanz.android.widget.DayOverviewWidgetReceiver
+import com.bissbilanz.chat.ChatDomain
 import com.bissbilanz.mode.AppMode
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.util.DefaultGoals
@@ -141,6 +146,22 @@ fun DashboardScreen(navController: NavController) {
                 viewModel.rollOverToToday()
                 delay(millisUntilNextDay())
             }
+        }
+    }
+
+    // The assistant chat refers to "this day" as the one on screen, and its changes to the
+    // day's water, activity or notes are read here once, so they are reloaded when it reports them.
+    val viewedDiaryDay: ViewedDiaryDay = koinInject()
+    DisposableEffect(selectedDate) {
+        val day = selectedDate.toString()
+        viewedDiaryDay.viewing(day)
+        onDispose { viewedDiaryDay.left(day) }
+    }
+    val chatRefresher: ChatDataRefresher = koinInject()
+    LaunchedEffect(chatRefresher) {
+        chatRefresher.refreshed.collect { plan ->
+            val day = plan[ChatDomain.DAY_PROPERTIES]
+            if (day != null && (day.everything || viewModel.selectedDate.value.toString() in day.dates)) viewModel.loadData()
         }
     }
 
@@ -264,6 +285,14 @@ fun DashboardScreen(navController: NavController) {
                     // Queuing a meal for the assistant needs the server, so it is
                     // hidden in local mode — same rule as iOS.
                     if (!isLocalMode) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.chat_ask)) },
+                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null) },
+                            onClick = {
+                                fabMenuExpanded = false
+                                navController.openDestination(Screen.Chat.route, barRoutes)
+                            },
+                        )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.ai_task_title)) },
                             leadingIcon = { Icon(Icons.Default.AutoAwesome, contentDescription = null) },

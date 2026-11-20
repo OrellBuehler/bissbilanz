@@ -182,23 +182,44 @@ class FastingManager(
     }
 
     /**
+     * Re-reads the finished fasts after they changed elsewhere (the assistant chat), leaving the
+     * running fast and its notification alone. The merge never deletes, so [changedIds] the
+     * server no longer lists are dropped here: only within the pulled window, where a missing
+     * fast really is gone.
+     */
+    suspend fun refreshHistory(changedIds: Set<String> = emptySet()) {
+        pullFromServer(changedIds)
+        _history.value = store.loadHistory()
+    }
+
+    /**
      * Merges server-side fasts into the local history by id. Never touches the
      * running fast (server never has it — only finished fasts are uploaded) and
      * skips any history id with an un-uploaded (queued or in-flight) sync
      * operation, so a local edit still waiting to upload is not clobbered by a
      * stale server copy.
      */
-    private suspend fun pullFromServer() {
+    private suspend fun pullFromServer(changedIds: Set<String> = emptySet()) {
         if (appModeManager.isLocal) return
         try {
             val to = Clock.System.now()
             val from = to - 90.days
             val pending = pendingFastIds()
             val runningId = _session.value?.id
-            for (remote in api.getFastingSessions(limit = 200, from = from.toString(), to = to.toString())) {
+            val remotes = api.getFastingSessions(limit = 200, from = from.toString(), to = to.toString())
+            for (remote in remotes) {
                 if (remote.id == runningId || remote.id in pending) continue
                 remote.toLocalOrNull()?.let(store::updateInHistory)
             }
+            val listed = remotes.mapTo(mutableSetOf()) { it.id }
+            store
+                .loadHistory()
+                .filter { local ->
+                    local.id in changedIds &&
+                        local.id !in listed &&
+                        local.id !in pending &&
+                        local.startedAtEpochMs >= from.toEpochMilliseconds()
+                }.forEach { store.removeFromHistory(it.id) }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             errorReporter.captureException(e)

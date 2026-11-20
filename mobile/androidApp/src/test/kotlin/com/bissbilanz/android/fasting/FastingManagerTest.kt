@@ -22,6 +22,9 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import com.bissbilanz.api.generated.model.FastingSession as ServerFastingSession
 
 @RunWith(RobolectricTestRunner::class)
@@ -141,5 +144,62 @@ class FastingManagerTest {
 
             assertEquals(runningId, fastingManager.session.value?.id)
             assertTrue(fastingManager.history.value.none { it.id == runningId })
+        }
+
+    private fun localFast(
+        id: String,
+        daysAgo: Int,
+    ): FastingSession {
+        val start = Clock.System.now() - daysAgo.days
+        return FastingSession(
+            id = id,
+            startedAtEpochMs = start.toEpochMilliseconds(),
+            targetHours = 16,
+            endedAtEpochMs = (start + 16.hours).toEpochMilliseconds(),
+        )
+    }
+
+    @Test
+    fun aHistoryRefreshDropsOnlyNamedFastsTheServerNoLongerHas() =
+        runTest {
+            val api = mockk<BissbilanzApi>()
+            coEvery { api.getFastingSessions(limit = any(), from = any(), to = any()) } returns emptyList()
+            val appModeManager = mockk<AppModeManager> { every { isLocal } returns false }
+            val fastingManager = manager(api, appModeManager)
+            val store = FastingSessionStore(context, json)
+            listOf(localFast("deleted", 2), localFast("untouched", 3), localFast("old", 120)).forEach(store::appendToHistory)
+
+            fastingManager.refreshHistory(setOf("deleted", "old"))
+
+            assertEquals(listOf("untouched", "old"), fastingManager.history.value.map { it.id })
+        }
+
+    @Test
+    fun aHistoryRefreshLeavesTheRunningFastAndItsQueuedEditsAlone() =
+        runTest {
+            val api = mockk<BissbilanzApi>()
+            coEvery { api.getFastingSessions(limit = any(), from = any(), to = any()) } returns emptyList()
+            val appModeManager = mockk<AppModeManager> { every { isLocal } returns false }
+            val queued =
+                QueuedRequest(
+                    id = 1,
+                    operation = SyncOperation.UpsertFast("queued", "{}"),
+                    createdAt = 0,
+                    retryCount = 0,
+                    idempotencyKey = "key",
+                    clientEditedAt = "2024-01-15T00:00:00Z",
+                    nextAttemptAt = 0,
+                )
+            val syncQueue = mockk<SyncQueue>(relaxed = true)
+            coEvery { syncQueue.all() } returns listOf(queued)
+            val fastingManager = manager(api, appModeManager, syncQueue)
+            FastingSessionStore(context, json).appendToHistory(localFast("queued", 1))
+            fastingManager.start(targetHours = 16)
+            val running = fastingManager.session.value
+
+            fastingManager.refreshHistory(setOf("queued", running!!.id))
+
+            assertEquals(running, fastingManager.session.value)
+            assertEquals(listOf("queued"), fastingManager.history.value.map { it.id })
         }
 }
