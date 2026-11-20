@@ -139,31 +139,47 @@ async function requireConversation(userId: string, conversationId: string) {
 export async function getConversationDetail(userId: string, conversationId: string) {
 	await requireConversation(userId, conversationId);
 	await reconcileConversation(conversationId);
-	const db = getDB();
-	const conversation = await requireConversation(userId, conversationId);
-	const [rows, pending, activeRun, capability, [owner]] = await Promise.all([
-		listMessages(db, conversationId),
-		listPendingActions(db, conversationId),
-		getActiveRun(db, conversationId),
-		getChatCapabilitySafe(userId),
-		db.select({ locale: users.locale }).from(users).where(eq(users.id, userId))
-	]);
+	const capability = await getChatCapabilitySafe(userId);
+	// One snapshot: lastSeq, the messages and the active run always agree, so a
+	// detail never shows no active run beside a message still in progress.
+	const { conversation, rows, pending, activeRun, owner, liveParts } = await getDB().transaction(
+		async (tx) => {
+			const found = await getConversation(tx, userId, conversationId);
+			if (!found) throw new ChatRequestError('conversation_not_found');
+			const messages = await listMessages(tx, conversationId);
+			const actions = await listPendingActions(tx, conversationId);
+			const run = await getActiveRun(tx, conversationId);
+			const [user] = await tx
+				.select({ locale: users.locale })
+				.from(users)
+				.where(eq(users.id, userId));
+			let parts: ChatPart[] | null = null;
+			if (run?.assistantMessageId) {
+				const events = await tx
+					.select()
+					.from(chatEvents)
+					.where(
+						and(
+							eq(chatEvents.conversationId, conversationId),
+							eq(chatEvents.runId, run.id),
+							lte(chatEvents.seq, found.nextSeq)
+						)
+					)
+					.orderBy(asc(chatEvents.seq));
+				parts = foldParts(events.map(toEventRecord));
+			}
+			return {
+				conversation: found,
+				rows: messages,
+				pending: actions,
+				activeRun: run,
+				owner: user,
+				liveParts: parts
+			};
+		},
+		{ isolationLevel: 'repeatable read', accessMode: 'read only' }
+	);
 	const lastSeq = conversation.nextSeq;
-	let liveParts: ChatPart[] | null = null;
-	if (activeRun?.assistantMessageId) {
-		const events = await db
-			.select()
-			.from(chatEvents)
-			.where(
-				and(
-					eq(chatEvents.conversationId, conversationId),
-					eq(chatEvents.runId, activeRun.id),
-					lte(chatEvents.seq, lastSeq)
-				)
-			)
-			.orderBy(asc(chatEvents.seq));
-		liveParts = foldParts(events.map(toEventRecord));
-	}
 	const locale = toChatLocale(owner?.locale);
 	return {
 		conversation: serializeConversation(conversation),
