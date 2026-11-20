@@ -2769,7 +2769,7 @@ export const apiPaths = {
 				'403': chatRes403,
 				'404': chatRes404Conversation,
 				'409': chatError(
-					'A run is still queued or running (`run_active`); the conversation reached its limit of 40 messages, about 1 MB of transcript, 20 photos or 12 MB of photo data (`conversation_too_long`, start a new conversation); or the message id is used by another conversation (`message_id_conflict`). A rejected message leaves a pending confirmation untouched.'
+					"A run is still queued or running (`run_active`); the conversation reached its limit of 40 messages, about 1 MB of transcript, 20 photos or 12 MB of photo data (`conversation_too_long`, start a new conversation); the message id is used by another conversation (`message_id_conflict`); or the photo copies would exceed the user's upload storage quota (`upload_quota_exceeded`). A rejected message leaves a pending confirmation untouched."
 				),
 				'429': {
 					description:

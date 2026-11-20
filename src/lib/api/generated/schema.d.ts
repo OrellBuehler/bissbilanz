@@ -3997,7 +3997,7 @@ export interface components {
 		ChatActionPreview: {
 			/** @description One line in the user’s language, e.g. "Delete “Greek yogurt” from Breakfast on 18 Nov 2026". */
 			summary: string;
-			/** @description Extra lines, possibly empty. */
+			/** @description Extra lines, possibly empty: every field the call sets, replaced lists item by item, nothing shortened. At most 200 lines; a line can be long (up to about 10,000 characters), so let the card scroll and wrap. */
 			details: string[];
 		};
 		ChatConversationDetailResponse: {
@@ -7648,7 +7648,7 @@ export interface operations {
 					'application/json': components['schemas']['ChatErrorResponse'];
 				};
 			};
-			/** @description A run is still queued or running (`run_active`); the conversation reached its limit of 40 messages, about 1 MB of transcript, 20 photos or 12 MB of photo data (`conversation_too_long`, start a new conversation); or the message id is used by another conversation (`message_id_conflict`). A rejected message leaves a pending confirmation untouched. */
+			/** @description A run is still queued or running (`run_active`); the conversation reached its limit of 40 messages, about 1 MB of transcript, 20 photos or 12 MB of photo data (`conversation_too_long`, start a new conversation); the message id is used by another conversation (`message_id_conflict`); or the photo copies would exceed the user's upload storage quota (`upload_quota_exceeded`). A rejected message leaves a pending confirmation untouched. */
 			409: {
 				headers: {
 					[name: string]: unknown;
