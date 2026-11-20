@@ -1,6 +1,7 @@
 package com.bissbilanz.android.chat
 
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.api.generated.model.ChatChange
 import com.bissbilanz.chat.ChatDomain
 import com.bissbilanz.chat.ChatRefreshPlan
@@ -9,6 +10,7 @@ import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.repository.RecipeRepository
+import com.bissbilanz.repository.ReminderRepository
 import com.bissbilanz.repository.SleepRepository
 import com.bissbilanz.repository.SupplementRepository
 import com.bissbilanz.repository.WeightRepository
@@ -36,6 +38,8 @@ class ChatDataRefresherTest {
     private val sleepRepo: SleepRepository = mockk(relaxed = true)
     private val supplementRepo: SupplementRepository = mockk(relaxed = true)
     private val prefsRepo: PreferencesRepository = mockk(relaxed = true)
+    private val reminderRepo: ReminderRepository = mockk(relaxed = true)
+    private val fastingManager: FastingManager = mockk(relaxed = true)
     private val syncManager: SyncManager = mockk(relaxed = true)
     private val syncQueue: SyncQueue = mockk(relaxed = true)
     private val errorReporter: ErrorReporter = mockk(relaxed = true)
@@ -50,6 +54,8 @@ class ChatDataRefresherTest {
             sleepRepo,
             supplementRepo,
             prefsRepo,
+            reminderRepo,
+            fastingManager,
             syncManager,
             syncQueue,
             errorReporter,
@@ -111,6 +117,47 @@ class ChatDataRefresherTest {
             coVerify { supplementRepo.refresh() }
             coVerify { supplementRepo.getChecklist("2026-11-20") }
             coVerify(exactly = 0) { prefsRepo.refresh() }
+            coVerify(exactly = 0) { reminderRepo.refresh() }
+            coVerify(exactly = 0) { fastingManager.refreshHistory(any()) }
+        }
+
+    @Test
+    fun fastsAreReReadWithTheIdsThatMayHaveBeenDeleted() =
+        runTest {
+            refresher().refresh(plan(ChatChange(domain = ChatDomain.FASTING, ids = listOf("f1", "f2"))))
+
+            coVerify(exactly = 1) { fastingManager.refreshHistory(setOf("f1", "f2")) }
+            coVerify(exactly = 0) { fastingManager.refresh() }
+        }
+
+    @Test
+    fun anUnscopedFastingChangeOnlyMerges() =
+        runTest {
+            refresher().refresh(ChatRefreshPlan.of(listOf(ChatDomain.FASTING), null))
+
+            coVerify(exactly = 1) { fastingManager.refreshHistory(emptySet()) }
+        }
+
+    @Test
+    fun remindersAreReSyncedWhichReschedulesThem() =
+        runTest {
+            refresher().refresh(plan(ChatChange(domain = ChatDomain.REMINDERS, ids = listOf("r1"))))
+
+            coVerify(exactly = 1) { reminderRepo.refresh() }
+        }
+
+    @Test
+    fun preferencesAndMealTypesShareOnePreferencesRefresh() =
+        runTest {
+            refresher().refresh(
+                plan(
+                    ChatChange(domain = ChatDomain.MEAL_TYPES, ids = listOf("mt1")),
+                    ChatChange(domain = ChatDomain.PREFERENCES),
+                ),
+            )
+            refresher().refresh(plan(ChatChange(domain = ChatDomain.MEAL_TYPES, ids = listOf("mt2"))))
+
+            coVerify(exactly = 2) { prefsRepo.refresh() }
         }
 
     @Test

@@ -1,6 +1,7 @@
 package com.bissbilanz.android.chat
 
 import com.bissbilanz.ErrorReporter
+import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.chat.ChatChangeScope
 import com.bissbilanz.chat.ChatDomain
 import com.bissbilanz.chat.ChatRefreshPlan
@@ -9,6 +10,7 @@ import com.bissbilanz.repository.FoodRepository
 import com.bissbilanz.repository.GoalsRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.repository.RecipeRepository
+import com.bissbilanz.repository.ReminderRepository
 import com.bissbilanz.repository.SleepRepository
 import com.bissbilanz.repository.SupplementRepository
 import com.bissbilanz.repository.WeightRepository
@@ -46,6 +48,8 @@ class ChatDataRefresher(
     private val sleepRepo: SleepRepository,
     private val supplementRepo: SupplementRepository,
     private val prefsRepo: PreferencesRepository,
+    private val reminderRepo: ReminderRepository,
+    private val fastingManager: FastingManager,
     private val syncManager: SyncManager,
     private val syncQueue: SyncQueue,
     private val errorReporter: ErrorReporter,
@@ -125,7 +129,12 @@ class ChatDataRefresher(
                 launch { safely { supplementRepo.refresh() } }
                 launch { safely { supplementRepo.getChecklist(today()) } }
             }
-            if (plan[ChatDomain.PREFERENCES] != null) launch { safely { prefsRepo.refresh() } }
+            // Custom meal types have no cache here (Settings and Reminders read them when they
+            // open); what does cache them is the meal order in the preferences.
+            if (plan[ChatDomain.PREFERENCES] != null || plan[ChatDomain.MEAL_TYPES] != null) launch { safely { prefsRepo.refresh() } }
+            plan[ChatDomain.FASTING]?.let { scope -> launch { safely { fastingManager.refreshHistory(scope.ids) } } }
+            // Re-caching the reminders fires their change hook, which reschedules the alarms.
+            if (plan[ChatDomain.REMINDERS] != null) launch { safely { reminderRepo.refresh() } }
         }
         _refreshed.tryEmit(plan)
     }

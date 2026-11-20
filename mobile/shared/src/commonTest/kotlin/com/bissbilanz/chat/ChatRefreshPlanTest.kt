@@ -47,6 +47,24 @@ class ChatRefreshPlanTest {
     }
 
     @Test
+    fun theFastingReminderAndMealTypeDomainsKeepTheirIds() {
+        val plan =
+            ChatRefreshPlan.of(
+                listOf(ChatDomain.FASTING, ChatDomain.REMINDERS, ChatDomain.MEAL_TYPES, ChatDomain.PREFERENCES),
+                listOf(
+                    ChatChange(domain = ChatDomain.FASTING, ids = listOf("f1")),
+                    ChatChange(domain = ChatDomain.REMINDERS, ids = listOf("r1")),
+                    ChatChange(domain = ChatDomain.MEAL_TYPES, ids = listOf("m1")),
+                ),
+            )
+
+        assertEquals(ChatChangeScope(ids = setOf("f1")), plan[ChatDomain.FASTING])
+        assertEquals(ChatChangeScope(ids = setOf("r1")), plan[ChatDomain.REMINDERS])
+        assertEquals(ChatChangeScope(ids = setOf("m1")), plan[ChatDomain.MEAL_TYPES])
+        assertEquals(ChatChangeScope.EVERYTHING, plan[ChatDomain.PREFERENCES])
+    }
+
+    @Test
     fun theSameScopeTwiceStaysInThePlan() {
         val logged = ChatRefreshPlan.of(null, listOf(ChatChange(domain = ChatDomain.ENTRIES, dates = listOf("2026-11-18"))))
         val deleted = ChatRefreshPlan.of(null, listOf(ChatChange(domain = ChatDomain.ENTRIES, dates = listOf("2026-11-18"))))

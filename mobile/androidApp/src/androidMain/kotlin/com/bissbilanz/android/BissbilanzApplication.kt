@@ -236,6 +236,8 @@ class BissbilanzApplication :
                         sleepRepo = get(),
                         supplementRepo = get(),
                         prefsRepo = get(),
+                        reminderRepo = get(),
+                        fastingManager = get(),
                         syncManager = get(),
                         syncQueue = get(),
                         errorReporter = get(),

@@ -73,4 +73,7 @@ object ChatDomain {
     const val DAY_PROPERTIES = "dayProperties"
     const val LABELS = "labels"
     const val PREFERENCES = "preferences"
+    const val FASTING = "fasting"
+    const val REMINDERS = "reminders"
+    const val MEAL_TYPES = "mealTypes"
 }
