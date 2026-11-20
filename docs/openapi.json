@@ -16850,7 +16850,7 @@
 						"$ref": "#/components/schemas/ChatActionPreview"
 					},
 					"expiresAt": {
-						"description": "action parts: when the action expires (ISO 8601). Set on every action the server creates, never an empty string.",
+						"description": "action parts: when the action expires (ISO 8601). Omitted when the action has none, never an empty string.",
 						"type": "string"
 					}
 				},

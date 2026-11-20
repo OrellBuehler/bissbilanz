@@ -340,6 +340,28 @@ describe('getConversationDetail', () => {
 		);
 	});
 
+	test('reads lastSeq, the messages and the active run in one read-only snapshot', async () => {
+		queueResults([[{ locale: 'en' }]]);
+		await service.getConversationDetail(UID, CID);
+		expect(callsOf('transaction').map((call) => call.args)).toEqual([
+			[{ isolationLevel: 'repeatable read', accessMode: 'read only' }]
+		]);
+		expect(h.getConversation.mock.calls[1]![0]).toBe(db);
+		expectCalledWithDb(h.listMessages, CID);
+		expectCalledWithDb(h.listPendingActions, CID);
+		expectCalledWithDb(h.getActiveRun, CID);
+		expect(order(h.getChatCapabilitySafe)).toBeLessThan(order(h.listMessages));
+	});
+
+	test('answers 404 when the conversation is gone by the time the snapshot is read', async () => {
+		h.getConversation.mockResolvedValueOnce(conversationRow()).mockResolvedValueOnce(null);
+		await expect(service.getConversationDetail(UID, CID)).rejects.toMatchObject({
+			status: 404,
+			code: 'conversation_not_found'
+		});
+		expect(h.listMessages).not.toHaveBeenCalled();
+	});
+
 	test('serializes an idle conversation without a live fold', async () => {
 		h.listMessages.mockResolvedValue([
 			messageRow(),
