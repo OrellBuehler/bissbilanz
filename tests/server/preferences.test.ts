@@ -3,7 +3,7 @@ import { ApiError } from '../../src/lib/server/errors';
 import { createMockDB } from '../helpers/mock-db';
 import { TEST_USER } from '../helpers/fixtures';
 
-const { db, setError, setResult, reset, getCalls } = createMockDB();
+const { db, setError, setResult, queueResults, reset, getCalls } = createMockDB();
 
 const schema = await import('$lib/server/schema');
 
@@ -12,7 +12,8 @@ vi.mock('$lib/server/db', () => ({
 	...Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, value]))
 }));
 
-const { updatePreferences, getPreferences } = await import('$lib/server/preferences');
+const { updatePreferences, getPreferences, getUserLocale } =
+	await import('$lib/server/preferences');
 
 describe('preferences', () => {
 	beforeEach(() => {
@@ -70,6 +71,39 @@ describe('preferences', () => {
 			expect(error.status).toBe(400);
 			expect(error.message).toContain('custom meal types');
 		}
+	});
+
+	test('reports every stored list item once, so clients can key by it', async () => {
+		queueResults([
+			[
+				{
+					userId: TEST_USER.id,
+					widgetOrder: ['chart', 'daylog', 'chart'],
+					mealOrder: ['Lunch', 'Gym', 'Lunch'],
+					visibleNutrients: ['sodium', 'sodium', 'sugar'],
+					pinnedInsights: ['tef', 'tef'],
+					aiTaskProcessor: 'assistant'
+				}
+			],
+			[],
+			[{ locale: 'de' }],
+			[{ name: 'Gym' }]
+		]);
+		const result = await getPreferences(TEST_USER.id);
+		expect(result?.widgetOrder.filter((key) => key === 'chart')).toHaveLength(1);
+		expect(result?.mealOrder).toEqual(['Lunch', 'Gym', 'Breakfast', 'Dinner', 'Snacks']);
+		expect(result?.visibleNutrients).toEqual(['sodium', 'sugar']);
+		expect(result?.pinnedInsights).toEqual(['tef']);
+		expect(result?.locale).toBe('de');
+	});
+
+	test('getUserLocale reads the account language, English when unset', async () => {
+		setResult([{ locale: 'de' }]);
+		expect(await getUserLocale(TEST_USER.id)).toBe('de');
+		setResult([{ locale: null }]);
+		expect(await getUserLocale(TEST_USER.id)).toBe('en');
+		setResult([]);
+		expect(await getUserLocale(TEST_USER.id)).toBe('en');
 	});
 
 	describe('normalizeSectionOrder', () => {

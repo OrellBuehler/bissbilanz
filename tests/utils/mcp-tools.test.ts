@@ -44,7 +44,14 @@ const READ_ONLY_TOOLS = [
 	'list_unlabeled_foods',
 	'list_unlabeled_recipes',
 	'list_labels',
-	'find_duplicate_foods'
+	'find_duplicate_foods',
+	'list_fasts',
+	'list_reminders',
+	'get_preferences',
+	'get_food_usage',
+	'get_recipe_usage',
+	'list_food_brands',
+	'search_nutrient_database'
 ] as const;
 
 const WRITE_TOOLS = [
@@ -55,7 +62,10 @@ const WRITE_TOOLS = [
 	'log_weight',
 	'create_supplement',
 	'copy_entries',
-	'log_sleep'
+	'log_sleep',
+	'log_fast',
+	'create_reminder',
+	'create_meal_type'
 ] as const;
 
 const UPDATE_TOOLS = [
@@ -72,7 +82,11 @@ const UPDATE_TOOLS = [
 	'set_food_labels',
 	'set_food_labels_batch',
 	'set_recipe_labels',
-	'set_recipe_labels_batch'
+	'set_recipe_labels_batch',
+	'update_fast',
+	'update_reminder',
+	'update_preferences',
+	'update_meal_type'
 ] as const;
 
 const DESTRUCTIVE_TOOLS = [
@@ -84,7 +98,10 @@ const DESTRUCTIVE_TOOLS = [
 	'unlog_supplement',
 	'delete_sleep',
 	'delete_day_properties',
-	'merge_foods'
+	'merge_foods',
+	'delete_fast',
+	'delete_reminder',
+	'delete_meal_type'
 ] as const;
 
 describe('tool annotations', () => {
@@ -135,9 +152,9 @@ describe('tool annotations', () => {
 		}
 	});
 
-	test('all 73 tools are classified', () => {
+	test('all 90 tools are classified', () => {
 		const all = [...READ_ONLY_TOOLS, ...WRITE_TOOLS, ...UPDATE_TOOLS, ...DESTRUCTIVE_TOOLS];
-		expect(all).toHaveLength(73);
+		expect(all).toHaveLength(90);
 		for (const name of toolNames) {
 			expect(all, `${name} should be classified`).toContain(name);
 		}
@@ -218,11 +235,28 @@ describe('toolNames', () => {
 			'set_recipe_labels',
 			'set_recipe_labels_batch',
 			'merge_foods',
-			'find_duplicate_foods'
+			'find_duplicate_foods',
+			'list_fasts',
+			'log_fast',
+			'update_fast',
+			'delete_fast',
+			'list_reminders',
+			'create_reminder',
+			'update_reminder',
+			'delete_reminder',
+			'get_preferences',
+			'update_preferences',
+			'create_meal_type',
+			'update_meal_type',
+			'delete_meal_type',
+			'get_food_usage',
+			'get_recipe_usage',
+			'list_food_brands',
+			'search_nutrient_database'
 		] as const;
 		for (const name of expected) {
 			expect(toolNames).toContain(name);
 		}
-		expect(toolNames).toHaveLength(73);
+		expect(toolNames).toHaveLength(90);
 	});
 });

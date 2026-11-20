@@ -244,9 +244,9 @@ named `web_search` / `web_fetch` ("Searching the web"); they change nothing.
 
 These calls never run without the user's approval:
 
-- deleting an entry, food, recipe, supplement, weight or sleep entry, or a day's details (water,
-  activity, fasting flag, notes); merging foods; copying a day of entries; removing a supplement
-  log;
+- deleting an entry, food, recipe, supplement, weight or sleep entry, a day's details (water,
+  activity, fasting flag, notes), a recorded fast, a reminder or a custom meal type; merging foods;
+  copying a day of entries; removing a supplement log;
 - changing the serving size, nutrition values or photo of a food that is in use: logged directly
   or as a supplement, or an ingredient of a recipe that has diary entries (recipe entries compute
   their macros from their ingredients, so such a change rewrites past days);
@@ -255,16 +255,20 @@ These calls never run without the user's approval:
   that currently holds a value; removing all the labels the assistant gave a food or recipe
   (`set_food_labels` / `set_recipe_labels` with an empty list when it wrote some before);
 - changing a recipe's ingredients or steps, or the servings or cooked weight of a recipe that has
-  diary entries; changing a supplement's ingredients;
+  diary entries; changing a supplement's ingredients; replacing the favourite meal time windows;
+  replacing the visible nutrients or pinned insights so that one set now is removed (the card
+  names what goes);
 - any call with a `force` flag;
 - every write after the first 10 writes of one run (a "log all of these" request with many items
   asks again from the 11th on).
 
 Everything else (logging, creating, other edits, goals, weight and sleep logs, other day
-properties, labels) runs at once and is reported in `changed` (§10). Deliberately without a card:
-switching the fasting-day flag, clearing an entry's note, the target weight or a supplement's
-reminder times — single fields that are easy to set again. When the model calls a tool that needs
-approval, the run pauses:
+properties, labels, fasts, reminders, custom meal types, other preferences) runs at once and is
+reported in `changed` (§10). Deliberately without a card: switching the fasting-day flag, clearing
+an entry's note, the target weight or a supplement's reminder times, and display preferences
+(widget visibility and order, meal order, water goal, and visible nutrients or pinned insights
+when nothing is removed) — single fields or settings that are easy to set again. A water goal sent
+as `null` is shown as a reset to the default. When the model calls a tool that needs approval, the run pauses:
 
 1. `action_required` event with `partIndex` and the full `action` (`ChatAction`); the message gets
    an `action` part with `status: "pending"`; the run's status becomes `awaiting_confirmation`
@@ -280,9 +284,10 @@ approval, the run pauses:
    `true`, and the card says `true`), that parsed input is stored and is what runs on approval, and
    arguments the tool cannot parse go back to the model as a tool error without a card. A cleared
    field names what it held (`notes: cleared (was Ran 5 km)`). Nothing is shortened: a replaced
-   list (a recipe's ingredients or steps, a supplement's ingredients) gets a heading line ("the
-   current 12 are replaced by these 10") and one line per new item; deleting steps, and the step
-   photos and food or recipe photos that go with a change, are stated as deletions.
+   list (a recipe's ingredients or steps, a supplement's ingredients, the favourite time windows)
+   gets a heading line ("the current 12 are replaced by these 10") and one line per new item, and
+   replaced time windows are listed too; deleting steps, and the step photos and food or recipe
+   photos that go with a change, are stated as deletions.
 
    Layout limits: `summary` is one line (it names the record, so it can be as long as a food name);
    `details` holds at most **200 lines**, and a line is never cut, so it can be long (a step text
@@ -428,18 +433,21 @@ Both are also derivable from the stored message (the `tool` parts' `changes`).
   `{ domain, dates?, ids? }`. `dates` are diary days (YYYY-MM-DD) and `ids` record ids. An entry
   with **neither** means "anything in this domain may have changed": refresh it fully.
 
-| Domain          | What to refresh                                  | Scope given                                                                                                            |
-| --------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| `entries`       | Diary entries and day totals                     | `dates` when known (log, update, delete, copy, supplement log); none after a food merge or a forced food/recipe delete |
-| `foods`         | Food list / food detail                          | `ids`; none when a supplement created foods for its ingredients                                                        |
-| `recipes`       | Recipes                                          | `ids` when known; none when a deleted food was an ingredient                                                           |
-| `goals`         | Goals                                            | none                                                                                                                   |
-| `weight`        | Weight entries / trend                           | `dates` (log) or `ids` (update, delete)                                                                                |
-| `sleep`         | Sleep entries                                    | `dates` (log) or `ids` (update, delete)                                                                                |
-| `supplements`   | Supplements and the supplement checklist         | `ids` when known                                                                                                       |
-| `dayProperties` | Water, activity, fasting flag, day notes         | `dates`                                                                                                                |
-| `labels`        | Food/recipe labels                               | none (the affected food/recipe ids are in `foods`/`recipes`)                                                           |
-| `preferences`   | Preferences (reserved; no tool changes them yet) | none                                                                                                                   |
+| Domain          | What to refresh                               | Scope given                                                                                                            |
+| --------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `entries`       | Diary entries and day totals                  | `dates` when known (log, update, delete, copy, supplement log); none after a food merge or a forced food/recipe delete |
+| `foods`         | Food list / food detail                       | `ids`; none when a supplement created foods for its ingredients                                                        |
+| `recipes`       | Recipes                                       | `ids` when known; none when a deleted food was an ingredient                                                           |
+| `goals`         | Goals                                         | none                                                                                                                   |
+| `weight`        | Weight entries / trend                        | `dates` (log) or `ids` (update, delete)                                                                                |
+| `sleep`         | Sleep entries                                 | `dates` (log) or `ids` (update, delete)                                                                                |
+| `supplements`   | Supplements and the supplement checklist      | `ids` when known                                                                                                       |
+| `dayProperties` | Water, activity, fasting flag, day notes      | `dates`                                                                                                                |
+| `labels`        | Food/recipe labels                            | none (the affected food/recipe ids are in `foods`/`recipes`)                                                           |
+| `preferences`   | Preferences (`GET /api/preferences`)          | none; also after a custom meal type is created, renamed or deleted (the meal order changes)                            |
+| `fasting`       | Recorded fasts (`/api/fasts`)                 | `ids`                                                                                                                  |
+| `reminders`     | Reminders (`/api/reminders`); reschedule them | `ids`; none after a meal type rename (its meal reminders were renamed with it)                                         |
+| `mealTypes`     | Custom meal types (`/api/meal-types`)         | `ids`                                                                                                                  |
 
 Unknown domain → ignore it (or refresh everything if you prefer safety). Editing a food changes
 the macros shown for entries that use it; like an edit through the REST API, that is reported as
@@ -475,12 +483,21 @@ processing) and the bulk label sweep (`list_unlabeled_foods`, `list_unlabeled_re
 `set_food_labels_batch`, `set_recipe_labels_batch`). It also has web search and, where the model
 supports it, web fetch. Through those tools it reads and writes entries, foods (including
 favorites), recipes, goals, weight, sleep, supplements and their logs, day properties (water,
-activity, notes, the fasting-day flag) and labels, and reads statistics and analytics.
+activity, notes, the fasting-day flag), labels, recorded fasts, reminders, custom meal types and
+part of the preferences, and reads statistics, analytics, where a food or recipe is used, the
+brands in the food database and the USDA nutrient database (when the server has an
+`FDC_API_KEY`).
 
-Not reachable yet (no MCP tools): fasting sessions (timers), reminders, preferences (time zone,
-goal adjustment, meal timeframes, AI-task settings, …), creating or renaming custom meal types
-(reading them works), the AI-task queue, push notifications, account settings and sign-in
-methods, imports and exports. Those domains therefore never appear in `changed` today.
+The preferences it may change: dashboard widget visibility and order, start page, favourite tap
+and meal assignment behaviour, the favourite meal time windows, meal order, pinned insights,
+visible nutrients, water goal, and activity goal adjustment. It reads but cannot change the app
+language, time zone, biological sex, AI-task processing (and auto-log), the caloric-lag override
+of the insights page and the legacy combined day-details toggle.
+
+Not reachable (no MCP tools): a fast that is running (it lives in the device's fasting timer
+until the user ends it; the server only stores finished fasts), the AI-task queue, push
+notifications, account settings and sign-in methods, imports and exports. Those domains never
+appear in `changed`.
 
 ## 13. Privacy
 

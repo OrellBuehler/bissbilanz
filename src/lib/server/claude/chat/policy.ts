@@ -15,7 +15,12 @@ export type ConfirmLookup = {
 	dayProperties: (date: unknown) => Promise<Record<string, unknown> | null>;
 	// The labels a set_*_labels call replaces (the ones the assistant wrote).
 	assistantLabels: (table: 'foods' | 'recipes', id: unknown) => Promise<string[]>;
+	// The display lists an update_preferences call replaces, as they are now.
+	preferenceLists: () => Promise<Record<(typeof PREFERENCE_LISTS)[number], string[]>>;
 };
+
+// Preference lists whose replacement asks first when it drops an item.
+export const PREFERENCE_LISTS = ['visibleNutrients', 'pinnedInsights'] as const;
 
 export type ChangeContext = {
 	input: Record<string, unknown>;
@@ -108,6 +113,15 @@ const clearsLabels = async (
 	input: Record<string, unknown>,
 	lookup: ConfirmLookup
 ) => isCleared(input.labels) && (await lookup.assistantLabels(table, id)).length > 0;
+
+const dropsPreferenceItems = async (input: Record<string, unknown>, lookup: ConfirmLookup) => {
+	const given = PREFERENCE_LISTS.filter((key) => Array.isArray(input[key]));
+	if (given.length === 0) return false;
+	const current = await lookup.preferenceLists();
+	return given.some((key) =>
+		current[key].some((item) => !(input[key] as unknown[]).includes(item))
+	);
+};
 
 const createsFoods = (input: Record<string, unknown>) =>
 	Array.isArray(input.ingredients) &&
@@ -282,7 +296,40 @@ export const CHAT_TOOL_POLICY: Record<string, ChatToolPolicy> = {
 	list_ai_tasks: { kind: 'excluded', reason: AI_TASK_QUEUE },
 	get_ai_task: { kind: 'excluded', reason: AI_TASK_QUEUE },
 	complete_ai_task: { kind: 'excluded', reason: AI_TASK_QUEUE },
-	dismiss_ai_task: { kind: 'excluded', reason: AI_TASK_QUEUE }
+	dismiss_ai_task: { kind: 'excluded', reason: AI_TASK_QUEUE },
+	list_fasts: READ,
+	log_fast: write(({ result }) => [change('fasting', { ids: [str(result?.fastId)] })]),
+	update_fast: write(({ input }) => [change('fasting', { ids: [str(input.fastId)] })]),
+	delete_fast: confirm(({ input }) => [change('fasting', { ids: [str(input.fastId)] })]),
+	list_reminders: READ,
+	create_reminder: write(({ result }) => [change('reminders', { ids: [str(result?.reminderId)] })]),
+	update_reminder: write(({ input }) => [change('reminders', { ids: [str(input.reminderId)] })]),
+	delete_reminder: confirm(({ input }) => [change('reminders', { ids: [str(input.reminderId)] })]),
+	get_preferences: READ,
+	// Replacing the favourite time windows drops every window the call leaves
+	// out; replacing the visible nutrients or pinned insights asks when it
+	// removes one that is set now. Orders and single settings do not ask.
+	update_preferences: write(() => [change('preferences')], {
+		confirmWhen: async (input, lookup) =>
+			has(input, ['favoriteMealTimeframes']) || (await dropsPreferenceItems(input, lookup))
+	}),
+	// A new or removed custom meal changes the meal order the preferences report.
+	create_meal_type: write(({ result }) => [
+		change('mealTypes', { ids: [str(result?.mealTypeId)] }),
+		change('preferences')
+	]),
+	update_meal_type: write(({ input }) => [
+		change('mealTypes', { ids: [str(input.mealTypeId)] }),
+		...(input.name !== undefined ? [change('preferences'), change('reminders')] : [])
+	]),
+	delete_meal_type: confirm(({ input }) => [
+		change('mealTypes', { ids: [str(input.mealTypeId)] }),
+		change('preferences')
+	]),
+	get_food_usage: READ,
+	get_recipe_usage: READ,
+	list_food_brands: READ,
+	search_nutrient_database: READ
 };
 
 export const chatToolPolicy = (name: string): ChatToolPolicy | null =>
