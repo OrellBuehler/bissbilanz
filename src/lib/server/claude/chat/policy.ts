@@ -12,6 +12,9 @@ export type ConfirmLookup = {
 	foodInUse: (id: unknown) => Promise<boolean>;
 	recipeHasEntries: (id: unknown) => Promise<boolean>;
 	photoOf: (table: 'foods' | 'recipes', id: unknown) => Promise<string | null>;
+	dayProperties: (date: unknown) => Promise<Record<string, unknown> | null>;
+	// The labels a set_*_labels call replaces (the ones the assistant wrote).
+	assistantLabels: (table: 'foods' | 'recipes', id: unknown) => Promise<string[]>;
 };
 
 export type ChangeContext = {
@@ -82,6 +85,29 @@ const removesPhoto = async (
 	const photo = await current();
 	return photo !== null && photo !== input.imageUrl;
 };
+
+// A value that is gone after the call, and one worth asking before it goes.
+export const isCleared = (value: unknown) =>
+	value === null || value === '' || (Array.isArray(value) && value.length === 0);
+export const holdsValue = (value: unknown) => value !== undefined && !isCleared(value);
+
+// Day details a set_day_properties call can clear. The fasting flag is a
+// reversible switch and does not ask.
+export const DAY_DETAIL_FIELDS = ['notes', 'waterMl', 'activityCalories', 'activityNote'] as const;
+
+const clearsDayDetails = async (input: Record<string, unknown>, lookup: ConfirmLookup) => {
+	const cleared = DAY_DETAIL_FIELDS.filter((field) => isCleared(input[field]));
+	if (cleared.length === 0) return false;
+	const current = await lookup.dayProperties(input.date);
+	return !!current && cleared.some((field) => holdsValue(current[field]));
+};
+
+const clearsLabels = async (
+	table: 'foods' | 'recipes',
+	id: unknown,
+	input: Record<string, unknown>,
+	lookup: ConfirmLookup
+) => isCleared(input.labels) && (await lookup.assistantLabels(table, id)).length > 0;
 
 const createsFoods = (input: Record<string, unknown>) =>
 	Array.isArray(input.ingredients) &&
@@ -232,23 +258,26 @@ export const CHAT_TOOL_POLICY: Record<string, ChatToolPolicy> = {
 	list_meal_types: READ,
 	get_supplement_history: READ,
 	get_day_properties: READ,
-	set_day_properties: write(({ input }) => [change('dayProperties', { dates: [str(input.date)] })]),
+	set_day_properties: write(
+		({ input }) => [change('dayProperties', { dates: [str(input.date)] })],
+		{ confirmWhen: clearsDayDetails }
+	),
 	delete_day_properties: confirm(({ input }) => [
 		change('dayProperties', { dates: [str(input.date)] })
 	]),
 	get_calendar_stats: READ,
 	list_unlabeled_foods: { kind: 'excluded', reason: LABEL_SWEEP },
 	list_labels: READ,
-	set_food_labels: write(({ input }) => [
-		change('labels'),
-		change('foods', { ids: [str(input.foodId)] })
-	]),
+	set_food_labels: write(
+		({ input }) => [change('labels'), change('foods', { ids: [str(input.foodId)] })],
+		{ confirmWhen: (input, lookup) => clearsLabels('foods', input.foodId, input, lookup) }
+	),
 	set_food_labels_batch: { kind: 'excluded', reason: LABEL_SWEEP },
 	list_unlabeled_recipes: { kind: 'excluded', reason: LABEL_SWEEP },
-	set_recipe_labels: write(({ input }) => [
-		change('labels'),
-		change('recipes', { ids: [str(input.recipeId)] })
-	]),
+	set_recipe_labels: write(
+		({ input }) => [change('labels'), change('recipes', { ids: [str(input.recipeId)] })],
+		{ confirmWhen: (input, lookup) => clearsLabels('recipes', input.recipeId, input, lookup) }
+	),
 	set_recipe_labels_batch: { kind: 'excluded', reason: LABEL_SWEEP },
 	list_ai_tasks: { kind: 'excluded', reason: AI_TASK_QUEUE },
 	get_ai_task: { kind: 'excluded', reason: AI_TASK_QUEUE },

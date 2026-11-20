@@ -3,9 +3,12 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import { getDB } from '../../db';
 import {
+	dayProperties,
 	foodEntries,
+	foodLabels,
 	foods,
 	recipeIngredients,
+	recipeLabels,
 	recipes,
 	recipeSteps,
 	sleepEntries,
@@ -15,6 +18,7 @@ import {
 } from '../../schema';
 import type { ChatActionPreview } from './events';
 import { formatDate, formatNumber, message, toolLabel, type ChatLocale } from './labels';
+import { holdsValue, isCleared } from './policy';
 
 // input is exactly what runs on approval: defaults the tool would resolve
 // later (such as "today") are made explicit, so the card and the call agree.
@@ -179,6 +183,16 @@ function fieldLine(
 	names: Map<string, string>,
 	locale: ChatLocale
 ): string[] {
+	const before = current && key in current ? current[key] : undefined;
+	if (isCleared(value) && holdsValue(before)) {
+		return [
+			message(
+				'chat_action_field_cleared_was',
+				{ field: key, value: describeValue(before, names, locale) },
+				locale
+			)
+		];
+	}
 	if (Array.isArray(value) && value.length === 0) {
 		return [message('chat_action_field_cleared', { field: key }, locale)];
 	}
@@ -189,8 +203,7 @@ function fieldLine(
 		];
 	}
 	const now = describeValue(value, names, locale);
-	const before = current && key in current ? current[key] : undefined;
-	if (before === undefined || Array.isArray(value) || isRecord(value)) {
+	if (!holdsValue(before) || Array.isArray(value) || isRecord(value)) {
 		return [message('chat_action_field_set', { field: key, value: now }, locale)];
 	}
 	return [
@@ -728,6 +741,89 @@ const updateSupplement = recordUpdate(
 			: {}
 );
 
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** The stored day details of a date, or null. */
+export async function loadDayDetails(
+	userId: string,
+	date: unknown
+): Promise<Record<string, unknown> | null> {
+	if (typeof date !== 'string' || !DAY.test(date)) return null;
+	const [row] = await getDB()
+		.select()
+		.from(dayProperties)
+		.where(and(eq(dayProperties.userId, userId), eq(dayProperties.date, date)));
+	return row ?? null;
+}
+
+/** The labels the assistant wrote on a food or recipe (what set_*_labels replaces). */
+export async function loadAssistantLabels(
+	userId: string,
+	table: 'foods' | 'recipes',
+	id: unknown
+): Promise<string[]> {
+	if (typeof id !== 'string' || !UUID_RE.test(id)) return [];
+	const rows =
+		table === 'foods'
+			? await getDB()
+					.select({ label: foodLabels.label })
+					.from(foodLabels)
+					.where(
+						and(
+							eq(foodLabels.foodId, id),
+							eq(foodLabels.userId, userId),
+							eq(foodLabels.source, 'llm')
+						)
+					)
+			: await getDB()
+					.select({ label: recipeLabels.label })
+					.from(recipeLabels)
+					.where(
+						and(
+							eq(recipeLabels.recipeId, id),
+							eq(recipeLabels.userId, userId),
+							eq(recipeLabels.source, 'llm')
+						)
+					);
+	return rows.map((row) => row.label);
+}
+
+/** A change to a day's details: every field, a cleared one with what it held. */
+const setDayProperties: Builder = async (input, { userId, locale }) => {
+	if (typeof input.date !== 'string' || !DAY.test(input.date)) {
+		return { error: 'Invalid arguments: date: Invalid date' };
+	}
+	const current = await loadDayDetails(userId, input.date);
+	const names = new Map<string, string>();
+	return {
+		input,
+		preview: {
+			summary: message(
+				'chat_action_set_day_properties',
+				{ date: formatDate(input.date, locale) },
+				locale
+			),
+			details: Object.entries(input)
+				.filter(([key, value]) => key !== 'date' && value !== undefined)
+				.flatMap(([key, value]) => fieldLine(key, value, current, names, locale))
+		}
+	};
+};
+
+const setLabels = (table: 'foods' | 'recipes') =>
+	recordUpdate(
+		table === 'foods' ? 'foodId' : 'recipeId',
+		table === 'foods' ? 'chat_action_set_food_labels' : 'chat_action_set_recipe_labels',
+		table === 'foods' ? 'Food' : 'Recipe',
+		async (userId, id) => {
+			const row = await loadRow(table === 'foods' ? foods : recipes, userId, id);
+			if (!row) return null;
+			const labels = await loadAssistantLabels(userId, table, id);
+			return { row: { name: row.name, labels }, extra: {} };
+		},
+		() => ({})
+	);
+
 /** Any other write: the tool's label and every field of the call. */
 const genericWrite =
 	(name: string): Builder =>
@@ -761,7 +857,10 @@ export const PREVIEW_BUILDERS: Record<string, Builder> = {
 export const FIELD_PREVIEW_BUILDERS: Record<string, Builder> = {
 	update_food: updateFood,
 	update_recipe: updateRecipe,
-	update_supplement: updateSupplement
+	update_supplement: updateSupplement,
+	set_day_properties: setDayProperties,
+	set_food_labels: setLabels('foods'),
+	set_recipe_labels: setLabels('recipes')
 };
 
 /**
