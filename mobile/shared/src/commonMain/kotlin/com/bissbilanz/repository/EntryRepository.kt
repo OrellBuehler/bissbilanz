@@ -7,6 +7,7 @@ import com.bissbilanz.analytics.eatenAtOnDate
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.DayProperties
 import com.bissbilanz.api.generated.model.DayPropertiesSet
+import com.bissbilanz.api.generated.model.RecipeDetail
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.*
@@ -86,6 +87,33 @@ class EntryRepository(
             db.userDataDatabaseQueries
                 .selectMealTypesSince(date)
                 .executeAsList()
+        }
+
+    /**
+     * The cached diary days with entries of [foodIds] or [recipeIds], or of a cached recipe that
+     * has one of [foodIds] as an ingredient: the days whose shown macros an edit of those changes.
+     */
+    suspend fun cachedDaysUsing(
+        foodIds: Set<String>,
+        recipeIds: Set<String>,
+    ): Set<String> =
+        withContext(Dispatchers.IO) {
+            val queries = db.userDataDatabaseQueries
+            val withFood =
+                if (foodIds.isEmpty()) {
+                    emptySet()
+                } else {
+                    queries
+                        .selectAllRecipes()
+                        .executeAsList()
+                        .mapNotNull { json.decodeOrNull<RecipeDetail>(it.jsonData) }
+                        .filter { recipe -> recipe.ingredients.any { it.foodId in foodIds } }
+                        .mapTo(mutableSetOf()) { it.id }
+                }
+            val days = mutableSetOf<String>()
+            foodIds.forEach { id -> queries.selectEntriesByFoodId(id).executeAsList().mapTo(days) { it.date } }
+            (recipeIds + withFood).forEach { id -> queries.selectEntriesByRecipeId(id).executeAsList().mapTo(days) { it.date } }
+            days
         }
 
     suspend fun refresh(date: String) {

@@ -3,6 +3,8 @@ package com.bissbilanz.repository
 import com.bissbilanz.api.BissbilanzApi
 import com.bissbilanz.api.generated.model.EntryCreate
 import com.bissbilanz.api.generated.model.EntryUpdate
+import com.bissbilanz.api.generated.model.RecipeDetail
+import com.bissbilanz.api.generated.model.RecipeIngredient
 import com.bissbilanz.cache.BissbilanzDatabase
 import com.bissbilanz.model.Entry
 import com.bissbilanz.sync.QueuedRequest
@@ -368,5 +370,55 @@ class EntryRepositoryTest {
 
             assertEquals(listOf("srv-1"), repository.entriesByDateOnce("2024-01-15").map { it.id })
             assertTrue(repository.entriesByDateOnce("2024-01-15").none { it.id == temp.id })
+        }
+
+    @Test
+    fun theDaysUsingAFoodIncludeTheDaysOfRecipesMadeWithIt() =
+        runTest {
+            coEvery { syncQueue.all() } returns emptyList()
+            coEvery { api.getEntries("2024-01-15") } returns listOf(TestFixtures.entry(id = "a", date = "2024-01-15"))
+            val recipeEntry = TestFixtures.entry(id = "b", date = "2024-01-16").copy(foodId = null, food = null, recipeId = "r1")
+            coEvery { api.getEntries("2024-01-16") } returns listOf(recipeEntry)
+            coEvery { api.getEntries("2024-01-17") } returns listOf(TestFixtures.entry(id = "c", date = "2024-01-17"))
+            listOf("2024-01-15", "2024-01-16", "2024-01-17").forEach { repository.refreshWithoutViewing(it) }
+            val recipe =
+                RecipeDetail(
+                    id = "r1",
+                    userId = "u",
+                    name = "Bowl",
+                    totalServings = 1.0,
+                    isFavorite = false,
+                    imageUrl = null,
+                    calories = 0.0,
+                    protein = 0.0,
+                    carbs = 0.0,
+                    fat = 0.0,
+                    fiber = 0.0,
+                    ingredients =
+                        listOf(
+                            RecipeIngredient(
+                                foodId = "food-x",
+                                quantity = 1.0,
+                                servingUnit = RecipeIngredient.ServingUnit.g,
+                                sortOrder = 0,
+                            ),
+                        ),
+                )
+            db.userDataDatabaseQueries.insertRecipe(
+                "r1",
+                "Bowl",
+                1.0,
+                0L,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                json.encodeToString(RecipeDetail.serializer(), recipe),
+            )
+
+            assertEquals(setOf("2024-01-15", "2024-01-16"), repository.cachedDaysUsing(setOf("food-a", "food-x"), emptySet()))
+            assertEquals(setOf("2024-01-16"), repository.cachedDaysUsing(emptySet(), setOf("r1")))
+            assertEquals(emptySet(), repository.cachedDaysUsing(setOf("food-unused"), emptySet()))
         }
 }

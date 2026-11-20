@@ -11,6 +11,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
+import kotlin.time.Clock
 
 /** Both forms of a conversation's events endpoint. */
 interface ChatEventSource {
@@ -60,7 +61,15 @@ sealed interface ChatFeedItem {
 class ChatEventFollower(
     private val source: ChatEventSource,
     private val wait: suspend (Long) -> Unit = { delay(it) },
+    private val now: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) {
+    /**
+     * Until when following starts out polling. A stream that failed three times in a row is
+     * likely behind a proxy that holds the body back, and the next answers would each wait
+     * minutes for the same three failures.
+     */
+    private var pollUntil = 0L
+
     fun follow(
         conversationId: String,
         after: () -> Int,
@@ -68,9 +77,10 @@ class ChatEventFollower(
         flow {
             var failures = 0
             var reconnectMillis = DEFAULT_RECONNECT_MS
-            var polling = false
+            var polling = now() < pollUntil
             var pollAfter = 0
             var catchUps = 0
+            if (polling) emit(ChatFeedItem.Connection(ChatConnection.POLLING))
             while (true) {
                 if (polling) {
                     val page =
@@ -128,6 +138,7 @@ class ChatEventFollower(
                     val pause = retryAfter ?: backoffMillis(failures)
                     if (failures >= STREAM_FAILURES_BEFORE_POLLING) {
                         polling = true
+                        pollUntil = now() + POLLING_KEPT_MS
                         failures = 0
                         emit(ChatFeedItem.Connection(ChatConnection.POLLING))
                     } else {
@@ -153,6 +164,7 @@ class ChatEventFollower(
         const val POLL_IDLE_MS = 30_000L
         const val POLL_CATCH_UP_MS = 250L
         const val MAX_CATCH_UPS = 3
+        const val POLLING_KEPT_MS = 10 * 60_000L
 
         fun backoffMillis(failures: Int): Long {
             var millis = DEFAULT_RECONNECT_MS

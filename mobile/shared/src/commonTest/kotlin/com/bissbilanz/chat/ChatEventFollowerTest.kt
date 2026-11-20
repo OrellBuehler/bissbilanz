@@ -46,7 +46,8 @@ class ChatEventFollowerTest {
 
     private val source = FakeSource()
     private val waits = mutableListOf<Long>()
-    private val follower = ChatEventFollower(source) { waits += it }
+    private var clock = 0L
+    private val follower = ChatEventFollower(source, wait = { waits += it }, now = { clock })
     private var lastSeq = 0
 
     private suspend fun follow(count: Int): List<ChatFeedItem> =
@@ -169,6 +170,47 @@ class ChatEventFollowerTest {
             assertEquals(ChatFeedItem.Connection(ChatConnection.POLLING), items[2])
             assertTrue(items.none { it == ChatFeedItem.Connection(ChatConnection.LIVE) })
             assertEquals(listOf(3_000L, 6_000L, 12_000L), waits)
+        }
+
+    @Test
+    fun theNextFollowStartsPollingForAWhileAfterTheStreamKeptFailing() =
+        runTest {
+            repeat(3) { source.streams += failingStream() }
+            source.polls += { page(1) }
+            follow(5)
+            assertEquals(3, source.streamAfters.size)
+
+            clock += ChatEventFollower.POLLING_KEPT_MS - 1
+            source.polls += { page(2) }
+            val next = follow(3)
+            assertEquals(ChatFeedItem.Connection(ChatConnection.POLLING), next.first())
+            assertEquals(3, source.streamAfters.size)
+
+            clock += 2
+            source.streams +=
+                flow {
+                    emit(ChatStreamItem.Opened)
+                    emit(ChatStreamItem.Heartbeat)
+                }
+            assertEquals(ChatFeedItem.Connection(ChatConnection.LIVE), follow(1).single())
+            assertEquals(4, source.streamAfters.size)
+        }
+
+    @Test
+    fun cleanClosesOfAnOpenedStreamAreNotFailures() =
+        runTest {
+            repeat(4) { source.streams += flow { emit(ChatStreamItem.Opened) } }
+            source.streams +=
+                flow {
+                    emit(ChatStreamItem.Opened)
+                    emit(ChatStreamItem.Heartbeat)
+                }
+
+            val items = follow(1)
+
+            assertEquals(listOf(ChatFeedItem.Connection(ChatConnection.LIVE)), items)
+            assertEquals(List(4) { ChatEventFollower.DEFAULT_RECONNECT_MS }, waits)
+            assertEquals(5, source.streamAfters.size)
         }
 
     @Test

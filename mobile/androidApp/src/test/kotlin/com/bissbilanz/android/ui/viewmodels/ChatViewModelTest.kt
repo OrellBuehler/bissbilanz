@@ -5,6 +5,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.chat.ChatDataRefresher
 import com.bissbilanz.android.chat.ChatOutbox
+import com.bissbilanz.android.chat.ChatRunWatcher
 import com.bissbilanz.android.chat.ViewedDiaryDay
 import com.bissbilanz.android.ui.viewmodels.ChatTestFixtures.accepted
 import com.bissbilanz.android.ui.viewmodels.ChatTestFixtures.action
@@ -79,6 +80,7 @@ class ChatViewModelTest {
     private lateinit var errorReporter: ErrorReporter
     private lateinit var outboxScope: CoroutineScope
     private lateinit var outbox: ChatOutbox
+    private val watcher: ChatRunWatcher = mockk(relaxed = true)
     private lateinit var viewModel: ChatViewModel
     private val viewedDay = ViewedDiaryDay()
     private val entries = listOf(ChatChange(domain = ChatDomain.ENTRIES, dates = listOf("2026-11-18")))
@@ -111,6 +113,7 @@ class ChatViewModelTest {
                 chatRepo,
                 prefsRepo,
                 outbox,
+                watcher,
                 refresher,
                 viewedDay,
                 connectivity,
@@ -807,5 +810,135 @@ class ChatViewModelTest {
             viewModel.setDraft("How am I doing today?")
             assertEquals("How am I doing today?", viewModel.draftFor(openId()))
             assertEquals(revision + 1, viewModel.draftRevision.value)
+        }
+
+    @Test
+    fun leavingTheScreenDuringARunHandsItToTheWatcherAndComingBackTakesItBack() =
+        runTest {
+            val id = openWithPendingAction()
+
+            stopped()
+            verify { watcher.watch(id, 6) }
+
+            visible()
+            runCurrent()
+            verify { watcher.stop(id) }
+        }
+
+    @Test
+    fun openingAnotherChatDuringARunHandsTheRunToTheWatcher() =
+        runTest {
+            val id = openWithPendingAction()
+            coEvery { chatRepo.conversation("c2") } returns detail("c2", emptyList(), lastSeq = 0)
+
+            viewModel.open("c2")
+            runCurrent()
+
+            verify { watcher.watch(id, 6) }
+        }
+
+    @Test
+    fun aRunlessChatIsNotWatched() =
+        runTest {
+            visible()
+            stopped()
+
+            verify(exactly = 0) { watcher.watch(any(), any()) }
+        }
+
+    @Test
+    fun aLateDecisionDoesNotTouchTheChatOpenedMeanwhile() =
+        runTest {
+            val id = openWithPendingAction()
+            val answer = CompletableDeferred<ChatActionDecisionResponse>()
+            coEvery { chatRepo.decide("a1", true) } coAnswers { answer.await() }
+            coEvery { chatRepo.conversation("c2") } returns
+                detail("c2", listOf(message("m9", "c2", "user", listOf(text("Other")))), lastSeq = 3)
+
+            viewModel.approve("a1")
+            viewModel.open("c2")
+            runCurrent()
+            val other = viewModel.state.value.thread
+            answer.complete(ChatActionDecisionResponse(action(id, "approved"), run("queued", id)))
+            runCurrent()
+
+            assertEquals(other, viewModel.state.value.thread)
+            assertEquals(
+                "c2",
+                viewModel.state.value.thread
+                    ?.conversationId,
+            )
+        }
+
+    @Test
+    fun nothingCanBeSentWhileTheChatIsLoadingOrFailedToLoad() =
+        runTest {
+            conversations.value = listOf(listItem("c4"))
+            val reply = CompletableDeferred<com.bissbilanz.api.generated.model.ChatConversationDetailResponse>()
+            coEvery { chatRepo.conversation("c4") } coAnswers { reply.await() }
+            visible()
+            viewModel.open("c4")
+            runCurrent()
+
+            assertFalse(viewModel.canSend("Hello"))
+            reply.completeExceptionally(RuntimeException("offline"))
+            runCurrent()
+            assertTrue(viewModel.state.value.threadFailed)
+            assertFalse(viewModel.canSend("Hello"))
+        }
+
+    @Test
+    fun aSecondMessageWaitsForTheFirstToBeSent() =
+        runTest {
+            visible()
+            val gate = CompletableDeferred<Unit>()
+            coEvery { chatRepo.send(any(), any()) } coAnswers {
+                gate.await()
+                val request = secondArg<ChatMessageCreate>()
+                sent += request
+                accepted(firstArg(), request)
+            }
+
+            sendText("First")
+            assertFalse(viewModel.canSend("Second"))
+            sendText("Second")
+            gate.complete(Unit)
+            runCurrent()
+
+            assertEquals(listOf("First"), sent.map { it.text })
+        }
+
+    @Test
+    fun aSignOutStopsASendInFlight() =
+        runTest {
+            visible()
+            val gate = CompletableDeferred<Unit>()
+            coEvery { chatRepo.send(any(), any()) } coAnswers {
+                gate.await()
+                val request = secondArg<ChatMessageCreate>()
+                sent += request
+                accepted(firstArg(), request)
+            }
+
+            sendText("Hello")
+            outbox.clear()
+            gate.complete(Unit)
+            runCurrent()
+
+            assertEquals(emptyList(), sent)
+            assertEquals(emptyList(), outbox.messages.value)
+        }
+
+    @Test
+    fun aSendThatOutlivesAnAccountSwitchIsNotSent() =
+        runTest {
+            visible()
+            var account = 0
+            every { chatRepo.accountGeneration } answers { account }
+            coEvery { refresher.flushLocalChanges() } answers { account++ }
+
+            sendText("Hello")
+
+            coVerify(exactly = 0) { chatRepo.send(any(), any()) }
         }
 }

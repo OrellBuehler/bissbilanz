@@ -11,6 +11,8 @@ import com.bissbilanz.repository.AiTaskRepository
 import com.bissbilanz.repository.ChatRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -86,8 +88,14 @@ class ChatOutbox(
         _messages.update { list -> list.filter { it.id !in ids } }
     }
 
-    /** Sign-out and account switches. */
+    private val deliveries = mutableSetOf<Job>()
+
+    /** Sign-out and account switches: nothing of the previous account is sent under the next one. */
     fun clear() {
+        synchronized(deliveries) {
+            deliveries.forEach { it.cancel() }
+            deliveries.clear()
+        }
         _messages.value = emptyList()
     }
 
@@ -100,36 +108,50 @@ class ChatOutbox(
 
     private fun deliver(message: OutgoingChatMessage) {
         update(message.id) { copy(sending = true, problem = null, retryAfterSeconds = null) }
-        scope.launch {
-            var current = message
-            try {
-                refresher.flushLocalChanges()
-                if (current.createsConversation) {
-                    chatRepo.createConversation(current.conversationId)
-                    current = current.copy(createsConversation = false)
-                    update(current.id) { copy(createsConversation = false) }
+        // Every step re-checks the account: a send that outlives a sign-out must not go out
+        // under the next account's token or write into its state.
+        val account = chatRepo.accountGeneration
+        val job =
+            scope.launch(start = CoroutineStart.LAZY) {
+                var current = message
+                try {
+                    refresher.flushLocalChanges()
+                    ensureActive(account)
+                    if (current.createsConversation) {
+                        chatRepo.createConversation(current.conversationId)
+                        current = current.copy(createsConversation = false)
+                        update(current.id) { copy(createsConversation = false) }
+                    }
+                    val filenames =
+                        current.uploadedFilenames ?: upload(current.photos).also { files ->
+                            current = current.copy(uploadedFilenames = files)
+                            update(current.id) { copy(uploadedFilenames = files) }
+                        }
+                    ensureActive(account)
+                    val accepted =
+                        try {
+                            chatRepo.send(current.conversationId, current.toRequest(filenames))
+                        } catch (e: ApiException) {
+                            if (ChatProblems.sendProblem(e) != ChatSendProblem.MESSAGE_ID_CONFLICT) throw e
+                            val fresh = current.copy(id = Uuid.random().toString())
+                            update(current.id) { fresh }
+                            current = fresh
+                            chatRepo.send(fresh.conversationId, fresh.toRequest(filenames))
+                        }
+                    ensureActive(account)
+                    update(current.id) { copy(sending = false, accepted = accepted) }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    if (account == chatRepo.accountGeneration) failed(current, e)
                 }
-                val filenames =
-                    current.uploadedFilenames ?: upload(current.photos).also { files ->
-                        current = current.copy(uploadedFilenames = files)
-                        update(current.id) { copy(uploadedFilenames = files) }
-                    }
-                val accepted =
-                    try {
-                        chatRepo.send(current.conversationId, current.toRequest(filenames))
-                    } catch (e: ApiException) {
-                        if (ChatProblems.sendProblem(e) != ChatSendProblem.MESSAGE_ID_CONFLICT) throw e
-                        val fresh = current.copy(id = Uuid.random().toString())
-                        update(current.id) { fresh }
-                        current = fresh
-                        chatRepo.send(fresh.conversationId, fresh.toRequest(filenames))
-                    }
-                update(current.id) { copy(sending = false, accepted = accepted) }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                failed(current, e)
             }
-        }
+        synchronized(deliveries) { deliveries += job }
+        job.invokeOnCompletion { synchronized(deliveries) { deliveries -= job } }
+        job.start()
+    }
+
+    private fun ensureActive(account: Int) {
+        if (account != chatRepo.accountGeneration) throw CancellationException("The account changed while sending")
     }
 
     private suspend fun upload(photos: List<ChatPhoto>): List<String> =

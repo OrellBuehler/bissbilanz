@@ -22,6 +22,7 @@ import com.bissbilanz.android.bulk.PreferencesBulkImportCheckpoints
 import com.bissbilanz.android.chat.ChatDataRefresher
 import com.bissbilanz.android.chat.ChatOutbox
 import com.bissbilanz.android.chat.ChatPreferences
+import com.bissbilanz.android.chat.ChatRunWatcher
 import com.bissbilanz.android.chat.ViewedDiaryDay
 import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.fasting.FastingSessionStore
@@ -245,6 +246,7 @@ class BissbilanzApplication :
                     )
                 }
                 single { ChatOutbox(chatRepo = get(), aiTaskRepo = get(), refresher = get(), errorReporter = get(), scope = get()) }
+                single { ChatRunWatcher(chatRepo = get(), refresher = get(), viewedDay = get(), errorReporter = get(), scope = get()) }
 
                 viewModelOf(::AiTasksViewModel)
                 viewModelOf(::ChatViewModel)
@@ -353,6 +355,8 @@ class BissbilanzApplication :
             koin.get<PreferencesRepository>().clearClaudeCapability()
             koin.get<ChatRepository>().clear()
             koin.get<ChatOutbox>().clear()
+            koin.get<ChatRunWatcher>().clear()
+            koin.get<ChatDataRefresher>().clear()
             // Shortcuts and thumbnails were drawn from the data just wiped. The widgets
             // redraw once the logout drops the token (see the signed-in observer below).
             FoodShortcutPublisher.clear(this@BissbilanzApplication)

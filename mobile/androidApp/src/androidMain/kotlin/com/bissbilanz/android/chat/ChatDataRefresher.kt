@@ -18,6 +18,7 @@ import com.bissbilanz.sync.SyncManager
 import com.bissbilanz.sync.SyncQueue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -59,6 +60,7 @@ class ChatDataRefresher(
     private class Request(
         val plan: ChatRefreshPlan,
         val viewedDate: String?,
+        val account: Int,
     )
 
     private val requests = Channel<Request>(Channel.UNLIMITED)
@@ -68,18 +70,22 @@ class ChatDataRefresher(
     /** Every plan once it has been refreshed. */
     val refreshed: SharedFlow<ChatRefreshPlan> = _refreshed.asSharedFlow()
 
+    @Volatile private var account = 0
+
+    @Volatile private var running: Job? = null
+
     init {
         scope.launch {
             for (first in requests) {
                 delay(COALESCE_MS)
-                var plan = first.plan
-                val viewed = mutableSetOf<String>().apply { first.viewedDate?.let(::add) }
-                while (true) {
-                    val next = requests.tryReceive().getOrNull() ?: break
-                    plan += next.plan
-                    next.viewedDate?.let(viewed::add)
-                }
-                refresh(plan, viewed)
+                val batch = mutableListOf(first)
+                while (true) batch += requests.tryReceive().getOrNull() ?: break
+                val current = batch.filter { it.account == account }
+                if (current.isEmpty()) continue
+                val plan = current.fold(ChatRefreshPlan.EMPTY) { merged, request -> merged + request.plan }
+                val viewed = current.mapNotNullTo(mutableSetOf()) { it.viewedDate }
+                running = launch { refresh(plan, viewed) }
+                running?.join()
             }
         }
     }
@@ -88,7 +94,14 @@ class ChatDataRefresher(
         plan: ChatRefreshPlan,
         viewedDate: String?,
     ) {
-        if (!plan.isEmpty) requests.trySend(Request(plan, viewedDate))
+        if (!plan.isEmpty) requests.trySend(Request(plan, viewedDate, account))
+    }
+
+    /** Sign-out and account switches: what is waiting is dropped and a refresh under way is stopped. */
+    fun clear() {
+        account++
+        while (requests.tryReceive().isSuccess) continue
+        running?.cancel()
     }
 
     /** [viewedDates] stand in for "every day" when a change to entries or day details has no days. */
@@ -96,12 +109,11 @@ class ChatDataRefresher(
         plan: ChatRefreshPlan,
         viewedDates: Set<String> = emptySet(),
     ) {
+        val anyDay = viewedDates + today()
+        val days = plan[ChatDomain.ENTRIES]?.days(anyDay).orEmpty() + daysUsingChangedFoodsAndRecipes(plan, anyDay)
         coroutineScope {
-            val anyDay = viewedDates + today()
-            plan[ChatDomain.ENTRIES]?.let { scope ->
-                scope.days(anyDay).forEach { date -> launch { safely { entryRepo.refreshWithoutViewing(date) } } }
-                launch { safely { foodRepo.refreshRecentFoods() } }
-            }
+            days.sortedDescending().take(MAX_DAYS).forEach { date -> launch { safely { entryRepo.refreshWithoutViewing(date) } } }
+            if (plan[ChatDomain.ENTRIES] != null) launch { safely { foodRepo.refreshRecentFoods() } }
             plan[ChatDomain.DAY_PROPERTIES]?.let { scope ->
                 scope.days(anyDay).forEach { date -> launch { safely { entryRepo.getDayProperties(date) } } }
             }
@@ -155,6 +167,30 @@ class ChatDataRefresher(
             if (e is CancellationException) throw e
             errorReporter.captureException(e)
         }
+    }
+
+    /**
+     * Editing a food or recipe changes the macros the days using it show, but the server only
+     * reports `foods`/`recipes`: those days are found in the cache, and a change without ids
+     * falls back to the recent days.
+     */
+    private suspend fun daysUsingChangedFoodsAndRecipes(
+        plan: ChatRefreshPlan,
+        anyDay: Set<String>,
+    ): Set<String> {
+        val foods = plan[ChatDomain.FOODS]
+        val recipes = plan[ChatDomain.RECIPES]
+        if (foods == null && recipes == null) return emptySet()
+        val unscoped = (foods != null && foods.ids.isEmpty()) || (recipes != null && recipes.ids.isEmpty())
+        val used =
+            try {
+                entryRepo.cachedDaysUsing(foods?.ids.orEmpty(), recipes?.ids.orEmpty())
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                errorReporter.captureException(e)
+                emptySet()
+            }
+        return if (unscoped) used + anyDay else used
     }
 
     private fun ChatChangeScope.days(anyDay: Set<String>): Set<String> =

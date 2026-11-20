@@ -179,7 +179,14 @@ object ChatFolder {
     private fun ChatThread.withActiveRun(run: ChatRun?): ChatThread =
         when {
             run == null -> this
-            ChatStatus.isActiveRun(run.status) -> if (run.id in finishedRunIds) this else copy(activeRun = run)
+            ChatStatus.isActiveRun(run.status) ->
+                when {
+                    run.id in finishedRunIds -> this
+                    // A response that was answered before the run started (`queued`) arriving
+                    // after its `run_started` must not set the run back.
+                    run.status == ChatStatus.QUEUED && activeRun?.id == run.id && activeRun.status == ChatStatus.RUNNING -> this
+                    else -> copy(activeRun = run)
+                }
             activeRun?.id == run.id -> copy(activeRun = null, finishedRunIds = finishedRunIds + run.id)
             else -> copy(finishedRunIds = finishedRunIds + run.id)
         }

@@ -8,6 +8,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.chat.ChatDataRefresher
 import com.bissbilanz.android.chat.ChatOutbox
 import com.bissbilanz.android.chat.ChatPhoto
+import com.bissbilanz.android.chat.ChatRunWatcher
 import com.bissbilanz.android.chat.OutgoingChatMessage
 import com.bissbilanz.android.chat.ViewedDiaryDay
 import com.bissbilanz.api.ApiException
@@ -79,6 +80,7 @@ class ChatViewModel(
     private val chatRepo: ChatRepository,
     private val prefsRepo: PreferencesRepository,
     private val outbox: ChatOutbox,
+    private val watcher: ChatRunWatcher,
     private val refresher: ChatDataRefresher,
     private val viewedDay: ViewedDiaryDay,
     private val connectivity: ConnectivityProvider,
@@ -153,10 +155,20 @@ class ChatViewModel(
      */
     suspend fun whileVisible() {
         if (appModeManager.isLocal) return
+        try {
+            follow()
+        } finally {
+            // The answer goes on without the screen; the diary should not wait for it.
+            handOffActiveRun()
+        }
+    }
+
+    private suspend fun follow() {
         coroutineScope {
             launch { loadConversations() }
             _state.map { it.openId }.distinctUntilChanged().collectLatest { id ->
                 if (id == null) return@collectLatest
+                watcher.stop(id)
                 if (!_state.value.isNew) reload(id)
                 combine(
                     _state.map { state -> state.thread?.takeIf { it.conversationId == id }?.activeRun != null }.distinctUntilChanged(),
@@ -164,6 +176,11 @@ class ChatViewModel(
                 ) { active, _ -> active }.collectLatest { active -> if (active) follow(id) }
             }
         }
+    }
+
+    private fun handOffActiveRun() {
+        val thread = _state.value.thread ?: return
+        if (thread.activeRun != null) watcher.watch(thread.conversationId, thread.lastSeq)
     }
 
     suspend fun refreshConversations() = loadConversations()
@@ -241,6 +258,7 @@ class ChatViewModel(
         isNew: Boolean,
         thread: ChatThread?,
     ) {
+        if (_state.value.thread?.conversationId != id) handOffActiveRun()
         savedStateHandle[KEY_OPEN] = id
         savedStateHandle[KEY_OPEN_NEW] = isNew
         _attachments.value = emptyList()
@@ -329,7 +347,10 @@ class ChatViewModel(
     fun canSend(text: String): Boolean {
         val trimmed = text.trim()
         val state = _state.value
+        // A conversation still loading (or that failed to) has no thread yet: what it holds, and
+        // whether a run is busy in it, is not known.
         return state.openId != null &&
+            state.thread?.conversationId == state.openId &&
             trimmed.isNotEmpty() &&
             trimmed.length <= MAX_TEXT_CHARS &&
             !state.activeRunWorking &&
@@ -546,14 +567,14 @@ class ChatViewModel(
             chatRepo.follow(id) { currentThread(id)?.lastSeq ?: 0 }.collect { onFeed(id, it) }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            _state.update { it.copy(followFailed = true) }
+            _state.update { if (it.openId == id) it.copy(followFailed = true) else it }
             when {
                 e.isGone() -> conversationGone(id)
                 e is UnauthorizedException || (e as? ApiException)?.statusCode == 401 -> _messages.emit(R.string.chat_signed_out)
                 else -> report(e)
             }
         } finally {
-            _state.update { it.copy(connection = null) }
+            _state.update { if (it.openId == id) it.copy(connection = null) else it }
         }
     }
 
@@ -569,7 +590,7 @@ class ChatViewModel(
                 viewModelScope.launch { reload(id) }
             }
             is ChatFeedItem.Polled -> updateThread(id) { ChatFolder.polled(it, item.activeRun) }
-            is ChatFeedItem.Connection -> _state.update { it.copy(connection = item.state) }
+            is ChatFeedItem.Connection -> _state.update { if (it.openId == id) it.copy(connection = item.state) else it }
         }
     }
 

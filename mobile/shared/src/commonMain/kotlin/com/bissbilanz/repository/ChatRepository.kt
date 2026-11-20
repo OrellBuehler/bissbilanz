@@ -41,13 +41,23 @@ class ChatRepository(
     /** Most recently active first; null until the first load. */
     val conversations: StateFlow<List<ChatConversationListItem>?> = _conversations.asStateFlow()
 
+    /**
+     * Changes with every sign-out and account switch: an answer that lands after one belongs
+     * to the previous account and must not be written anywhere.
+     */
+    val accountGeneration: Int get() = prefsRepo.accountGeneration
+
     suspend fun refreshConversations() {
-        _conversations.value = api.listChatConversations(limit = LIST_LIMIT).conversations
+        val generation = accountGeneration
+        val conversations = api.listChatConversations(limit = LIST_LIMIT).conversations
+        if (generation == accountGeneration) _conversations.value = conversations
     }
 
     /** Creating an id that already exists returns it again, so this is safe to retry. */
     suspend fun createConversation(id: String): ChatConversation {
+        val generation = accountGeneration
         val conversation = api.createChatConversation(id)
+        if (generation != accountGeneration) return conversation
         _conversations.update { list ->
             val item =
                 ChatConversationListItem(
@@ -67,6 +77,7 @@ class ChatRepository(
     suspend fun conversation(id: String): ChatConversationDetailResponse {
         val generation = prefsRepo.accountGeneration
         val detail = api.getChatConversation(id)
+        if (generation != accountGeneration) return detail
         prefsRepo.updateChatCapability(detail.capability, generation)
         _conversations.update { list ->
             list?.map { item ->
@@ -133,6 +144,23 @@ class ChatRepository(
                 },
             )
         }
+
+    /**
+     * One page of events of a run nothing streams (the chat screen was left mid-answer); the
+     * capability its `run_finished` carries is applied like on the stream.
+     */
+    suspend fun pollRun(
+        conversationId: String,
+        after: Int,
+    ): ChatEventPage {
+        val generation = accountGeneration
+        val page = api.getChatEventsPage(conversationId, after)
+        page.events.forEach { item ->
+            val event = (item as? ChatStreamItem.Event)?.event
+            if (event?.type == ChatEventType.RUN_FINISHED) event.capability?.let { prefsRepo.updateChatCapability(it, generation) }
+        }
+        return page
+    }
 
     /** Run state seen while a conversation is open, so the list shows it without a reload. */
     fun noteActiveRun(

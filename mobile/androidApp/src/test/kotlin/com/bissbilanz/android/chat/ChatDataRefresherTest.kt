@@ -44,6 +44,10 @@ class ChatDataRefresherTest {
     private val syncQueue: SyncQueue = mockk(relaxed = true)
     private val errorReporter: ErrorReporter = mockk(relaxed = true)
 
+    init {
+        coEvery { entryRepo.cachedDaysUsing(any(), any()) } returns emptySet()
+    }
+
     private fun TestScope.refresher() =
         ChatDataRefresher(
             entryRepo,
@@ -119,6 +123,53 @@ class ChatDataRefresherTest {
             coVerify(exactly = 0) { prefsRepo.refresh() }
             coVerify(exactly = 0) { reminderRepo.refresh() }
             coVerify(exactly = 0) { fastingManager.refreshHistory(any()) }
+        }
+
+    @Test
+    fun aFoodOrRecipeEditRefreshesTheDaysThatUseIt() =
+        runTest {
+            coEvery { entryRepo.cachedDaysUsing(setOf("f1"), setOf("r1")) } returns setOf("2026-11-10", "2026-11-12")
+
+            refresher().refresh(
+                plan(
+                    ChatChange(domain = ChatDomain.FOODS, ids = listOf("f1")),
+                    ChatChange(domain = ChatDomain.RECIPES, ids = listOf("r1")),
+                ),
+                viewedDates = setOf("2026-11-15"),
+            )
+
+            coVerify(exactly = 1) { entryRepo.refreshWithoutViewing("2026-11-10") }
+            coVerify(exactly = 1) { entryRepo.refreshWithoutViewing("2026-11-12") }
+            coVerify(exactly = 0) { entryRepo.refreshWithoutViewing("2026-11-15") }
+            coVerify(exactly = 0) { foodRepo.refreshRecentFoods() }
+        }
+
+    @Test
+    fun aRecipeChangeWithoutIdsRefreshesTheRecentDaysOnce() =
+        runTest {
+            refresher().refresh(
+                ChatRefreshPlan.of(
+                    listOf(ChatDomain.RECIPES),
+                    listOf(ChatChange(domain = ChatDomain.ENTRIES, dates = listOf("2026-11-20"))),
+                ),
+                viewedDates = setOf("2026-11-15"),
+            )
+
+            coVerify(exactly = 1) { entryRepo.refreshWithoutViewing("2026-11-20") }
+            coVerify(exactly = 1) { entryRepo.refreshWithoutViewing("2026-11-15") }
+        }
+
+    @Test
+    fun aSignOutDropsWhatIsWaiting() =
+        runTest {
+            val refresher = refresher()
+
+            refresher.request(ChatRefreshPlan.of(listOf(ChatDomain.GOALS), null), null)
+            refresher.clear()
+            advanceTimeBy(ChatDataRefresher.COALESCE_MS + 1)
+            runCurrent()
+
+            coVerify(exactly = 0) { goalsRepo.refresh() }
         }
 
     @Test

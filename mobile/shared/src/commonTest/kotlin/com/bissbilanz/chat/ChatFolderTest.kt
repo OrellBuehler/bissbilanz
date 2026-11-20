@@ -267,6 +267,16 @@ class ChatFolderTest {
     }
 
     @Test
+    fun aQueuedRunFromALateResponseDoesNotSetARunningRunBack() {
+        val running = fold(confirmedRun.take(2))
+        assertEquals(ChatStatus.RUNNING, running.activeRun?.status)
+
+        assertEquals(ChatStatus.RUNNING, ChatFolder.withRun(running, run(ChatStatus.QUEUED)).activeRun?.status)
+        val paused = fold(confirmedRun)
+        assertEquals(ChatStatus.QUEUED, ChatFolder.withRun(paused, run(ChatStatus.QUEUED)).activeRun?.status)
+    }
+
+    @Test
     fun aPollWithoutAnActiveRunDoesNotEndTheRunItsEventsHaveNotEnded() {
         val running = fold(confirmedRun.take(4))
 
