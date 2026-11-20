@@ -914,6 +914,47 @@ describe('review fixes, second round', () => {
 		}
 	});
 
+	it('polls events and the active run from one snapshot', async () => {
+		const route = await import('../../src/routes/api/chat/conversations/[id]/events/+server');
+		const { createMockEvent } = await import('../helpers/mock-request-event');
+		const user = await seedUser(db);
+		const food = await seedFood(user.id);
+		const entry = await seedEntry(user.id, food.id);
+		const conversation = await newConversation(user.id);
+		const poll = async () => {
+			const response = await route.GET(
+				createMockEvent({
+					user: user as never,
+					params: { id: conversation.id },
+					url: `http://localhost/api/chat/conversations/${conversation.id}/events`
+				}) as never
+			);
+			expect(response.status).toBe(200);
+			return (await response.json()) as {
+				events: { type: string; seq: number }[];
+				lastSeq: number;
+				activeRun: { status: string } | null;
+			};
+		};
+		fakeClaude([message([toolUse('delete_entry', { entryId: entry.id })], 'tool_use')]);
+		await send(user.id, conversation.id, 'Delete it');
+		const paused = await poll();
+		expect(paused.activeRun).toMatchObject({ status: 'awaiting_confirmation' });
+		expect(paused.events.at(-1)).toMatchObject({ type: 'action_required' });
+		expect(paused.lastSeq).toBe(paused.events.at(-1)!.seq);
+		fakeClaude([message([textBlock('Kept it')], 'end_turn')]);
+		const [action] = await db
+			.select()
+			.from(chatToolCalls)
+			.where(eq(chatToolCalls.conversationId, conversation.id));
+		await service.decideAction(user.id, action!.id, 'reject');
+		await executor.settleChatRunsForTests();
+		const done = await poll();
+		expect(done.activeRun).toBeNull();
+		expect(done.events.at(-1)).toMatchObject({ type: 'run_finished' });
+		expect(done.lastSeq).toBe(done.events.at(-1)!.seq);
+	});
+
 	it('keeps a chat photo when a food pointing at the same file gets another photo', async () => {
 		const user = await seedUser(db);
 		const conversation = await newConversation(user.id);

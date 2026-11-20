@@ -190,6 +190,9 @@ Any other `Accept` returns one page:
 - Poll every 1–2 s while `activeRun` is `queued` or `running`, and stop (or slow to ≥ 30 s) when
   it is null or `awaiting_confirmation`. Polling has its own rate limit (240 requests/min per
   user, shared with SSE connects), separate from the write limit; 429 carries `Retry-After`.
+- A page is one consistent snapshot: `events`, `lastSeq` and `activeRun` are read together, so a
+  page whose `activeRun` is null (and `hasMore` false) already contains the `message_completed`
+  and `run_finished` of the run that just ended.
 
 ### 5.3 Rules for applying events
 
@@ -229,10 +232,10 @@ message); unknown → like `ok`. Only a message whose run is still active can co
 tool part. A finished message (any final `status`) never does: when a run stops during a call, the
 server writes a `tool_finished` with `status: "error"` and a summary such as "Stopped before it
 finished. Check the result." before `message_completed`. A confirmation the user rejected is an
-`action` part with status `rejected` and has no `tool` part. `label` is already in the user's
-language (e.g. "Logging food" / "Trage Essen ein"). Web searches and page fetches the assistant
-does appear as tool parts named `web_search` / `web_fetch` ("Searching the web"); they change
-nothing.
+`action` part with status `rejected` and has no `tool` part. An `action` part's `expiresAt` is an
+ISO timestamp, never an empty string. `label` is already in the user's language (e.g. "Logging
+food" / "Trage Essen ein"). Web searches and page fetches the assistant does appear as tool parts
+named `web_search` / `web_fetch` ("Searching the web"); they change nothing.
 
 ## 7. Confirmations
 

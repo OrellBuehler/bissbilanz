@@ -3,7 +3,11 @@ import { createMockEvent } from '../helpers/mock-request-event';
 import { expectResponseContract } from '../helpers/contract';
 import { TEST_USER } from '../helpers/fixtures';
 
-const DB = vi.hoisted(() => ({ marker: 'db' }));
+const TX = vi.hoisted(() => ({ marker: 'tx' }));
+const DB = vi.hoisted(() => ({
+	marker: 'db',
+	transaction: vi.fn(async (run: (tx: unknown) => unknown) => run(TX))
+}));
 
 const m = vi.hoisted(() => ({
 	rateLimit: vi.fn(),
@@ -996,7 +1000,7 @@ describe('GET /api/chat/conversations/{id}/events', () => {
 		await expectResponseContract('GET', '/api/chat/conversations/{id}/events', response);
 		expect(response.status).toBe(200);
 		expect(response.headers.get('Content-Type')).toContain('application/json');
-		expect(m.listEvents).toHaveBeenCalledWith(CONV_ID, 2, 501);
+		expect(m.listEvents).toHaveBeenCalledWith(CONV_ID, 2, 501, TX);
 		expect(await response.json()).toEqual({
 			events,
 			nextAfter: 8,
@@ -1053,7 +1057,7 @@ describe('GET /api/chat/conversations/{id}/events', () => {
 		m.listEvents.mockResolvedValue(events);
 		const response = await eventsCall({ searchParams: { limit: '2' } });
 		await expectResponseContract('GET', '/api/chat/conversations/{id}/events', response);
-		expect(m.listEvents).toHaveBeenCalledWith(CONV_ID, 0, 3);
+		expect(m.listEvents).toHaveBeenCalledWith(CONV_ID, 0, 3, TX);
 		const data = await response.json();
 		expect(data.events.map((event: { seq: number }) => event.seq)).toEqual([3, 4]);
 		expect(data.nextAfter).toBe(4);
@@ -1071,14 +1075,28 @@ describe('GET /api/chat/conversations/{id}/events', () => {
 
 	test('pages 500 events by default', async () => {
 		await eventsCall();
-		expect(m.listEvents).toHaveBeenCalledWith(CONV_ID, 0, 501);
+		expect(m.listEvents).toHaveBeenCalledWith(CONV_ID, 0, 501, TX);
+	});
+
+	test('reads the events, lastSeq and the active run in one read-only snapshot', async () => {
+		m.getActiveRun.mockResolvedValue(runRow());
+		await eventsCall();
+		expect(DB.transaction).toHaveBeenCalledTimes(1);
+		expect(DB.transaction).toHaveBeenCalledWith(expect.any(Function), {
+			isolationLevel: 'repeatable read',
+			accessMode: 'read only'
+		});
+		expect(m.listEvents).toHaveBeenCalledWith(CONV_ID, 0, 501, TX);
+		expect(m.getConversation).toHaveBeenLastCalledWith(TX, TEST_USER.id, CONV_ID);
+		expect(m.getActiveRun).toHaveBeenCalledWith(TX, CONV_ID);
+		expect(m.getActiveRun).not.toHaveBeenCalledWith(DB, CONV_ID);
 	});
 
 	test('includes the active run of the conversation', async () => {
 		m.getActiveRun.mockResolvedValue(runRow());
 		const response = await eventsCall();
 		await expectResponseContract('GET', '/api/chat/conversations/{id}/events', response);
-		expect(m.getActiveRun).toHaveBeenCalledWith(DB, CONV_ID);
+		expect(m.getActiveRun).toHaveBeenCalledWith(TX, CONV_ID);
 		expect((await response.json()).activeRun).toEqual(
 			runView({
 				status: 'running',
@@ -1105,7 +1123,7 @@ describe('GET /api/chat/conversations/{id}/events', () => {
 		'continues after the larger of after and Last-Event-ID when %s',
 		async (_name, searchParams, lastEventId, expected) => {
 			await eventsCall({ searchParams, headers: { 'Last-Event-ID': lastEventId } });
-			expect(m.listEvents).toHaveBeenCalledWith(CONV_ID, expected, 501);
+			expect(m.listEvents).toHaveBeenCalledWith(CONV_ID, expected, 501, TX);
 		}
 	);
 
@@ -1113,7 +1131,7 @@ describe('GET /api/chat/conversations/{id}/events', () => {
 		'ignores the unusable Last-Event-ID %j',
 		async (lastEventId) => {
 			await eventsCall({ searchParams: { after: '3' }, headers: { 'Last-Event-ID': lastEventId } });
-			expect(m.listEvents).toHaveBeenCalledWith(CONV_ID, 3, 501);
+			expect(m.listEvents).toHaveBeenCalledWith(CONV_ID, 3, 501, TX);
 		}
 	);
 

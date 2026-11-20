@@ -33,7 +33,7 @@ export type ChatPart =
 			label: string;
 			status: ChatActionStatus;
 			preview: ChatActionPreview;
-			expiresAt: string;
+			expiresAt?: string;
 	  };
 
 export type ChatMessageView = {
@@ -199,9 +199,10 @@ export function toEventRecord(row: typeof chatEvents.$inferSelect): ChatEventRec
 export async function listEvents(
 	conversationId: string,
 	after: number,
-	limit: number
+	limit: number,
+	db: TxOrDb = getDB()
 ): Promise<ChatEventRecord[]> {
-	const rows = await getDB()
+	const rows = await db
 		.select()
 		.from(chatEvents)
 		.where(and(eq(chatEvents.conversationId, conversationId), gt(chatEvents.seq, after)))
@@ -292,7 +293,7 @@ export function applyEvent(parts: ChatPart[], event: ChatEvent): void {
 				label: event.action.label,
 				status: 'pending',
 				preview: event.action.preview,
-				expiresAt: event.action.expiresAt ?? ''
+				...(event.action.expiresAt ? { expiresAt: event.action.expiresAt } : {})
 			};
 			return;
 		case 'action_resolved': {
