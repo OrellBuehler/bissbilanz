@@ -1,0 +1,13 @@
+{
+	"activeRun": null,
+	"events": [
+		{
+			"createdAt": "sample-createdAt",
+			"seq": 3,
+			"type": "sample-type"
+		}
+	],
+	"hasMore": true,
+	"lastSeq": 3,
+	"nextAfter": 3
+}

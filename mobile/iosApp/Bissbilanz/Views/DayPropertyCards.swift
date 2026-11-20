@@ -48,6 +48,11 @@ struct WaterCard: View {
         content
             .dayPropertiesCard()
             .task(id: date) { load() }
+            // The assistant changed the day and the store pulled it again;
+            // a field being typed in keeps its draft.
+            .onReceive(NotificationCenter.default.publisher(for: ChatStore.didChangeDataNotification)) { _ in
+                if focusedField == nil { load() }
+            }
             .onChange(of: focusedField) { previous, _ in
                 if previous == .water { commitWater() }
             }
@@ -170,6 +175,11 @@ struct ActivityCard: View {
         content
             .dayPropertiesCard()
             .task(id: date) { load() }
+            // The assistant changed the day and the store pulled it again;
+            // a field being typed in keeps its draft.
+            .onReceive(NotificationCenter.default.publisher(for: ChatStore.didChangeDataNotification)) { _ in
+                if focusedField == nil { load() }
+            }
             .onChange(of: focusedField) { previous, _ in
                 switch previous {
                 case .activity: commitActivity()
@@ -306,6 +316,11 @@ struct NotesCard: View {
         content
             .dayPropertiesCard()
             .task(id: date) { load() }
+            // The assistant changed the day and the store pulled it again;
+            // a field being typed in keeps its draft.
+            .onReceive(NotificationCenter.default.publisher(for: ChatStore.didChangeDataNotification)) { _ in
+                if focusedField == nil { load() }
+            }
             .onChange(of: focusedField) { previous, _ in
                 if previous == .notes { commitNotes() }
             }

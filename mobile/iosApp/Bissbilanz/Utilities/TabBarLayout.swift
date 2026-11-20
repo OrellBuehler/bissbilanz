@@ -16,6 +16,7 @@ enum NavigableTab: String, CaseIterable, Identifiable {
     case fasting
     case supplements
     case aiTasks = "ai-tasks"
+    case chat
 
     var id: String {
         rawValue
@@ -24,7 +25,7 @@ enum NavigableTab: String, CaseIterable, Identifiable {
     /// Screens that only exist server-side, so not in Local mode.
     var requiresAccount: Bool {
         switch self {
-        case .aiTasks:
+        case .aiTasks, .chat:
             true
         case .foods, .favorites, .recipes, .recipeSuggestions, .insights, .calendar, .weight, .sleep, .fasting,
              .supplements:
@@ -49,6 +50,7 @@ enum NavigableTab: String, CaseIterable, Identifiable {
         case .fasting: L10n.fasting
         case .supplements: L10n.supplements
         case .aiTasks: L10n.aiTasks
+        case .chat: L10n.chatTabLabel
         }
     }
 
@@ -65,6 +67,7 @@ enum NavigableTab: String, CaseIterable, Identifiable {
         case .fasting: "timer"
         case .supplements: "pills"
         case .aiTasks: "sparkles"
+        case .chat: ChatSymbols.chat
         }
     }
 }

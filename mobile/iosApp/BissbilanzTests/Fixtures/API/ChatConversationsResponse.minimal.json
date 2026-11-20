@@ -1,0 +1,14 @@
+{
+	"conversations": [
+		{
+			"activeRun": null,
+			"createdAt": "sample-createdAt",
+			"id": "429cf207-26fb-4f34-8641-915daf236ad2",
+			"lastMessageAt": "sample-lastMessageAt",
+			"lastSeq": 3,
+			"title": null,
+			"updatedAt": "sample-updatedAt"
+		}
+	],
+	"total": 3
+}

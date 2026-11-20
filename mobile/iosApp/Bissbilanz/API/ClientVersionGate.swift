@@ -32,7 +32,11 @@ enum ClientVersionHeader {
     /// the JSON body's `minVersion` field in case something in between strips
     /// response headers.
     static func minVersion(from response: HTTPURLResponse, data: Data) -> String {
-        if let header = response.value(forHTTPHeaderField: "X-Client-Min-Version"), !header.isEmpty {
+        minVersion(header: response.value(forHTTPHeaderField: "X-Client-Min-Version"), data: data)
+    }
+
+    static func minVersion(header: String?, data: Data) -> String {
+        if let header, !header.isEmpty {
             return header
         }
         struct Body: Decodable { let minVersion: String }
