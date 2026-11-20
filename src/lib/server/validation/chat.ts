@@ -62,7 +62,7 @@ export const chatMessageCreateSchema = z
 			.optional()
 			.meta({
 				description:
-					'Photos uploaded with POST /api/ai-tasks/photo (or /api/images/upload) by this user, as `<uuid>.webp` or `/uploads/<uuid>.webp`. At most 5; files over 4 MB are not sent to the model.'
+					"Photos uploaded with POST /api/ai-tasks/photo (or /api/images/upload) by this user, as `<uuid>.webp` or `/uploads/<uuid>.webp`. At most 5. A file that is not one of the user's uploads, is missing on the server or is over 4 MB is rejected with 400 `invalid_image`. The server copies each photo into the chat (the copies count against the upload storage quota)."
 			}),
 		context: chatMessageContextSchema.optional()
 	})

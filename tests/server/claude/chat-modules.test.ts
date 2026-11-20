@@ -165,8 +165,7 @@ describe('event folding', () => {
 				name: 'delete_entry',
 				label: 'Deleting an entry',
 				status: 'approved',
-				preview: { summary: 'Delete', details: [] },
-				expiresAt: ''
+				preview: { summary: 'Delete', details: [] }
 			},
 			{ type: 'text', text: 'Done' }
 		]);
@@ -814,5 +813,27 @@ describe('store', () => {
 		expect(await store.entryDate('u', '6f1c0f0e-0c1e-4a52-9d4e-6f4d2a0a7a01')).toBe('2026-11-18');
 		queueResults([[]]);
 		expect(await store.entryDate('u', '6f1c0f0e-0c1e-4a52-9d4e-6f4d2a0a7a01')).toBeNull();
+	});
+});
+
+describe('docs/ai-chat.md examples', () => {
+	test('are valid ChatEvent JSON, and folding them gives the completed message', async () => {
+		const { readFile } = await import('node:fs/promises');
+		const { chatEventSchema } = await import('$lib/server/validation/responses/chat');
+		const doc = await readFile('docs/ai-chat.md', 'utf8');
+		const section = doc.slice(doc.indexOf('## 9. Event types'), doc.indexOf('## 10.'));
+		const lines = [...section.matchAll(/```json\n([\s\S]*?)```/g)].flatMap((block) =>
+			block[1]!.trim().split('\n')
+		);
+		const parsed = lines.map((line) => chatEventSchema.parse(JSON.parse(line)));
+		expect(parsed.map((event) => event.seq)).toEqual(
+			Array.from({ length: parsed.length }, (_, index) => index + 1)
+		);
+		const completed = parsed.find((event) => event.type === 'message_completed')!;
+		expect(events.foldParts(parsed as never)).toEqual(completed.message!.parts);
+		const sse = doc.match(/^data: (\{.*\})$/m)![1]!;
+		expect(chatEventSchema.parse(JSON.parse(sse))).toMatchObject({ type: 'text_delta' });
+		const failed = doc.match(/`(\{"seq":14,"type":"error".*?\})`/)![1]!;
+		expect(chatEventSchema.parse(JSON.parse(failed))).toMatchObject({ type: 'error' });
 	});
 });

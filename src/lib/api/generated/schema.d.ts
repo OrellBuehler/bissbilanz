@@ -2356,7 +2356,7 @@ export interface components {
 			 */
 			id: string;
 			text: string;
-			/** @description Photos uploaded with POST /api/ai-tasks/photo (or /api/images/upload) by this user, as `<uuid>.webp` or `/uploads/<uuid>.webp`. At most 5; files over 4 MB are not sent to the model. */
+			/** @description Photos uploaded with POST /api/ai-tasks/photo (or /api/images/upload) by this user, as `<uuid>.webp` or `/uploads/<uuid>.webp`. At most 5. A file that is not one of the user's uploads, is missing on the server or is over 4 MB is rejected with 400 `invalid_image`. The server copies each photo into the chat (the copies count against the upload storage quota). */
 			imageFilenames?: string[];
 			context?: components['schemas']['ChatMessageContext'];
 		};
@@ -4055,7 +4055,7 @@ export interface components {
 			actionId?: string;
 			/** @description action parts. */
 			preview?: components['schemas']['ChatActionPreview'];
-			/** @description action parts: when a pending action expires. */
+			/** @description action parts: when the action expires (ISO 8601). Set on every action the server creates, never an empty string. */
 			expiresAt?: string;
 		};
 		ChatMessageAcceptedResponse: {
@@ -4076,7 +4076,7 @@ export interface components {
 		};
 		/** @description One event of a conversation. Fields depend on type; see docs/ai-chat.md for every type with an example. */
 		ChatEvent: {
-			/** @description Increases by one per event within a conversation. */
+			/** @description Increases with every event within a conversation. Readers can see gaps (text_delta events are deleted after 24 hours): apply events in order without requiring contiguous seqs. */
 			seq: number;
 			/** @description Ignore events of an unknown type (but still advance past their seq). Clients must accept values not listed here. */
 			type: string;

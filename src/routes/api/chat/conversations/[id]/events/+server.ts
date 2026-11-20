@@ -42,13 +42,18 @@ export const GET: RequestHandler = chatRoute(async ({ userId, params, url, reque
 		});
 	}
 
+	// One snapshot: a page never reports no active run while that run's last
+	// events are missing from it.
 	const { limit } = query.data;
-	const page = await listEvents(params.id, after, limit + 1);
+	const { page, conversation, activeRun } = await db.transaction(
+		async (tx) => ({
+			page: await listEvents(params.id, after, limit + 1, tx),
+			conversation: await getConversation(tx, userId, params.id),
+			activeRun: await getActiveRun(tx, params.id)
+		}),
+		{ isolationLevel: 'repeatable read', accessMode: 'read only' }
+	);
 	const events = page.slice(0, limit);
-	const [conversation, activeRun] = await Promise.all([
-		getConversation(db, userId, params.id),
-		getActiveRun(db, params.id)
-	]);
 	return json({
 		events,
 		nextAfter: events.length > 0 ? events[events.length - 1]!.seq : after,

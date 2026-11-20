@@ -14,8 +14,9 @@ not use closed `Codable` enums for them.
 
 ## 1. Availability and gating
 
-Show the chat entry point only when chat is available. The capability comes from four places,
-all with the same shape (`ChatCapability`):
+The chat screen stays reachable for every signed-in account user. Whether a message can be sent
+right now is the capability, which comes from four places, all with the same shape
+(`ChatCapability`):
 
 | Where                                             | When to read it                               |
 | ------------------------------------------------- | --------------------------------------------- |
@@ -33,8 +34,8 @@ all with the same shape (`ChatCapability`):
 `disabled` (admin kill switch), `no_access` (user not granted), `user_budget_exhausted`,
 `global_budget_exhausted`. Unknown value → treat as "not available right now". Chat needs more
 budget headroom than an AI-task call, so `claude.chat.available` can be false while
-`claude.available` is true. When unavailable, keep existing conversations readable (GET still
-works) but disable the composer.
+`claude.available` is true. When unavailable, keep the screen and existing conversations
+readable (GET still works), show the reason (`blockedReason`), and disable the composer.
 
 ## 2. Authentication
 
@@ -141,9 +142,11 @@ generically.
 
 ## 5. Receiving events
 
-Every change to a conversation is an event with a `seq` that increases by exactly one per event
-within the conversation (`ChatEvent`). Keep `lastSeq` per conversation (persist it with the
-cached messages if you cache them).
+Every change to a conversation is an event with a `seq` that increases with every event within
+the conversation (`ChatEvent`). The server writes seqs one by one, but a reader can see gaps:
+`text_delta` events are deleted 24 hours after they were written. Never require the seqs you
+receive to be contiguous. Keep `lastSeq` per conversation (persist it with the cached messages
+if you cache them).
 
 `GET /api/chat/conversations/{id}/events?after=<lastSeq>` returns the events with `seq > after`
 in order. Two ways to read it:
@@ -157,7 +160,7 @@ retry: 3000
 
 id: 3
 event: text_delta
-data: {"seq":3,"type":"text_delta","runId":"9eab…","messageId":"3638…","partIndex":0,"text":"Let me ","createdAt":"…"}
+data: {"seq":3,"type":"text_delta","createdAt":"2026-11-19T20:56:15.059Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","partIndex":0,"text":"Let me "}
 
 : ping
 
@@ -187,12 +190,16 @@ Any other `Accept` returns one page:
 - Poll every 1–2 s while `activeRun` is `queued` or `running`, and stop (or slow to ≥ 30 s) when
   it is null or `awaiting_confirmation`. Polling has its own rate limit (240 requests/min per
   user, shared with SSE connects), separate from the write limit; 429 carries `Retry-After`.
+- A page is one consistent snapshot: `events`, `lastSeq` and `activeRun` are read together, so a
+  page whose `activeRun` is null (and `hasMore` false) already contains the `message_completed`
+  and `run_finished` of the run that just ended.
 
 ### 5.3 Rules for applying events
 
 1. Apply events strictly in seq order; ignore any event with `seq <= lastSeq` (duplicates after a
-   reconnect); then set `lastSeq = seq`. Advance `lastSeq` past events of an unknown `type`
-   without applying them.
+   reconnect); then set `lastSeq = seq`. Gaps between seqs are normal (pruned `text_delta` events):
+   apply the next event you receive, never wait for a missing seq. Advance `lastSeq` past events
+   of an unknown `type` without applying them.
 2. Opening a conversation: `GET /api/chat/conversations/{id}` returns all messages in display form
    and `lastSeq`. The in-progress assistant message (if a run is active) already contains
    everything up to `lastSeq`. Then follow events with `after=lastSeq`.
@@ -221,13 +228,14 @@ Any other `Accept` returns one page:
 | `action` | `actionId`, `toolUseId`, `name`, `label`, `status`, `preview { summary, details[] }`, `expiresAt` | Confirmation card (§7)                                                     |
 
 Unknown part `type` → skip it. `tool.status`: `running`, `ok`, `error` (show `summary`, the error
-message); unknown → like `ok`. A finished message never contains a `running` tool part: a call the
-run stopped during ends as `error` with a summary such as "Stopped before it finished. Check the
-result." A confirmation the user rejected is an `action` part with status `rejected` and has no
-`tool` part. `label` is already in the user's language
-(e.g. "Logging food" / "Trage Essen ein"). Web searches and page fetches the assistant does
-appear as tool parts named `web_search` / `web_fetch` ("Searching the web"); they change nothing.
-A tool part is never `running` in a final message: a call the run stopped during ends as `error`.
+message); unknown → like `ok`. Only a message whose run is still active can contain a `running`
+tool part. A finished message (any final `status`) never does: when a run stops during a call, the
+server writes a `tool_finished` with `status: "error"` and a summary such as "Stopped before it
+finished. Check the result." before `message_completed`. A confirmation the user rejected is an
+`action` part with status `rejected` and has no `tool` part. An `action` part's `expiresAt` is an
+ISO timestamp, never an empty string. `label` is already in the user's language (e.g. "Logging
+food" / "Trage Essen ein"). Web searches and page fetches the assistant does appear as tool parts
+named `web_search` / `web_fetch` ("Searching the web"); they change nothing.
 
 ## 7. Confirmations
 
@@ -276,7 +284,9 @@ labels, fasts, reminders, custom meal types, other preferences) runs at once and
    the same transaction that pauses the run, so an approval right after `action_required` always
    finds the action pending. Events follow on the stream:
    `action_resolved` (`status: approved | rejected`), `run_resumed`, then for an approval
-   `tool_started`/`tool_finished` of the call itself, then the model's reply.
+   `tool_started`/`tool_finished` of the call itself, then the model's reply. An action that
+   expires, or whose run is cancelled or superseded, also gets an `action_resolved`, with
+   `status: expired | cancelled`, before the run's `run_finished`.
 4. Errors: `404 action_not_found`; `409 action_not_pending` (already decided, cancelled, or the
    run ended) and `409 action_expired`, both with the current `action` in the body — refresh the
    conversation. Retrying an approve that already went through answers 409; the call never runs
@@ -349,7 +359,7 @@ All events have `seq`, `type`, `createdAt`. The fields per type (others are abse
 | `tool_started`      | `runId`, `messageId`, `partIndex`, `toolUseId`, `name`, `label`                                                     |
 | `tool_finished`     | `runId`, `messageId`, `partIndex`, `toolUseId`, `name`, `status`, `summary`, `changed`, `changes`                   |
 | `action_required`   | `runId`, `messageId`, `partIndex`, `action`                                                                         |
-| `action_resolved`   | `runId`, `messageId`, `partIndex`, `actionId`, `status`                                                             |
+| `action_resolved`   | `runId`, `messageId`, `partIndex`, `actionId`, `status` (`approved`, `rejected`, `expired`, `cancelled`)            |
 | `message_completed` | `runId`, `messageId`, `message` (the final assistant message)                                                       |
 | `run_finished`      | `runId`, `messageId` (null if the run never started), `status`, `reason`, `changed`, `changes`, `run`, `capability` |
 | `error`             | `runId`, `code` (= the run's reason), `error` (English text for logs); always followed by `run_finished`            |
@@ -381,20 +391,20 @@ on run_finished:     update the run, refresh `changed` data (§10), update the c
 {"seq":6,"type":"action_required","createdAt":"2026-11-19T20:56:15.144Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","partIndex":2,"action":{"id":"435baadf-008d-4a69-a948-659b75aa3589","conversationId":"83e75848-4125-4fab-b1d5-671e38b93bba","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","toolUseId":"toolu_17f54b831c2240e493a1","name":"delete_entry","label":"Deleting an entry","status":"pending","preview":{"summary":"Delete “Greek yogurt” from Breakfast on 18 Nov 2026","details":["2 servings · 120 kcal"]},"expiresAt":"2026-11-19T21:56:15.139Z","decidedAt":null,"createdAt":"2026-11-19T20:56:15.124Z"}}
 ```
 
-The user approves (`POST /api/chat/actions/435baadf-…` `{"decision":"approve"}`):
+The user approves (`POST /api/chat/actions/435baadf-008d-4a69-a948-659b75aa3589` with `{"decision":"approve"}`):
 
 ```json
-{"seq":7,"type":"action_resolved","createdAt":"2026-11-19T20:56:15.172Z","runId":"9eab9b08-…","messageId":"36380e54-…","partIndex":2,"actionId":"435baadf-008d-4a69-a948-659b75aa3589","status":"approved"}
-{"seq":8,"type":"run_resumed","createdAt":"2026-11-19T20:56:15.193Z","runId":"9eab9b08-…","messageId":"36380e54-…","run":{"…":"…","status":"running","changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}]}}
-{"seq":9,"type":"tool_started","createdAt":"2026-11-19T20:56:15.220Z","runId":"9eab9b08-…","messageId":"36380e54-…","partIndex":3,"toolUseId":"toolu_17f54b831c2240e493a1","name":"delete_entry","label":"Deleting an entry"}
-{"seq":10,"type":"tool_finished","createdAt":"2026-11-19T20:56:15.234Z","runId":"9eab9b08-…","messageId":"36380e54-…","partIndex":3,"toolUseId":"toolu_17f54b831c2240e493a1","name":"delete_entry","status":"ok","summary":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}]}
-{"seq":11,"type":"text_delta","createdAt":"2026-11-19T20:56:15.254Z","runId":"9eab9b08-…","messageId":"36380e54-…","partIndex":4,"text":"Logged 150 g Greek yogurt and removed the old entry."}
-{"seq":12,"type":"message_completed","createdAt":"2026-11-19T20:56:15.274Z","runId":"9eab9b08-…","messageId":"36380e54-…","message":{"id":"36380e54-…","role":"assistant","status":"completed","reason":null,"runId":"9eab9b08-…","parts":[{"type":"text","text":"Let me log that."},{"type":"tool","toolUseId":"toolu_dca7…","name":"log_food","label":"Logging food","status":"ok","summary":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}]},{"type":"action","actionId":"435baadf-…","toolUseId":"toolu_17f5…","name":"delete_entry","label":"Deleting an entry","status":"approved","preview":{"summary":"Delete “Greek yogurt” from Breakfast on 18 Nov 2026","details":["2 servings · 120 kcal"]},"expiresAt":"2026-11-19T21:56:15.139Z"},{"type":"tool","toolUseId":"toolu_17f5…","name":"delete_entry","label":"Deleting an entry","status":"ok","summary":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}]},{"type":"text","text":"Logged 150 g Greek yogurt and removed the old entry."}],"conversationId":"83e75848-…","createdAt":"…","updatedAt":"…"}}
-{"seq":13,"type":"run_finished","createdAt":"2026-11-19T20:56:15.274Z","runId":"9eab9b08-…","messageId":"36380e54-…","status":"completed","reason":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}],"run":{"…":"…","status":"completed","finishedAt":"2026-11-19T20:56:15.274Z"},"capability":{"available":true,"remainingBudgetUsd":9.98}}
+{"seq":7,"type":"action_resolved","createdAt":"2026-11-19T20:56:15.172Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","partIndex":2,"actionId":"435baadf-008d-4a69-a948-659b75aa3589","status":"approved"}
+{"seq":8,"type":"run_resumed","createdAt":"2026-11-19T20:56:15.193Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","run":{"id":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","conversationId":"83e75848-4125-4fab-b1d5-671e38b93bba","userMessageId":"d0a7f2a9-8122-420c-ad0b-e2e5c29644a7","assistantMessageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","status":"running","reason":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}],"createdAt":"2026-11-19T20:56:14.871Z","startedAt":"2026-11-19T20:56:14.893Z","finishedAt":null}}
+{"seq":9,"type":"tool_started","createdAt":"2026-11-19T20:56:15.220Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","partIndex":3,"toolUseId":"toolu_17f54b831c2240e493a1","name":"delete_entry","label":"Deleting an entry"}
+{"seq":10,"type":"tool_finished","createdAt":"2026-11-19T20:56:15.234Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","partIndex":3,"toolUseId":"toolu_17f54b831c2240e493a1","name":"delete_entry","status":"ok","summary":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}]}
+{"seq":11,"type":"text_delta","createdAt":"2026-11-19T20:56:15.254Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","partIndex":4,"text":"Logged 150 g Greek yogurt and removed the old entry."}
+{"seq":12,"type":"message_completed","createdAt":"2026-11-19T20:56:15.274Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","message":{"id":"36380e54-7a5c-4e66-98ff-c9370ebecae3","conversationId":"83e75848-4125-4fab-b1d5-671e38b93bba","role":"assistant","status":"completed","reason":null,"runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","parts":[{"type":"text","text":"Let me log that."},{"type":"tool","toolUseId":"toolu_dca7168143174af29733","name":"log_food","label":"Logging food","status":"ok","summary":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}]},{"type":"action","actionId":"435baadf-008d-4a69-a948-659b75aa3589","toolUseId":"toolu_17f54b831c2240e493a1","name":"delete_entry","label":"Deleting an entry","status":"approved","preview":{"summary":"Delete “Greek yogurt” from Breakfast on 18 Nov 2026","details":["2 servings · 120 kcal"]},"expiresAt":"2026-11-19T21:56:15.139Z"},{"type":"tool","toolUseId":"toolu_17f54b831c2240e493a1","name":"delete_entry","label":"Deleting an entry","status":"ok","summary":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}]},{"type":"text","text":"Logged 150 g Greek yogurt and removed the old entry."}],"createdAt":"2026-11-19T20:56:14.906Z","updatedAt":"2026-11-19T20:56:15.274Z"}}
+{"seq":13,"type":"run_finished","createdAt":"2026-11-19T20:56:15.274Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","status":"completed","reason":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}],"run":{"id":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","conversationId":"83e75848-4125-4fab-b1d5-671e38b93bba","userMessageId":"d0a7f2a9-8122-420c-ad0b-e2e5c29644a7","assistantMessageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","status":"completed","reason":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}],"createdAt":"2026-11-19T20:56:14.871Z","startedAt":"2026-11-19T20:56:14.893Z","finishedAt":"2026-11-19T20:56:15.274Z"},"capability":{"available":true,"remainingBudgetUsd":9.98}}
 ```
 
 A failed run ends with `error` then `message_completed` then `run_finished`, e.g.
-`{"type":"error","code":"user_budget_exhausted","error":"This month's assistant budget is used up.",…}`.
+`{"seq":14,"type":"error","createdAt":"2026-11-19T21:02:03.120Z","runId":"5c1d2e3f-4a5b-4c6d-8e7f-901234567890","code":"user_budget_exhausted","error":"This month's assistant budget is used up."}`.
 
 ## 10. Keeping cached data fresh (`changed`)
 
