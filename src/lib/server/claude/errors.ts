@@ -26,16 +26,22 @@ export class ClaudeProcessorChangedError extends Error {
 export type ClaudeApiErrorKind =
 	'timeout' | 'connection' | 'rate_limited' | 'server' | 'invalid_request' | 'auth' | 'other';
 
+export type ClaudeApiErrorTopic = 'prompt_too_long' | 'web_fetch';
+
 export class ClaudeApiError extends Error {
 	readonly kind: ClaudeApiErrorKind;
 	readonly status?: number;
 	readonly requestId?: string;
 	readonly retryable: boolean;
+	// What a 400 was about, read from the API's error message. Only the topic is
+	// kept: the message itself can echo request content.
+	readonly topic?: ClaudeApiErrorTopic;
 	constructor(init: {
 		kind: ClaudeApiErrorKind;
 		status?: number;
 		requestId?: string;
 		retryable: boolean;
+		topic?: ClaudeApiErrorTopic;
 	}) {
 		super(
 			`Claude API error: ${init.kind}` +
@@ -47,6 +53,7 @@ export class ClaudeApiError extends Error {
 		this.status = init.status;
 		this.requestId = init.requestId;
 		this.retryable = init.retryable;
+		this.topic = init.topic;
 	}
 }
 

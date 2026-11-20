@@ -240,7 +240,7 @@ const issueMessage = (error: { issues: { path: PropertyKey[]; message: string }[
 		)
 		.join('; ');
 
-const usedUploadBytes = async (userId: string) => {
+export const usedUploadBytes = async (userId: string) => {
 	const [row] = await getDB()
 		.select({ total: sql<string>`coalesce(sum(${uploads.sizeBytes}), 0)` })
 		.from(uploads)

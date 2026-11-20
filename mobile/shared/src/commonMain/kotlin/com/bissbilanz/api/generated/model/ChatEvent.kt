@@ -27,7 +27,7 @@ import kotlinx.serialization.encoding.*
 /**
  * One event of a conversation. Fields depend on type; see docs/ai-chat.md for every type with an example.
  *
- * @param seq Increases by one per event within a conversation.
+ * @param seq Increases with every event within a conversation. Readers can see gaps (text_delta events are deleted after 24 hours): apply events in order without requiring contiguous seqs.
  * @param type Ignore events of an unknown type (but still advance past their seq). Clients must accept values not listed here.
  * @param createdAt
  * @param runId
@@ -52,7 +52,7 @@ import kotlinx.serialization.encoding.*
  */
 @Serializable
 data class ChatEvent(
-    // Increases by one per event within a conversation.
+    // Increases with every event within a conversation. Readers can see gaps (text_delta events are deleted after 24 hours): apply events in order without requiring contiguous seqs.
     @SerialName(value = "seq") @Required val seq: kotlin.Int,
     // Ignore events of an unknown type (but still advance past their seq). Clients must accept values not listed here.
     @SerialName(value = "type") @Required val type: kotlin.String,

@@ -14,7 +14,8 @@ import {
 	ClaudeApiError,
 	ClaudeGateError,
 	ClaudeProcessorChangedError,
-	type ClaudeApiErrorKind
+	type ClaudeApiErrorKind,
+	type ClaudeApiErrorTopic
 } from './errors';
 import {
 	WEB_FETCH_MAX_CONTENT_TOKENS,
@@ -152,6 +153,17 @@ export function serverToolAllowanceOf(tools: Anthropic.ToolUnion[]): ServerToolA
 	return allowance;
 }
 
+// The SDK keeps the JSON body as error: { type: 'error', error: { type, message } }.
+function errorTopic(
+	error: InstanceType<typeof Anthropic.APIError> | undefined
+): ClaudeApiErrorTopic | undefined {
+	const body = error?.error as { error?: { message?: unknown } } | undefined;
+	const message = typeof body?.error?.message === 'string' ? body.error.message : '';
+	if (/prompt is too long/i.test(message)) return 'prompt_too_long';
+	if (/web_?fetch/i.test(message)) return 'web_fetch';
+	return undefined;
+}
+
 export function mapSdkError(error: unknown): ClaudeApiError | ClaudeAbortedError | null {
 	if (error instanceof ClaudeAbortedError || error instanceof ClaudeApiError) return error;
 	if (error instanceof Anthropic.APIUserAbortError) return new ClaudeAbortedError();
@@ -164,7 +176,8 @@ export function mapSdkError(error: unknown): ClaudeApiError | ClaudeAbortedError
 			kind,
 			status: e?.status,
 			requestId: e?.requestID ?? undefined,
-			retryable
+			retryable,
+			topic: errorTopic(e)
 		});
 	if (error instanceof Anthropic.APIConnectionTimeoutError) return api('timeout', true, error);
 	if (error instanceof Anthropic.APIConnectionError) return api('connection', true, error);

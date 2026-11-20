@@ -697,6 +697,297 @@ describe('review fixes', () => {
 	});
 });
 
+describe('review fixes, second round', () => {
+	const badRequest = (text: string) =>
+		new Anthropic.BadRequestError(
+			400,
+			{ type: 'error', error: { type: 'invalid_request_error', message: text } },
+			undefined,
+			new Headers()
+		);
+	const toolNames = (params: Anthropic.MessageCreateParamsNonStreaming) =>
+		(params.tools ?? []).map((tool) => ('name' in tool ? tool.name : ''));
+	const promptOf = async (conversationId: string) => {
+		const [row] = await db
+			.select({ promptId: chatConversations.promptId })
+			.from(chatConversations)
+			.where(eq(chatConversations.id, conversationId));
+		return row!.promptId;
+	};
+
+	it('asks before changing a food that only a logged recipe uses', async () => {
+		const user = await seedUser(db);
+		const food = await seedFood(user.id);
+		const [recipe] = await db
+			.insert(schema.recipes)
+			.values({ userId: user.id, name: 'Bowl', totalServings: 2 })
+			.returning();
+		await db.insert(schema.recipeIngredients).values({
+			recipeId: recipe!.id,
+			foodId: food.id,
+			quantity: 100,
+			servingUnit: 'g',
+			sortOrder: 0
+		});
+		await db.insert(foodEntries).values({
+			userId: user.id,
+			recipeId: recipe!.id,
+			date: '2026-11-18',
+			mealType: 'Lunch',
+			servings: 1
+		});
+		const conversation = await newConversation(user.id);
+		const update = toolUse('update_food', { foodId: food.id, protein: 12 });
+		fakeClaude([message([update], 'tool_use')]);
+		const accepted = await send(user.id, conversation.id, 'More protein');
+		expect((await runOf(accepted.run.id)).status).toBe('awaiting_confirmation');
+		const [unchanged] = await db.select().from(foods).where(eq(foods.id, food.id));
+		expect(unchanged!.protein).toBe(10);
+	});
+
+	it('asks before removing the photo of a food nobody logged', async () => {
+		const user = await seedUser(db);
+		const food = await seedFood(user.id, { imageUrl: '/uploads/old.webp' });
+		const conversation = await newConversation(user.id);
+		const update = toolUse('update_food', { foodId: food.id, imageUrl: null });
+		fakeClaude([message([update], 'tool_use')]);
+		await send(user.id, conversation.id, 'Remove the photo');
+		const [action] = await db
+			.select()
+			.from(chatToolCalls)
+			.where(eq(chatToolCalls.toolUseId, update.id as string));
+		expect(action).toMatchObject({ actionStatus: 'pending' });
+		expect(action!.preview).toEqual({
+			summary: 'Change the food “Greek yogurt”',
+			details: ['Photo: removed, the current photo is deleted']
+		});
+	});
+
+	it('drops web fetch only once the call without it succeeded', async () => {
+		const models = await import('$lib/server/claude/models');
+		models.resetWebFetchForTests();
+		try {
+			const user = await seedUser(db);
+			const conversation = await newConversation(user.id);
+			const fake = fakeClaude([
+				badRequest("tools.1: Input tag 'web_fetch_20260209' found using 'type' does not match"),
+				message([textBlock('Done without it')], 'end_turn')
+			]);
+			const accepted = await send(user.id, conversation.id);
+			expect((await runOf(accepted.run.id)).status).toBe('completed');
+			expect(toolNames(fake.calls[0]!)).toContain('web_fetch');
+			expect(toolNames(fake.calls[1]!)).not.toContain('web_fetch');
+			expect(models.isWebFetchRejected()).toBe(true);
+			const [prompt] = await db
+				.select()
+				.from(schema.chatPrompts)
+				.where(eq(schema.chatPrompts.id, (await promptOf(conversation.id))!));
+			expect(prompt!.tools).not.toContain('web_fetch');
+			fake.queue.push(message([textBlock('Still without it')], 'end_turn'));
+			await send(user.id, conversation.id, 'Again');
+			expect(toolNames(fake.calls[2]!)).not.toContain('web_fetch');
+		} finally {
+			models.resetWebFetchForTests();
+		}
+	});
+
+	it('keeps web fetch when the call without it fails too', async () => {
+		const models = await import('$lib/server/claude/models');
+		models.resetWebFetchForTests();
+		try {
+			const user = await seedUser(db);
+			const conversation = await newConversation(user.id);
+			const fake = fakeClaude([
+				badRequest("'web_fetch_20260209' is not supported"),
+				badRequest('messages.0.content.0: unreadable image')
+			]);
+			const accepted = await send(user.id, conversation.id);
+			expect(await runOf(accepted.run.id)).toMatchObject({
+				status: 'failed',
+				reason: 'api_error'
+			});
+			expect(fake.calls).toHaveLength(2);
+			expect(models.isWebFetchRejected()).toBe(false);
+			const [prompt] = await db
+				.select()
+				.from(schema.chatPrompts)
+				.where(eq(schema.chatPrompts.id, (await promptOf(conversation.id))!));
+			expect(prompt!.tools).toContain('web_fetch');
+		} finally {
+			models.resetWebFetchForTests();
+		}
+	});
+
+	it('reports an unrelated 400 instead of dropping web fetch', async () => {
+		const models = await import('$lib/server/claude/models');
+		const Sentry = await import('@sentry/sveltekit');
+		models.resetWebFetchForTests();
+		try {
+			const user = await seedUser(db);
+			const conversation = await newConversation(user.id);
+			vi.mocked(Sentry.captureException).mockClear();
+			const fake = fakeClaude([badRequest('messages.1.content.0: invalid signature in thinking')]);
+			const accepted = await send(user.id, conversation.id);
+			expect(await runOf(accepted.run.id)).toMatchObject({
+				status: 'failed',
+				reason: 'api_error'
+			});
+			expect(fake.calls).toHaveLength(1);
+			expect(models.isWebFetchRejected()).toBe(false);
+			expect(Sentry.captureException).toHaveBeenCalled();
+		} finally {
+			models.resetWebFetchForTests();
+		}
+	});
+
+	it('ends with conversation_too_long when the API finds the prompt too long', async () => {
+		const user = await seedUser(db);
+		const conversation = await newConversation(user.id);
+		const fake = fakeClaude([badRequest('prompt is too long: 210000 tokens > 200000 maximum')]);
+		const accepted = await send(user.id, conversation.id);
+		expect(await runOf(accepted.run.id)).toMatchObject({
+			status: 'failed',
+			reason: 'conversation_too_long'
+		});
+		expect(fake.calls).toHaveLength(1);
+	});
+
+	it('does not retry a stalled stream, which may already be billed', async () => {
+		const { ClaudeApiError } = await import('$lib/server/claude/errors');
+		const user = await seedUser(db);
+		const conversation = await newConversation(user.id);
+		const fake = fakeClaude([
+			new ClaudeApiError({ kind: 'timeout', retryable: true }),
+			message([textBlock('Never sent')], 'end_turn')
+		]);
+		const accepted = await send(user.id, conversation.id);
+		expect(await runOf(accepted.run.id)).toMatchObject({ status: 'failed', reason: 'api_error' });
+		expect(fake.calls).toHaveLength(1);
+		const usage = await db.select().from(claudeUsage);
+		expect(usage.map((row) => row.errorCode)).toEqual(['billing_unknown']);
+	});
+
+	it('keeps a turn of only thinking out of the transcript', async () => {
+		const user = await seedUser(db);
+		const conversation = await newConversation(user.id);
+		const fake = fakeClaude([
+			message([thinkingBlock()], 'max_tokens'),
+			message([textBlock('Shorter answer')], 'end_turn')
+		]);
+		const first = await send(user.id, conversation.id);
+		expect(await runOf(first.run.id)).toMatchObject({
+			status: 'completed',
+			reason: 'output_limit'
+		});
+		expect((await rawOf(conversation.id)).map((row) => row.role)).toEqual(['user']);
+		await send(user.id, conversation.id, 'Try again, shorter');
+		expect(fake.calls[1]!.messages.map((turn) => turn.role)).toEqual(['user', 'user']);
+	});
+
+	it('counts photo copies against the upload storage quota', async () => {
+		const user = await seedUser(db);
+		const conversation = await newConversation(user.id);
+		const { mkdir, writeFile, rm } = await import('node:fs/promises');
+		const { join } = await import('node:path');
+		const { UPLOAD_DIR } = await import('$lib/server/images');
+		await mkdir(UPLOAD_DIR, { recursive: true });
+		const source = `${randomUUID()}.webp`;
+		await writeFile(join(UPLOAD_DIR, source), new Uint8Array([1, 2, 3, 4]));
+		await db.insert(schema.uploads).values({ filename: source, userId: user.id, sizeBytes: 4 });
+		vi.stubEnv('UPLOAD_QUOTA_BYTES', '7');
+		try {
+			await expect(
+				service.postMessage(user.id, conversation.id, {
+					id: randomUUID(),
+					text: 'What is this?',
+					imageFilenames: [source]
+				})
+			).rejects.toMatchObject({ code: 'upload_quota_exceeded', status: 409 });
+			const uploads = await db
+				.select()
+				.from(schema.uploads)
+				.where(eq(schema.uploads.userId, user.id));
+			expect(uploads).toHaveLength(1);
+		} finally {
+			vi.unstubAllEnvs();
+			await rm(join(UPLOAD_DIR, source));
+		}
+	});
+
+	it('polls events and the active run from one snapshot', async () => {
+		const route = await import('../../src/routes/api/chat/conversations/[id]/events/+server');
+		const { createMockEvent } = await import('../helpers/mock-request-event');
+		const user = await seedUser(db);
+		const food = await seedFood(user.id);
+		const entry = await seedEntry(user.id, food.id);
+		const conversation = await newConversation(user.id);
+		const poll = async () => {
+			const response = await route.GET(
+				createMockEvent({
+					user: user as never,
+					params: { id: conversation.id },
+					url: `http://localhost/api/chat/conversations/${conversation.id}/events`
+				}) as never
+			);
+			expect(response.status).toBe(200);
+			return (await response.json()) as {
+				events: { type: string; seq: number }[];
+				lastSeq: number;
+				activeRun: { status: string } | null;
+			};
+		};
+		fakeClaude([message([toolUse('delete_entry', { entryId: entry.id })], 'tool_use')]);
+		await send(user.id, conversation.id, 'Delete it');
+		const paused = await poll();
+		expect(paused.activeRun).toMatchObject({ status: 'awaiting_confirmation' });
+		expect(paused.events.at(-1)).toMatchObject({ type: 'action_required' });
+		expect(paused.lastSeq).toBe(paused.events.at(-1)!.seq);
+		fakeClaude([message([textBlock('Kept it')], 'end_turn')]);
+		const [action] = await db
+			.select()
+			.from(chatToolCalls)
+			.where(eq(chatToolCalls.conversationId, conversation.id));
+		await service.decideAction(user.id, action!.id, 'reject');
+		await executor.settleChatRunsForTests();
+		const done = await poll();
+		expect(done.activeRun).toBeNull();
+		expect(done.events.at(-1)).toMatchObject({ type: 'run_finished' });
+		expect(done.lastSeq).toBe(done.events.at(-1)!.seq);
+	});
+
+	it('keeps a chat photo when a food pointing at the same file gets another photo', async () => {
+		const user = await seedUser(db);
+		const conversation = await newConversation(user.id);
+		const { mkdir, writeFile, rm, stat } = await import('node:fs/promises');
+		const { join } = await import('node:path');
+		const { UPLOAD_DIR } = await import('$lib/server/images');
+		const { updateFood } = await import('$lib/server/foods');
+		await mkdir(UPLOAD_DIR, { recursive: true });
+		const source = `${randomUUID()}.webp`;
+		await writeFile(join(UPLOAD_DIR, source), new Uint8Array([1, 2, 3, 4]));
+		await db.insert(schema.uploads).values({ filename: source, userId: user.id, sizeBytes: 4 });
+		fakeClaude([message([textBlock('A photo')], 'end_turn')]);
+		const accepted = await service.postMessage(user.id, conversation.id, {
+			id: randomUUID(),
+			text: 'What is this?',
+			imageFilenames: [source]
+		});
+		await executor.settleChatRunsForTests();
+		const copy = accepted.message.parts.find((part) => part.type === 'image')!.url as string;
+		const food = await seedFood(user.id, { imageUrl: copy });
+		const result = await updateFood(user.id, food.id, { imageUrl: null });
+		expect(result.success).toBe(true);
+		expect((await stat(join(UPLOAD_DIR, copy.slice('/uploads/'.length)))).size).toBe(4);
+		const [owned] = await db
+			.select()
+			.from(schema.uploads)
+			.where(eq(schema.uploads.filename, copy.slice('/uploads/'.length)));
+		expect(owned).toBeDefined();
+		await rm(join(UPLOAD_DIR, source));
+		await rm(join(UPLOAD_DIR, copy.slice('/uploads/'.length)));
+	});
+});
+
 describe('stopping a run', () => {
 	it('cancels mid-stream, keeps the partial text and settles the usage', async () => {
 		const user = await seedUser(db);

@@ -165,8 +165,7 @@ describe('event folding', () => {
 				name: 'delete_entry',
 				label: 'Deleting an entry',
 				status: 'approved',
-				preview: { summary: 'Delete', details: [] },
-				expiresAt: ''
+				preview: { summary: 'Delete', details: [] }
 			},
 			{ type: 'text', text: 'Done' }
 		]);
@@ -597,12 +596,76 @@ describe('transcript', () => {
 		);
 		expect(fresh.fromPosition).toBe(0);
 		expect(getCalls().some((call) => call.method === 'values')).toBe(true);
+	});
+
+	test('builds the prompt without web fetch in memory and stores it only when asked', async () => {
+		const snapshot = {
+			id: 'with-fetch',
+			system: [{ type: 'text' as const, text: 'sys' }],
+			tools: [
+				{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 },
+				{ type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 3 },
+				{ name: 'log_food', input_schema: { type: 'object' as const } }
+			] as never
+		};
 		reset();
-		const forced = await transcript.ensurePromptSnapshot(conversation, 'claude-opus-5-5', {
-			rebuild: true
+		const slim = transcript.withoutWebFetch('claude-opus-5-5', snapshot, 7);
+		expect(getCalls()).toEqual([]);
+		expect(slim.tools.map((tool) => ('name' in tool ? tool.name : ''))).toEqual([
+			'web_search',
+			'log_food'
+		]);
+		expect(slim).toMatchObject({ system: snapshot.system, fromPosition: 7 });
+		expect(slim.id).toMatch(/^[0-9a-f]{64}$/);
+		expect(transcript.withoutWebFetch('claude-opus-5-5', snapshot, 7).id).toBe(slim.id);
+		expect(transcript.withoutWebFetch('claude-haiku-5-5', snapshot, 7).id).not.toBe(slim.id);
+
+		await transcript.storePromptSnapshot('c', 'claude-opus-5-5', slim, 7);
+		const inserted = getCalls().find((call) => call.method === 'values')!.args[0];
+		expect(inserted).toEqual({
+			id: slim.id,
+			model: 'claude-opus-5-5',
+			system: JSON.stringify(slim.system),
+			tools: JSON.stringify(slim.tools)
 		});
-		expect(forced.fromPosition).toBe(0);
-		expect(getCalls().some((call) => call.method === 'select')).toBe(false);
+		expect(getCalls().find((call) => call.method === 'set')!.args[0]).toEqual({
+			promptId: slim.id,
+			promptFromPosition: 7
+		});
+	});
+
+	test('skips a turn left empty once its thinking is stripped', async () => {
+		const thinking = { type: 'thinking' as const, thinking: '', signature: 's' };
+		const raw = [
+			{ role: 'user' as const, content: [{ type: 'text' as const, text: 'a' }] },
+			{ role: 'assistant' as const, content: [thinking] },
+			{ role: 'user' as const, content: [{ type: 'text' as const, text: 'b' }] },
+			{ role: 'assistant' as const, content: [] },
+			{ role: 'user' as const, content: [{ type: 'text' as const, text: 'c' }] },
+			{ role: 'assistant' as const, content: [thinking] }
+		];
+		const { messages } = await transcript.hydrate('u', raw, new Map(), 5);
+		expect(messages).toEqual([
+			{ role: 'user', content: [{ type: 'text', text: 'a' }] },
+			{ role: 'user', content: [{ type: 'text', text: 'b' }] },
+			{ role: 'user', content: [{ type: 'text', text: 'c' }] },
+			{ role: 'assistant', content: [thinking] }
+		]);
+	});
+
+	test('a turn of only thinking has nothing to replay', () => {
+		const thinking = { type: 'thinking' as const, thinking: '', signature: 's' };
+		const redacted = { type: 'redacted_thinking' as const, data: 'x' };
+		const text = { type: 'text' as const, text: 'hi' };
+		expect(
+			transcript.hasReplayableContent({ role: 'assistant', content: [thinking, redacted] })
+		).toBe(false);
+		expect(transcript.hasReplayableContent({ role: 'assistant', content: [] })).toBe(false);
+		expect(transcript.hasReplayableContent({ role: 'assistant', content: [thinking, text] })).toBe(
+			true
+		);
+		expect(transcript.hasReplayableContent({ role: 'user', content: [text] })).toBe(true);
+		expect(transcript.hasReplayableContent({ role: 'user', content: [] })).toBe(false);
 	});
 });
 
@@ -750,5 +813,27 @@ describe('store', () => {
 		expect(await store.entryDate('u', '6f1c0f0e-0c1e-4a52-9d4e-6f4d2a0a7a01')).toBe('2026-11-18');
 		queueResults([[]]);
 		expect(await store.entryDate('u', '6f1c0f0e-0c1e-4a52-9d4e-6f4d2a0a7a01')).toBeNull();
+	});
+});
+
+describe('docs/ai-chat.md examples', () => {
+	test('are valid ChatEvent JSON, and folding them gives the completed message', async () => {
+		const { readFile } = await import('node:fs/promises');
+		const { chatEventSchema } = await import('$lib/server/validation/responses/chat');
+		const doc = await readFile('docs/ai-chat.md', 'utf8');
+		const section = doc.slice(doc.indexOf('## 9. Event types'), doc.indexOf('## 10.'));
+		const lines = [...section.matchAll(/```json\n([\s\S]*?)```/g)].flatMap((block) =>
+			block[1]!.trim().split('\n')
+		);
+		const parsed = lines.map((line) => chatEventSchema.parse(JSON.parse(line)));
+		expect(parsed.map((event) => event.seq)).toEqual(
+			Array.from({ length: parsed.length }, (_, index) => index + 1)
+		);
+		const completed = parsed.find((event) => event.type === 'message_completed')!;
+		expect(events.foldParts(parsed as never)).toEqual(completed.message!.parts);
+		const sse = doc.match(/^data: (\{.*\})$/m)![1]!;
+		expect(chatEventSchema.parse(JSON.parse(sse))).toMatchObject({ type: 'text_delta' });
+		const failed = doc.match(/`(\{"seq":14,"type":"error".*?\})`/)![1]!;
+		expect(chatEventSchema.parse(JSON.parse(failed))).toMatchObject({ type: 'error' });
 	});
 });

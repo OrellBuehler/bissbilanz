@@ -44,7 +44,10 @@ const chatActionPreviewSchema = z
 			description:
 				'One line in the user’s language, e.g. "Delete “Greek yogurt” from Breakfast on 18 Nov 2026".'
 		}),
-		details: z.array(z.string()).meta({ description: 'Extra lines, possibly empty.' })
+		details: z.array(z.string()).meta({
+			description:
+				'Extra lines, possibly empty: every field the call sets, replaced lists item by item, nothing shortened. At most 200 lines; a line can be long (up to about 10,000 characters), so let the card scroll and wrap.'
+		})
 	})
 	.meta({ id: 'ChatActionPreview' });
 
@@ -78,10 +81,10 @@ export const chatMessagePartSchema = z
 		changes: z.array(chatChangeSchema).optional().meta({ description: 'tool parts.' }),
 		actionId: z.string().uuid().optional().meta({ description: 'action parts.' }),
 		preview: chatActionPreviewSchema.optional().meta({ description: 'action parts.' }),
-		expiresAt: z
-			.string()
-			.optional()
-			.meta({ description: 'action parts: when a pending action expires.' })
+		expiresAt: z.string().optional().meta({
+			description:
+				'action parts: when the action expires (ISO 8601). Set on every action the server creates, never an empty string.'
+		})
 	})
 	.meta({
 		id: 'ChatMessagePart',
@@ -241,10 +244,10 @@ export const chatMessageAcceptedResponseSchema = z
 
 export const chatEventSchema = z
 	.object({
-		seq: z
-			.number()
-			.int()
-			.meta({ description: 'Increases by one per event within a conversation.' }),
+		seq: z.number().int().meta({
+			description:
+				'Increases with every event within a conversation. Readers can see gaps (text_delta events are deleted after 24 hours): apply events in order without requiring contiguous seqs.'
+		}),
 		type: z.string().meta({
 			description: `Ignore events of an unknown type (but still advance past their seq). ${UNKNOWN_HINT}`,
 			'x-extensible-enum': [...chatEventTypeValues]

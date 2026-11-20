@@ -10,6 +10,9 @@ import {
 	chatToolCalls,
 	claudeAccess,
 	foodEntries,
+	foods,
+	recipeIngredients,
+	recipes,
 	users,
 	type ChatConversation,
 	type ChatRun
@@ -22,6 +25,7 @@ import { ClaudeAbortedError, ClaudeApiError, ClaudeGateError } from '../errors';
 import {
 	acceptWebFetch,
 	isWebFetchAccepted,
+	isWebFetchRejected,
 	isWebFetchTool,
 	rejectWebFetch,
 	resolveClaudeModel
@@ -53,9 +57,12 @@ import {
 	appendRaw,
 	danglingToolUses,
 	ensurePromptSnapshot,
+	hasReplayableContent,
 	hydrate,
 	loadRaw,
+	storePromptSnapshot,
 	withCacheBreakpoints,
+	withoutWebFetch,
 	type ImageCache,
 	type PromptSnapshot,
 	type RawMessage
@@ -227,7 +234,7 @@ type RunContext = {
 	unconfirmedWrites: number;
 	container: string | undefined;
 	serverTools: Map<string, { partIndex: number; name: string }>;
-	pendingAction: ChatEvent | null;
+	pendingAction: { callId: string; event: ChatEvent } | null;
 	sleep: (ms: number, signal: AbortSignal) => Promise<void>;
 };
 
@@ -245,8 +252,20 @@ const asRecord = (value: unknown): Record<string, unknown> =>
 		? (value as Record<string, unknown>)
 		: {};
 
-const isInvalidRequest = (error: unknown): error is ClaudeApiError =>
-	error instanceof ClaudeApiError && error.kind === 'invalid_request' && error.status === 400;
+const isPromptTooLong = (error: unknown): boolean =>
+	error instanceof ClaudeApiError && error.status === 400 && error.topic === 'prompt_too_long';
+
+/**
+ * A 400 about the web fetch tool. Once the process knows web fetch is rejected
+ * (the task loop dropped it), any other 400 of a prompt that still declares it
+ * counts too; the call without it decides.
+ */
+const isWebFetchRejection = (error: unknown): boolean =>
+	error instanceof ClaudeApiError &&
+	error.kind === 'invalid_request' &&
+	error.status === 400 &&
+	!isPromptTooLong(error) &&
+	(isWebFetchRejected() || error.topic === 'web_fetch');
 
 export function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
 	return new Promise((resolve, reject) => {
@@ -432,12 +451,15 @@ async function recordAnswer(
 		.where(eq(chatToolCalls.id, id));
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isId = (id: unknown): id is string => typeof id === 'string' && UUID_RE.test(id);
+
 async function hasEntries(
 	userId: string,
 	column: typeof foodEntries.foodId | typeof foodEntries.recipeId,
 	id: unknown
 ) {
-	if (typeof id !== 'string') return false;
+	if (!isId(id)) return false;
 	const [row] = await getDB()
 		.select({ id: foodEntries.id })
 		.from(foodEntries)
@@ -446,9 +468,32 @@ async function hasEntries(
 	return !!row;
 }
 
+async function inLoggedRecipe(userId: string, foodId: unknown) {
+	if (!isId(foodId)) return false;
+	const [row] = await getDB()
+		.select({ id: foodEntries.id })
+		.from(recipeIngredients)
+		.innerJoin(foodEntries, eq(foodEntries.recipeId, recipeIngredients.recipeId))
+		.where(and(eq(recipeIngredients.foodId, foodId), eq(foodEntries.userId, userId)))
+		.limit(1);
+	return !!row;
+}
+
+async function photoOf(userId: string, table: 'foods' | 'recipes', id: unknown) {
+	if (!isId(id)) return null;
+	const source = table === 'foods' ? foods : recipes;
+	const [row] = await getDB()
+		.select({ imageUrl: source.imageUrl })
+		.from(source)
+		.where(and(eq(source.id, id), eq(source.userId, userId)));
+	return row?.imageUrl ?? null;
+}
+
 const confirmLookup = (userId: string): ConfirmLookup => ({
-	foodHasEntries: (id) => hasEntries(userId, foodEntries.foodId, id),
-	recipeHasEntries: (id) => hasEntries(userId, foodEntries.recipeId, id)
+	foodInUse: async (id) =>
+		(await hasEntries(userId, foodEntries.foodId, id)) || (await inLoggedRecipe(userId, id)),
+	recipeHasEntries: (id) => hasEntries(userId, foodEntries.recipeId, id),
+	photoOf: (table, id) => photoOf(userId, table, id)
 });
 
 /**
@@ -622,13 +667,14 @@ async function handleToolUse(
 		await recordAnswer(row.id, text, true);
 		return { paused: false, result: toolResult(block.id, text, true) };
 	}
+	// The action turns pending only in the transaction that pauses the run, so
+	// it is never listed or decided before the run waits for it.
 	const partIndex = ctx.writer.nextPartIndex();
 	const [action] = await fenced(ctx.fence, (tx) =>
 		tx
 			.update(chatToolCalls)
 			.set({
 				input: preview.input,
-				actionStatus: 'pending',
 				preview: preview.preview,
 				partIndex,
 				expiresAt: new Date(Date.now() + ACTION_TTL_MS)
@@ -641,10 +687,10 @@ async function handleToolUse(
 		runId: ctx.run.id,
 		messageId: ctx.messageId,
 		partIndex,
-		action: serializeAction(action!, ctx.locale)
+		action: serializeAction({ ...action!, actionStatus: 'pending' }, ctx.locale)
 	};
 	ctx.writer.apply(event);
-	ctx.pendingAction = event;
+	ctx.pendingAction = { callId: row.id, event };
 	return { paused: true };
 }
 
@@ -714,29 +760,45 @@ function onServerBlock(ctx: RunContext, block: Anthropic.ContentBlock) {
 }
 
 /**
- * One model call with up to RETRY_DELAYS_MS.length retries of transient
- * failures (rate limits, overload, server errors, timeouts) that happened
- * before anything of the call streamed; each try is its own reservation.
+ * Failures worth another try: the API answered with a rate limit, overload or
+ * server error (not billed), or the connection failed before any byte came
+ * back. A stalled or cut stream may already be billed and is not retried.
+ */
+const isRetryable = (error: unknown, progress: { streamed: boolean; received: boolean }) =>
+	error instanceof ClaudeApiError &&
+	!progress.streamed &&
+	(error.kind === 'rate_limited' ||
+		error.kind === 'server' ||
+		(error.kind === 'connection' && !progress.received));
+
+/**
+ * One model call with up to RETRY_DELAYS_MS.length retries (isRetryable); each
+ * try is its own reservation. When the API rejects the web fetch tool, the call
+ * is tried once more without it, and only once that succeeds is web fetch
+ * dropped (for the conversation and, like the task loop, the process).
  */
 async function callWithRetries(
 	ctx: RunContext,
 	paused: RawMessage[],
 	continuation: boolean
 ): Promise<Anthropic.Message> {
+	let prompt = ctx.snapshot;
+	let withoutFetch = false;
 	for (let retries = 0; ;) {
-		let streamed = false;
-		const declaresFetch = ctx.snapshot.tools.some(isWebFetchTool);
+		const progress = { streamed: false, received: false };
+		const declaresFetch = prompt.tools.some(isWebFetchTool);
 		const mayDropFetch = declaresFetch && !continuation && !isWebFetchAccepted();
 		const { messages, imageCount } = await hydrate(
 			ctx.userId,
 			[...ctx.raw, ...paused],
 			ctx.images,
-			ctx.snapshot.fromPosition
+			prompt.fromPosition
 		);
-		const request = withCacheBreakpoints(ctx.snapshot, messages);
+		const request = withCacheBreakpoints(prompt, messages);
 		ctx.writer.endText();
+		let response: Anthropic.Message;
 		try {
-			const response = await callClaude({
+			response = await callClaude({
 				userId: ctx.userId,
 				feature: CHAT_FEATURE,
 				model: ctx.model,
@@ -745,53 +807,58 @@ async function callWithRetries(
 				imageCount,
 				maxTokens: CHAT_MAX_TOKENS,
 				signal: ctx.signal,
-				expectedRejection: mayDropFetch ? isInvalidRequest : undefined,
+				expectedRejection: (error) =>
+					isPromptTooLong(error) || (mayDropFetch && isWebFetchRejection(error)),
 				stream: {
 					onText: (delta) => {
-						streamed = true;
+						progress.streamed = true;
 						ctx.writer.text(delta);
 					},
 					onBlock: (block) => {
-						streamed = true;
+						progress.streamed = true;
 						onServerBlock(ctx, block);
+					},
+					onActivity: () => {
+						progress.received = true;
 					}
 				}
 			});
-			if (declaresFetch) acceptWebFetch();
-			return response;
 		} catch (error) {
-			if (mayDropFetch && isInvalidRequest(error) && !streamed) {
-				await dropWebFetch(ctx);
+			if (mayDropFetch && !progress.streamed && isWebFetchRejection(error)) {
+				prompt = withoutWebFetch(ctx.model, prompt, ctx.raw.length);
+				withoutFetch = true;
 				continue;
 			}
-			const retryable = error instanceof ClaudeApiError && error.retryable && !streamed;
 			const delay = RETRY_DELAYS_MS[retries++];
-			if (!retryable || delay === undefined) throw error;
+			if (!isRetryable(error, progress) || delay === undefined) throw error;
 			await ctx.sleep(delay, ctx.signal);
 			await regate(ctx);
+			continue;
 		}
+		if (declaresFetch) acceptWebFetch();
+		if (withoutFetch) await dropWebFetch(ctx, prompt);
+		return response;
 	}
 }
 
 /**
- * The API rejected the web fetch tool: like the task loop, drop it until the
- * next restart. The conversation gets a new prompt without it from here on.
+ * A call without web fetch succeeded where the same call with it was rejected:
+ * the conversation replays the prompt without it from here on (thinking before
+ * this point is no longer sent), and the process stops offering it.
  */
-async function dropWebFetch(ctx: RunContext) {
+async function dropWebFetch(ctx: RunContext, prompt: RunContext['snapshot']) {
 	if (rejectWebFetch()) {
 		Sentry.captureMessage(
 			'The API rejected a chat request with web fetch; web fetch is off until the next restart',
 			{ level: 'warning', tags: { job: 'chat-run' }, extra: { model: ctx.model } }
 		);
 	}
-	ctx.snapshot = await ensurePromptSnapshot(ctx.conversation, ctx.model, {
-		rebuild: true,
-		transcriptLength: ctx.raw.length
-	});
+	await storePromptSnapshot(ctx.conversationId, ctx.model, prompt, prompt.fromPosition);
+	ctx.snapshot = prompt;
 	ctx.conversation = {
 		...ctx.conversation,
-		promptId: ctx.snapshot.id,
-		promptFromPosition: ctx.snapshot.fromPosition
+		promptId: prompt.id,
+		promptFromPosition: prompt.fromPosition
 	};
 }
 
@@ -843,8 +910,10 @@ async function loop(ctx: RunContext): Promise<LoopOutcome> {
 	}
 }
 
+// A turn of only thinking (cut off by max_tokens) is not kept: once a prompt
+// rebuild strips its thinking it would be an empty turn the API rejects.
 async function persistTurn(ctx: RunContext, turns: RawMessage[]) {
-	const kept = turns.filter((turn) => turn.content.length > 0);
+	const kept = turns.filter(hasReplayableContent);
 	if (kept.length === 0) return;
 	await fenced(ctx.fence, (tx) => appendRaw(tx, ctx.conversationId, ctx.run.id, kept));
 	ctx.raw.push(...kept);
@@ -872,7 +941,7 @@ async function endingForFailure(
 	if (error instanceof ClaudeApiError) {
 		return {
 			status: 'failed',
-			reason: error.status === 413 ? 'conversation_too_long' : 'api_error'
+			reason: error.status === 413 || isPromptTooLong(error) ? 'conversation_too_long' : 'api_error'
 		};
 	}
 	Sentry.captureException(error, { tags: { job: 'chat-run' } });
@@ -914,7 +983,13 @@ async function pauseRun(ctx: RunContext, instanceId: string) {
 			.update(chatMessages)
 			.set({ parts: ctx.writer.parts, updatedAt: sql`now()` })
 			.where(eq(chatMessages.id, ctx.messageId));
-		if (ctx.pendingAction) await appendEvents(tx, ctx.conversationId, [ctx.pendingAction]);
+		if (ctx.pendingAction) {
+			await tx
+				.update(chatToolCalls)
+				.set({ actionStatus: 'pending' })
+				.where(eq(chatToolCalls.id, ctx.pendingAction.callId));
+			await appendEvents(tx, ctx.conversationId, [ctx.pendingAction.event]);
+		}
 	});
 	notifyConversation(ctx.conversationId);
 }
