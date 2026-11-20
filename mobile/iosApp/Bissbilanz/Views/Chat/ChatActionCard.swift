@@ -124,8 +124,19 @@ struct ChatActionCard: View {
     }
 }
 
+/// The summary and every detail line, none shortened. A preview can hold up
+/// to 200 lines, some of them long, so a long one scrolls inside the card and
+/// Approve and Reject stay close.
 private struct ChatActionPreviewText: View {
     let preview: ChatActionPreview?
+
+    private var details: [String] {
+        preview?.details ?? []
+    }
+
+    private var isLong: Bool {
+        details.count > 12 || details.reduce(0) { $0 + $1.count } > 1200
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -134,11 +145,26 @@ private struct ChatActionPreviewText: View {
                     .font(.subheadline.weight(.semibold))
                     .fixedSize(horizontal: false, vertical: true)
             }
-            ForEach(Array((preview?.details ?? []).enumerated()), id: \.offset) { _, line in
+            if isLong {
+                ScrollView {
+                    detailLines
+                }
+                .frame(height: 280)
+                .scrollIndicators(.visible)
+            } else {
+                detailLines
+            }
+        }
+    }
+
+    private var detailLines: some View {
+        LazyVStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(details.enumerated()), id: \.offset) { _, line in
                 Text(line)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }

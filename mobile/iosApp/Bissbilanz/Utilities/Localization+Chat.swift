@@ -283,7 +283,7 @@ extension L10n {
             chatEndNotice(notice)
         case .unavailable, .noAccess, .budgetExhausted, .refusal, .conversationTooLong:
             chatBlockedNotice(notice)
-        case .actionExpired, .actionNotPending, .runActive, .invalidImage, .conversationMissing:
+        case .actionExpired, .actionNotPending, .runActive, .invalidImage, .uploadQuotaExceeded, .conversationMissing:
             chatStateNotice(notice)
         case .dailyLimit, .rateLimited, .offline, .signedOut, .failed, .server:
             chatRequestNotice(notice)
@@ -373,6 +373,12 @@ extension L10n {
                 "chat_notice_invalid_image",
                 en: "A photo could not be sent. Remove it and try again.",
                 de: "Ein Foto konnte nicht gesendet werden. Entferne es und versuch es noch einmal."
+            )
+        case .uploadQuotaExceeded:
+            localized(
+                "chat_notice_upload_quota",
+                en: "There is no storage left for these photos. Send without photos or free some space.",
+                de: "Für diese Fotos ist kein Speicher mehr frei. Sende ohne Fotos oder schaffe Platz."
             )
         default:
             localized("chat_notice_missing", en: "This chat no longer exists.", de: "Diesen Chat gibt es nicht mehr.")

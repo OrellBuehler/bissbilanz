@@ -205,13 +205,23 @@ struct ChatTranscriptTests {
         #expect(effects.suffix(3).map(\.outcome) == [.duplicate, .duplicate, .duplicate])
     }
 
-    @Test("A jump in seq is a gap that changes nothing")
-    func gap() {
+    @Test("Seqs need not be contiguous: the next event is applied")
+    func seqGaps() {
         var transcript = ChatTranscript(lastSeq: 4)
-        let effect = transcript.apply(Fixture.textDelta(6, part: 0, "late"))
-        #expect(effect.outcome == .gap)
-        #expect(transcript.lastSeq == 4)
-        #expect(transcript.messages.isEmpty)
+        #expect(transcript.apply(Fixture.textDelta(9, part: 0, "late")).outcome == .applied)
+        #expect(transcript.lastSeq == 9)
+        #expect(transcript.messages.last?.parts.first?.text == "late")
+        #expect(transcript.apply(Fixture.textDelta(7, part: 0, " again")).outcome == .duplicate)
+        #expect(transcript.messages.last?.parts.first?.text == "late")
+    }
+
+    @Test("A replay with pruned text deltas still ends in the final message")
+    func prunedReplay() {
+        let pruned = Fixture.documentedRun.filter { $0.type != ChatEventType.textDelta }
+        let (transcript, effects) = Self.folded(pruned)
+        #expect(effects.allSatisfy { $0.outcome == .applied })
+        #expect(transcript.messages == [Fixture.userMessage, Fixture.finalMessage])
+        #expect(transcript.activeRun == nil)
     }
 
     @Test("An unknown event type is skipped but its seq counts")

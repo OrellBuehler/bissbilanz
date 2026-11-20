@@ -21,9 +21,6 @@ enum ChatEventOutcome: Equatable, Sendable {
     case duplicate
     /// An event of a type this build does not know: skipped, its seq counted.
     case skipped
-    /// Events are missing before this one (deleted text deltas of an old run,
-    /// or one that could not be read): the conversation has to be read again.
-    case gap
 }
 
 /// The parts of an applied event the store acts on beyond the transcript.
@@ -41,7 +38,9 @@ struct ChatEventEffect: Equatable, Sendable {
 /// The open conversation as display messages, folded from the conversation
 /// read and the events after it the way the server builds its stored
 /// messages (docs/ai-chat.md §9). Applying an event is idempotent by `seq`, so
-/// a replay never appends text twice.
+/// a replay never appends text twice. Seqs need not be contiguous: text
+/// deltas are deleted after 24 hours, and `message_completed` carries the
+/// final text anyway (§5.3).
 struct ChatTranscript: Equatable, Sendable {
     private(set) var messages: [ChatMessage]
     private(set) var lastSeq: Int
@@ -90,9 +89,6 @@ struct ChatTranscript: Equatable, Sendable {
     mutating func apply(_ event: ChatEvent) -> ChatEventEffect {
         if event.seq <= lastSeq {
             return ChatEventEffect(outcome: .duplicate)
-        }
-        if event.seq > lastSeq + 1 {
-            return ChatEventEffect(outcome: .gap)
         }
         lastSeq = event.seq
         var effect = ChatEventEffect(outcome: .applied)

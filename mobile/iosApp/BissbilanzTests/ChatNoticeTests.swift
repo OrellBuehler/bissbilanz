@@ -56,6 +56,7 @@ struct ChatNoticeTests {
             (Self.rejection(429, code: "daily_limit_reached", retryAfter: 3600), .dailyLimit(retryAfter: 3600)),
             (Self.rejection(409, code: "run_active"), .runActive),
             (Self.rejection(400, code: "invalid_image"), .invalidImage),
+            (Self.rejection(409, code: "upload_quota_exceeded"), .uploadQuotaExceeded),
             (Self.rejection(404, code: "conversation_not_found"), .conversationMissing),
             (Self.rejection(409, code: "action_not_pending"), .actionNotPending),
             (Self.rejection(409, code: "action_expired"), .actionExpired),
@@ -102,6 +103,7 @@ struct ChatNoticeTests {
             .cutOff, .iterationLimit, .incomplete, .unavailable, .noAccess, .budgetExhausted, .refusal,
             .conversationTooLong, .failed, .stopped, .actionExpired, .actionNotPending, .interrupted,
             .dailyLimit(retryAfter: nil), .dailyLimit(retryAfter: 120), .rateLimited, .runActive, .invalidImage,
+            .uploadQuotaExceeded,
             .conversationMissing, .offline, .signedOut, .server("Server says no")
         ]
         for notice in notices {

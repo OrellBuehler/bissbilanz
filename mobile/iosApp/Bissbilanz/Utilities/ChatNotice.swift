@@ -22,6 +22,7 @@ enum ChatNotice: Equatable, Sendable {
     case rateLimited
     case runActive
     case invalidImage
+    case uploadQuotaExceeded
     case conversationMissing
     case offline
     case signedOut
@@ -136,6 +137,7 @@ enum ChatNotice: Equatable, Sendable {
         case "daily_limit_reached": .dailyLimit(retryAfter: retryAfter)
         case "run_active": .runActive
         case "invalid_image": .invalidImage
+        case "upload_quota_exceeded": .uploadQuotaExceeded
         case "conversation_not_found", "run_not_found": .conversationMissing
         case "action_not_found", "action_not_pending": .actionNotPending
         case "action_expired": .actionExpired

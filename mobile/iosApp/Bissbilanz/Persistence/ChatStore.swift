@@ -431,7 +431,8 @@ final class ChatStore {
         case closed
         /// No run is active any more.
         case idle
-        /// Events are missing: read the conversation again.
+        /// The events and the run disagree (an unreadable event, a run that
+        /// ended without its `run_finished` in the page): read the chat again.
         case gap
     }
 
@@ -472,7 +473,7 @@ final class ChatStore {
                 gaps += 1
                 if gaps > Self.maxConsecutiveGaps {
                     notice = .failed
-                    ErrorReporter.captureWarning("Chat events kept arriving out of order", context: ["gaps": gaps])
+                    ErrorReporter.captureWarning("Chat events kept disagreeing with the run", context: ["gaps": gaps])
                     return
                 }
                 let reloaded = await reload(generation: openGeneration, follow: false)
@@ -571,10 +572,7 @@ final class ChatStore {
                     end = .gap
                     return false
                 }
-                if receive(event) == .gap {
-                    end = .gap
-                    return false
-                }
+                receive(event)
                 if transcript.activeRun == nil {
                     end = .idle
                     return false
@@ -589,9 +587,7 @@ final class ChatStore {
         let page = try await api.chatEvents(conversationId: conversationId, after: transcript.lastSeq)
         guard isFollowing(conversationId, token: token) else { return .idle }
         for event in page.events {
-            if receive(event) == .gap {
-                return .gap
-            }
+            receive(event)
         }
         if page.hasMore {
             return .closed
