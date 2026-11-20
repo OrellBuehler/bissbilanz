@@ -179,8 +179,9 @@
 		assistant only acts on your account. These changes wait for your confirmation: deleting, merging
 		foods, copying a day, removing a supplement log, changing the nutrition, serving size or photo
 		of a food that is logged (directly or as an ingredient of a logged recipe), replacing or
-		removing the photo of any food or recipe, changing a recipe's ingredients or steps (or the
-		servings or cooked weight of a recipe that has diary entries), changing a supplement's
+		removing the photo of any food or recipe, clearing a day's note, water or activity details or
+		all the labels the assistant gave a food or recipe, changing a recipe's ingredients or steps (or
+		the servings or cooked weight of a recipe that has diary entries), changing a supplement's
 		ingredients, replacing the time windows for favourites, anything the assistant wants to force,
 		and every change after the first ten in one answer. Photos you attach are copied into the chat,
 		and the conversations and their photos stay stored until you delete them.

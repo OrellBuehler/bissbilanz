@@ -506,6 +506,112 @@ describe('confirmation previews', () => {
 		});
 	});
 
+	test('set_day_properties names each cleared field with what it held', async () => {
+		queueResults([
+			[
+				{
+					date: '2026-11-18',
+					isFastingDay: true,
+					notes: 'Ran 5 km',
+					waterMl: 1500,
+					activityCalories: null,
+					activityNote: 'Run'
+				}
+			]
+		]);
+		expect(
+			await preview('set_day_properties', {
+				date: '2026-11-18',
+				notes: null,
+				waterMl: 2000,
+				activityCalories: null,
+				activityNote: '',
+				isFastingDay: false
+			})
+		).toEqual({
+			input: {
+				date: '2026-11-18',
+				notes: null,
+				waterMl: 2000,
+				activityCalories: null,
+				activityNote: '',
+				isFastingDay: false
+			},
+			preview: {
+				summary: 'Change the day details of 18 Nov 2026',
+				details: [
+					'notes: cleared (was Ran 5 km)',
+					'waterMl: 1,500 → 2,000',
+					'activityCalories: —',
+					'activityNote: cleared (was Run)',
+					'isFastingDay: true → false'
+				]
+			}
+		});
+		queueResults([[]]);
+		expect(
+			await preview('set_day_properties', { date: '2026-11-18', notes: null }, 'de')
+		).toMatchObject({
+			preview: { summary: 'Tagesdetails vom 18.11.2026 ändern', details: ['notes: —'] }
+		});
+		expect(await preview('set_day_properties', { date: 'today' })).toEqual({
+			error: 'Invalid arguments: date: Invalid date'
+		});
+	});
+
+	test('set_food_labels and set_recipe_labels show the labels a clear removes', async () => {
+		queueResults([
+			[{ id: ID, name: 'Banana' }],
+			[{ label: 'banana' }, { label: 'fruit' }],
+			[],
+			[],
+			[],
+			[]
+		]);
+		expect(await preview('set_food_labels', { foodId: ID, labels: [] })).toEqual({
+			input: { foodId: ID, labels: [] },
+			preview: {
+				summary: 'Change the labels of the food “Banana”',
+				details: ['labels: cleared (was banana, fruit)']
+			}
+		});
+		reset();
+		queueResults([[{ id: ID, name: 'Soup' }], [], [], [], [], []]);
+		expect(await preview('set_recipe_labels', { recipeId: ID, labels: ['soup'] }, 'de')).toEqual({
+			input: { recipeId: ID, labels: ['soup'] },
+			preview: { summary: 'Labels des Rezepts „Soup“ ändern', details: ['labels: soup'] }
+		});
+		reset();
+		queueResults([[]]);
+		expect(await preview('set_food_labels', { foodId: ID, labels: [] })).toEqual({
+			error: 'Food not found'
+		});
+		expect(await preview('set_recipe_labels', { recipeId: 'x', labels: [] })).toMatchObject({
+			error: expect.stringContaining('recipeId')
+		});
+	});
+
+	test('looks day details and labels up only for valid dates and ids', async () => {
+		const { loadAssistantLabels, loadDayDetails } =
+			await import('$lib/server/claude/chat/previews');
+		setResult([{ label: 'should not be read' }]);
+		expect(await loadDayDetails('u', 'today')).toBeNull();
+		expect(await loadDayDetails('u', 7)).toBeNull();
+		expect(await loadAssistantLabels('u', 'foods', 'x')).toEqual([]);
+		expect(await loadAssistantLabels('u', 'recipes', undefined)).toEqual([]);
+		reset();
+		queueResults([[{ label: 'soup' }], []]);
+		expect(await loadAssistantLabels('u', 'recipes', ID)).toEqual(['soup']);
+		expect(await loadDayDetails('u', '2026-11-18')).toBeNull();
+	});
+
+	test('a cleared food field names what it held', async () => {
+		queueResults([[{ id: ID, name: 'Skyr', brand: 'Arla', barcode: null }], [], [], [], []]);
+		expect(await preview('update_food', { foodId: ID, brand: null, barcode: null })).toMatchObject({
+			preview: { details: ['brand: cleared (was Arla)', 'barcode: —'] }
+		});
+	});
+
 	test('a call that needs more than 200 lines goes back to the model to split', async () => {
 		const overrides = Object.fromEntries(
 			Array.from({ length: 200 }, (_, index) => [`field${index}`, index])

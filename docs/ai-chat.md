@@ -248,15 +248,21 @@ These calls never run without the user's approval:
   or as a supplement, or an ingredient of a recipe that has diary entries (recipe entries compute
   their macros from their ingredients, so such a change rewrites past days);
 - replacing or removing the photo of any food or recipe (the current photo file is deleted);
+- clearing (setting to null or empty) a day's note, water, activity calories or activity note
+  that currently holds a value; removing all the labels the assistant gave a food or recipe
+  (`set_food_labels` / `set_recipe_labels` with an empty list when it wrote some before);
 - changing a recipe's ingredients or steps, or the servings or cooked weight of a recipe that has
   diary entries; changing a supplement's ingredients; replacing the favourite meal time windows;
 - any call with a `force` flag;
 - every write after the first 10 writes of one run (a "log all of these" request with many items
   asks again from the 11th on).
 
-Everything else (logging, creating, other edits, goals, weight and sleep logs, day properties,
-labels, fasts, reminders, custom meal types, other preferences) runs at once and is reported in
-`changed` (§10). When the model calls a tool that needs approval, the run pauses:
+Everything else (logging, creating, other edits, goals, weight and sleep logs, other day
+properties, labels, fasts, reminders, custom meal types, other preferences) runs at once and is
+reported in `changed` (§10). Deliberately without a card: switching the fasting-day flag, clearing
+an entry's note, the target weight or a supplement's reminder times, and display preferences
+(widgets, meal order, visible nutrients, pinned insights, water goal) — single fields or settings
+that are easy to set again. When the model calls a tool that needs approval, the run pauses:
 
 1. `action_required` event with `partIndex` and the full `action` (`ChatAction`); the message gets
    an `action` part with `status: "pending"`; the run's status becomes `awaiting_confirmation`
@@ -267,11 +273,15 @@ labels, fasts, reminders, custom meal types, other preferences) runs at once and
    defaults are resolved when the card is built (copying "to today" names the day; approving after
    midnight still acts on that day), every field the call sets is listed (e.g.
    `calories: 60 → 75`, or the overrides of a merge), and fields the card cannot show are rejected
-   before any card is created. Nothing is shortened: a replaced list (a recipe's ingredients or
-   steps, a supplement's ingredients, the favourite time windows) gets a heading line ("the current
-   12 are replaced by these 10") and one line per new item, and replaced time windows are listed
-   too; deleting steps, and the step photos and food or recipe photos that go with a change, are
-   stated as deletions.
+   before any card is created. The card is built from the arguments as the tool parses them
+   (coerced and defaulted, unknown fields dropped: `isFavorite: "false"` sent as text becomes
+   `true`, and the card says `true`), that parsed input is stored and is what runs on approval, and
+   arguments the tool cannot parse go back to the model as a tool error without a card. A cleared
+   field names what it held (`notes: cleared (was Ran 5 km)`). Nothing is shortened: a replaced
+   list (a recipe's ingredients or steps, a supplement's ingredients, the favourite time windows)
+   gets a heading line ("the current 12 are replaced by these 10") and one line per new item, and
+   replaced time windows are listed too; deleting steps, and the step photos and food or recipe
+   photos that go with a change, are stated as deletions.
 
    Layout limits: `summary` is one line (it names the record, so it can be as long as a food name);
    `details` holds at most **200 lines**, and a line is never cut, so it can be long (a step text

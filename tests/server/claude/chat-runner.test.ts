@@ -61,6 +61,9 @@ const h = vi.hoisted(() => ({
 	hydrate: vi.fn(),
 	connectMcp: vi.fn(),
 	buildActionPreview: vi.fn(),
+	loadDayDetails: vi.fn(),
+	loadAssistantLabels: vi.fn(),
+	parseToolInput: vi.fn(),
 	captureException: vi.fn(),
 	captureMessage: vi.fn(),
 	config: { model: 'claude-opus-5-5', effort: 'medium', maxIterations: 10 }
@@ -140,7 +143,11 @@ vi.mock('$lib/server/claude/call', () => ({ callClaude: h.callClaude }));
 vi.mock('$lib/server/claude/capability', () => ({ assertClaudeGates: h.assertClaudeGates }));
 vi.mock('$lib/server/claude/config', () => ({ claudeConfig: () => h.config }));
 vi.mock('$lib/server/claude/chat/finalize', () => ({ finalizeRun: h.finalizeRun }));
-vi.mock('$lib/server/claude/chat/previews', () => ({ buildActionPreview: h.buildActionPreview }));
+vi.mock('$lib/server/claude/chat/previews', () => ({
+	buildActionPreview: h.buildActionPreview,
+	loadDayDetails: h.loadDayDetails,
+	loadAssistantLabels: h.loadAssistantLabels
+}));
 vi.mock('$lib/server/claude/chat/events', async (importOriginal) => ({
 	...(await importOriginal<typeof import('$lib/server/claude/chat/events')>()),
 	appendEvents: h.appendEvents
@@ -155,7 +162,8 @@ vi.mock('$lib/server/claude/tasks/photos', () => ({ loadTaskPhotos: vi.fn() }));
 vi.mock('$lib/server/mcp/server', () => ({ createMcpServer: vi.fn() }));
 vi.mock('$lib/server/claude/chat/tools', async (importOriginal) => ({
 	...(await importOriginal<typeof import('$lib/server/claude/chat/tools')>()),
-	connectMcp: h.connectMcp
+	connectMcp: h.connectMcp,
+	parseToolInput: h.parseToolInput
 }));
 vi.mock('$lib/server/claude/chat/transcript', async (importOriginal) => ({
 	...(await importOriginal<typeof import('$lib/server/claude/chat/transcript')>()),
@@ -516,6 +524,11 @@ beforeEach(() => {
 		})
 	);
 	h.connectMcp.mockResolvedValue(mcp);
+	h.parseToolInput.mockImplementation(async (_name: string, input: Record<string, unknown>) => ({
+		input
+	}));
+	h.loadDayDetails.mockResolvedValue(null);
+	h.loadAssistantLabels.mockResolvedValue([]);
 	mcp.callTool.mockResolvedValue(toolOk({ ok: true }));
 	mcp.close.mockResolvedValue(undefined);
 });
@@ -2120,6 +2133,83 @@ describe('starting under the lease', () => {
 	});
 });
 
+describe('tool input as the tool parses it', () => {
+	const FOOD = '6f1c1f0e-3b0a-4b8e-9d57-0c1d2e3f4a5b';
+
+	test('decides, stores and runs a write with the parsed input', async () => {
+		h.parseToolInput.mockResolvedValue({ input: { foodId: FOOD, isFavorite: true } });
+		script(
+			message(
+				[toolUse('update_food', { foodId: FOOD, isFavorite: 'false', junk: 1 }, 'toolu_1')],
+				'tool_use'
+			),
+			message([text('Done')])
+		);
+		await go();
+		expect(h.parseToolInput).toHaveBeenCalledWith('update_food', {
+			foodId: FOOD,
+			isFavorite: 'false',
+			junk: 1
+		});
+		expect(insertsOf(T.toolCalls)[0]).toMatchObject({
+			kind: 'write',
+			input: { foodId: FOOD, isFavorite: true }
+		});
+		expect(mcp.callTool).toHaveBeenCalledWith('update_food', { foodId: FOOD, isFavorite: true });
+	});
+
+	test('builds the card from the parsed input', async () => {
+		h.parseToolInput.mockResolvedValue({ input: { entryId: 'e1' } });
+		h.buildActionPreview.mockResolvedValue({
+			preview: { summary: 'Delete', details: [] },
+			input: { entryId: 'e1', date: '2026-11-18' }
+		});
+		script(
+			message([toolUse('delete_entry', { entryId: 'e1', extra: 'x' }, 'toolu_1')], 'tool_use')
+		);
+		await go();
+		expect(h.buildActionPreview).toHaveBeenCalledWith(
+			'delete_entry',
+			{ entryId: 'e1' },
+			expect.anything()
+		);
+		expect(insertsOf(T.toolCalls)[0]).toMatchObject({ input: { entryId: 'e1' } });
+	});
+
+	test('answers a call the tool cannot parse with an error and runs nothing', async () => {
+		h.parseToolInput.mockResolvedValue({
+			error: 'Invalid arguments for update_food: calories: bad'
+		});
+		script(
+			message([toolUse('update_food', { foodId: FOOD, calories: 'lots' }, 'toolu_1')], 'tool_use'),
+			message([text('Sorry')])
+		);
+		await go();
+		expect(insertsOf(T.toolCalls)[0]).toMatchObject({
+			kind: 'write',
+			input: { foodId: FOOD, calories: 'lots' }
+		});
+		expect(mcp.callTool).not.toHaveBeenCalled();
+		expect(h.buildActionPreview).not.toHaveBeenCalled();
+		const [answer] = updatesOf(T.toolCalls);
+		expect(answer).toMatchObject({
+			resultText: JSON.stringify({ error: 'Invalid arguments for update_food: calories: bad' }),
+			isError: true
+		});
+		expect(finalized()).toEqual([completed]);
+	});
+
+	test('passes reads through unparsed', async () => {
+		script(
+			message([toolUse('search_foods', { query: 'skyr' }, 'toolu_1')], 'tool_use'),
+			message([text('Found it')])
+		);
+		await go();
+		expect(h.parseToolInput).not.toHaveBeenCalled();
+		expect(mcp.callTool).toHaveBeenCalledWith('search_foods', { query: 'skyr' });
+	});
+});
+
 describe('which calls wait for the user', () => {
 	const FOOD = '6f1c1f0e-3b0a-4b8e-9d57-0c1d2e3f4a5b';
 	const RECIPE = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
@@ -2360,6 +2450,58 @@ describe('which calls wait for the user', () => {
 			expect(finalized()).toEqual([completed]);
 		}
 	});
+
+	test.each([
+		['a day note that is cleared', { notes: null }, { notes: 'Ran 5 km' }, [], 'confirm'],
+		['emptied water', { waterMl: null }, { waterMl: 1500 }, [], 'confirm'],
+		['an emptied activity note', { activityNote: '' }, { activityNote: 'Yoga' }, [], 'confirm'],
+		['a cleared field that holds nothing', { notes: null }, { notes: null }, [], 'write'],
+		['a cleared field of a day without details', { activityCalories: null }, null, [], 'write'],
+		['a fasting flag switched off', { isFastingDay: false }, { isFastingDay: true }, [], 'write'],
+		['a changed note', { notes: 'New' }, { notes: 'Old' }, [], 'write']
+	] as const)(
+		'treats %s (%j over stored %j, %j) as %s',
+		async (_name, change, stored, _labels, kind) => {
+			h.loadDayDetails.mockResolvedValue(stored);
+			h.buildActionPreview.mockResolvedValue(asked({ date: '2026-11-18', ...change }));
+			script(
+				message(
+					[toolUse('set_day_properties', { date: '2026-11-18', ...change }, 'toolu_1')],
+					'tool_use'
+				),
+				message([text('Done')])
+			);
+			await go();
+			expect(insertsOf(T.toolCalls)[0]).toMatchObject({ kind });
+			if (Object.values(change).some((value) => value === null || value === '')) {
+				expect(h.loadDayDetails).toHaveBeenCalledWith('user-1', '2026-11-18');
+			} else {
+				expect(h.loadDayDetails).not.toHaveBeenCalled();
+			}
+		}
+	);
+
+	test.each([
+		['set_food_labels', 'foodId', 'foods', [], ['banana'], 'confirm'],
+		['set_recipe_labels', 'recipeId', 'recipes', [], ['soup'], 'confirm'],
+		['set_food_labels', 'foodId', 'foods', [], [], 'write'],
+		['set_food_labels', 'foodId', 'foods', ['fruit'], ['banana'], 'write']
+	] as const)(
+		'treats %s (%s in %s) setting %j over stored %j as %s',
+		async (tool, key, table, labels, stored, kind) => {
+			h.loadAssistantLabels.mockResolvedValue([...stored]);
+			h.buildActionPreview.mockResolvedValue(asked({ [key]: FOOD, labels }));
+			script(
+				message([toolUse(tool, { [key]: FOOD, labels: [...labels] }, 'toolu_1')], 'tool_use'),
+				message([text('Done')])
+			);
+			await go();
+			expect(insertsOf(T.toolCalls)[0]).toMatchObject({ kind });
+			if (labels.length === 0)
+				expect(h.loadAssistantLabels).toHaveBeenCalledWith('user-1', table, FOOD);
+			else expect(h.loadAssistantLabels).not.toHaveBeenCalled();
+		}
+	);
 
 	test('lets a photo change through when the food or recipe row cannot be found', async () => {
 		state.photos = { foods: undefined, recipes: undefined };
