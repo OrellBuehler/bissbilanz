@@ -83,7 +83,7 @@ export const chatMessagePartSchema = z
 		preview: chatActionPreviewSchema.optional().meta({ description: 'action parts.' }),
 		expiresAt: z.string().optional().meta({
 			description:
-				'action parts: when the action expires (ISO 8601). Set on every action the server creates, never an empty string.'
+				'action parts: when the action expires (ISO 8601). Omitted when the action has none, never an empty string.'
 		})
 	})
 	.meta({

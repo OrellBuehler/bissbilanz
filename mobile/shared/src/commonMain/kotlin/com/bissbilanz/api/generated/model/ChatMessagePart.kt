@@ -36,7 +36,7 @@ import kotlinx.serialization.encoding.*
  * @param changes tool parts.
  * @param actionId action parts.
  * @param preview action parts.
- * @param expiresAt action parts: when the action expires (ISO 8601). Set on every action the server creates, never an empty string.
+ * @param expiresAt action parts: when the action expires (ISO 8601). Omitted when the action has none, never an empty string.
  */
 @Serializable
 data class ChatMessagePart(
@@ -64,6 +64,6 @@ data class ChatMessagePart(
     @SerialName(value = "actionId") val actionId: kotlin.String? = null,
     // action parts.
     @SerialName(value = "preview") val preview: ChatActionPreview? = null,
-    // action parts: when the action expires (ISO 8601). Set on every action the server creates, never an empty string.
+    // action parts: when the action expires (ISO 8601). Omitted when the action has none, never an empty string.
     @SerialName(value = "expiresAt") val expiresAt: kotlin.String? = null,
 )

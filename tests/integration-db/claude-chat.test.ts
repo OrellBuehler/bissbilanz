@@ -1024,6 +1024,33 @@ describe('review fixes, second round', () => {
 		expect(done.lastSeq).toBe(done.events.at(-1)!.seq);
 	});
 
+	it('reads the conversation detail from one snapshot', async () => {
+		const user = await seedUser(db);
+		const food = await seedFood(user.id);
+		const entry = await seedEntry(user.id, food.id);
+		const conversation = await newConversation(user.id);
+		fakeClaude([message([toolUse('delete_entry', { entryId: entry.id })], 'tool_use')]);
+		await send(user.id, conversation.id, 'Delete it');
+		const paused = await service.getConversationDetail(user.id, conversation.id);
+		expect(paused.activeRun).toMatchObject({ status: 'awaiting_confirmation' });
+		expect(paused.messages.at(-1)).toMatchObject({ role: 'assistant', status: 'in_progress' });
+		expect(paused.pendingActions).toHaveLength(1);
+		const [last] = await db
+			.select({ seq: chatEvents.seq })
+			.from(chatEvents)
+			.where(eq(chatEvents.conversationId, conversation.id))
+			.orderBy(sql`${chatEvents.seq} desc`)
+			.limit(1);
+		expect(paused.lastSeq).toBe(last!.seq);
+		fakeClaude([message([textBlock('Kept it')], 'end_turn')]);
+		await service.decideAction(user.id, paused.pendingActions[0]!.id, 'reject');
+		await executor.settleChatRunsForTests();
+		const done = await service.getConversationDetail(user.id, conversation.id);
+		expect(done.activeRun).toBeNull();
+		expect(done.messages.at(-1)).toMatchObject({ role: 'assistant', status: 'completed' });
+		expect(done.pendingActions).toEqual([]);
+	});
+
 	it('keeps a chat photo when a food pointing at the same file gets another photo', async () => {
 		const user = await seedUser(db);
 		const conversation = await newConversation(user.id);

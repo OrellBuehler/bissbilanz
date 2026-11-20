@@ -202,7 +202,9 @@ Any other `Accept` returns one page:
    of an unknown `type` without applying them.
 2. Opening a conversation: `GET /api/chat/conversations/{id}` returns all messages in display form
    and `lastSeq`. The in-progress assistant message (if a run is active) already contains
-   everything up to `lastSeq`. Then follow events with `after=lastSeq`.
+   everything up to `lastSeq`. The response is one consistent snapshot: `activeRun`, the messages,
+   `pendingActions` and `lastSeq` always agree (an `in_progress` assistant message always comes
+   with its active run). Then follow events with `after=lastSeq`.
 3. `message_completed` carries the full, final assistant message: replace whatever you
    accumulated for that `messageId` with it.
 4. If a gap is impossible to fill (e.g. the app was offline for days), just reload the
@@ -233,8 +235,9 @@ tool part. A finished message (any final `status`) never does: when a run stops 
 server writes a `tool_finished` with `status: "error"` and a summary such as "Stopped before it
 finished. Check the result." before `message_completed`. A confirmation the user rejected is an
 `action` part with status `rejected` and has no `tool` part. An `action` part's `expiresAt` is an
-ISO timestamp, never an empty string. `label` is already in the user's language (e.g. "Logging
-food" / "Trage Essen ein"). Web searches and page fetches the assistant does appear as tool parts
+ISO timestamp when the action has one and is omitted when it has none (never an empty string;
+the actions the server creates today always have one). `label` is already in the user's language
+(e.g. "Logging food" / "Trage Essen ein"). Web searches and page fetches the assistant does appear as tool parts
 named `web_search` / `web_fetch` ("Searching the web"); they change nothing.
 
 ## 7. Confirmations
