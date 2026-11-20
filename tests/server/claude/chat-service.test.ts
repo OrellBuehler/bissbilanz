@@ -32,6 +32,8 @@ const h = vi.hoisted(() => ({
 	writeUploadFile: vi.fn(),
 	dropUploadFiles: vi.fn(),
 	ownsUpload: vi.fn(),
+	usedUploadBytes: vi.fn(),
+	uploadQuotaBytes: vi.fn(),
 	getUserTimeZone: vi.fn()
 }));
 
@@ -82,6 +84,10 @@ vi.mock('$lib/server/images', () => ({
 	dropUploadFiles: h.dropUploadFiles,
 	UPLOAD_DIR: '/uploads-dir',
 	UPLOAD_FILENAME_PATTERN: /^[a-f0-9-]+\.webp$/
+}));
+vi.mock('$lib/server/food-bulk', () => ({
+	usedUploadBytes: h.usedUploadBytes,
+	uploadQuotaBytes: h.uploadQuotaBytes
 }));
 vi.mock('node:fs/promises', async (importOriginal) => ({
 	...(await importOriginal<typeof import('node:fs/promises')>()),
@@ -209,6 +215,8 @@ beforeEach(() => {
 	h.getChatGateState.mockResolvedValue(OPEN_GATE);
 	h.toChatCapability.mockReturnValue(CAPABILITY);
 	h.ownsUpload.mockResolvedValue(true);
+	h.usedUploadBytes.mockResolvedValue(0);
+	h.uploadQuotaBytes.mockReturnValue(5 * 1024 ** 3);
 	h.getUserTimeZone.mockResolvedValue('Europe/Zurich');
 	h.transcriptSize.mockResolvedValue({ bytes: 0, imageBytes: 0 });
 	h.readFile.mockResolvedValue(new Uint8Array(1000));
@@ -229,6 +237,7 @@ describe('ChatRequestError and chatErrorResponse', () => {
 		['chat_unavailable', 403],
 		['budget_exhausted', 403],
 		['invalid_image', 400],
+		['upload_quota_exceeded', 409],
 		['run_not_found', 404],
 		['run_not_active', 409],
 		['action_not_found', 404],
@@ -275,6 +284,18 @@ describe('ChatRequestError and chatErrorResponse', () => {
 			error: 'The assistant is not available for this account right now',
 			code: 'chat_unavailable',
 			capability: CAPABILITY
+		});
+	});
+
+	test('a full photo storage answers 409 with its message and no delay', async () => {
+		const response = service.chatErrorResponse(
+			new service.ChatRequestError('upload_quota_exceeded')
+		);
+		expect(response.status).toBe(409);
+		expect(response.headers.get('Retry-After')).toBeNull();
+		expect(await response.json()).toEqual({
+			error: 'Your photo storage is full',
+			code: 'upload_quota_exceeded'
 		});
 	});
 
@@ -746,6 +767,101 @@ describe('postMessage: the daily limit', () => {
 		reset();
 		script({ window: [] });
 		await expect(service.postMessage(UID, CID, input())).resolves.toMatchObject({ created: true });
+	});
+});
+
+describe('postMessage: the photo storage quota', () => {
+	const photos = { imageFilenames: ['aa-11.webp', 'bb-22.webp'] };
+
+	beforeEach(() => {
+		h.uploadQuotaBytes.mockReturnValue(10_000);
+	});
+
+	test('answers 409 upload_quota_exceeded and copies, stores and cancels nothing', async () => {
+		h.usedUploadBytes.mockResolvedValue(8_001);
+		h.getActiveRun.mockResolvedValue(runRow({ id: 'paused', status: 'awaiting_confirmation' }));
+		script();
+
+		const error = await service.postMessage(UID, CID, input(photos)).catch((caught) => caught);
+
+		expect(error).toBeInstanceOf(service.ChatRequestError);
+		expect(error).toMatchObject({
+			status: 409,
+			code: 'upload_quota_exceeded',
+			message: 'Your photo storage is full',
+			retryAfterSeconds: null
+		});
+		expect(h.usedUploadBytes).toHaveBeenCalledTimes(1);
+		expect(h.usedUploadBytes).toHaveBeenCalledWith(UID);
+		expect(h.writeUploadFile).not.toHaveBeenCalled();
+		expect(h.dropUploadFiles).not.toHaveBeenCalled();
+		expect(callsOf('transaction')).toHaveLength(0);
+		expect(h.getActiveRun).not.toHaveBeenCalled();
+		expect(h.finalizeRunInTx).not.toHaveBeenCalled();
+		expect(h.finalizeRun).not.toHaveBeenCalled();
+		expect(h.transcriptSize).not.toHaveBeenCalled();
+		expectNothingStored();
+	});
+
+	test('checks the distinct photos in total and takes exactly the quota but not a byte more', async () => {
+		h.readFile.mockImplementation(async (path: string) =>
+			path.endsWith('aa-11.webp') ? new Uint8Array(1000) : new Uint8Array(1500)
+		);
+		const sent = input({ imageFilenames: ['/uploads/aa-11.webp', 'aa-11.webp', 'bb-22.webp'] });
+		h.usedUploadBytes.mockResolvedValue(7_501);
+		script();
+		await expect(service.postMessage(UID, CID, sent)).rejects.toMatchObject({
+			status: 409,
+			code: 'upload_quota_exceeded'
+		});
+		expect(h.writeUploadFile).not.toHaveBeenCalled();
+		expectNothingStored();
+
+		reset();
+		h.usedUploadBytes.mockResolvedValue(7_500);
+		script({ images: true });
+		await expect(service.postMessage(UID, CID, sent)).resolves.toMatchObject({ created: true });
+		expect(h.writeUploadFile).toHaveBeenCalledTimes(2);
+		expect(h.dropUploadFiles).not.toHaveBeenCalled();
+	});
+
+	test('reads the used storage before copying the first photo', async () => {
+		script({ images: true });
+		await service.postMessage(UID, CID, input(photos));
+		expect(h.usedUploadBytes).toHaveBeenCalledTimes(1);
+		expect(order(h.usedUploadBytes)).toBeLessThan(order(h.writeUploadFile));
+	});
+
+	test.each([
+		['no photo field', {}],
+		['an empty photo list', { imageFilenames: [] }]
+	])('does not look up the storage with %s, even when it is full', async (_name, overrides) => {
+		h.usedUploadBytes.mockResolvedValue(20_000);
+		script();
+		await expect(service.postMessage(UID, CID, input(overrides))).resolves.toMatchObject({
+			created: true
+		});
+		expect(h.usedUploadBytes).not.toHaveBeenCalled();
+		expect(h.uploadQuotaBytes).not.toHaveBeenCalled();
+	});
+
+	test('lets the daily limit answer first without reading the storage', async () => {
+		h.usedUploadBytes.mockResolvedValue(20_000);
+		script({ window: [{ count: 60, oldest: null }] });
+		await expect(service.postMessage(UID, CID, input(photos))).rejects.toMatchObject({
+			status: 429,
+			code: 'daily_limit_reached'
+		});
+		expect(h.usedUploadBytes).not.toHaveBeenCalled();
+	});
+
+	test('fails without copying anything when the used storage cannot be read', async () => {
+		const down = new Error('db down');
+		h.usedUploadBytes.mockRejectedValue(down);
+		script();
+		await expect(service.postMessage(UID, CID, input(photos))).rejects.toBe(down);
+		expect(h.writeUploadFile).not.toHaveBeenCalled();
+		expectNothingStored();
 	});
 });
 

@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type Anthropic from '@anthropic-ai/sdk';
 import { getTableName } from 'drizzle-orm';
@@ -5,9 +6,12 @@ import {
 	chatConversations,
 	chatMessages,
 	foodEntries,
+	foods,
 	chatRuns,
 	chatToolCalls,
 	claudeAccess,
+	recipeIngredients,
+	recipes,
 	users,
 	type ChatRun,
 	type ChatToolCall
@@ -28,11 +32,17 @@ import {
 	executeChatRun,
 	type StopReason
 } from '$lib/server/claude/chat/runner';
-import { ClaudeAbortedError, ClaudeApiError, ClaudeGateError } from '$lib/server/claude/errors';
+import {
+	ClaudeAbortedError,
+	ClaudeApiError,
+	ClaudeGateError,
+	type ClaudeApiErrorTopic
+} from '$lib/server/claude/errors';
 import {
 	CLAUDE_MODELS,
 	isWebFetchAccepted,
 	isWebFetchRejected,
+	rejectWebFetch,
 	resetWebFetchForTests
 } from '$lib/server/claude/models';
 
@@ -47,6 +57,7 @@ const h = vi.hoisted(() => ({
 	loadRaw: vi.fn(),
 	appendRaw: vi.fn(),
 	ensurePromptSnapshot: vi.fn(),
+	storePromptSnapshot: vi.fn(),
 	hydrate: vi.fn(),
 	connectMcp: vi.fn(),
 	buildActionPreview: vi.fn(),
@@ -61,17 +72,31 @@ type Query = {
 	fields?: Record<string, unknown>;
 	values?: Record<string, any>;
 	set?: Record<string, any>;
+	joined?: string[];
+	tx: number | null;
 };
+
+const txStore = new AsyncLocalStorage<number>();
+let txCount = 0;
 
 const queries: Query[] = [];
 let handle: (query: Query) => unknown = () => [];
 
 function builder(op: Query['op'], table?: unknown, fields?: Record<string, unknown>) {
-	const query: Query = { op, table: table ? getTableName(table as never) : '', fields };
+	const query: Query = {
+		op,
+		table: table ? getTableName(table as never) : '',
+		fields,
+		tx: txStore.getStore() ?? null
+	};
 	queries.push(query);
 	const api: Record<string, unknown> = {
 		from: (from: unknown) => {
 			query.table = getTableName(from as never);
+			return api;
+		},
+		innerJoin: (joined: unknown) => {
+			(query.joined ??= []).push(getTableName(joined as never));
 			return api;
 		},
 		set: (set: Query['set']) => {
@@ -99,7 +124,8 @@ const db = {
 	select: (fields?: Record<string, unknown>) => builder('select', undefined, fields),
 	insert: (table: unknown) => builder('insert', table),
 	update: (table: unknown) => builder('update', table),
-	transaction: async <T>(callback: (tx: unknown) => Promise<T>) => callback(db)
+	transaction: async <T>(callback: (tx: unknown) => Promise<T>) =>
+		txStore.run(++txCount, () => callback(db))
 };
 
 vi.mock('@sentry/sveltekit', () => ({
@@ -136,6 +162,7 @@ vi.mock('$lib/server/claude/chat/transcript', async (importOriginal) => ({
 	loadRaw: h.loadRaw,
 	appendRaw: h.appendRaw,
 	ensurePromptSnapshot: h.ensurePromptSnapshot,
+	storePromptSnapshot: h.storePromptSnapshot,
 	hydrate: h.hydrate
 }));
 
@@ -145,6 +172,9 @@ const T = {
 	conversations: getTableName(chatConversations),
 	toolCalls: getTableName(chatToolCalls),
 	entries: getTableName(foodEntries),
+	ingredients: getTableName(recipeIngredients),
+	foods: getTableName(foods),
+	recipes: getTableName(recipes),
 	access: getTableName(claudeAccess),
 	users: getTableName(users)
 };
@@ -225,6 +255,8 @@ const fresh = () => ({
 	lease: true,
 	leaseSeq: [] as boolean[],
 	hasEntries: false,
+	inRecipe: false,
+	photos: { foods: null, recipes: null } as Record<'foods' | 'recipes', string | null | undefined>,
 	writeCount: 0 as number | string | null,
 	heartbeatAlive: true,
 	heartbeatError: null as Error | null,
@@ -264,6 +296,13 @@ const route = (query: Query): unknown => {
 				: [];
 		case `select:${T.entries}`:
 			return state.hasEntries ? [{ id: 'entry-1' }] : [];
+		case `select:${T.ingredients}`:
+			return state.inRecipe ? [{ id: 'entry-2' }] : [];
+		case `select:${T.foods}`:
+		case `select:${T.recipes}`: {
+			const photo = state.photos[query.table === T.foods ? 'foods' : 'recipes'];
+			return photo === undefined ? [] : [{ imageUrl: photo }];
+		}
 		case `select:${T.access}`:
 			return state.access ? [state.access] : [];
 		case `select:${T.users}`:
@@ -293,7 +332,7 @@ const route = (query: Query): unknown => {
 		}
 		case `update:${T.toolCalls}`:
 			if (set.execution === 'started') return state.claimOk ? [{ id: state.lastCall?.id }] : [];
-			if (set.actionStatus === 'pending') return [{ ...state.lastCall, ...set }];
+			if ('preview' in set) return [{ ...state.lastCall, ...set }];
 			return [];
 		default:
 			return [];
@@ -316,7 +355,12 @@ type CallOptions = {
 	model: string;
 	signal: AbortSignal;
 	params: { system: unknown; tools: unknown; messages: Array<{ role: string; content: unknown }> };
-	stream: { onText: (delta: string) => void; onBlock: (block: Record<string, any>) => void };
+	expectedRejection: (error: unknown) => boolean;
+	stream: {
+		onText: (delta: string) => void;
+		onBlock: (block: Record<string, any>) => void;
+		onActivity: () => void;
+	};
 };
 type Step =
 	| Anthropic.Message
@@ -346,6 +390,8 @@ const toolUse = (name: string, input: Record<string, unknown>, id: string): Bloc
 	name,
 	input
 });
+const thinking = (): Block => ({ type: 'thinking', thinking: 'Let me think', signature: 'sig' });
+const redactedThinking = (): Block => ({ type: 'redacted_thinking', data: 'opaque' });
 const serverSearch = (id: string, name = 'web_search'): Block => ({
 	type: 'server_tool_use',
 	id,
@@ -410,6 +456,7 @@ const failEventWrites = (error: Error) =>
 		return [];
 	});
 const queriesAtEvent: Record<string, string[]> = {};
+const txAtEvent: Record<string, number | undefined> = {};
 const persisted = () =>
 	h.appendRaw.mock.calls.flatMap(
 		([, , , messages]) => messages as Array<{ role: string; content: any[] }>
@@ -434,6 +481,7 @@ beforeEach(() => {
 	h.config.model = 'claude-opus-5-5';
 	resetWebFetchForTests();
 	for (const key of Object.keys(queriesAtEvent)) delete queriesAtEvent[key];
+	for (const key of Object.keys(txAtEvent)) delete txAtEvent[key];
 	for (const fn of [
 		...Object.values(h),
 		mcp.callTool,
@@ -452,6 +500,7 @@ beforeEach(() => {
 	h.appendEvents.mockImplementation(async (_tx: unknown, _id: string, events: Event[]) => {
 		for (const event of events) {
 			queriesAtEvent[event.type] = queries.map((query) => `${query.op}:${query.table}`);
+			txAtEvent[event.type] = txStore.getStore();
 		}
 		return [];
 	});
@@ -566,7 +615,12 @@ describe('starting a run', () => {
 			imageCount: 0,
 			maxTokens: CHAT_MAX_TOKENS,
 			signal: expect.any(AbortSignal),
-			stream: { onText: expect.any(Function), onBlock: expect.any(Function) }
+			expectedRejection: expect.any(Function),
+			stream: {
+				onText: expect.any(Function),
+				onBlock: expect.any(Function),
+				onActivity: expect.any(Function)
+			}
 		});
 
 		expect(appended()).toEqual([
@@ -980,6 +1034,58 @@ describe('the loop and its stop reasons', () => {
 		]);
 	});
 
+	test.each([
+		['thinking', [thinking()]],
+		['redacted thinking', [redactedThinking()]],
+		['both kinds of thinking', [thinking(), redactedThinking()]]
+	])('keeps a turn of only %s out of the transcript', async (_name, blocks) => {
+		script(message(blocks, 'max_tokens'));
+		await go();
+		expect(h.appendRaw).not.toHaveBeenCalled();
+		expect(finalized()).toEqual([
+			{ status: 'completed', reason: 'output_limit', instanceId: 'inst-1' }
+		]);
+	});
+
+	test('keeps a finished turn of only thinking out of the transcript too', async () => {
+		script(message([thinking()]));
+		await go();
+		expect(h.appendRaw).not.toHaveBeenCalled();
+		expect(finalized()).toEqual([completed]);
+	});
+
+	test.each([
+		['an answer', [thinking(), text('Done')]],
+		['redacted thinking and an answer', [redactedThinking(), text('Done')]],
+		['a tool call that was answered', [thinking(), serverSearch('srv_1'), searchResult('srv_1')]]
+	])('keeps a turn of thinking and %s', async (_name, blocks) => {
+		script(message(blocks, 'max_tokens'));
+		await go();
+		expect(persisted()).toEqual([{ role: 'assistant', content: blocks }]);
+	});
+
+	test('keeps the thinking of a turn that calls a tool', async () => {
+		const first = [thinking(), toolUse('list_meal_types', {}, 'toolu_1')];
+		script(message(first, 'tool_use'), message([text('Done')]));
+		await go();
+		expect(persisted()[0]).toEqual({ role: 'assistant', content: first });
+		expect(persisted().map((turn) => turn.role)).toEqual(['assistant', 'user', 'assistant']);
+	});
+
+	test('drops a thinking-only turn buffered by pause_turn and persists the answer', async () => {
+		const answer = [text('Done')];
+		script(message([thinking()], 'pause_turn'), message(answer));
+		await go();
+		expect(h.callClaude).toHaveBeenCalledTimes(2);
+		expect(secondRequestMessages().at(-1)).toMatchObject({
+			role: 'assistant',
+			content: [thinking()]
+		});
+		expect(persisted()).toEqual([{ role: 'assistant', content: answer }]);
+		expect(h.appendRaw).toHaveBeenCalledTimes(1);
+		expect(finalized()).toEqual([completed]);
+	});
+
 	test('keeps a cut-off tool call out of the transcript and never runs it', async () => {
 		script(
 			message([text('Here is'), toolUse('search_foods', { query: 'x' }, 'toolu_1')], 'max_tokens')
@@ -1115,6 +1221,7 @@ describe('tool calls', () => {
 				}
 			);
 			expect(updatesOf(T.messages)).toEqual([expect.objectContaining({ parts: [] })]);
+			expect(updatesOf(T.toolCalls)).toEqual([]);
 			expect(appendedAll().map((event) => event.type)).toEqual(['run_started']);
 			expect(h.finalizeRun).not.toHaveBeenCalled();
 			expect(mcp.callTool).not.toHaveBeenCalled();
@@ -1516,13 +1623,8 @@ describe('tool calls', () => {
 
 			const expiresAt = new Date(NOW.getTime() + ACTION_TTL_MS);
 			expect(updatesOf(T.toolCalls)).toEqual([
-				expect.objectContaining({
-					input: normalised,
-					actionStatus: 'pending',
-					preview,
-					partIndex: 1,
-					expiresAt
-				})
+				{ input: normalised, preview, partIndex: 1, expiresAt },
+				{ actionStatus: 'pending' }
 			]);
 			expect(mcp.callTool).not.toHaveBeenCalled();
 			const required = appended().find((event) => event.type === 'action_required')!;
@@ -1570,16 +1672,57 @@ describe('tool calls', () => {
 			]);
 			expect(appendedAll().filter((event) => event.type === 'action_required')).toHaveLength(1);
 			expect(h.appendEvents.mock.calls.at(-1)).toEqual([db, 'conv-1', [required]]);
-			expect(queriesAtEvent.action_required!.slice(-3)).toEqual([
+			expect(queriesAtEvent.action_required!.slice(-4)).toEqual([
 				`select:${T.conversations}`,
 				`update:${T.runs}`,
-				`update:${T.messages}`
+				`update:${T.messages}`,
+				`update:${T.toolCalls}`
 			]);
 			expect(h.finalizeRun).not.toHaveBeenCalled();
 			expect(persisted().map((turn) => turn.role)).toEqual(['assistant']);
 			expect(h.callClaude).toHaveBeenCalledTimes(1);
 			expect(mcp.close).toHaveBeenCalledTimes(1);
 			expect(vi.getTimerCount()).toBe(0);
+		});
+
+		test('turns the action pending only inside the transaction that pauses the run, before its event', async () => {
+			h.buildActionPreview.mockResolvedValue({
+				preview: { summary: 'Delete', details: [] },
+				input: { entryId: 'e1' }
+			});
+			script(message([removal()], 'tool_use'));
+			await go();
+
+			const calls = writes('update', T.toolCalls);
+			const [stored, pending] = calls;
+			const pause = writes('update', T.runs).find(
+				(query) => query.set!.status === 'awaiting_confirmation'
+			)!;
+			expect(calls).toHaveLength(2);
+			expect(stored!.set).not.toHaveProperty('actionStatus');
+			expect(pending!.set).toEqual({ actionStatus: 'pending' });
+			expect(pause.tx).not.toBeNull();
+			expect(stored!.tx).not.toBeNull();
+			expect(stored!.tx).not.toBe(pause.tx);
+			expect(pending!.tx).toBe(pause.tx);
+			expect(txAtEvent.action_required).toBe(pause.tx);
+			expect(queries.indexOf(stored!)).toBeLessThan(queries.indexOf(pause));
+			expect(queries.indexOf(pause)).toBeLessThan(queries.indexOf(pending!));
+			expect(queriesAtEvent.action_required).toContain(`update:${T.toolCalls}`);
+			expect(queriesAtEvent.action_required!.at(-1)).toBe(`update:${T.toolCalls}`);
+			expect(appendedAll().filter((event) => event.type === 'action_required')).toHaveLength(1);
+		});
+
+		test('serializes the action as pending although the stored row is not yet', async () => {
+			h.buildActionPreview.mockResolvedValue({
+				preview: { summary: 'Delete', details: [] },
+				input: { entryId: 'e1' }
+			});
+			script(message([removal()], 'tool_use'));
+			await go();
+			const required = appended().find((event) => event.type === 'action_required')!;
+			expect(required.action.status).toBe('pending');
+			expect(updatesOf(T.toolCalls)[0]).not.toHaveProperty('actionStatus');
 		});
 
 		test('pauses at the confirmation but has already run the calls before it', async () => {
@@ -1607,6 +1750,8 @@ describe('tool calls', () => {
 			script(message([removal()], 'tool_use'));
 			await go();
 			expect(updatesOf(T.messages)).toEqual([]);
+			expect(updatesOf(T.toolCalls)).toHaveLength(1);
+			expect(updatesOf(T.toolCalls).some((set) => 'actionStatus' in set)).toBe(false);
 			expect(appendedAll().some((event) => event.type === 'action_required')).toBe(false);
 			expect(h.finalizeRun).not.toHaveBeenCalled();
 			expect(h.captureException).not.toHaveBeenCalled();
@@ -1896,8 +2041,10 @@ const failedWith = (reason: string) => ({ status: 'failed', reason, instanceId: 
 const withContainer = (response: Anthropic.Message, id: string) =>
 	({ ...response, container: { id, expires_at: '2026-11-18T11:00:00Z' } }) as Anthropic.Message;
 const transient = () => new ClaudeApiError({ kind: 'rate_limited', status: 429, retryable: true });
-const rejection = () =>
-	new ClaudeApiError({ kind: 'invalid_request', status: 400, retryable: false });
+const badRequest = (topic?: ClaudeApiErrorTopic) =>
+	new ClaudeApiError({ kind: 'invalid_request', status: 400, retryable: false, topic });
+const rejection = () => badRequest('web_fetch');
+const tooLong = () => badRequest('prompt_too_long');
 
 describe('starting under the lease', () => {
 	test('writes the assistant message and run_started in one fenced transaction', async () => {
@@ -1974,111 +2121,236 @@ describe('starting under the lease', () => {
 });
 
 describe('which calls wait for the user', () => {
+	const FOOD = '6f1c1f0e-3b0a-4b8e-9d57-0c1d2e3f4a5b';
+	const RECIPE = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+	const OLD_PHOTO = '/uploads/old.webp';
+	const NEW_PHOTO = '/uploads/new.webp';
 	const asked = (input: Record<string, unknown>) => ({
 		preview: { summary: 'Please confirm', details: [] },
 		input
 	});
-	const lookups = () => queries.filter((query) => query.table === T.entries).length;
+	const select = (table: string) =>
+		queries.filter((query) => query.op === 'select' && query.table === table).length;
+	const lookups = () => ({
+		entries: select(T.entries),
+		ingredients: select(T.ingredients),
+		foods: select(T.foods),
+		recipes: select(T.recipes)
+	});
+	const none = { entries: 0, ingredients: 0, foods: 0, recipes: 0 };
+
+	type Setup = {
+		entries?: boolean;
+		inRecipe?: boolean;
+		foodPhoto?: string | null;
+		recipePhoto?: string | null;
+	};
+	const arrange = (setup: Setup) => {
+		state.hasEntries = setup.entries ?? false;
+		state.inRecipe = setup.inRecipe ?? false;
+		state.photos = { foods: setup.foodPhoto ?? null, recipes: setup.recipePhoto ?? null };
+	};
 
 	test.each([
-		['a confirm tool', 'delete_entry', { entryId: 'e1' }, false, 'confirm', 0],
+		['a confirm tool', 'delete_entry', { entryId: 'e1' }, {}, 'confirm', {}],
 		[
 			'a food whose nutrition changes and that has entries',
 			'update_food',
-			{ foodId: 'f1', calories: 120 },
-			true,
+			{ foodId: FOOD, calories: 120 },
+			{ entries: true },
 			'confirm',
-			1
+			{ entries: 1 }
 		],
 		[
-			'a food whose nutrition changes but that nobody logged',
+			'a food whose nutrition changes and that is an ingredient of a logged recipe',
 			'update_food',
-			{ foodId: 'f1', calories: 120 },
-			false,
+			{ foodId: FOOD, calories: 120 },
+			{ inRecipe: true },
+			'confirm',
+			{ entries: 1, ingredients: 1 }
+		],
+		[
+			'a food whose nutrition changes but that nobody logged, directly or in a recipe',
+			'update_food',
+			{ foodId: FOOD, calories: 120 },
+			{},
 			'write',
-			1
+			{ entries: 1, ingredients: 1 }
 		],
 		[
 			'a food that is only renamed',
 			'update_food',
-			{ foodId: 'f1', name: 'Skyr' },
-			true,
+			{ foodId: FOOD, name: 'Skyr' },
+			{ entries: true, inRecipe: true },
 			'write',
-			0
+			{}
 		],
-		['a nutrition change without a food id', 'update_food', { calories: 120 }, true, 'write', 0],
+		[
+			'a nutrition change without a food id',
+			'update_food',
+			{ calories: 120 },
+			{ entries: true, inRecipe: true },
+			'write',
+			{}
+		],
 		[
 			'a write with the force flag',
 			'update_food',
-			{ foodId: 'f1', name: 'Skyr', force: true },
-			false,
+			{ foodId: FOOD, name: 'Skyr', force: true },
+			{},
 			'confirm',
-			0
+			{}
+		],
+		[
+			'a food whose photo is replaced',
+			'update_food',
+			{ foodId: FOOD, imageUrl: NEW_PHOTO },
+			{ foodPhoto: OLD_PHOTO },
+			'confirm',
+			{ entries: 1, ingredients: 1, foods: 1 }
+		],
+		[
+			'a food whose photo is cleared',
+			'update_food',
+			{ foodId: FOOD, imageUrl: null },
+			{ foodPhoto: OLD_PHOTO },
+			'confirm',
+			{ entries: 1, ingredients: 1, foods: 1 }
+		],
+		[
+			'a food whose photo stays the same',
+			'update_food',
+			{ foodId: FOOD, imageUrl: OLD_PHOTO },
+			{ foodPhoto: OLD_PHOTO },
+			'write',
+			{ entries: 1, ingredients: 1, foods: 1 }
+		],
+		[
+			'a food that gets its first photo',
+			'update_food',
+			{ foodId: FOOD, imageUrl: NEW_PHOTO },
+			{ foodPhoto: null },
+			'write',
+			{ entries: 1, ingredients: 1, foods: 1 }
+		],
+		[
+			'a logged food whose photo is set (no photo lookup needed)',
+			'update_food',
+			{ foodId: FOOD, imageUrl: NEW_PHOTO },
+			{ entries: true, foodPhoto: null },
+			'confirm',
+			{ entries: 1 }
 		],
 		[
 			'a recipe whose ingredients change',
 			'update_recipe',
-			{ recipeId: 'r1', ingredients: [] },
-			false,
+			{ recipeId: RECIPE, ingredients: [] },
+			{},
 			'confirm',
-			0
+			{}
 		],
 		[
 			'a recipe whose servings change and that has entries',
 			'update_recipe',
-			{ recipeId: 'r1', totalServings: 4 },
-			true,
+			{ recipeId: RECIPE, totalServings: 4 },
+			{ entries: true },
 			'confirm',
-			1
+			{ entries: 1 }
 		],
 		[
 			'a recipe whose servings change but that nobody logged',
 			'update_recipe',
-			{ recipeId: 'r1', cookedWeight: 800 },
-			false,
+			{ recipeId: RECIPE, cookedWeight: 800 },
+			{},
 			'write',
-			1
+			{ entries: 1 }
 		],
 		[
 			'a recipe that is only renamed',
 			'update_recipe',
-			{ recipeId: 'r1', name: 'Soup' },
-			true,
+			{ recipeId: RECIPE, name: 'Soup' },
+			{ entries: true },
 			'write',
-			0
+			{}
+		],
+		[
+			'a recipe whose photo is replaced',
+			'update_recipe',
+			{ recipeId: RECIPE, imageUrl: NEW_PHOTO },
+			{ recipePhoto: OLD_PHOTO },
+			'confirm',
+			{ recipes: 1 }
+		],
+		[
+			'a recipe whose photo is cleared',
+			'update_recipe',
+			{ recipeId: RECIPE, imageUrl: null },
+			{ recipePhoto: OLD_PHOTO },
+			'confirm',
+			{ recipes: 1 }
+		],
+		[
+			'a recipe whose photo stays the same',
+			'update_recipe',
+			{ recipeId: RECIPE, imageUrl: OLD_PHOTO },
+			{ recipePhoto: OLD_PHOTO },
+			'write',
+			{ recipes: 1 }
+		],
+		[
+			'a recipe that gets its first photo',
+			'update_recipe',
+			{ recipeId: RECIPE, imageUrl: NEW_PHOTO },
+			{ recipePhoto: null },
+			'write',
+			{ recipes: 1 }
+		],
+		[
+			'a logged recipe whose servings and photo change (no photo lookup needed)',
+			'update_recipe',
+			{ recipeId: RECIPE, totalServings: 4, imageUrl: NEW_PHOTO },
+			{ entries: true, recipePhoto: OLD_PHOTO },
+			'confirm',
+			{ entries: 1 }
+		],
+		[
+			'an unlogged recipe whose servings change and photo is replaced',
+			'update_recipe',
+			{ recipeId: RECIPE, totalServings: 4, imageUrl: NEW_PHOTO },
+			{ recipePhoto: OLD_PHOTO },
+			'confirm',
+			{ entries: 1, recipes: 1 }
 		],
 		[
 			'a supplement whose ingredients change',
 			'update_supplement',
 			{ supplementId: 's1', ingredients: [{ food: { name: 'Zinc' } }] },
-			false,
+			{},
 			'confirm',
-			0
+			{}
 		],
-		['a supplement dose', 'update_supplement', { supplementId: 's1', dose: 2 }, false, 'write', 0],
+		['a supplement dose', 'update_supplement', { supplementId: 's1', dose: 2 }, {}, 'write', {}],
 		[
 			'a plain write',
 			'log_food',
 			{ foodId: 'f1', servings: 1, mealType: 'Lunch' },
-			true,
+			{ entries: true },
 			'write',
-			0
+			{}
 		],
-		['a read', 'search_foods', { query: 'x' }, true, 'read', 0]
-	] as const)('treats %s as %s', async (_name, tool, input, hasEntries, kind, expectedLookups) => {
-		state.hasEntries = hasEntries;
+		['a read', 'search_foods', { query: 'x' }, { entries: true }, 'read', {}]
+	] as const)('treats %s as %s', async (_name, tool, input, setup, kind, expectedLookups) => {
+		arrange(setup as Setup);
 		h.buildActionPreview.mockResolvedValue(asked({ ...input, normalised: true }));
 		script(message([toolUse(tool, { ...input }, 'toolu_1')], 'tool_use'), message([text('Done')]));
 		await go();
 
 		expect(insertsOf(T.toolCalls)[0]).toMatchObject({ toolName: tool, kind });
-		expect(lookups()).toBe(expectedLookups);
+		expect(lookups()).toEqual({ ...none, ...expectedLookups });
 		if (kind === 'confirm') {
 			expect(h.buildActionPreview).toHaveBeenCalledWith(tool, input, expect.anything());
-			expect(updatesOf(T.toolCalls)[0]).toMatchObject({
-				input: { ...input, normalised: true },
-				actionStatus: 'pending'
-			});
+			expect(updatesOf(T.toolCalls)[0]).toMatchObject({ input: { ...input, normalised: true } });
+			expect(updatesOf(T.toolCalls)).toEqual([expect.anything(), { actionStatus: 'pending' }]);
 			expect(appended().filter((event) => event.type === 'action_required')).toHaveLength(1);
 			expect(mcp.callTool).not.toHaveBeenCalled();
 			expect(h.finalizeRun).not.toHaveBeenCalled();
@@ -2087,6 +2359,74 @@ describe('which calls wait for the user', () => {
 			expect(mcp.callTool).toHaveBeenCalledWith(tool, input);
 			expect(finalized()).toEqual([completed]);
 		}
+	});
+
+	test('lets a photo change through when the food or recipe row cannot be found', async () => {
+		state.photos = { foods: undefined, recipes: undefined };
+		script(
+			message(
+				[
+					toolUse('update_food', { foodId: FOOD, imageUrl: NEW_PHOTO }, 'toolu_1'),
+					toolUse('update_recipe', { recipeId: RECIPE, imageUrl: NEW_PHOTO }, 'toolu_2')
+				],
+				'tool_use'
+			),
+			message([text('Done')])
+		);
+		await go();
+		expect(insertsOf(T.toolCalls).map((values) => values.kind)).toEqual(['write', 'write']);
+		expect(lookups()).toEqual({ entries: 1, ingredients: 1, foods: 1, recipes: 1 });
+		expect(h.buildActionPreview).not.toHaveBeenCalled();
+	});
+
+	test('finds a food in a logged recipe through the entries of that recipe', async () => {
+		state.inRecipe = true;
+		h.buildActionPreview.mockResolvedValue(asked({ foodId: FOOD }));
+		script(message([toolUse('update_food', { foodId: FOOD, protein: 30 }, 'toolu_1')], 'tool_use'));
+		await go();
+		const [lookup] = writes('select', T.ingredients);
+		expect(lookup!.joined).toEqual([T.entries]);
+		expect(Object.keys(lookup!.fields!)).toEqual(['id']);
+		expect(insertsOf(T.toolCalls)[0]).toMatchObject({ kind: 'confirm' });
+	});
+
+	test.each([
+		['a short id', 'f1'],
+		['an id with a trailing character', `${FOOD}0`],
+		['a number', 42],
+		['an object', { id: FOOD }],
+		['a missing id', undefined]
+	])('never queries for %s', async (_name, id) => {
+		arrange({ entries: true, inRecipe: true, foodPhoto: OLD_PHOTO, recipePhoto: OLD_PHOTO });
+		script(
+			message(
+				[
+					toolUse('update_food', { foodId: id, calories: 120, imageUrl: NEW_PHOTO }, 'toolu_1'),
+					toolUse('update_recipe', { recipeId: id, totalServings: 4, imageUrl: null }, 'toolu_2')
+				],
+				'tool_use'
+			),
+			message([text('Done')])
+		);
+		await go();
+		expect(insertsOf(T.toolCalls).map((values) => values.kind)).toEqual(['write', 'write']);
+		expect(lookups()).toEqual(none);
+		expect(h.buildActionPreview).not.toHaveBeenCalled();
+		expect(mcp.callTool).toHaveBeenCalledTimes(2);
+	});
+
+	test('accepts an upper-case id', async () => {
+		arrange({ foodPhoto: OLD_PHOTO });
+		h.buildActionPreview.mockResolvedValue(asked({ foodId: FOOD }));
+		script(
+			message(
+				[toolUse('update_food', { foodId: FOOD.toUpperCase(), imageUrl: null }, 'toolu_1')],
+				'tool_use'
+			)
+		);
+		await go();
+		expect(lookups()).toEqual({ ...none, entries: 1, ingredients: 1, foods: 1 });
+		expect(insertsOf(T.toolCalls)[0]).toMatchObject({ kind: 'confirm' });
 	});
 
 	describe('after too many writes in one run', () => {
@@ -2230,6 +2570,58 @@ describe('model call retries', () => {
 		expect(finalized()).toEqual([failedWith('api_error')]);
 	});
 
+	test.each([
+		['rate_limited', 429, false, true],
+		['rate_limited', 429, true, true],
+		['server', 503, false, true],
+		['server', 503, true, true],
+		['connection', undefined, false, true],
+		['connection', undefined, true, false],
+		['timeout', undefined, false, false],
+		['timeout', undefined, true, false],
+		['other', undefined, false, false],
+		['auth', 401, false, false],
+		['invalid_request', 422, false, false]
+	] as const)(
+		'%s error, status %s, bytes received %s: retried %s',
+		async (kind, status, bytes, retried) => {
+			script(
+				async (options) => {
+					if (bytes) options.stream.onActivity();
+					throw new ClaudeApiError({ kind, status, retryable: true });
+				},
+				message([text('Back again')])
+			);
+			await go();
+			expect(h.callClaude).toHaveBeenCalledTimes(retried ? 2 : 1);
+			expect(sleep).toHaveBeenCalledTimes(retried ? 1 : 0);
+			expect(finalized()).toEqual([retried ? completed : failedWith('api_error')]);
+		}
+	);
+
+	test('counts the bytes of every try on its own', async () => {
+		script(
+			async (options) => {
+				options.stream.onActivity();
+				throw transient();
+			},
+			new ClaudeApiError({ kind: 'connection', retryable: true }),
+			message([text('Third time')])
+		);
+		await go();
+		expect(sleep.mock.calls.map(([ms]) => ms)).toEqual(RETRY_DELAYS_MS);
+		expect(h.callClaude).toHaveBeenCalledTimes(3);
+		expect(finalized()).toEqual([completed]);
+	});
+
+	test('never retries an error that is not a Claude API error', async () => {
+		script(new Error('boom'), message([text('Never asked')]));
+		await go();
+		expect(sleep).not.toHaveBeenCalled();
+		expect(h.callClaude).toHaveBeenCalledTimes(1);
+		expect(finalized()).toEqual([failedWith('internal_error')]);
+	});
+
 	test('treats an abort while waiting like any other abort', async () => {
 		stop = 'cancel';
 		sleep.mockRejectedValue(new ClaudeAbortedError());
@@ -2307,37 +2699,75 @@ describe('abortableSleep', () => {
 });
 
 describe('dropping web fetch', () => {
-	const slim = (id = 'snap-2', fromPosition = 1) => ({ ...snapshot, id, fromPosition });
+	const withFetch = () => h.ensurePromptSnapshot.mockResolvedValue(fetchSnapshot('snap-f'));
+	const toolsOf = (index: number) =>
+		JSON.stringify(h.callClaude.mock.calls[index]![0].params.tools);
+	const hydratedFrom = () => h.hydrate.mock.calls.map((call) => call[3]);
+	const authFailure = (status: number) =>
+		new ClaudeApiError({ kind: 'auth', status, retryable: false });
+	const probes = {
+		fetch: rejection,
+		tooLong,
+		plain: () => badRequest(),
+		wrongStatus: () =>
+			new ClaudeApiError({
+				kind: 'invalid_request',
+				status: 422,
+				retryable: false,
+				topic: 'web_fetch'
+			}),
+		wrongKind: () =>
+			new ClaudeApiError({ kind: 'server', status: 400, retryable: false, topic: 'web_fetch' }),
+		tooLongOtherStatus: () =>
+			new ClaudeApiError({
+				kind: 'invalid_request',
+				status: 422,
+				retryable: false,
+				topic: 'prompt_too_long'
+			}),
+		unrelated: () => new Error('boom')
+	};
+	const verdicts = (options: CallOptions) =>
+		Object.fromEntries(
+			Object.entries(probes).map(([name, make]) => [name, options.expectedRejection(make())])
+		);
+	const expected = (overrides: Partial<Record<keyof typeof probes, boolean>> = {}) => ({
+		fetch: false,
+		tooLong: true,
+		plain: false,
+		wrongStatus: false,
+		wrongKind: false,
+		tooLongOtherStatus: false,
+		unrelated: false,
+		...overrides
+	});
 
-	test('drops it once the API rejects it and carries on with a new prompt', async () => {
-		h.ensurePromptSnapshot
-			.mockResolvedValueOnce(fetchSnapshot('snap-f'))
-			.mockResolvedValueOnce(slim());
+	test('drops it once the call without it works and carries on with a new prompt', async () => {
+		withFetch();
 		script(rejection(), message([text('Hi')]));
 		await go();
 
-		const [first, second] = h.callClaude.mock.calls.map(([options]) => options);
-		const expectedRejection = first.expectedRejection as (error: unknown) => boolean;
-		expect(expectedRejection(rejection())).toBe(true);
-		expect(
-			expectedRejection(
-				new ClaudeApiError({ kind: 'invalid_request', status: 422, retryable: false })
-			)
-		).toBe(false);
-		expect(
-			expectedRejection(new ClaudeApiError({ kind: 'server', status: 400, retryable: false }))
-		).toBe(false);
-		expect(expectedRejection(new Error('boom'))).toBe(false);
-		expect(second.expectedRejection).toBeUndefined();
-		expect(JSON.stringify(first.params.tools)).toContain('web_fetch');
-		expect(JSON.stringify(second.params.tools)).not.toContain('web_fetch');
-
-		expect(h.ensurePromptSnapshot.mock.calls[1]).toEqual([
-			{ ...conversation, promptId: 'snap-f', promptFromPosition: 0 },
-			'claude-opus-5-5',
-			{ rebuild: true, transcriptLength: 1 }
+		expect(h.callClaude).toHaveBeenCalledTimes(2);
+		expect(toolsOf(0)).toContain('web_fetch');
+		expect(toolsOf(1)).not.toContain('web_fetch');
+		expect(h.ensurePromptSnapshot.mock.calls).toEqual([
+			[conversation, 'claude-opus-5-5', { transcriptLength: 1 }]
 		]);
-		expect(h.hydrate.mock.calls.map((call) => call[3])).toEqual([0, 1]);
+		expect(hydratedFrom()).toEqual([0, 1]);
+
+		expect(h.storePromptSnapshot).toHaveBeenCalledTimes(1);
+		const [conversationId, model, stored, from] = h.storePromptSnapshot.mock.calls[0]!;
+		expect([conversationId, model, from]).toEqual(['conv-1', 'claude-opus-5-5', 1]);
+		expect(stored).toEqual({
+			id: expect.stringMatching(/^[0-9a-f]{64}$/),
+			system: snapshot.system,
+			tools: [{ name: 'search_foods' }],
+			fromPosition: 1
+		});
+		expect(h.storePromptSnapshot.mock.invocationCallOrder[0]).toBeGreaterThan(
+			h.callClaude.mock.invocationCallOrder[1]!
+		);
+
 		expect(isWebFetchRejected()).toBe(true);
 		expect(isWebFetchAccepted()).toBe(false);
 		expect(h.captureMessage).toHaveBeenCalledTimes(1);
@@ -2351,77 +2781,245 @@ describe('dropping web fetch', () => {
 		expect(finalized()).toEqual([completed]);
 	});
 
-	test('keeps every retry after dropping it', async () => {
-		h.ensurePromptSnapshot
-			.mockResolvedValueOnce(fetchSnapshot('snap-f'))
-			.mockResolvedValueOnce(slim());
-		script(rejection(), transient(), transient(), message([text('Hi')]));
-		await go();
-		expect(sleep.mock.calls.map(([ms]) => ms)).toEqual(RETRY_DELAYS_MS);
-		expect(finalized()).toEqual([completed]);
-	});
-
-	test('reports the rejection only once and rebuilds from the latest prompt each time', async () => {
-		h.ensurePromptSnapshot
-			.mockResolvedValueOnce(fetchSnapshot('snap-f'))
-			.mockResolvedValueOnce(fetchSnapshot('snap-f2', 1))
-			.mockResolvedValueOnce(slim('snap-3', 2));
-		script(rejection(), rejection(), message([text('Hi')]));
-		await go();
-		expect(
-			h.ensurePromptSnapshot.mock.calls
-				.slice(1)
-				.map(([conv, , options]) => [conv.promptId, conv.promptFromPosition, options])
-		).toEqual([
-			['snap-f', 0, { rebuild: true, transcriptLength: 1 }],
-			['snap-f2', 1, { rebuild: true, transcriptLength: 1 }]
+	test('replays the prompt without web fetch from the end of the transcript', async () => {
+		withFetch();
+		h.loadRaw.mockImplementation(async () => [
+			structuredClone(userTurn),
+			{ role: 'assistant', content: [text('Earlier')] },
+			structuredClone(userTurn)
 		]);
-		expect(h.hydrate.mock.calls.map((call) => call[3])).toEqual([0, 1, 2]);
-		expect(h.captureMessage).toHaveBeenCalledTimes(1);
+		script(rejection(), message([text('Hi')]));
+		await go();
+		expect(h.ensurePromptSnapshot).toHaveBeenCalledWith(conversation, 'claude-opus-5-5', {
+			transcriptLength: 3
+		});
+		expect(hydratedFrom()).toEqual([0, 3]);
+		expect(h.storePromptSnapshot).toHaveBeenCalledWith(
+			'conv-1',
+			'claude-opus-5-5',
+			expect.objectContaining({ fromPosition: 3 }),
+			3
+		);
 		expect(finalized()).toEqual([completed]);
 	});
 
-	test('remembers that web fetch works after the first successful call', async () => {
-		h.ensurePromptSnapshot.mockResolvedValue(fetchSnapshot('snap-f'));
+	test('keeps the prompt without web fetch for the rest of the run', async () => {
+		withFetch();
 		script(
+			rejection(),
 			message([toolUse('list_meal_types', {}, 'toolu_1')], 'tool_use'),
 			message([text('Done')])
 		);
 		await go();
-		expect(h.callClaude.mock.calls[0]![0].expectedRejection).toEqual(expect.any(Function));
-		expect(h.callClaude.mock.calls[1]![0].expectedRejection).toBeUndefined();
+		expect(h.callClaude).toHaveBeenCalledTimes(3);
+		expect([1, 2].map((index) => toolsOf(index).includes('web_fetch'))).toEqual([false, false]);
+		expect(hydratedFrom()).toEqual([0, 1, 1]);
+		expect(h.storePromptSnapshot).toHaveBeenCalledTimes(1);
+		expect(h.captureMessage).toHaveBeenCalledTimes(1);
+		expect(finalized()).toEqual([completed]);
+	});
+
+	test('keeps every retry after dropping it and stores once the call went through', async () => {
+		withFetch();
+		script(rejection(), transient(), transient(), message([text('Hi')]));
+		await go();
+		expect(sleep.mock.calls.map(([ms]) => ms)).toEqual(RETRY_DELAYS_MS);
+		expect(h.callClaude).toHaveBeenCalledTimes(4);
+		expect([1, 2, 3].some((index) => toolsOf(index).includes('web_fetch'))).toBe(false);
+		expect(h.storePromptSnapshot).toHaveBeenCalledTimes(1);
+		expect(h.storePromptSnapshot.mock.invocationCallOrder[0]).toBeGreaterThan(
+			h.callClaude.mock.invocationCallOrder[3]!
+		);
+		expect(finalized()).toEqual([completed]);
+	});
+
+	test('reports the rejection once per process but stores it for every conversation', async () => {
+		withFetch();
+		script(rejection(), message([text('One')]));
+		await go();
+		script(rejection(), message([text('Two')]));
+		await go();
+		expect(h.callClaude).toHaveBeenCalledTimes(4);
+		expect(h.storePromptSnapshot).toHaveBeenCalledTimes(2);
+		expect(h.captureMessage).toHaveBeenCalledTimes(1);
+		expect(isWebFetchRejected()).toBe(true);
+		expect(finalized()).toEqual([completed, completed]);
+	});
+
+	test('does not report a rejection the task loop already dropped, but still stores the prompt', async () => {
+		rejectWebFetch();
+		withFetch();
+		script(rejection(), message([text('Hi')]));
+		await go();
+		expect(h.captureMessage).not.toHaveBeenCalled();
+		expect(h.storePromptSnapshot).toHaveBeenCalledTimes(1);
+		expect(finalized()).toEqual([completed]);
+	});
+
+	test('treats any 400 as a rejection once web fetch is known to be dropped', async () => {
+		rejectWebFetch();
+		withFetch();
+		script(badRequest(), message([text('Hi')]));
+		await go();
+		expect(h.callClaude).toHaveBeenCalledTimes(2);
+		expect(toolsOf(1)).not.toContain('web_fetch');
+		expect(h.storePromptSnapshot).toHaveBeenCalledTimes(1);
+		expect(h.captureMessage).not.toHaveBeenCalled();
+		expect(finalized()).toEqual([completed]);
+	});
+
+	test('lets the call without web fetch decide when the 400 was about something else', async () => {
+		rejectWebFetch();
+		withFetch();
+		script(badRequest(), badRequest());
+		await go();
+		expect(h.callClaude).toHaveBeenCalledTimes(2);
+		expect(h.storePromptSnapshot).not.toHaveBeenCalled();
+		expect(h.captureMessage).not.toHaveBeenCalled();
+		expect(finalized()).toEqual([failedWith('api_error')]);
+	});
+
+	test('does not take a 400 without a topic for a rejection while web fetch is not known to fail', async () => {
+		withFetch();
+		script(badRequest(), message([text('Never asked')]));
+		await go();
+		expect(h.callClaude).toHaveBeenCalledTimes(1);
+		expect(h.storePromptSnapshot).not.toHaveBeenCalled();
+		expect(isWebFetchRejected()).toBe(false);
+		expect(finalized()).toEqual([failedWith('api_error')]);
+	});
+
+	test.each([
+		['not known to fail', false],
+		['known to fail', true]
+	])(
+		'never takes a prompt that is too long for a rejection while web fetch is %s',
+		async (_name, known) => {
+			if (known) rejectWebFetch();
+			withFetch();
+			script(tooLong(), message([text('Never asked')]));
+			await go();
+			expect(h.callClaude).toHaveBeenCalledTimes(1);
+			expect(sleep).not.toHaveBeenCalled();
+			expect(h.storePromptSnapshot).not.toHaveBeenCalled();
+			expect(h.captureMessage).not.toHaveBeenCalled();
+			expect(isWebFetchRejected()).toBe(known);
+			expect(finalized()).toEqual([failedWith('conversation_too_long')]);
+		}
+	);
+
+	test.each([
+		['a plain error', () => [authFailure(401)], 'api_error'],
+		['another rejection', () => [rejection()], 'api_error'],
+		['a prompt that is too long', () => [tooLong()], 'conversation_too_long'],
+		[
+			'rate limits until the retries run out',
+			() => [transient(), transient(), transient()],
+			'api_error'
+		]
+	])(
+		'stores and rejects nothing when the call without web fetch fails with %s',
+		async (_name, failures, reason) => {
+			withFetch();
+			script(rejection(), ...failures());
+			await go();
+			expect(h.callClaude.mock.calls.length).toBeGreaterThanOrEqual(2);
+			for (const index of h.callClaude.mock.calls.keys()) {
+				if (index > 0) expect(toolsOf(index)).not.toContain('web_fetch');
+			}
+			expect(h.storePromptSnapshot).not.toHaveBeenCalled();
+			expect(h.captureMessage).not.toHaveBeenCalled();
+			expect(isWebFetchRejected()).toBe(false);
+			expect(isWebFetchAccepted()).toBe(false);
+			expect(finalized()).toEqual([failedWith(reason)]);
+		}
+	);
+
+	test('remembers that web fetch works after the first successful call', async () => {
+		withFetch();
+		const seen: Array<Record<string, boolean>> = [];
+		script(message([toolUse('list_meal_types', {}, 'toolu_1')], 'tool_use'), async (options) => {
+			seen.push(verdicts(options));
+			return message([text('Done')]);
+		});
+		await go();
 		expect(isWebFetchAccepted()).toBe(true);
+		expect(seen).toEqual([expected()]);
 	});
 
 	test('fails with api_error when a rejection comes after web fetch worked', async () => {
-		h.ensurePromptSnapshot.mockResolvedValue(fetchSnapshot('snap-f'));
+		withFetch();
 		script(message([toolUse('list_meal_types', {}, 'toolu_1')], 'tool_use'), rejection());
 		await go();
 		expect(finalized()).toEqual([failedWith('api_error')]);
 		expect(isWebFetchRejected()).toBe(false);
+		expect(h.callClaude).toHaveBeenCalledTimes(2);
 		expect(h.ensurePromptSnapshot).toHaveBeenCalledTimes(1);
+		expect(h.storePromptSnapshot).not.toHaveBeenCalled();
 	});
 
-	test('does not drop web fetch after output streamed', async () => {
-		h.ensurePromptSnapshot.mockResolvedValue(fetchSnapshot('snap-f'));
+	test.each([
+		['text', (options: CallOptions) => options.stream.onText('Half an answer')],
+		['a web search block', (options: CallOptions) => options.stream.onBlock(serverSearch('srv_1'))]
+	])('does not drop web fetch after %s streamed', async (_name, stream) => {
+		withFetch();
 		script(async (options) => {
-			options.stream.onText('Half an answer');
+			stream(options);
 			throw rejection();
 		});
 		await go();
 		expect(finalized()).toEqual([failedWith('api_error')]);
+		expect(h.callClaude).toHaveBeenCalledTimes(1);
 		expect(isWebFetchRejected()).toBe(false);
 		expect(h.captureMessage).not.toHaveBeenCalled();
 		expect(h.ensurePromptSnapshot).toHaveBeenCalledTimes(1);
+		expect(h.storePromptSnapshot).not.toHaveBeenCalled();
 	});
 
 	test('treats a rejection as a plain error for a prompt without web fetch', async () => {
-		script(rejection());
+		const seen: Array<Record<string, boolean>> = [];
+		script(async (options) => {
+			seen.push(verdicts(options));
+			throw rejection();
+		});
 		await go();
-		expect(h.callClaude.mock.calls[0]![0].expectedRejection).toBeUndefined();
+		expect(seen).toEqual([expected()]);
+		expect(h.callClaude).toHaveBeenCalledTimes(1);
+		expect(h.storePromptSnapshot).not.toHaveBeenCalled();
 		expect(finalized()).toEqual([failedWith('api_error')]);
 		expect(isWebFetchRejected()).toBe(false);
 		expect(isWebFetchAccepted()).toBe(false);
+	});
+
+	describe('which 400s the call expects', () => {
+		const record =
+			(seen: Array<Record<string, boolean>>, outcome: Step): Step =>
+			async (options) => {
+				seen.push(verdicts(options));
+				if (outcome instanceof Error) throw outcome;
+				return outcome as Anthropic.Message;
+			};
+
+		test('expects a web fetch rejection and a prompt that is too long, then only the latter', async () => {
+			withFetch();
+			const seen: Array<Record<string, boolean>> = [];
+			script(
+				record(seen, rejection()),
+				record(seen, message([toolUse('list_meal_types', {}, 'toolu_1')], 'tool_use')),
+				record(seen, message([text('Done')]))
+			);
+			await go();
+			expect(seen).toEqual([expected({ fetch: true }), expected(), expected()]);
+		});
+
+		test('also any other 400 once web fetch is known to be dropped', async () => {
+			rejectWebFetch();
+			withFetch();
+			const seen: Array<Record<string, boolean>> = [];
+			script(record(seen, rejection()), record(seen, message([text('Done')])));
+			await go();
+			expect(seen).toEqual([expected({ fetch: true, plain: true }), expected()]);
+		});
 	});
 });
 
@@ -2460,6 +3058,35 @@ describe('the new stop reasons', () => {
 		expect(sleep).not.toHaveBeenCalled();
 		expect(h.captureException).not.toHaveBeenCalled();
 		expect(finalized()).toEqual([failedWith('conversation_too_long')]);
+	});
+
+	test('fails with conversation_too_long when the API says the prompt is too long', async () => {
+		script(tooLong(), message([text('Never asked')]));
+		await go();
+		expect(h.callClaude).toHaveBeenCalledTimes(1);
+		expect(sleep).not.toHaveBeenCalled();
+		expect(h.captureException).not.toHaveBeenCalled();
+		expect(h.appendRaw).not.toHaveBeenCalled();
+		expect(finalized()).toEqual([failedWith('conversation_too_long')]);
+	});
+
+	test.each([
+		['a 400 without a topic', badRequest()],
+		['a 400 about web fetch', badRequest('web_fetch')],
+		[
+			'a too-long topic on another status',
+			new ClaudeApiError({
+				kind: 'invalid_request',
+				status: 422,
+				retryable: false,
+				topic: 'prompt_too_long'
+			})
+		]
+	])('fails with api_error for %s', async (_name, failure) => {
+		script(failure);
+		await go();
+		expect(sleep).not.toHaveBeenCalled();
+		expect(finalized()).toEqual([failedWith('api_error')]);
 	});
 
 	test('walks away silently when the lease is lost while winding down', async () => {

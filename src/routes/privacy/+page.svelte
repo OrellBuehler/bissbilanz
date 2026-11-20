@@ -171,17 +171,19 @@
 		earlier messages of the conversation, your language, time zone and the day you have open, and
 		whatever data from your account the assistant looks up to answer you. Depending on what you ask,
 		that can be any of your data: food entries, foods, recipes, goals, weight, sleep, supplements,
-		day notes, statistics and the details of what it changes for you. To answer, the assistant can
-		also search the web and look products up in Open Food Facts. Anthropic processes this data under
-		its commercial terms and
+		fasts, reminders, meal types, app settings, day notes, statistics and the details of what it
+		changes for you. To answer, the assistant can also search the web, look products up in Open Food
+		Facts and look foods up in USDA FoodData Central. Anthropic processes this data under its
+		commercial terms and
 		<a href="https://www.anthropic.com/legal/privacy" class="underline">privacy policy</a>. The
 		assistant only acts on your account. These changes wait for your confirmation: deleting, merging
 		foods, copying a day, removing a supplement log, changing the nutrition, serving size or photo
-		of a food that has diary entries, changing a recipe's ingredients or steps (or the servings or
-		cooked weight of a recipe that has diary entries), changing a supplement's ingredients, anything
-		the assistant wants to force, and every change after the first ten in one answer. Photos you
-		attach are copied into the chat, and the conversations and their photos stay stored until you
-		delete them.
+		of a food that is logged (directly or as an ingredient of a logged recipe), replacing or
+		removing the photo of any food or recipe, changing a recipe's ingredients or steps (or the
+		servings or cooked weight of a recipe that has diary entries), changing a supplement's
+		ingredients, replacing the time windows for favourites, anything the assistant wants to force,
+		and every change after the first ten in one answer. Photos you attach are copied into the chat,
+		and the conversations and their photos stay stored until you delete them.
 	</p>
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">AI meal estimation (iOS)</h2>

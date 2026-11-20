@@ -7,8 +7,11 @@ export type ChangeLookup = {
 };
 
 export type ConfirmLookup = {
-	foodHasEntries: (id: unknown) => Promise<boolean>;
+	// Diary entries count it: logged directly, as a supplement log, or as an
+	// ingredient of a logged recipe (recipe entries derive their macros live).
+	foodInUse: (id: unknown) => Promise<boolean>;
 	recipeHasEntries: (id: unknown) => Promise<boolean>;
+	photoOf: (table: 'foods' | 'recipes', id: unknown) => Promise<string | null>;
 };
 
 export type ChangeContext = {
@@ -70,6 +73,16 @@ export const FOOD_NUTRITION_FIELDS = [
 	...ALL_NUTRIENTS.map((nutrient) => nutrient.key)
 ] as const;
 
+// Replacing or clearing a photo deletes the current file.
+const removesPhoto = async (
+	input: Record<string, unknown>,
+	current: () => Promise<string | null>
+) => {
+	if (input.imageUrl === undefined) return false;
+	const photo = await current();
+	return photo !== null && photo !== input.imageUrl;
+};
+
 const createsFoods = (input: Record<string, unknown>) =>
 	Array.isArray(input.ingredients) &&
 	input.ingredients.some(
@@ -98,8 +111,9 @@ export const CHAT_TOOL_POLICY: Record<string, ChatToolPolicy> = {
 	search_foods: READ,
 	create_food: write(({ result }) => [change('foods', { ids: [str(result?.foodId)] })]),
 	update_food: write(({ input }) => [change('foods', { ids: [str(input.foodId)] })], {
-		confirmWhen: (input, lookup) =>
-			has(input, FOOD_NUTRITION_FIELDS) && lookup.foodHasEntries(input.foodId)
+		confirmWhen: async (input, lookup) =>
+			(has(input, FOOD_NUTRITION_FIELDS) && (await lookup.foodInUse(input.foodId))) ||
+			(await removesPhoto(input, () => lookup.photoOf('foods', input.foodId)))
 	}),
 	delete_food: confirm(({ input, result }) =>
 		blocked(result)
@@ -125,7 +139,8 @@ export const CHAT_TOOL_POLICY: Record<string, ChatToolPolicy> = {
 		confirmWhen: async (input, lookup) =>
 			has(input, ['ingredients', 'includeRecipes', 'steps']) ||
 			(has(input, ['totalServings', 'cookedWeight']) &&
-				(await lookup.recipeHasEntries(input.recipeId)))
+				(await lookup.recipeHasEntries(input.recipeId))) ||
+			(await removesPhoto(input, () => lookup.photoOf('recipes', input.recipeId)))
 	}),
 	delete_recipe: confirm(({ input, result }) =>
 		blocked(result)

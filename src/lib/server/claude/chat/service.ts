@@ -10,6 +10,7 @@ import {
 	UPLOAD_FILENAME_PATTERN,
 	writeUploadFile
 } from '../../images';
+import { uploadQuotaBytes, usedUploadBytes } from '../../food-bulk';
 import type { TxOrDb } from '../../ownership';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -78,6 +79,7 @@ const STATUS: Record<ChatErrorCode, number> = {
 	chat_unavailable: 403,
 	budget_exhausted: 403,
 	invalid_image: 400,
+	upload_quota_exceeded: 409,
 	run_not_found: 404,
 	run_not_active: 409,
 	action_not_found: 404,
@@ -95,6 +97,7 @@ const MESSAGES: Record<ChatErrorCode, string> = {
 	chat_unavailable: 'The assistant is not available for this account right now',
 	budget_exhausted: "The assistant's budget is used up for this month",
 	invalid_image: 'An image is not one of your uploads',
+	upload_quota_exceeded: 'Your photo storage is full',
 	run_not_found: 'Run not found',
 	run_not_active: 'The run has already finished',
 	action_not_found: 'Action not found',
@@ -332,6 +335,10 @@ export async function postMessage(
 		locale: input.context?.locale ?? owner?.locale ?? 'en'
 	};
 
+	const copyBytes = images.reduce((sum, image) => sum + image.bytes.byteLength, 0);
+	if (copyBytes > 0 && (await usedUploadBytes(userId)) + copyBytes > uploadQuotaBytes()) {
+		throw new ChatRequestError('upload_quota_exceeded');
+	}
 	const copies: string[] = [];
 	const imageBytes = images.reduce((sum, image) => sum + base64Length(image.bytes.byteLength), 0);
 

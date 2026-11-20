@@ -64,12 +64,16 @@
 	chatten, ohne etwas zu verbinden. Frag nach deinem Fortschritt, lass dir Mahlzeiten vorschlagen,
 	die zu deinen Zielen passen, oder erzähl, was du gegessen hast: Er schaut deine Daten nach,
 	erfasst, erstellt oder korrigiert Einträge, Lebensmittel, Rezepte, Ziele, Gewicht, Schlaf und
-	Supplemente für dich und sagt, was er geändert hat. Erst nach deiner Bestätigung im Chat
-	passieren: Löschen, Lebensmittel zusammenführen, einen Tag kopieren, ein Supplement zurücksetzen,
-	Nährwerte, Portionsgrösse oder Foto eines Lebensmittels ändern, das du schon erfasst hast, die
+	Supplemente für dich, ebenso abgeschlossene Fastenzeiten, Erinnerungen, deine eigenen
+	Mahlzeitentypen und Anzeige-Einstellungen wie die Dashboard-Widgets oder das Wasserziel, und sagt,
+	was er geändert hat. Eine laufende Fastenzeit sieht und beendet er nicht, und Sprache, Zeitzone
+	und Kontoeinstellungen bleiben bei dir. Erst nach deiner Bestätigung im Chat passieren: Löschen,
+	Lebensmittel zusammenführen, einen Tag kopieren, ein Supplement zurücksetzen, Nährwerte,
+	Portionsgrösse oder Foto eines Lebensmittels ändern, das du schon erfasst hast (direkt oder in
+	einem erfassten Rezept), das Foto eines Lebensmittels oder Rezepts ersetzen oder entfernen, die
 	Zutaten oder Schritte eines Rezepts ändern (oder Portionen und gekochtes Gewicht eines Rezepts,
-	das du schon erfasst hast), die Zutaten eines Supplements ändern, alles Erzwungene und jede
-	Änderung nach den ersten zehn in einer Antwort.
+	das du schon erfasst hast), die Zutaten eines Supplements ändern, die Zeitfenster für Favoriten
+	ersetzen, alles Erzwungene und jede Änderung nach den ersten zehn in einer Antwort.
 </p>
 <p class="mb-6">
 	Deine Nachrichten, angehängte Fotos, das bisherige Gespräch und alle Tagebuchdaten, die der

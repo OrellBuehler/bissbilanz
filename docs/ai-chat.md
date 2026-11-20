@@ -99,7 +99,10 @@ POST /api/chat/conversations/83e75848-4125-4fab-b1d5-671e38b93bba/messages
   user's own upload, is missing on the server or is over 4 MB answers `400 invalid_image`. The
   server copies each photo into the chat: the `image` parts of the user message point to the copy
   (`/uploads/<new uuid>.webp`), so replacing or deleting the original elsewhere never changes the
-  conversation. A conversation holds at most 20 photos (12 MB of photo data).
+  conversation, and a food or recipe photo replaced later never deletes a copy a message still
+  shows. The copies count against the user's upload storage quota (`UPLOAD_QUOTA_BYTES`, 5 GB by
+  default): a message whose copies would exceed it answers `409 upload_quota_exceeded`. A
+  conversation holds at most 20 photos (12 MB of photo data).
 - `context` (optional, recommended): `date` = the diary day the user has open (YYYY-MM-DD);
   `timezone` = the device's IANA zone (only informs the assistant; the diary keeps using the
   user's time-zone preference); `locale` = the app language (BCP 47). The assistant answers in
@@ -126,6 +129,7 @@ Errors (`ChatErrorResponse { error, code?, … }`):
 | 409    | `run_active`             | A run is still `queued`/`running`: wait for `run_finished` or cancel it                                   |
 | 409    | `conversation_too_long`  | 40 user messages, ~1 MB of transcript, 20 photos or 12 MB of photo data reached: offer "Start a new chat" |
 | 409    | `message_id_conflict`    | The id is used by another conversation or user: generate a new id                                         |
+| 409    | `upload_quota_exceeded`  | The photo copies would exceed the user's upload storage: send without photos or free space                |
 | 429    | `daily_limit_reached`    | 60 messages in 24 hours (deleting conversations does not reset it); `Retry-After` header (seconds)        |
 | 429    | (none)                   | Shared write rate limit (120 writes/min); `Retry-After`                                                   |
 
@@ -223,7 +227,7 @@ result." A confirmation the user rejected is an `action` part with status `rejec
 `tool` part. `label` is already in the user's language
 (e.g. "Logging food" / "Trage Essen ein"). Web searches and page fetches the assistant does
 appear as tool parts named `web_search` / `web_fetch` ("Searching the web"); they change nothing.
-A tool part can still be `running` in a final message when the run stopped during that call.
+A tool part is never `running` in a final message: a call the run stopped during ends as `error`.
 
 ## 7. Confirmations
 
@@ -232,7 +236,10 @@ These calls never run without the user's approval:
 - deleting an entry, food, recipe, supplement, weight or sleep entry, a day's details (water,
   activity, fasting flag, notes), a recorded fast, a reminder or a custom meal type; merging foods;
   copying a day of entries; removing a supplement log;
-- changing the serving size, nutrition values or photo of a food that has diary entries;
+- changing the serving size, nutrition values or photo of a food that is in use: logged directly
+  or as a supplement, or an ingredient of a recipe that has diary entries (recipe entries compute
+  their macros from their ingredients, so such a change rewrites past days);
+- replacing or removing the photo of any food or recipe (the current photo file is deleted);
 - changing a recipe's ingredients or steps, or the servings or cooked weight of a recipe that has
   diary entries; changing a supplement's ingredients; replacing the favourite meal time windows;
 - any call with a `force` flag;
@@ -252,7 +259,18 @@ labels, fasts, reminders, custom meal types, other preferences) runs at once and
    defaults are resolved when the card is built (copying "to today" names the day; approving after
    midnight still acts on that day), every field the call sets is listed (e.g.
    `calories: 60 → 75`, or the overrides of a merge), and fields the card cannot show are rejected
-   before any card is created.
+   before any card is created. Nothing is shortened: a replaced list (a recipe's ingredients or
+   steps, a supplement's ingredients, the favourite time windows) gets a heading line ("the current
+   12 are replaced by these 10") and one line per new item, and replaced time windows are listed
+   too; deleting steps, and the step photos and food or recipe photos that go with a change, are
+   stated as deletions.
+
+   Layout limits: `summary` is one line (it names the record, so it can be as long as a food name);
+   `details` holds at most **200 lines**, and a line is never cut, so it can be long (a step text
+   up to 2,000 characters, a food's ingredients text up to 10,000). Let the card scroll and wrap
+   lines. A call that needs more than 200 lines never reaches the user: the model is told to split
+   it into smaller calls.
+
 3. `POST /api/chat/actions/{actionId}` with `{ "decision": "approve" }` or `"reject"` →
    `200 { action, run }` (`run.status` is `queued`). The run resumes at once. The card is written in
    the same transaction that pauses the run, so an approval right after `action_required` always
@@ -296,9 +314,15 @@ changes, createdAt, startedAt, finishedAt }`
 
 Unknown reason → generic message for the status. After a failure the user can simply send
 another message. Partial text and the tool calls that already ran are kept in the message.
-Overload, rate-limit, server and connection errors (and a stalled stream: 90 s without data or 10
-minutes in total) are retried up to twice by the server, but only while nothing of that answer has
-streamed; `api_error` means the retries did not help or text had already arrived.
+Rate-limit, overload and server errors, and a connection that failed before any data came back,
+are retried up to twice by the server (after 1 and 4 seconds), each try with its own budget
+reservation. The first three are answered by the API and cost nothing. A failed connection is
+settled at its full reservation, because the server cannot know whether it was billed, so in the
+worst case one model call reserves three times its maximum cost. A stalled stream (90 s without
+data, or 10 minutes in total) or a stream that breaks after data arrived is not retried, because
+that call may already be billed. `api_error` means the retries did not help, or the failure was
+one of these. A request the API finds too long for the model's context window ends `failed` /
+`conversation_too_long`.
 `interrupted` / `server_restart` also covers a run that stopped without a known cause (e.g. its
 access was revoked and restored while it stopped). A run left by a restart is settled within about
 1.5 minutes (the heartbeat goes stale after 60 s, the sweep runs every 30 s) or when the
@@ -414,6 +438,8 @@ touched, without scope, so `run_finished` always covers everything that may have
 | Messages per user             | 60 per rolling 24 h, deleted conversations included         | 429 `daily_limit_reached`              |
 | Conversation length           | 40 user messages, ~1 MB transcript, 20 photos, 12 MB photos | 409 `conversation_too_long`            |
 | Context window of the model   | full                                                        | run `failed` / `conversation_too_long` |
+| Photo copies                  | count against the upload storage quota (5 GB)               | 409 `upload_quota_exceeded`            |
+| Confirmation card             | 200 detail lines, nothing shortened                         | the model splits the call              |
 | Active runs                   | 1 per conversation                                          | 409 `run_active`                       |
 | Model calls per run           | `CLAUDE_MAX_ITERATIONS` (default 20)                        | run `completed` / `iteration_limit`    |
 | Writes without confirmation   | 10 per run, then every write asks                           | confirmation card                      |

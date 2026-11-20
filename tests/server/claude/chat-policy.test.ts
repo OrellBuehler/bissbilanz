@@ -254,12 +254,17 @@ describe('chat tool policy', () => {
 });
 
 describe('confirmations', () => {
-	const lookup = (entries: boolean) => ({
-		foodHasEntries: async () => entries,
-		recipeHasEntries: async () => entries
+	const lookup = (entries: boolean, photo: string | null = null) => ({
+		foodInUse: async () => entries,
+		recipeHasEntries: async () => entries,
+		photoOf: async () => photo
 	});
-	const confirms = (name: string, input: Record<string, unknown>, entries = true) =>
-		needsConfirmation(chatToolPolicy(name)!, input, lookup(entries));
+	const confirms = (
+		name: string,
+		input: Record<string, unknown>,
+		entries = true,
+		photo: string | null = null
+	) => needsConfirmation(chatToolPolicy(name)!, input, lookup(entries, photo));
 
 	test('every field of a confirmable tool is shown on its card or rejected', () => {
 		for (const tool of tools) {
@@ -308,6 +313,46 @@ describe('confirmations', () => {
 		expect(await confirms('update_meal_type', { mealTypeId: 'm', name: 'Gym' })).toBe(false);
 		expect(await confirms('log_fast', { targetHours: 16 })).toBe(false);
 		expect(await needsConfirmation({ kind: 'read' }, { force: true }, lookup(true))).toBe(false);
+	});
+
+	test('asks before a photo of any food or recipe is replaced or removed', async () => {
+		const current = '/uploads/a.webp';
+		for (const [name, key] of [
+			['update_food', 'foodId'],
+			['update_recipe', 'recipeId']
+		] as const) {
+			const input = (imageUrl: string | null) => ({ [key]: 'x', imageUrl });
+			expect(await confirms(name, input('/uploads/b.webp'), false, current), name).toBe(true);
+			expect(await confirms(name, input(null), false, current), name).toBe(true);
+			expect(await confirms(name, input(current), false, current), name).toBe(false);
+			expect(await confirms(name, input('/uploads/b.webp'), false, null), name).toBe(false);
+			expect(await confirms(name, { [key]: 'x', name: 'y' }, false, current), name).toBe(false);
+		}
+	});
+
+	test('asks which record a lookup is about', async () => {
+		const seen: unknown[] = [];
+		const recording = {
+			foodInUse: async (id: unknown) => (seen.push(['food', id]), false),
+			recipeHasEntries: async (id: unknown) => (seen.push(['recipe', id]), false),
+			photoOf: async (table: 'foods' | 'recipes', id: unknown) => (seen.push([table, id]), null)
+		};
+		await needsConfirmation(
+			chatToolPolicy('update_food')!,
+			{ foodId: 'f', calories: 1, imageUrl: null },
+			recording
+		);
+		await needsConfirmation(
+			chatToolPolicy('update_recipe')!,
+			{ recipeId: 'r', totalServings: 2, imageUrl: null },
+			recording
+		);
+		expect(seen).toEqual([
+			['food', 'f'],
+			['foods', 'f'],
+			['recipe', 'r'],
+			['recipes', 'r']
+		]);
 	});
 
 	test('reports the domains a write of unknown outcome may have touched, unscoped', async () => {

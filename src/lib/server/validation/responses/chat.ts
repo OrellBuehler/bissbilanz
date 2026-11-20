@@ -44,7 +44,10 @@ const chatActionPreviewSchema = z
 			description:
 				'One line in the user’s language, e.g. "Delete “Greek yogurt” from Breakfast on 18 Nov 2026".'
 		}),
-		details: z.array(z.string()).meta({ description: 'Extra lines, possibly empty.' })
+		details: z.array(z.string()).meta({
+			description:
+				'Extra lines, possibly empty: every field the call sets, replaced lists item by item, nothing shortened. At most 200 lines; a line can be long (up to about 10,000 characters), so let the card scroll and wrap.'
+		})
 	})
 	.meta({ id: 'ChatActionPreview' });
 

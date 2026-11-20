@@ -58,12 +58,16 @@
 	If Claude is enabled for your account, you can also chat with the assistant directly in
 	Bissbilanz, without connecting anything. Ask about your progress, get meal ideas that fit your
 	goals, or tell it what you ate; it looks up your data and logs, creates or corrects entries,
-	foods, recipes, goals, weight, sleep and supplements for you, and says what it changed. These only
-	happen after you confirm them in the chat: deleting, merging foods, copying a day, removing a
-	supplement log, changing the nutrition, serving size or photo of a food you already logged,
-	changing a recipe's ingredients or steps (or the servings or cooked weight of a recipe you already
-	logged), changing a supplement's ingredients, anything forced, and every change after the first
-	ten in one answer.
+	foods, recipes, goals, weight, sleep and supplements for you, as well as finished fasts, logging
+	reminders, your own meal types and display settings such as the dashboard widgets or the water
+	goal, and says what it changed. It cannot see or stop a fast that is still running, and the app
+	language, time zone and account settings stay with you. These only happen after you confirm them
+	in the chat: deleting, merging foods, copying a day, removing a supplement log, changing the
+	nutrition, serving size or photo of a food you already logged (directly or in a logged recipe),
+	replacing or removing the photo of any food or recipe, changing a recipe's ingredients or steps
+	(or the servings or cooked weight of a recipe you already logged), changing a supplement's
+	ingredients, replacing the time windows for favourites, anything forced, and every change after
+	the first ten in one answer.
 </p>
 <p class="mb-6">
 	Your messages, the photos you attach, the earlier conversation and whatever diary data the
