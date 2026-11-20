@@ -3,15 +3,28 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import { getDB } from '../../db';
 import {
+	customMealTypes,
+	fastingSessions,
+	favoriteMealTimeframes,
 	foodEntries,
 	foods,
 	recipes,
+	reminders,
 	sleepEntries,
 	supplements,
+	userPreferences,
 	weightEntries
 } from '../../schema';
 import type { ChatActionPreview } from './events';
-import { formatDate, formatNumber, message, toolLabel, type ChatLocale } from './labels';
+import {
+	formatDate,
+	formatDateTime,
+	formatNumber,
+	formatWeekday,
+	message,
+	toolLabel,
+	type ChatLocale
+} from './labels';
 
 // input is exactly what runs on approval: defaults the tool would resolve
 // later (such as "today") are made explicit, so the card and the call agree.
@@ -38,7 +51,10 @@ export const PREVIEW_SCHEMAS = {
 	unlog_supplement: z.strictObject({ supplementId: uuid, date: day.optional() }),
 	delete_weight: z.strictObject({ weightId: uuid }),
 	delete_sleep: z.strictObject({ id: uuid }),
-	delete_day_properties: z.strictObject({ date: day })
+	delete_day_properties: z.strictObject({ date: day }),
+	delete_fast: z.strictObject({ fastId: uuid }),
+	delete_reminder: z.strictObject({ reminderId: uuid }),
+	delete_meal_type: z.strictObject({ mealTypeId: uuid })
 };
 
 export type PreviewContext = {
@@ -440,6 +456,213 @@ const deleteDayProperties: Builder = async (input, { locale }) => {
 	};
 };
 
+const deleteFast: Builder = async (input, { userId, locale }) => {
+	const parsed = parse(PREVIEW_SCHEMAS.delete_fast, input);
+	if ('error' in parsed) return parsed;
+	const [row] = await getDB()
+		.select({
+			startedAt: fastingSessions.startedAt,
+			endedAt: fastingSessions.endedAt,
+			targetHours: fastingSessions.targetHours,
+			timeZone: userPreferences.timeZone
+		})
+		.from(fastingSessions)
+		.leftJoin(userPreferences, eq(userPreferences.userId, fastingSessions.userId))
+		.where(and(eq(fastingSessions.id, parsed.data.fastId), eq(fastingSessions.userId, userId)));
+	if (!row) return notFound('Fast');
+	const minutes = Math.round((row.endedAt.getTime() - row.startedAt.getTime()) / 60_000);
+	return {
+		input: parsed.data,
+		preview: {
+			summary: message(
+				'chat_action_delete_fast',
+				{ start: formatDateTime(row.startedAt, locale, row.timeZone ?? 'UTC') },
+				locale
+			),
+			details: [
+				message(
+					'chat_action_fast_detail',
+					{ hours: Math.floor(minutes / 60), minutes: minutes % 60, target: row.targetHours },
+					locale
+				)
+			]
+		}
+	};
+};
+
+const deleteReminder: Builder = async (input, { userId, locale }) => {
+	const parsed = parse(PREVIEW_SCHEMAS.delete_reminder, input);
+	if ('error' in parsed) return parsed;
+	const [row] = await getDB()
+		.select({
+			kind: reminders.kind,
+			mealType: reminders.mealType,
+			time: reminders.time,
+			weekdays: reminders.weekdays
+		})
+		.from(reminders)
+		.where(and(eq(reminders.id, parsed.data.reminderId), eq(reminders.userId, userId)));
+	if (!row) return notFound('Reminder');
+	const days = [...new Set(row.weekdays)].sort((a, b) => a - b);
+	return {
+		input: parsed.data,
+		preview: {
+			summary: message(
+				`chat_action_delete_${row.kind}_reminder`,
+				{ time: row.time, meal: row.mealType ?? '' },
+				locale
+			),
+			details: [
+				days.length === 7
+					? message('chat_action_reminder_every_day', {}, locale)
+					: days.map((day) => formatWeekday(day, locale)).join(', ')
+			]
+		}
+	};
+};
+
+const deleteMealType: Builder = async (input, { userId, locale }) => {
+	const parsed = parse(PREVIEW_SCHEMAS.delete_meal_type, input);
+	if ('error' in parsed) return parsed;
+	const db = getDB();
+	const [mealType] = await db
+		.select({ name: customMealTypes.name })
+		.from(customMealTypes)
+		.where(and(eq(customMealTypes.id, parsed.data.mealTypeId), eq(customMealTypes.userId, userId)));
+	if (!mealType) return notFound('Meal type');
+	const [[windows], [entries], [mealReminders]] = await Promise.all([
+		db
+			.select({ count: count() })
+			.from(favoriteMealTimeframes)
+			.where(
+				and(
+					eq(favoriteMealTimeframes.userId, userId),
+					eq(favoriteMealTimeframes.customMealTypeId, parsed.data.mealTypeId)
+				)
+			),
+		db
+			.select({ count: count() })
+			.from(foodEntries)
+			.where(and(eq(foodEntries.userId, userId), eq(foodEntries.mealType, mealType.name))),
+		db
+			.select({ count: count() })
+			.from(reminders)
+			.where(
+				and(
+					eq(reminders.userId, userId),
+					eq(reminders.kind, 'meal'),
+					eq(reminders.mealType, mealType.name)
+				)
+			)
+	]);
+	if (Number(windows?.count ?? 0) > 0) {
+		return {
+			error:
+				'Meal type is used in favorites meal timeframes and cannot be deleted. Change favoriteMealTimeframes with update_preferences first.'
+		};
+	}
+	const entryCount = Number(entries?.count ?? 0);
+	const reminderCount = Number(mealReminders?.count ?? 0);
+	return {
+		input: parsed.data,
+		preview: {
+			summary: message('chat_action_delete_meal_type', { name: mealType.name }, locale),
+			details: [
+				...(entryCount > 0
+					? [
+							message(
+								'chat_action_meal_type_entries',
+								{ count: entryCount, name: mealType.name },
+								locale
+							)
+						]
+					: []),
+				...(reminderCount > 0
+					? [
+							message(
+								'chat_action_meal_type_reminders',
+								{ count: reminderCount, name: mealType.name },
+								locale
+							)
+						]
+					: [])
+			]
+		}
+	};
+};
+
+const hhmm = (minute: number) =>
+	`${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+
+const describeWindows = (windows: unknown, locale: ChatLocale): string => {
+	if (!Array.isArray(windows)) return describeValue(windows, new Map(), locale);
+	if (windows.length === 0) return '—';
+	return clip(
+		windows
+			.map((window) => {
+				const { mealType, startTime, endTime } = (window ?? {}) as Record<string, unknown>;
+				return typeof mealType === 'string' &&
+					typeof startTime === 'string' &&
+					typeof endTime === 'string'
+					? `${mealType} ${startTime}–${endTime}`
+					: describeValue(window, new Map(), locale);
+			})
+			.join(', ')
+	);
+};
+
+/** Every preference the call sets, and the favourite windows it replaces. */
+const updatePreferences: Builder = async (input, { userId, locale }) => {
+	const db = getDB();
+	const [[current], windows] = await Promise.all([
+		db.select().from(userPreferences).where(eq(userPreferences.userId, userId)),
+		db
+			.select({
+				mealType: favoriteMealTimeframes.mealType,
+				startMinute: favoriteMealTimeframes.startMinute,
+				endMinute: favoriteMealTimeframes.endMinute
+			})
+			.from(favoriteMealTimeframes)
+			.where(eq(favoriteMealTimeframes.userId, userId))
+			.orderBy(asc(favoriteMealTimeframes.startMinute))
+	]);
+	const { favoriteMealTimeframes: replacement, ...rest } = input;
+	const lines = fieldLines(
+		rest,
+		[],
+		(current as Record<string, unknown> | undefined) ?? null,
+		new Map(),
+		locale
+	);
+	if (replacement !== undefined) {
+		lines.push(
+			message(
+				'chat_action_field_changed',
+				{
+					field: 'favoriteMealTimeframes',
+					from: describeWindows(
+						windows.map((window) => ({
+							mealType: window.mealType,
+							startTime: hhmm(window.startMinute),
+							endTime: hhmm(window.endMinute)
+						})),
+						locale
+					),
+					to: describeWindows(replacement, locale)
+				},
+				locale
+			)
+		);
+	}
+	return {
+		input,
+		preview: {
+			summary: message('chat_action_update_preferences', {}, locale),
+			details: limitDetails(lines)
+		}
+	};
+};
+
 const recordUpdate =
 	(
 		key: string,
@@ -500,7 +723,10 @@ export const PREVIEW_BUILDERS: Record<string, Builder> = {
 	unlog_supplement: unlogSupplement,
 	delete_weight: deleteWeight,
 	delete_sleep: deleteSleep,
-	delete_day_properties: deleteDayProperties
+	delete_day_properties: deleteDayProperties,
+	delete_fast: deleteFast,
+	delete_reminder: deleteReminder,
+	delete_meal_type: deleteMealType
 };
 
 // Builders that list every field the call sets.
@@ -512,7 +738,8 @@ export const FIELD_PREVIEW_BUILDERS: Record<string, Builder> = {
 		'chat_action_update_supplement',
 		'Supplement',
 		loadRow(supplements)
-	)
+	),
+	update_preferences: updatePreferences
 };
 
 /**

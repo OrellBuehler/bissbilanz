@@ -173,6 +173,8 @@ const resources: Resource[] = [
 				emptyLike: true
 			},
 			{ name: 'list_favorites', tool: 'list_favorites', args: () => ({}), emptyLike: true },
+			{ name: 'list_food_brands', tool: 'list_food_brands', args: () => ({}), emptyLike: true },
+			{ name: 'get_food_usage', tool: 'get_food_usage', args: (w) => ({ foodId: w.a.food }) },
 			{
 				name: 'list_unlabeled_foods',
 				tool: 'list_unlabeled_foods',
@@ -257,6 +259,11 @@ const resources: Resource[] = [
 		seed: seeders.recipes,
 		probes: [
 			{ name: 'get_recipe', tool: 'get_recipe', args: (w) => ({ recipeId: w.a.recipe }) },
+			{
+				name: 'get_recipe_usage',
+				tool: 'get_recipe_usage',
+				args: (w) => ({ recipeId: w.a.recipe })
+			},
 			{ name: 'list_recipes', tool: 'list_recipes', args: () => ({}), emptyLike: true },
 			{
 				name: 'update_recipe name',
@@ -624,7 +631,104 @@ const resources: Resource[] = [
 		name: 'meal types',
 		seed: seeders.mealTypes,
 		probes: [
-			{ name: 'list_meal_types', tool: 'list_meal_types', args: () => ({}), emptyLike: true }
+			{ name: 'list_meal_types', tool: 'list_meal_types', args: () => ({}), emptyLike: true },
+			{
+				name: 'update_meal_type rename',
+				tool: 'update_meal_type',
+				args: (w) => ({ mealTypeId: w.a.mealType, name: 'isoB-hijacked' })
+			},
+			{
+				name: 'delete_meal_type',
+				tool: 'delete_meal_type',
+				args: (w) => ({ mealTypeId: w.a.mealType }),
+				control: null
+			},
+			{
+				name: 'create_meal_type with another user’s meal name',
+				tool: 'create_meal_type',
+				args: () => ({ name: 'isoA-Meal' }),
+				outcome: 'either',
+				control: null,
+				check: (result) => expect(rejected(result)).toBe(false)
+			},
+			{
+				name: 'update_preferences time window with another user’s meal type',
+				tool: 'update_preferences',
+				args: (w) => ({
+					favoriteMealTimeframes: [
+						{
+							mealType: 'isoA-Meal',
+							customMealTypeId: w.a.mealType,
+							startTime: '07:00',
+							endTime: '09:00'
+						}
+					]
+				})
+			}
+		]
+	},
+	{
+		name: 'fasts',
+		seed: seeders.fasts,
+		probes: [
+			{ name: 'list_fasts', tool: 'list_fasts', args: () => ({}), emptyLike: true },
+			{
+				name: 'update_fast',
+				tool: 'update_fast',
+				args: (w) => ({ fastId: w.a.fast, targetHours: 20 })
+			},
+			{ name: 'delete_fast', tool: 'delete_fast', args: (w) => ({ fastId: w.a.fast }) },
+			{
+				name: 'log_fast writes only the caller’s own fast',
+				tool: 'log_fast',
+				args: () => ({
+					startedAt: '2026-03-09T20:00:00Z',
+					endedAt: '2026-03-10T12:00:00Z',
+					targetHours: 16
+				}),
+				outcome: 'either',
+				control: null,
+				check: (result) => expect(rejected(result)).toBe(false)
+			}
+		]
+	},
+	{
+		name: 'reminders',
+		seed: seeders.reminders,
+		probes: [
+			{ name: 'list_reminders', tool: 'list_reminders', args: () => ({}), emptyLike: true },
+			{
+				name: 'update_reminder',
+				tool: 'update_reminder',
+				args: (w) => ({ reminderId: w.a.reminder, time: '05:00', enabled: false })
+			},
+			{
+				name: 'delete_reminder',
+				tool: 'delete_reminder',
+				args: (w) => ({ reminderId: w.a.reminder })
+			},
+			{
+				name: 'create_reminder writes only the caller’s own reminder',
+				tool: 'create_reminder',
+				args: () => ({ kind: 'weight', time: '07:30', weekdays: [1, 3] }),
+				outcome: 'either',
+				control: null,
+				check: (result) => expect(rejected(result)).toBe(false)
+			}
+		]
+	},
+	{
+		name: 'preferences',
+		seed: seeders.preferences,
+		probes: [
+			{ name: 'get_preferences', tool: 'get_preferences', args: () => ({}), emptyLike: true },
+			{
+				name: 'update_preferences writes only the caller’s own preferences',
+				tool: 'update_preferences',
+				args: () => ({ showChartWidget: true, waterGoalMl: 3000, mealOrder: ['Dinner'] }),
+				outcome: 'either',
+				check: (result) => expect(rejected(result)).toBe(false)
+			}
 		]
 	},
 	{
@@ -769,7 +873,9 @@ describe('every MCP tool that takes an id or reads user data is covered', () => 
 	it('lists the tools exercised by the table', async () => {
 		const { toolNames } = await import('$lib/server/mcp/tools');
 		const covered = new Set(resources.flatMap((r) => r.probes.map((p) => p.tool)));
-		const userScoped = toolNames.filter((name) => name !== 'search_openfoodfacts');
+		const userScoped = toolNames.filter(
+			(name) => name !== 'search_openfoodfacts' && name !== 'search_nutrient_database'
+		);
 		const missing = userScoped.filter((name) => !covered.has(name));
 		expect(missing).toEqual([]);
 	});

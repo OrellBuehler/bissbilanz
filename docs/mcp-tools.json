@@ -376,6 +376,38 @@
 				"responses": { "200": { "description": "structuredContent" } }
 			}
 		},
+		"/tools/create_meal_type": {
+			"post": {
+				"operationId": "create_meal_type",
+				"description": "Create a custom meal type (e.g. \"Pre-workout\") next to Breakfast, Lunch, Dinner and Snacks, for entries, meal reminders and favourite time windows. Names are unique ignoring case, and a default meal name is refused. It goes to the end of the meal order; move it with update_preferences (mealOrder).",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 50,
+										"description": "Meal type name, up to 50 characters"
+									},
+									"sortOrder": {
+										"description": "Position among the custom meal types (0 or more). Rarely needed: the diary follows the mealOrder preference. Defaults to after the last one.",
+										"type": "integer",
+										"minimum": 0,
+										"maximum": 9007199254740991
+									}
+								},
+								"required": ["name"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
 		"/tools/create_recipe": {
 			"post": {
 				"operationId": "create_recipe",
@@ -476,6 +508,53 @@
 									}
 								},
 								"required": ["name", "totalServings"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/create_reminder": {
+			"post": {
+				"operationId": "create_reminder",
+				"description": "Create a logging reminder. A reminder prompts the user to log their weight, their sleep or a meal (kind \"meal\" with mealType) at a local wall-clock time on the chosen weekdays. The Android and iOS apps schedule it as a local notification with Snooze and Skip-today actions once they have synced it; the web app gets a Web Push notification from the server if the user has turned push notifications on. A reminder stays silent on a day when what it asks for is already logged (any weight entry, any sleep entry, or any entry in that meal), and enabled: false keeps it without notifying. Supplement reminders are separate: they are the reminderTimes of each supplement.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"kind": {
+										"type": "string",
+										"enum": ["weight", "meal", "sleep"],
+										"description": "What to log: \"weight\", \"sleep\" or \"meal\""
+									},
+									"mealType": {
+										"anyOf": [
+											{ "type": "string", "minLength": 1, "maxLength": 50 },
+											{ "type": "null" }
+										],
+										"description": "The meal a \"meal\" reminder is for, e.g. \"Lunch\" or a custom meal type from list_meal_types. Required for kind \"meal\", omitted otherwise."
+									},
+									"time": {
+										"type": "string",
+										"pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+										"description": "Local time it fires, HH:MM (24h), e.g. \"07:30\""
+									},
+									"weekdays": {
+										"description": "Days of the week it fires, 0=Sun..6=Sat. Defaults to every day.",
+										"maxItems": 7,
+										"type": "array",
+										"items": { "type": "integer", "minimum": 0, "maximum": 6 }
+									},
+									"enabled": {
+										"description": "Whether it notifies. Defaults to true.",
+										"type": "boolean"
+									}
+								},
+								"required": ["kind", "time"]
 							}
 						}
 					}
@@ -929,6 +1008,32 @@
 				}
 			}
 		},
+		"/tools/delete_fast": {
+			"post": {
+				"operationId": "delete_fast",
+				"description": "Delete a recorded fast.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"fastId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "ID of the fast to delete"
+									}
+								},
+								"required": ["fastId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
 		"/tools/delete_food": {
 			"post": {
 				"operationId": "delete_food",
@@ -954,6 +1059,32 @@
 				"responses": { "200": { "description": "structuredContent" } }
 			}
 		},
+		"/tools/delete_meal_type": {
+			"post": {
+				"operationId": "delete_meal_type",
+				"description": "Delete a custom meal type. Diary entries logged with it keep its name and still show under it, but it can no longer be picked for new entries. Meal reminders for it keep notifying under that name until deleted with delete_reminder. Refused while a favourite time window uses it: change favoriteMealTimeframes with update_preferences first.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"mealTypeId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "ID of the custom meal type to delete"
+									}
+								},
+								"required": ["mealTypeId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
 		"/tools/delete_recipe": {
 			"post": {
 				"operationId": "delete_recipe",
@@ -972,6 +1103,32 @@
 									}
 								},
 								"required": ["recipeId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/delete_reminder": {
+			"post": {
+				"operationId": "delete_reminder",
+				"description": "Delete a logging reminder. The devices stop notifying once they have synced the change.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"reminderId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "ID of the reminder to delete"
+									}
+								},
+								"required": ["reminderId"]
 							}
 						}
 					}
@@ -1674,6 +1831,38 @@
 				"responses": { "200": { "description": "structuredContent" } }
 			}
 		},
+		"/tools/get_food_usage": {
+			"post": {
+				"operationId": "get_food_usage",
+				"description": "Where a food is used: how many diary entries log it (totalEntries) with the most recent ones (date, mealType, servings, eatenAt), the recipes that use it as an ingredient (isLastIngredient: it is their only ingredient, so delete_food cannot remove it), and the supplements it backs. Check it before deleting, merging or changing the nutrition of a food.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"foodId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "ID of the food"
+									},
+									"limit": {
+										"description": "Most recent entries to return, 1-200. Defaults to 50.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 200
+									}
+								},
+								"required": ["foodId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
 		"/tools/get_goals": {
 			"post": {
 				"operationId": "get_goals",
@@ -2226,6 +2415,17 @@
 				}
 			}
 		},
+		"/tools/get_preferences": {
+			"post": {
+				"operationId": "get_preferences",
+				"description": "Get the user's app preferences: which dashboard widgets are shown and in which order (widgetOrder), the meal order, the extra nutrients shown in the food form, what tapping a favourite does and the favourite meal time windows, the water goal, the start page, pinned insights, and whether activity calories raise the day's goals. Also includes settings update_preferences cannot change: the app language (locale), the time zone, the biological sex used for nutrient references and how queued AI tasks are processed.",
+				"requestBody": {
+					"required": true,
+					"content": { "application/json": { "schema": { "type": "object", "properties": {} } } }
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
 		"/tools/get_recipe": {
 			"post": {
 				"operationId": "get_recipe",
@@ -2238,6 +2438,38 @@
 								"type": "object",
 								"properties": {
 									"recipeId": { "type": "string", "description": "ID of the recipe" }
+								},
+								"required": ["recipeId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/get_recipe_usage": {
+			"post": {
+				"operationId": "get_recipe_usage",
+				"description": "How many diary entries log a recipe (totalEntries), with the most recent ones (date, mealType, servings, eatenAt). Check it before deleting a recipe or changing its servings or cooked weight.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"recipeId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "ID of the recipe"
+									},
+									"limit": {
+										"description": "Most recent entries to return, 1-200. Defaults to 50.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 200
+									}
 								},
 								"required": ["recipeId"]
 							}
@@ -2665,10 +2897,58 @@
 				}
 			}
 		},
+		"/tools/list_fasts": {
+			"post": {
+				"operationId": "list_fasts",
+				"description": "List the user's recorded fasts, most recent first, with their length in minutes and whether the target was reached. Fasts are finished fasting sessions: startedAt and endedAt are ISO 8601 instants with an explicit UTC offset, targetHours is the goal length in hours (1-168). A fast that is running right now exists only in the fasting timer on the user's device: the server cannot see, start or stop it.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"from": {
+										"description": "Only fasts that started at or after this instant (ISO 8601 with UTC offset)",
+										"type": "string",
+										"format": "date-time",
+										"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+									},
+									"to": {
+										"description": "Only fasts that started at or before this instant (ISO 8601 with UTC offset)",
+										"type": "string",
+										"format": "date-time",
+										"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+									},
+									"limit": {
+										"description": "Max fasts to return. Defaults to 100.",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 500
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
 		"/tools/list_favorites": {
 			"post": {
 				"operationId": "list_favorites",
 				"description": "List the user's favorite foods and recipes, sorted by most frequently logged.",
+				"requestBody": {
+					"required": true,
+					"content": { "application/json": { "schema": { "type": "object", "properties": {} } } }
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/list_food_brands": {
+			"post": {
+				"operationId": "list_food_brands",
+				"description": "The brands in the user's food database with how many foods carry each, most common first. Spellings that differ only in case or spacing count as one brand, shown in its most common spelling.",
 				"requestBody": {
 					"required": true,
 					"content": { "application/json": { "schema": { "type": "object", "properties": {} } } }
@@ -2767,6 +3047,17 @@
 				"responses": { "200": { "description": "structuredContent" } }
 			}
 		},
+		"/tools/list_reminders": {
+			"post": {
+				"operationId": "list_reminders",
+				"description": "List the user's logging reminders with their time, weekdays and whether they are enabled. A reminder prompts the user to log their weight, their sleep or a meal (kind \"meal\" with mealType) at a local wall-clock time on the chosen weekdays. The Android and iOS apps schedule it as a local notification with Snooze and Skip-today actions once they have synced it; the web app gets a Web Push notification from the server if the user has turned push notifications on. A reminder stays silent on a day when what it asks for is already logged (any weight entry, any sleep entry, or any entry in that meal), and enabled: false keeps it without notifying. Supplement reminders are separate: they are the reminderTimes of each supplement.",
+				"requestBody": {
+					"required": true,
+					"content": { "application/json": { "schema": { "type": "object", "properties": {} } } }
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
 		"/tools/list_supplements": {
 			"post": {
 				"operationId": "list_supplements",
@@ -2857,6 +3148,44 @@
 										"maximum": 9007199254740991
 									}
 								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/log_fast": {
+			"post": {
+				"operationId": "log_fast",
+				"description": "Record a finished fast, e.g. one the user tells you about afterwards. Fasts are finished fasting sessions: startedAt and endedAt are ISO 8601 instants with an explicit UTC offset, targetHours is the goal length in hours (1-168). A fast that is running right now exists only in the fasting timer on the user's device: the server cannot see, start or stop it. If the user is still timing the fast in the app, let them end it there: the app saves it itself, so logging it here as well would record it twice. Ending a fast with the app's timer also flags the day it ended as a fasting day; do that with set_day_properties (isFastingDay) when the user wants the same.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"startedAt": {
+										"type": "string",
+										"format": "date-time",
+										"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+										"description": "When the fast started, ISO 8601 with UTC offset (e.g. \"2026-11-19T20:00:00+01:00\")"
+									},
+									"endedAt": {
+										"type": "string",
+										"format": "date-time",
+										"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+										"description": "When the fast ended, ISO 8601 with UTC offset; must be after startedAt"
+									},
+									"targetHours": {
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 168,
+										"description": "Goal length of the fast in whole hours (1-168), e.g. 16 for 16:8"
+									}
+								},
+								"required": ["startedAt", "endedAt", "targetHours"]
 							}
 						}
 					}
@@ -3311,6 +3640,32 @@
 				"responses": { "200": { "description": "structuredContent" } }
 			}
 		},
+		"/tools/search_nutrient_database": {
+			"post": {
+				"operationId": "search_nutrient_database",
+				"description": "Search the USDA FoodData Central nutrient database for generic and whole foods and plain packaged foods (produce, meat, fish, eggs, grains, nuts, milk, juice), raw or cooked. Returns up to six records with energy and macros (per100g) and every other nutrient the record has (nutrientsPer100g, keyed like the create_food fields), all per 100 g. To create a food from a record, scale the values to its serving and pass them to create_food. When the database is not configured on this server or cannot be reached, the result carries unavailable: true and a hint: use another source then.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"query": {
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 200,
+										"description": "Food name in English, e.g. \"pear raw\" or \"chicken breast roasted\""
+									}
+								},
+								"required": ["query"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
 		"/tools/search_openfoodfacts": {
 			"post": {
 				"operationId": "search_openfoodfacts",
@@ -3657,6 +4012,50 @@
 									}
 								},
 								"required": ["entryId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/update_fast": {
+			"post": {
+				"operationId": "update_fast",
+				"description": "Change the start, end or target of a recorded fast (see list_fasts). Omitted fields keep their value.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"fastId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "ID of the fast to update"
+									},
+									"startedAt": {
+										"description": "When the fast started, ISO 8601 with UTC offset (e.g. \"2026-11-19T20:00:00+01:00\")",
+										"type": "string",
+										"format": "date-time",
+										"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+									},
+									"endedAt": {
+										"description": "When the fast ended, ISO 8601 with UTC offset; must be after startedAt",
+										"type": "string",
+										"format": "date-time",
+										"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+									},
+									"targetHours": {
+										"description": "Goal length of the fast in whole hours (1-168), e.g. 16 for 16:8",
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 168
+									}
+								},
+								"required": ["fastId"]
 							}
 						}
 					}
@@ -4031,6 +4430,230 @@
 				"responses": { "200": { "description": "structuredContent" } }
 			}
 		},
+		"/tools/update_meal_type": {
+			"post": {
+				"operationId": "update_meal_type",
+				"description": "Rename a custom meal type (from list_meal_types), or change its sortOrder. A renamed meal keeps its place in the meal order, its favourite time windows and its meal reminders. Diary entries already logged under the old name keep that name and still show under it; move them with update_entry if the user wants them under the new one. Default meal types cannot be renamed.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"mealTypeId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "ID of the custom meal type"
+									},
+									"name": {
+										"description": "New name, up to 50 characters",
+										"type": "string",
+										"minLength": 1,
+										"maxLength": 50
+									},
+									"sortOrder": {
+										"description": "New position among the custom meal types",
+										"type": "integer",
+										"minimum": 0,
+										"maximum": 9007199254740991
+									}
+								},
+								"required": ["mealTypeId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/update_preferences": {
+			"post": {
+				"operationId": "update_preferences",
+				"description": "Change the user's app preferences. Omitted fields keep their value; widgetOrder, mealOrder, visibleNutrients, pinnedInsights and favoriteMealTimeframes each replace the whole list. Only the fields listed here can be changed: the language, time zone, biological sex, AI task processing and account settings are for the user to change in the app's settings. Returns the stored values of the fields you changed.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"showChartWidget": {
+										"description": "Show the calorie and macro chart on the dashboard",
+										"type": "boolean"
+									},
+									"showFavoritesWidget": {
+										"description": "Show the favourites card for one-tap logging",
+										"type": "boolean"
+									},
+									"showSupplementsWidget": {
+										"description": "Show the supplement checklist",
+										"type": "boolean"
+									},
+									"showWeightWidget": { "description": "Show the weight card", "type": "boolean" },
+									"showMealBreakdownWidget": {
+										"description": "Show the per-meal breakdown",
+										"type": "boolean"
+									},
+									"showTopFoodsWidget": {
+										"description": "Show the most-logged foods",
+										"type": "boolean"
+									},
+									"showSleepWidget": { "description": "Show the sleep card", "type": "boolean" },
+									"showFastingWidget": {
+										"description": "Show the fasting timer",
+										"type": "boolean"
+									},
+									"showWaterWidget": { "description": "Show the water card", "type": "boolean" },
+									"showActivityWidget": {
+										"description": "Show the activity card",
+										"type": "boolean"
+									},
+									"showNotesWidget": {
+										"description": "Show the day notes card",
+										"type": "boolean"
+									},
+									"showRecipeSuggestionsWidget": {
+										"description": "Show recipe suggestions",
+										"type": "boolean"
+									},
+									"widgetOrder": {
+										"description": "Dashboard sections from top to bottom, by key. Keys left out are put back at their default place; \"day-properties\" is a placeholder kept for older apps.",
+										"type": "array",
+										"items": {
+											"type": "string",
+											"enum": [
+												"fasting",
+												"water",
+												"activity",
+												"notes",
+												"day-properties",
+												"chart",
+												"streaks",
+												"favorites",
+												"recipe-suggestions",
+												"supplements",
+												"weight",
+												"meal-breakdown",
+												"top-foods",
+												"sleep",
+												"summary",
+												"daylog"
+											]
+										}
+									},
+									"startPage": {
+										"description": "The page the app opens on",
+										"type": "string",
+										"enum": ["dashboard", "favorites"]
+									},
+									"favoriteTapAction": {
+										"description": "\"instant\" logs one serving of a favourite on tap; \"picker\" asks for the amount first",
+										"type": "string",
+										"enum": ["instant", "picker"]
+									},
+									"favoriteMealAssignmentMode": {
+										"description": "\"time_based\" files a tapped favourite into the meal whose time window (favoriteMealTimeframes) contains the current time and asks outside the windows; \"ask_meal\" always asks which meal",
+										"type": "string",
+										"enum": ["time_based", "ask_meal"]
+									},
+									"favoriteMealTimeframes": {
+										"description": "Time windows for time_based assignment, each { mealType, customMealTypeId?, startTime, endTime } with local HH:MM times; windows must not overlap. For a custom meal type pass its id from list_meal_types as customMealTypeId. Replaces every window; [] removes them all.",
+										"maxItems": 50,
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"mealType": { "type": "string", "minLength": 1, "maxLength": 100 },
+												"customMealTypeId": {
+													"anyOf": [
+														{
+															"type": "string",
+															"format": "uuid",
+															"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+														},
+														{ "type": "null" }
+													]
+												},
+												"startTime": { "type": "string", "pattern": "^\\d{2}:\\d{2}$" },
+												"endTime": { "type": "string", "pattern": "^\\d{2}:\\d{2}$" }
+											},
+											"required": ["mealType", "startTime", "endTime"],
+											"additionalProperties": false
+										}
+									},
+									"mealOrder": {
+										"description": "Order of the meals in the diary, by name (default and custom meal types). Meals left out are appended.",
+										"maxItems": 50,
+										"type": "array",
+										"items": { "type": "string", "minLength": 1, "maxLength": 100 }
+									},
+									"pinnedInsights": {
+										"description": "Insight cards pinned on the insights page, by id, at most 6",
+										"maxItems": 6,
+										"type": "array",
+										"items": {
+											"type": "string",
+											"enum": [
+												"nova-score",
+												"omega-ratio",
+												"protein-distribution",
+												"weekday-weekend",
+												"calorie-front-loading",
+												"dii-score",
+												"tef",
+												"calorie-cycling",
+												"meal-regularity",
+												"food-diversity",
+												"eating-window",
+												"meal-spacing",
+												"nutrient-adequacy",
+												"adaptive-tdee",
+												"plateau-detection",
+												"weight-forecast",
+												"sodium-weight",
+												"caloric-lag",
+												"macro-impact",
+												"meal-timing-weight",
+												"micronutrient-gaps",
+												"food-sleep",
+												"nutrient-sleep",
+												"pre-sleep-window",
+												"caffeine-sleep"
+											]
+										}
+									},
+									"visibleNutrients": {
+										"description": "Extended nutrient keys shown in the food form, named like the create_food fields",
+										"type": "array",
+										"items": { "type": "string" }
+									},
+									"waterGoalMl": {
+										"description": "Daily water goal in ml (250-10000); null resets it to 2000",
+										"anyOf": [
+											{ "type": "integer", "minimum": 250, "maximum": 10000 },
+											{ "type": "null" }
+										]
+									},
+									"activityGoalAdjustment": {
+										"description": "When true, a day's activity calories (set_day_properties activityCalories) raise that day's goals",
+										"type": "boolean"
+									},
+									"activityCreditPercent": {
+										"description": "Share of the activity calories added to the goals when activityGoalAdjustment is on, 0-100",
+										"type": "integer",
+										"minimum": 0,
+										"maximum": 100
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
 		"/tools/update_recipe": {
 			"post": {
 				"operationId": "update_recipe",
@@ -4137,6 +4760,60 @@
 									}
 								},
 								"required": ["recipeId"]
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "structuredContent" } }
+			}
+		},
+		"/tools/update_reminder": {
+			"post": {
+				"operationId": "update_reminder",
+				"description": "Change a logging reminder (see list_reminders). Omitted fields keep their value; weekdays replaces the whole list. Switching kind to \"meal\" needs mealType; switching away from \"meal\" drops it.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"reminderId": {
+										"type": "string",
+										"format": "uuid",
+										"pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+										"description": "ID of the reminder to update"
+									},
+									"kind": {
+										"description": "What to log: \"weight\", \"sleep\" or \"meal\"",
+										"type": "string",
+										"enum": ["weight", "meal", "sleep"]
+									},
+									"mealType": {
+										"anyOf": [
+											{ "type": "string", "minLength": 1, "maxLength": 50 },
+											{ "type": "null" }
+										],
+										"description": "The meal a \"meal\" reminder is for, e.g. \"Lunch\" or a custom meal type from list_meal_types. Required for kind \"meal\", omitted otherwise."
+									},
+									"time": {
+										"description": "Local time it fires, HH:MM (24h), e.g. \"07:30\"",
+										"type": "string",
+										"pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+									},
+									"weekdays": {
+										"description": "New days of the week it fires, 0=Sun..6=Sat, at least one",
+										"minItems": 1,
+										"maxItems": 7,
+										"type": "array",
+										"items": { "type": "integer", "minimum": 0, "maximum": 6 }
+									},
+									"enabled": {
+										"description": "Whether it notifies; false keeps the reminder without notifying",
+										"type": "boolean"
+									}
+								},
+								"required": ["reminderId"]
 							}
 						}
 					}

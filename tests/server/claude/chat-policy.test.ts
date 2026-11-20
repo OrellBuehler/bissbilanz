@@ -200,6 +200,57 @@ describe('chat tool policy', () => {
 			{ domain: 'recipes', ids: ['r1'] }
 		]);
 	});
+
+	test('reports fasts, reminders, meal types and preferences', async () => {
+		expect(await changesOf('log_fast', {}, { fastId: 'fa' })).toEqual([
+			{ domain: 'fasting', ids: ['fa'] }
+		]);
+		expect(await changesOf('update_fast', { fastId: 'fa' })).toEqual([
+			{ domain: 'fasting', ids: ['fa'] }
+		]);
+		expect(await changesOf('delete_fast', { fastId: 'fa' })).toEqual([
+			{ domain: 'fasting', ids: ['fa'] }
+		]);
+		expect(await changesOf('create_reminder', {}, { reminderId: 're' })).toEqual([
+			{ domain: 'reminders', ids: ['re'] }
+		]);
+		expect(await changesOf('update_reminder', { reminderId: 're' })).toEqual([
+			{ domain: 'reminders', ids: ['re'] }
+		]);
+		expect(await changesOf('delete_reminder', { reminderId: 're' })).toEqual([
+			{ domain: 'reminders', ids: ['re'] }
+		]);
+		expect(await changesOf('update_preferences', { waterGoalMl: 2500 })).toEqual([
+			{ domain: 'preferences' }
+		]);
+		expect(await changesOf('create_meal_type', {}, { mealTypeId: 'mt' })).toEqual([
+			{ domain: 'mealTypes', ids: ['mt'] },
+			{ domain: 'preferences' }
+		]);
+		expect(await changesOf('update_meal_type', { mealTypeId: 'mt', sortOrder: 2 })).toEqual([
+			{ domain: 'mealTypes', ids: ['mt'] }
+		]);
+		expect(await changesOf('update_meal_type', { mealTypeId: 'mt', name: 'Gym' })).toEqual([
+			{ domain: 'mealTypes', ids: ['mt'] },
+			{ domain: 'preferences' },
+			{ domain: 'reminders' }
+		]);
+		expect(await changesOf('delete_meal_type', { mealTypeId: 'mt' })).toEqual([
+			{ domain: 'mealTypes', ids: ['mt'] },
+			{ domain: 'preferences' }
+		]);
+		for (const name of [
+			'list_fasts',
+			'list_reminders',
+			'get_preferences',
+			'get_food_usage',
+			'get_recipe_usage',
+			'list_food_brands',
+			'search_nutrient_database'
+		]) {
+			expect(CHAT_TOOL_POLICY[name], name).toEqual({ kind: 'read' });
+		}
+	});
 });
 
 describe('confirmations', () => {
@@ -249,6 +300,13 @@ describe('confirmations', () => {
 		expect(await confirms('update_recipe', { recipeId: 'r', totalServings: 4 }, false)).toBe(false);
 		expect(await confirms('update_supplement', { supplementId: 's', ingredients: [] })).toBe(true);
 		expect(await confirms('update_supplement', { supplementId: 's', isActive: false })).toBe(false);
+		expect(await confirms('update_preferences', { favoriteMealTimeframes: [] })).toBe(true);
+		expect(await confirms('update_preferences', { widgetOrder: ['daylog'] })).toBe(false);
+		expect(await confirms('delete_fast', { fastId: 'f' })).toBe(true);
+		expect(await confirms('delete_reminder', { reminderId: 'r' })).toBe(true);
+		expect(await confirms('delete_meal_type', { mealTypeId: 'm' })).toBe(true);
+		expect(await confirms('update_meal_type', { mealTypeId: 'm', name: 'Gym' })).toBe(false);
+		expect(await confirms('log_fast', { targetHours: 16 })).toBe(false);
 		expect(await needsConfirmation({ kind: 'read' }, { force: true }, lookup(true))).toBe(false);
 	});
 

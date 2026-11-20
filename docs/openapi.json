@@ -16378,7 +16378,10 @@
 								"supplements",
 								"dayProperties",
 								"labels",
-								"preferences"
+								"preferences",
+								"fasting",
+								"reminders",
+								"mealTypes"
 							]
 						},
 						"description": "Every domain the run changed, so far."
@@ -16430,7 +16433,10 @@
 							"supplements",
 							"dayProperties",
 							"labels",
-							"preferences"
+							"preferences",
+							"fasting",
+							"reminders",
+							"mealTypes"
 						]
 					},
 					"dates": {
@@ -16818,7 +16824,10 @@
 								"supplements",
 								"dayProperties",
 								"labels",
-								"preferences"
+								"preferences",
+								"fasting",
+								"reminders",
+								"mealTypes"
 							]
 						}
 					},
@@ -16993,7 +17002,10 @@
 								"supplements",
 								"dayProperties",
 								"labels",
-								"preferences"
+								"preferences",
+								"fasting",
+								"reminders",
+								"mealTypes"
 							]
 						}
 					},

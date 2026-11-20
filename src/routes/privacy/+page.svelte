@@ -8,7 +8,7 @@
 <div class="mx-auto max-w-2xl px-6 py-12">
 	<h1 class="mb-2 text-3xl font-bold">{m.privacy_page_title()}</h1>
 	<p class="mb-8 text-sm text-muted-foreground">
-		{m.privacy_effective_date({ date: 'November 19, 2026' })}
+		{m.privacy_effective_date({ date: 'November 20, 2026' })}
 	</p>
 
 	<p class="mb-6">
@@ -271,10 +271,11 @@
 		</li>
 		<li>
 			<strong>USDA FoodData Central (nutrient lookups):</strong> When a meal you queued for AI
-			logging is processed on the Bissbilanz server, the AI can look foods up in this nutrient
-			database. Every lookup sends a food name (for example "pear, raw") to the FoodData Central API
-			of the U.S. Department of Agriculture. No personal data or account identifier is sent.
-			FoodData Central is a public nutrient database whose data is in the public domain. Their
+			logging is processed on the Bissbilanz server, or when the in-app assistant or an AI assistant
+			you connected over MCP searches it for you, the Bissbilanz server looks foods up in this
+			nutrient database. Every lookup sends a food name (for example "pear, raw") to the FoodData
+			Central API of the U.S. Department of Agriculture. No personal data or account identifier is
+			sent. FoodData Central is a public nutrient database whose data is in the public domain. Their
 			privacy policy is available at
 			<a href="https://www.usda.gov/privacy-policy" class="underline">usda.gov</a>. While
 			researching nutrition facts for such a meal, the AI provider may also search the web and fetch

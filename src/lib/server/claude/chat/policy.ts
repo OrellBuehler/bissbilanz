@@ -238,7 +238,37 @@ export const CHAT_TOOL_POLICY: Record<string, ChatToolPolicy> = {
 	list_ai_tasks: { kind: 'excluded', reason: AI_TASK_QUEUE },
 	get_ai_task: { kind: 'excluded', reason: AI_TASK_QUEUE },
 	complete_ai_task: { kind: 'excluded', reason: AI_TASK_QUEUE },
-	dismiss_ai_task: { kind: 'excluded', reason: AI_TASK_QUEUE }
+	dismiss_ai_task: { kind: 'excluded', reason: AI_TASK_QUEUE },
+	list_fasts: READ,
+	log_fast: write(({ result }) => [change('fasting', { ids: [str(result?.fastId)] })]),
+	update_fast: write(({ input }) => [change('fasting', { ids: [str(input.fastId)] })]),
+	delete_fast: confirm(({ input }) => [change('fasting', { ids: [str(input.fastId)] })]),
+	list_reminders: READ,
+	create_reminder: write(({ result }) => [change('reminders', { ids: [str(result?.reminderId)] })]),
+	update_reminder: write(({ input }) => [change('reminders', { ids: [str(input.reminderId)] })]),
+	delete_reminder: confirm(({ input }) => [change('reminders', { ids: [str(input.reminderId)] })]),
+	get_preferences: READ,
+	// Replacing the favourite time windows drops every window the call leaves out.
+	update_preferences: write(() => [change('preferences')], {
+		confirmWhen: (input) => has(input, ['favoriteMealTimeframes'])
+	}),
+	// A new or removed custom meal changes the meal order the preferences report.
+	create_meal_type: write(({ result }) => [
+		change('mealTypes', { ids: [str(result?.mealTypeId)] }),
+		change('preferences')
+	]),
+	update_meal_type: write(({ input }) => [
+		change('mealTypes', { ids: [str(input.mealTypeId)] }),
+		...(input.name !== undefined ? [change('preferences'), change('reminders')] : [])
+	]),
+	delete_meal_type: confirm(({ input }) => [
+		change('mealTypes', { ids: [str(input.mealTypeId)] }),
+		change('preferences')
+	]),
+	get_food_usage: READ,
+	get_recipe_usage: READ,
+	list_food_brands: READ,
+	search_nutrient_database: READ
 };
 
 export const chatToolPolicy = (name: string): ChatToolPolicy | null =>

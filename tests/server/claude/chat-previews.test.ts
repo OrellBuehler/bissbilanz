@@ -185,6 +185,146 @@ describe('confirmation previews', () => {
 		expect(await preview('delete_day_properties', {})).toHaveProperty('error');
 	});
 
+	test('delete_fast names its start in the user’s time zone, its length and target', async () => {
+		queueResults([
+			[
+				{
+					startedAt: new Date('2026-11-18T19:00:00Z'),
+					endedAt: new Date('2026-11-19T11:30:00Z'),
+					targetHours: 16,
+					timeZone: 'Europe/Zurich'
+				}
+			]
+		]);
+		expect(await preview('delete_fast', { fastId: ID })).toEqual({
+			input: { fastId: ID },
+			preview: {
+				summary: 'Delete the fast started 18 Nov 2026, 20:00',
+				details: ['16 h 30 min, target 16 h']
+			}
+		});
+		queueResults([
+			[
+				{
+					startedAt: new Date('2026-11-18T19:00:00Z'),
+					endedAt: new Date('2026-11-19T07:00:00Z'),
+					targetHours: 14,
+					timeZone: null
+				}
+			]
+		]);
+		expect(await preview('delete_fast', { fastId: ID }, 'de')).toEqual({
+			input: { fastId: ID },
+			preview: {
+				summary: 'Fastenzeit vom 18.11.2026, 19:00 löschen',
+				details: ['12 h 0 min, Ziel 14 h']
+			}
+		});
+		queueResults([[]]);
+		expect(await preview('delete_fast', { fastId: ID })).toEqual({ error: 'Fast not found' });
+		expect(await preview('delete_fast', { fastId: ID, force: true })).toHaveProperty('error');
+	});
+
+	test('delete_reminder says what the reminder is for, when and on which days', async () => {
+		queueResults([[{ kind: 'meal', mealType: 'Lunch', time: '12:00', weekdays: [5, 1, 3] }]]);
+		expect(await preview('delete_reminder', { reminderId: ID })).toEqual({
+			input: { reminderId: ID },
+			preview: { summary: 'Delete the Lunch reminder at 12:00', details: ['Mon, Wed, Fri'] }
+		});
+		queueResults([
+			[{ kind: 'weight', mealType: null, time: '07:30', weekdays: [0, 1, 2, 3, 4, 5, 6] }]
+		]);
+		expect(await preview('delete_reminder', { reminderId: ID }, 'de')).toEqual({
+			input: { reminderId: ID },
+			preview: { summary: 'Gewichtserinnerung um 07:30 löschen', details: ['Jeden Tag'] }
+		});
+		queueResults([[{ kind: 'sleep', mealType: null, time: '22:00', weekdays: [0] }]]);
+		expect(await preview('delete_reminder', { reminderId: ID })).toMatchObject({
+			preview: { summary: 'Delete the sleep reminder at 22:00', details: ['Sun'] }
+		});
+		queueResults([[]]);
+		expect(await preview('delete_reminder', { reminderId: ID })).toEqual({
+			error: 'Reminder not found'
+		});
+		expect(await preview('delete_reminder', {})).toHaveProperty('error');
+	});
+
+	test('delete_meal_type counts the entries and reminders that keep its name', async () => {
+		queueResults([[{ name: 'Pre-workout' }], [{ count: 0 }], [{ count: 12 }], [{ count: 1 }]]);
+		expect(await preview('delete_meal_type', { mealTypeId: ID })).toEqual({
+			input: { mealTypeId: ID },
+			preview: {
+				summary: 'Delete the meal type “Pre-workout”',
+				details: [
+					'12 diary entries keep “Pre-workout” as their meal',
+					'1 reminders for “Pre-workout” keep notifying'
+				]
+			}
+		});
+		queueResults([[{ name: 'Brunch' }], [{ count: 0 }], [{ count: 0 }], [{ count: 0 }]]);
+		expect(await preview('delete_meal_type', { mealTypeId: ID }, 'de')).toEqual({
+			input: { mealTypeId: ID },
+			preview: { summary: 'Mahlzeitentyp „Brunch“ löschen', details: [] }
+		});
+		queueResults([[{ name: 'Brunch' }], [{ count: 1 }], [{ count: 0 }], [{ count: 0 }]]);
+		expect(await preview('delete_meal_type', { mealTypeId: ID })).toEqual({
+			error:
+				'Meal type is used in favorites meal timeframes and cannot be deleted. Change favoriteMealTimeframes with update_preferences first.'
+		});
+		queueResults([[]]);
+		expect(await preview('delete_meal_type', { mealTypeId: ID })).toEqual({
+			error: 'Meal type not found'
+		});
+		expect(await preview('delete_meal_type', { mealTypeId: 'x' })).toHaveProperty('error');
+	});
+
+	test('update_preferences shows every setting and the time windows it replaces', async () => {
+		queueResults([
+			[{ userId: 'u', waterGoalMl: 2000, showChartWidget: true }],
+			[
+				{ mealType: 'Breakfast', startMinute: 360, endMinute: 600 },
+				{ mealType: 'Lunch', startMinute: 690, endMinute: 840 }
+			]
+		]);
+		const input = {
+			waterGoalMl: 2500,
+			showChartWidget: false,
+			favoriteMealTimeframes: [
+				{ mealType: 'Breakfast', startTime: '07:00', endTime: '09:30' },
+				'odd'
+			]
+		};
+		expect(await preview('update_preferences', input)).toEqual({
+			input,
+			preview: {
+				summary: 'Change your settings',
+				details: [
+					'waterGoalMl: 2,000 → 2,500',
+					'showChartWidget: true → false',
+					'favoriteMealTimeframes: Breakfast 06:00–10:00, Lunch 11:30–14:00 → Breakfast 07:00–09:30, odd'
+				]
+			}
+		});
+		queueResults([[], []]);
+		expect(
+			await preview(
+				'update_preferences',
+				{ favoriteMealTimeframes: [], startPage: 'favorites' },
+				'de'
+			)
+		).toEqual({
+			input: { favoriteMealTimeframes: [], startPage: 'favorites' },
+			preview: {
+				summary: 'Deine Einstellungen ändern',
+				details: ['startPage: favorites', 'favoriteMealTimeframes: — → —']
+			}
+		});
+		queueResults([[], []]);
+		expect(await preview('update_preferences', { favoriteMealTimeframes: 'all' })).toMatchObject({
+			preview: { details: ['favoriteMealTimeframes: — → all'] }
+		});
+	});
+
 	test('updates list every field they set, with the current value where there is one', async () => {
 		queueResults([
 			[{ id: ID, name: 'Skyr', calories: 60, servingSize: 100 }],
