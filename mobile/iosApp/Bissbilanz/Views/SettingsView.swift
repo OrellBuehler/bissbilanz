@@ -39,15 +39,16 @@ struct SettingsView: View {
     @State private var errorMessage: String?
     @State private var showHelpCenter = false
     private let healthKitService = HealthKitService.shared
-    @AppStorage("selected_tabs") private var selectedTabsRaw: String = "foods,favorites,insights"
+    @AppStorage(TabBarLayout.storageKey) private var selectedTabsRaw: String = TabBarLayout.defaultRaw
+    @AppStorage(AppTheme.storageKey) private var appThemeRaw = AppTheme.system.rawValue
     // Remembers the quick-add Siri Shortcut tip's dismissal across launches —
     // `SiriTipView` doesn't persist that on its own without a binding.
     @AppStorage("show_siri_log_food_tip") private var showSiriLogFoodTip = true
     @AppStorage(TipSettings.enabledKey) private var tipsEnabled = true
 
     private var selectedTabNames: String {
-        selectedTabsRaw.split(separator: ",")
-            .compactMap { NavigableTab(rawValue: String($0)) }
+        TabBarLayout(raw: selectedTabsRaw)
+            .visibleTabs(signedIn: !appModeManager.isLocal)
             .map(\.label)
             .joined(separator: ", ")
     }
@@ -132,36 +133,7 @@ struct SettingsView: View {
                     Text(L10n.biologicalSexHint)
                 }
 
-                // Screens that aren't tabs
-                Section(L10n.settingsSectionTracking) {
-                    NavigationLink { WeightView() } label: {
-                        Label(L10n.weight, systemImage: "scalemass")
-                    }
-                    NavigationLink { SleepView() } label: {
-                        Label(L10n.sleep, systemImage: "bed.double")
-                    }
-                    NavigationLink { SupplementsView() } label: {
-                        Label(L10n.supplements, systemImage: "pills")
-                    }
-                    NavigationLink { RecipeListView() } label: {
-                        Label(L10n.recipes, systemImage: "book")
-                    }
-                    NavigationLink { RecipeSuggestionsView() } label: {
-                        Label(L10n.recipeSuggestions, systemImage: "fork.knife.circle")
-                    }
-                    NavigationLink { CalendarView() } label: {
-                        Label(L10n.calendar, systemImage: "calendar")
-                    }
-                    // The maintenance calculator is server-computed — hidden in Local mode.
-                    if !appModeManager.isLocal {
-                        NavigationLink { MaintenanceView() } label: {
-                            Label(L10n.maintenance, systemImage: "function")
-                        }
-                    }
-                    NavigationLink { RemindersView() } label: {
-                        Label(L10n.reminders, systemImage: "bell")
-                    }
-                }
+                destinationSections
 
                 // How the app looks and behaves
                 Section(L10n.settingsSectionPersonalization) {
@@ -236,6 +208,7 @@ struct SettingsView: View {
                         Label(L10n.language, systemImage: "globe")
                     }
                     .pickerStyle(.menu)
+                    appearancePicker
                 }
 
                 // Apple Health and the server-side AI assistant
@@ -266,9 +239,7 @@ struct SettingsView: View {
                             }
                             // The queue only exists server-side — the assistant reaches it
                             // over MCP — so it has no meaning in Local mode.
-                            NavigationLink { AiTasksView() } label: {
-                                Label(L10n.aiTasks, systemImage: "sparkles")
-                            }
+                            screenLink(.aiTasks)
                         }
                     }
                 }
@@ -539,6 +510,63 @@ struct SettingsView: View {
                 if let errorMessage { Text(errorMessage) }
             }
         }
+    }
+
+    // MARK: - Screens
+
+    /// Every screen the tab bar can hold, reachable here whatever the tab bar
+    /// shows. AI tasks sits under Integrations, as it needs an account.
+    @ViewBuilder
+    private var destinationSections: some View {
+        Section(L10n.settingsSectionFood) {
+            screenLink(.foods)
+            screenLink(.favorites)
+            screenLink(.recipes)
+            screenLink(.recipeSuggestions)
+        }
+
+        Section(L10n.settingsSectionTracking) {
+            screenLink(.weight)
+            screenLink(.sleep)
+            screenLink(.fasting)
+            screenLink(.supplements)
+            NavigationLink { RemindersView() } label: {
+                Label(L10n.reminders, systemImage: "bell")
+            }
+        }
+
+        Section(L10n.settingsSectionAnalysis) {
+            screenLink(.insights)
+            screenLink(.calendar)
+            // The maintenance calculator is server-computed — hidden in Local mode.
+            if !appModeManager.isLocal {
+                NavigationLink { MaintenanceView() } label: {
+                    Label(L10n.maintenance, systemImage: "function")
+                }
+            }
+        }
+    }
+
+    private func screenLink(_ tab: NavigableTab) -> some View {
+        NavigationLink {
+            tab.screen
+        } label: {
+            Label(tab.label, systemImage: tab.icon)
+        }
+    }
+
+    private var appearancePicker: some View {
+        Picker(selection: Binding(
+            get: { AppTheme(rawValue: appThemeRaw) ?? .system },
+            set: { appThemeRaw = $0.rawValue }
+        )) {
+            ForEach(AppTheme.allCases) { theme in
+                Text(theme.label).tag(theme)
+            }
+        } label: {
+            Label(L10n.appearance, systemImage: "circle.lefthalf.filled")
+        }
+        .pickerStyle(.menu)
     }
 
     // MARK: - AI task processing
