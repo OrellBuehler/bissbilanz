@@ -6,3 +6,4 @@ export const IMAGE_TOKEN_BOUND = 1600;
 export const STALE_RESERVATION_MINUTES = 10;
 export const AI_TASK_FEATURE = 'ai_task';
 export const AI_TASK_REPLY_FEATURE = 'ai_task_reply';
+export const CHAT_FEATURE = 'chat';

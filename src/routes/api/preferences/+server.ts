@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { getPreferences, updatePreferences, DEFAULT_PREFERENCES } from '$lib/server/preferences';
 import { handleApiError, requireAuth, unwrapResult, parseJsonBody } from '$lib/server/errors';
 import { respondUpdate } from '$lib/server/sync/conflict';
-import { getClaudeCapabilitySafe } from '$lib/server/claude/capability';
+import { getClaudeCapabilitiesSafe } from '$lib/server/claude/chat/capability';
 import { readClientEditedAt } from '$lib/server/sync/headers';
 
 export const GET: RequestHandler = async ({ locals }) => {
@@ -11,7 +11,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		const userId = requireAuth(locals);
 		const [preferences, claude] = await Promise.all([
 			getPreferences(userId),
-			getClaudeCapabilitySafe(userId)
+			getClaudeCapabilitiesSafe(userId)
 		]);
 		return json({ preferences: preferences ?? DEFAULT_PREFERENCES, claude });
 	} catch (error) {

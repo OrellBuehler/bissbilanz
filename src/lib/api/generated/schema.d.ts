@@ -1484,6 +1484,111 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/chat/conversations': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description List the user's chat conversations, most recently active first (by lastMessageAt), with the active run of each. First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403. */
+		get: operations['listChatConversations'];
+		put?: never;
+		/** @description Create a conversation. The client may choose its id; creating the same id again returns the existing conversation with 200, so a retried create is safe. The body is optional. First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403. */
+		post: operations['createChatConversation'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/chat/conversations/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description A conversation with all its messages in display form (oldest first), its pending confirmations, its active run, lastSeq and the chat capability. The assistant message of an active run contains every event up to lastSeq; continue with the events endpoint after lastSeq. Runs left running by a server restart and expired confirmations are settled before the answer. First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403. */
+		get: operations['getChatConversation'];
+		put?: never;
+		post?: never;
+		/** @description Delete a conversation with its messages, runs, events and chat photos. A run working on it is stopped first (the request waits up to 10 seconds for a tool call in flight). Diary changes the assistant made stay. First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403. */
+		delete: operations['deleteChatConversation'];
+		options?: never;
+		head?: never;
+		/** @description Rename a conversation (title null clears it). First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403. */
+		patch: operations['renameChatConversation'];
+		trace?: never;
+	};
+	'/api/chat/conversations/{id}/messages': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Send a message and start the run that answers it. Answers 202 at once; the run continues on the server whether or not the client stays connected, and its progress arrives through the events endpoint. The message `id` is the idempotency key: sending the same id again returns the stored message and its run (202) and never starts a second run, so retry with the same id after a network error; no Idempotency-Key header is needed. A run waiting for a confirmation is cancelled by a new message that is accepted (reason `superseded`, its action `cancelled`). Photos are copied into the chat. Online only: never queue it offline for a later replay. First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403. */
+		post: operations['sendChatMessage'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/chat/conversations/{id}/events': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** @description The events of a conversation after `after` (exclusive), in seq order. With `Accept: text/event-stream` the response is a server-sent event stream: the stored events after `after` (or after `Last-Event-ID`, whichever is larger), then new events as they happen. Each SSE message has `id: <seq>`, `event: <type>` and `data: <ChatEvent JSON>`; a `: ping` comment line arrives every 20 seconds, the stream starts with `retry: 3000` and ends after 10 minutes (reconnect with Last-Event-ID). Any other Accept returns one JSON page for polling. Has its own rate limit (240 requests a minute per user), separate from the write limit. At most 3 streams per user stay open: a fourth closes the oldest. First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403. */
+		get: operations['listChatEvents'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/chat/runs/{id}/cancel': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Stop a queued, running or paused run. The partial answer is kept, tool calls that already ran stay done, a pending confirmation becomes `cancelled`, and the run finishes with status `cancelled`, reason `user_cancelled`. The request waits up to 10 seconds for a tool call in flight. A run that finished on its own in the meantime is returned as it finished (e.g. `completed`). First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403. */
+		post: operations['cancelChatRun'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/chat/actions/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** @description Approve or reject a pending confirmation. Approving runs exactly the call the card describes (`preview`) and resumes the run; rejecting resumes it with "the user declined". Either way the run continues on the server at once and its events follow on the events endpoint. Pending actions expire after 60 minutes. First-party callers only: a cookie session or a bearer token with the account:manage scope (the mobile apps); other tokens get 403. */
+		post: operations['decideChatAction'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/admin/users': {
 		parameters: {
 			query?: never;
@@ -2230,6 +2335,42 @@ export interface components {
 			wakeTime?: string | null;
 			wakeUps?: number | null;
 			notes?: string | null;
+		};
+		ChatConversationCreate: {
+			/**
+			 * Format: uuid
+			 * @description Client-generated id. Creating the same id again returns the existing conversation (200) instead of a second one.
+			 */
+			id?: string;
+			/** @description Optional title. Without one, the first message sets it (its first 60 characters). */
+			title?: string | null;
+		};
+		ChatConversationUpdate: {
+			/** @description New title, or null to clear it. */
+			title: string | null;
+		};
+		ChatMessageCreate: {
+			/**
+			 * Format: uuid
+			 * @description Client-generated message id and idempotency key: sending the same id again returns the stored message and its run and never starts a second run.
+			 */
+			id: string;
+			text: string;
+			/** @description Photos uploaded with POST /api/ai-tasks/photo (or /api/images/upload) by this user, as `<uuid>.webp` or `/uploads/<uuid>.webp`. At most 5. A file that is not one of the user's uploads, is missing on the server or is over 4 MB is rejected with 400 `invalid_image`. The server copies each photo into the chat (the copies count against the upload storage quota). */
+			imageFilenames?: string[];
+			context?: components['schemas']['ChatMessageContext'];
+		};
+		ChatMessageContext: {
+			/** @description The diary day (YYYY-MM-DD) the user has open in the app. */
+			date?: string;
+			/** @description The device's IANA time zone, e.g. Europe/Zurich. The diary keeps using the user's time zone preference; this only tells the assistant when the device differs. */
+			timezone?: string;
+			/** @description BCP 47 language of the app, e.g. de or en-US. The assistant replies in it; defaults to the account's locale. */
+			locale?: string;
+		};
+		ChatActionDecision: {
+			/** @enum {string} */
+			decision: 'approve' | 'reject';
 		};
 		AdminClaudeAccessUpdate: {
 			enabled?: boolean;
@@ -3235,6 +3376,16 @@ export interface components {
 		ClaudeCapability: {
 			available: boolean;
 			remainingBudgetUsd?: number;
+			/** @description Whether the assistant chat (/api/chat) can take a message now. Sent on GET; a chat call needs more budget headroom than an AI task, so it can be unavailable while available is true. */
+			chat?: components['schemas']['ChatCapability'];
+		};
+		/** @description Whether the user can send a chat message now. It needs more budget headroom than an AI task call. */
+		ChatCapability: {
+			available: boolean;
+			/** @description Why chat is unavailable: not_configured, disabled, no_access, user_budget_exhausted, global_budget_exhausted. Absent when available. Clients must accept values not listed here. */
+			blockedReason?: string;
+			/** @description USD left this month (2 decimals), only when available. */
+			remainingBudgetUsd?: number;
 		};
 		MealTypesListResponse: {
 			mealTypes: components['schemas']['MealType'][];
@@ -3757,6 +3908,215 @@ export interface components {
 		};
 		OpenFoodFactsResponse: {
 			product: components['schemas']['OpenFoodFactsProduct'];
+		};
+		ChatConversationsResponse: {
+			conversations: components['schemas']['ChatConversationListItem'][];
+			total: number;
+		};
+		ChatConversationListItem: {
+			/** Format: uuid */
+			id: string;
+			title: string | null;
+			createdAt: string;
+			updatedAt: string;
+			lastMessageAt: string;
+			/** @description The newest event seq of the conversation; 0 before the first event. */
+			lastSeq: number;
+			activeRun: components['schemas']['ChatRun'] | null;
+		};
+		ChatRun: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			conversationId: string;
+			/** Format: uuid */
+			userMessageId: string;
+			assistantMessageId: string | null;
+			/** @description queued, running and awaiting_confirmation are active; completed, failed, cancelled and interrupted are final. Clients must accept values not listed here. */
+			status: string;
+			/** @description Why the run ended, null while active and for a normal completion. completed: output_limit, iteration_limit. failed: not_configured, disabled, no_access, user_budget_exhausted, global_budget_exhausted, refusal, conversation_too_long, api_error, internal_error. cancelled: user_cancelled, superseded, action_expired. interrupted: server_restart. Clients must accept values not listed here. */
+			reason: string | null;
+			/** @description Every domain the run changed, so far. */
+			changed: string[];
+			changes: components['schemas']['ChatChange'][];
+			createdAt: string;
+			startedAt: string | null;
+			finishedAt: string | null;
+		};
+		/** @description What changed in one domain. Neither dates nor ids means anything in the domain may have changed: refresh it fully. */
+		ChatChange: {
+			/** @description A data domain the assistant changed: refresh what you cache of it. Clients must accept values not listed here. */
+			domain: string;
+			/** @description Diary days (YYYY-MM-DD) that changed. Set for entries, dayProperties, sleep and weight when known. */
+			dates?: string[];
+			/** @description Records that changed, e.g. food or recipe ids, when known. */
+			ids?: string[];
+		};
+		ChatConversationResponse: {
+			conversation: components['schemas']['ChatConversation'];
+		};
+		ChatConversation: {
+			/** Format: uuid */
+			id: string;
+			title: string | null;
+			createdAt: string;
+			updatedAt: string;
+			lastMessageAt: string;
+			/** @description The newest event seq of the conversation; 0 before the first event. */
+			lastSeq: number;
+		};
+		ChatErrorResponse: {
+			error: string;
+			/** @description Machine-readable reason; absent on generic failures (invalid id, validation, scope). Clients must accept values not listed here. */
+			code?: string;
+			/** @description chat_unavailable and budget_exhausted: the current capability. */
+			capability?: components['schemas']['ChatCapability'];
+			/** @description action_not_pending and action_expired: the action as it is now. */
+			action?: components['schemas']['ChatAction'];
+			/** @description run_not_active: the run as it is now. */
+			run?: components['schemas']['ChatRun'];
+		};
+		ChatAction: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			conversationId: string;
+			/** Format: uuid */
+			runId: string;
+			messageId: string | null;
+			toolUseId: string;
+			name: string;
+			label: string;
+			/** @description Clients must accept values not listed here. */
+			status: string;
+			preview: components['schemas']['ChatActionPreview'];
+			expiresAt: string | null;
+			decidedAt: string | null;
+			createdAt: string;
+		};
+		ChatActionPreview: {
+			/** @description One line in the user’s language, e.g. "Delete “Greek yogurt” from Breakfast on 18 Nov 2026". */
+			summary: string;
+			/** @description Extra lines, possibly empty: every field the call sets, replaced lists item by item, nothing shortened. At most 200 lines; a line can be long (up to about 10,000 characters), so let the card scroll and wrap. */
+			details: string[];
+		};
+		ChatConversationDetailResponse: {
+			conversation: components['schemas']['ChatConversation'];
+			/** @description Oldest first. The assistant message of an active run already contains every event up to lastSeq. */
+			messages: components['schemas']['ChatMessage'][];
+			pendingActions: components['schemas']['ChatAction'][];
+			activeRun: components['schemas']['ChatRun'] | null;
+			/** @description Continue with GET …/events?after=lastSeq. */
+			lastSeq: number;
+			capability: components['schemas']['ChatCapability'];
+		};
+		ChatMessage: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			conversationId: string;
+			/** @description Clients must accept values not listed here. */
+			role: string;
+			/** @description User messages are always completed. An assistant message is in_progress while its run works or waits for a confirmation, then takes the run's final status. Clients must accept values not listed here. */
+			status: string;
+			/** @description The run's reason code (see ChatRun.reason), null on user messages. Clients must accept values not listed here. */
+			reason: string | null;
+			runId: string | null;
+			parts: components['schemas']['ChatMessagePart'][];
+			createdAt: string;
+			updatedAt: string;
+		};
+		/** @description One block of a message, in display order. Which fields are set depends on type; see docs/ai-chat.md. */
+		ChatMessagePart: {
+			/** @description text, image, tool or action. Skip parts of an unknown type. Clients must accept values not listed here. */
+			type: string;
+			/** @description text parts: Markdown. */
+			text?: string;
+			/** @description image parts: /uploads/<uuid>.webp. */
+			url?: string;
+			/** @description tool and action parts. */
+			toolUseId?: string;
+			/** @description tool and action parts: the tool name. */
+			name?: string;
+			/** @description tool and action parts: a short label in the user’s language, e.g. "Logging food". */
+			label?: string;
+			/** @description Tool parts: running, ok, error (a finished message never has a running part). Action parts: pending, approved, rejected, expired, cancelled. Clients must accept values not listed here. */
+			status?: string;
+			/** @description tool parts: the error message when status is error, otherwise null. */
+			summary?: string | null;
+			/** @description tool parts: domains the call changed. */
+			changed?: string[];
+			/** @description tool parts. */
+			changes?: components['schemas']['ChatChange'][];
+			/**
+			 * Format: uuid
+			 * @description action parts.
+			 */
+			actionId?: string;
+			/** @description action parts. */
+			preview?: components['schemas']['ChatActionPreview'];
+			/** @description action parts: when the action expires (ISO 8601). Omitted when the action has none, never an empty string. */
+			expiresAt?: string;
+		};
+		ChatMessageAcceptedResponse: {
+			message: components['schemas']['ChatMessage'];
+			run: components['schemas']['ChatRun'];
+			/** @description Seq of this message’s message_created event. */
+			seq: number;
+		};
+		ChatEventsResponse: {
+			events: components['schemas']['ChatEvent'][];
+			/** @description Seq of the last returned event (or the after you sent): pass it as after next time. */
+			nextAfter: number;
+			/** @description The newest seq at the time of the request. */
+			lastSeq: number;
+			/** @description More events after nextAfter exist; fetch again at once. */
+			hasMore: boolean;
+			activeRun: components['schemas']['ChatRun'] | null;
+		};
+		/** @description One event of a conversation. Fields depend on type; see docs/ai-chat.md for every type with an example. */
+		ChatEvent: {
+			/** @description Increases with every event within a conversation. Readers can see gaps (text_delta events are deleted after 24 hours): apply events in order without requiring contiguous seqs. */
+			seq: number;
+			/** @description Ignore events of an unknown type (but still advance past their seq). Clients must accept values not listed here. */
+			type: string;
+			createdAt: string;
+			/** Format: uuid */
+			runId?: string;
+			messageId?: string | null;
+			/** @description Index of the assistant message part the event writes. */
+			partIndex?: number;
+			/** @description text_delta: text to append. */
+			text?: string;
+			toolUseId?: string;
+			name?: string;
+			label?: string;
+			/** @description tool_finished: ok, error. action_resolved: approved, rejected, expired, cancelled. run_finished: the run status. Clients must accept values not listed here. */
+			status?: string;
+			summary?: string | null;
+			changed?: string[];
+			changes?: components['schemas']['ChatChange'][];
+			/** @description run_finished: ChatRun.reason. */
+			reason?: string | null;
+			/** Format: uuid */
+			actionId?: string;
+			action?: components['schemas']['ChatAction'];
+			/** @description message_created and message_completed: the full message. */
+			message?: components['schemas']['ChatMessage'];
+			run?: components['schemas']['ChatRun'];
+			/** @description run_finished: chat availability after the run. */
+			capability?: components['schemas']['ChatCapability'];
+			/** @description error: the reason code. */
+			code?: string;
+			/** @description error: an English message for logs. */
+			error?: string;
+		};
+		ChatRunResponse: {
+			run: components['schemas']['ChatRun'];
+		};
+		ChatActionDecisionResponse: {
+			action: components['schemas']['ChatAction'];
+			run: components['schemas']['ChatRun'];
 		};
 		AdminUsersResponse: {
 			users: components['schemas']['AdminUserRow'][];
@@ -7062,6 +7422,383 @@ export interface operations {
 			400: components['responses']['ValidationErrorResponse'];
 			401: components['responses']['UnauthorizedResponse'];
 			404: components['responses']['NotFoundResponse'];
+		};
+	};
+	listChatConversations: {
+		parameters: {
+			query?: {
+				limit?: number;
+				offset?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatConversationsResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			403: components['responses']['ForbiddenResponse'];
+		};
+	};
+	createChatConversation: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: {
+			content: {
+				'application/json': components['schemas']['ChatConversationCreate'];
+			};
+		};
+		responses: {
+			/** @description The conversation already existed */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatConversationResponse'];
+				};
+			};
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatConversationResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			403: components['responses']['ForbiddenResponse'];
+			/** @description The id belongs to another user's conversation (`conversation_exists`). */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatErrorResponse'];
+				};
+			};
+			429: components['responses']['RateLimitedResponse'];
+		};
+	};
+	getChatConversation: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatConversationDetailResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			403: components['responses']['ForbiddenResponse'];
+			/** @description No conversation with this id for this user (`conversation_not_found`). */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatErrorResponse'];
+				};
+			};
+		};
+	};
+	deleteChatConversation: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			204: components['responses']['DeletedResponse'];
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			403: components['responses']['ForbiddenResponse'];
+			/** @description No conversation with this id for this user (`conversation_not_found`). */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatErrorResponse'];
+				};
+			};
+			429: components['responses']['RateLimitedResponse'];
+		};
+	};
+	renameChatConversation: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['ChatConversationUpdate'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatConversationResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			403: components['responses']['ForbiddenResponse'];
+			/** @description No conversation with this id for this user (`conversation_not_found`). */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatErrorResponse'];
+				};
+			};
+			429: components['responses']['RateLimitedResponse'];
+		};
+	};
+	sendChatMessage: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['ChatMessageCreate'];
+			};
+		};
+		responses: {
+			/** @description Accepted: the message is stored and its run is queued */
+			202: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatMessageAcceptedResponse'];
+				};
+			};
+			/** @description Validation error (with `details`, no `code`), or an image that is not one of the user's uploads (`invalid_image`). */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatErrorResponse'];
+				};
+			};
+			401: components['responses']['UnauthorizedResponse'];
+			/** @description The bearer token lacks the account:manage scope (no `code`), or chat is not available (`chat_unavailable`, `budget_exhausted`, with `capability`). */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatErrorResponse'];
+				};
+			};
+			/** @description No conversation with this id for this user (`conversation_not_found`). */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatErrorResponse'];
+				};
+			};
+			/** @description A run is still queued or running (`run_active`); the conversation reached its limit of 40 messages, about 1 MB of transcript, 20 photos or 12 MB of photo data (`conversation_too_long`, start a new conversation); the message id is used by another conversation (`message_id_conflict`); or the photo copies would exceed the user's upload storage quota (`upload_quota_exceeded`). A rejected message leaves a pending confirmation untouched. */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatErrorResponse'];
+				};
+			};
+			/** @description The daily message limit (`daily_limit_reached`, 60 messages in 24 hours, deleted conversations included) or the write rate limit, with Retry-After */
+			429: {
+				headers: {
+					/** @description Seconds until the rate limit window resets; clients should not retry before then. */
+					'Retry-After'?: number;
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatErrorResponse'];
+				};
+			};
+		};
+	};
+	listChatEvents: {
+		parameters: {
+			query?: {
+				after?: number;
+				limit?: number;
+			};
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatEventsResponse'];
+					'text/event-stream': string;
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			403: components['responses']['ForbiddenResponse'];
+			/** @description No conversation with this id for this user (`conversation_not_found`). */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatErrorResponse'];
+				};
+			};
+			429: components['responses']['RateLimitedResponse'];
+		};
+	};
+	cancelChatRun: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatRunResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			403: components['responses']['ForbiddenResponse'];
+			/** @description No run with this id for this user (`run_not_found`). */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatErrorResponse'];
+				};
+			};
+			/** @description The run already finished (`run_not_active`, with `run`). */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatErrorResponse'];
+				};
+			};
+			429: components['responses']['RateLimitedResponse'];
+		};
+	};
+	decideChatAction: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['ChatActionDecision'];
+			};
+		};
+		responses: {
+			/** @description Success */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatActionDecisionResponse'];
+				};
+			};
+			400: components['responses']['ValidationErrorResponse'];
+			401: components['responses']['UnauthorizedResponse'];
+			403: components['responses']['ForbiddenResponse'];
+			/** @description No action with this id for this user (`action_not_found`). */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatErrorResponse'];
+				};
+			};
+			/** @description The action was already decided or cancelled (`action_not_pending`) or has expired (`action_expired`); `action` shows its current state. */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ChatErrorResponse'];
+				};
+			};
+			429: components['responses']['RateLimitedResponse'];
 		};
 	};
 	adminListUsers: {

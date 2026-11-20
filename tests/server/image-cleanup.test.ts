@@ -10,6 +10,7 @@ type Rows = { foods: string[]; recipes: string[]; recipeSteps: string[]; aiTasks
 const noRows = (): Rows => ({ foods: [], recipes: [], recipeSteps: [], aiTasks: [] });
 let referenced: Rows = noRows();
 let uploadOwned = true;
+let chatAttached = false;
 let forgetCalls = 0;
 let dbError: Error | null = null;
 const pageQueries = { foods: 0, recipes: 0, recipeSteps: 0, aiTasks: 0 };
@@ -23,6 +24,13 @@ const fakeDB = {
 				if (table === schema.uploads)
 					return {
 						where: () => ({ limit: async () => (uploadOwned ? [{ filename: 'owned' }] : []) })
+					};
+				if (table === schema.chatMessages)
+					return {
+						where: () => ({
+							limit: async () => (chatAttached ? [{ id: 'message-1' }] : []),
+							orderBy: () => ({ limit: async () => [] })
+						})
 					};
 				const key =
 					table === schema.foods
@@ -95,6 +103,7 @@ beforeEach(async () => {
 	for (const key of Object.keys(pageQueries) as (keyof typeof pageQueries)[]) pageQueries[key] = 0;
 	dbError = null;
 	uploadOwned = true;
+	chatAttached = false;
 	forgetCalls = 0;
 });
 
@@ -130,6 +139,14 @@ describe('unlinkUpload', () => {
 		await unlinkUpload(`/uploads/${NAMES[0]}`, 'owner');
 		expect(await listDir()).toEqual([]);
 		expect(forgetCalls).toBe(1);
+	});
+
+	test('keeps a photo an assistant chat message still shows', async () => {
+		await write(NAMES[0]);
+		chatAttached = true;
+		await unlinkUpload(`/uploads/${NAMES[0]}`, 'owner');
+		expect(await listDir()).toEqual([NAMES[0]]);
+		expect(forgetCalls).toBe(0);
 	});
 
 	test('never unlinks a file named after an Open Food Facts URL', async () => {

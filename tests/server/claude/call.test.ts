@@ -185,6 +185,35 @@ describe('mapSdkError', () => {
 		expect(mapped.message).toBe('Claude API error: invalid_request (400) request_id=req_9');
 		expect(JSON.stringify(mapped)).not.toContain(KEY);
 	});
+
+	test('keeps only the topic of a 400, read from the API error body', async () => {
+		const { mapSdkError } = await load();
+		const rejected = (message: unknown) =>
+			mapSdkError(
+				new Anthropic.BadRequestError(
+					400,
+					{ type: 'error', error: { type: 'invalid_request_error', message } },
+					undefined,
+					new Headers()
+				)
+			) as { topic?: string };
+		const long = rejected(`${KEY} prompt is too long: 215000 tokens > 200000 maximum`);
+		expect(long.topic).toBe('prompt_too_long');
+		expect(JSON.stringify(long)).not.toContain(KEY);
+		expect(JSON.stringify(long)).not.toContain('215000');
+		expect(
+			rejected("tools.0: Input tag 'web_fetch_20260209' found using 'type' does not match").topic
+		).toBe('web_fetch');
+		expect(rejected('messages.1.content.0: invalid image').topic).toBeUndefined();
+		expect(rejected(42).topic).toBeUndefined();
+		expect(
+			(
+				mapSdkError(new Anthropic.BadRequestError(400, undefined, 'bad', new Headers())) as {
+					topic?: string;
+				}
+			).topic
+		).toBeUndefined();
+	});
 });
 
 describe('settlementFor', () => {

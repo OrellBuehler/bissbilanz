@@ -103,8 +103,8 @@ export function createMockDB(): MockDBFactory {
 
 			// Special handling for db.transaction(callback)
 			if (propStr === 'transaction') {
-				return async (callback: (tx: any) => Promise<any>) => {
-					calls.push({ method: 'transaction', args: [] });
+				return async (callback: (tx: any) => Promise<any>, config?: unknown) => {
+					calls.push({ method: 'transaction', args: config === undefined ? [] : [config] });
 					return callback(db);
 				};
 			}
