@@ -32,6 +32,9 @@ import {
 	type ChatLocale
 } from './labels';
 import { holdsValue, isCleared } from './policy';
+import { DEFAULT_VISIBLE_NUTRIENTS } from '$lib/nutrients';
+import { DEFAULT_PREFERENCES } from '../../preferences';
+import { resolvePreferencePatch } from '../../mcp/meal-names';
 
 // input is exactly what runs on approval: defaults the tool would resolve
 // later (such as "today") are made explicit, so the card and the call agree.
@@ -707,10 +710,58 @@ function timeframeLines(
 	];
 }
 
-/** Every preference the call sets, and the favourite time windows it replaces. */
+const preferenceLists = (row: Record<string, unknown> | null) => ({
+	visibleNutrients: (row?.visibleNutrients as string[] | undefined) ?? [
+		...DEFAULT_VISIBLE_NUTRIENTS
+	],
+	pinnedInsights: (row?.pinnedInsights as string[] | undefined) ?? []
+});
+
+/** The visible nutrients and pinned insights as they are now (defaults without a row). */
+export async function loadPreferenceLists(userId: string) {
+	const [row] = await getDB()
+		.select({
+			visibleNutrients: userPreferences.visibleNutrients,
+			pinnedInsights: userPreferences.pinnedInsights
+		})
+		.from(userPreferences)
+		.where(eq(userPreferences.userId, userId));
+	return preferenceLists(row ?? null);
+}
+
+/** One preference the call sets: a reset to the default, a list that drops items, any other field. */
+function preferenceLine(
+	field: string,
+	value: unknown,
+	row: Record<string, unknown> | null,
+	locale: ChatLocale
+): string[] {
+	if (field === 'waterGoalMl' && value === null) {
+		return [
+			message(
+				'chat_action_reset_default',
+				{ field, value: formatNumber(DEFAULT_PREFERENCES.waterGoalMl, locale, 0) },
+				locale
+			)
+		];
+	}
+	const lines = fieldLine(field, value, row, new Map(), locale);
+	if (field !== 'visibleNutrients' && field !== 'pinnedInsights') return lines;
+	if (!Array.isArray(value)) return lines;
+	const removed = preferenceLists(row)[field].filter((item) => !value.includes(item));
+	return removed.length > 0
+		? [...lines, message('chat_action_list_removed', { field, values: removed.join(', ') }, locale)]
+		: lines;
+}
+
+/**
+ * Every preference the call sets, as it is stored (meal names resolved,
+ * repeats dropped), what a replaced list removes, and the favourite time
+ * windows it replaces.
+ */
 const updatePreferences: Builder = async (input, { userId, locale }) => {
 	const db = getDB();
-	const [[current], windows] = await Promise.all([
+	const [[current], windows, custom] = await Promise.all([
 		db.select().from(userPreferences).where(eq(userPreferences.userId, userId)),
 		db
 			.select({
@@ -720,20 +771,118 @@ const updatePreferences: Builder = async (input, { userId, locale }) => {
 			})
 			.from(favoriteMealTimeframes)
 			.where(eq(favoriteMealTimeframes.userId, userId))
-			.orderBy(asc(favoriteMealTimeframes.startMinute))
+			.orderBy(asc(favoriteMealTimeframes.startMinute)),
+		db
+			.select({ id: customMealTypes.id, name: customMealTypes.name })
+			.from(customMealTypes)
+			.where(eq(customMealTypes.userId, userId))
 	]);
+	const resolved = resolvePreferencePatch(input, custom);
+	if ('error' in resolved) return resolved;
 	const row = (current as Record<string, unknown> | undefined) ?? null;
 	return {
-		input,
+		input: resolved.patch,
 		preview: {
 			summary: message('chat_action_update_preferences', {}, locale),
-			details: Object.entries(input)
+			details: Object.entries(resolved.patch)
 				.filter(([, value]) => value !== undefined)
 				.flatMap(([field, value]) =>
 					field === 'favoriteMealTimeframes'
 						? timeframeLines(value, windows, locale)
-						: fieldLine(field, value, row, new Map(), locale)
+						: preferenceLine(field, value, row, locale)
 				)
+		}
+	};
+};
+
+/**
+ * A meal type change; a rename also lists what moves with it (meal reminders,
+ * time windows, the place in the meal order) and the entries that keep the
+ * old name.
+ */
+const updateMealType: Builder = async (input, { userId, locale }) => {
+	const id = input.mealTypeId;
+	if (typeof id !== 'string' || !UUID_RE.test(id)) {
+		return { error: 'Invalid arguments: mealTypeId: Invalid UUID' };
+	}
+	const db = getDB();
+	const [mealType] = await db
+		.select({ name: customMealTypes.name, sortOrder: customMealTypes.sortOrder })
+		.from(customMealTypes)
+		.where(and(eq(customMealTypes.id, id), eq(customMealTypes.userId, userId)));
+	if (!mealType) return notFound('Meal type');
+	const lines =
+		input.sortOrder !== undefined
+			? fieldLine('sortOrder', input.sortOrder, mealType, new Map(), locale)
+			: [];
+	const name = typeof input.name === 'string' ? input.name.trim() : null;
+	if (name !== null && name !== mealType.name) {
+		const [[mealReminders], [timeWindows], [ordered], [entries]] = await Promise.all([
+			db
+				.select({ count: count() })
+				.from(reminders)
+				.where(
+					and(
+						eq(reminders.userId, userId),
+						eq(reminders.kind, 'meal'),
+						eq(reminders.mealType, mealType.name)
+					)
+				),
+			db
+				.select({ count: count() })
+				.from(favoriteMealTimeframes)
+				.where(
+					and(
+						eq(favoriteMealTimeframes.userId, userId),
+						eq(favoriteMealTimeframes.customMealTypeId, id)
+					)
+				),
+			db
+				.select({ count: count() })
+				.from(userPreferences)
+				.where(
+					and(
+						eq(userPreferences.userId, userId),
+						sql`${mealType.name} = ANY(${userPreferences.mealOrder})`
+					)
+				),
+			db
+				.select({ count: count() })
+				.from(foodEntries)
+				.where(and(eq(foodEntries.userId, userId), eq(foodEntries.mealType, mealType.name)))
+		]);
+		const counted = (row: { count: number } | undefined) => Number(row?.count ?? 0);
+		lines.unshift(
+			message('chat_action_field_changed', { field: 'name', from: mealType.name, to: name }, locale)
+		);
+		if (counted(mealReminders) > 0) {
+			lines.push(
+				message('chat_action_rename_reminders', { count: counted(mealReminders), name }, locale)
+			);
+		}
+		if (counted(timeWindows) > 0) {
+			lines.push(
+				message('chat_action_rename_windows', { count: counted(timeWindows), name }, locale)
+			);
+		}
+		if (counted(ordered) > 0) {
+			lines.push(message('chat_action_rename_order', { name, from: mealType.name }, locale));
+		}
+		if (counted(entries) > 0) {
+			lines.push(
+				message(
+					'chat_action_meal_type_entries',
+					{ count: counted(entries), name: mealType.name },
+					locale
+				)
+			);
+		}
+	}
+	return {
+		input,
+		preview: {
+			summary: message('chat_action_update_meal_type', { name: mealType.name }, locale),
+			details: lines
 		}
 	};
 };
@@ -1097,6 +1246,7 @@ export const FIELD_PREVIEW_BUILDERS: Record<string, Builder> = {
 	update_recipe: updateRecipe,
 	update_supplement: updateSupplement,
 	update_preferences: updatePreferences,
+	update_meal_type: updateMealType,
 	set_day_properties: setDayProperties,
 	set_food_labels: setLabels('foods'),
 	set_recipe_labels: setLabels('recipes')

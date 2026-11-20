@@ -182,9 +182,10 @@
 		removing the photo of any food or recipe, clearing a day's note, water or activity details or
 		all the labels the assistant gave a food or recipe, changing a recipe's ingredients or steps (or
 		the servings or cooked weight of a recipe that has diary entries), changing a supplement's
-		ingredients, replacing the time windows for favourites, anything the assistant wants to force,
-		and every change after the first ten in one answer. Photos you attach are copied into the chat,
-		and the conversations and their photos stay stored until you delete them.
+		ingredients, replacing the time windows for favourites, removing visible nutrients or pinned
+		insights, anything the assistant wants to force, and every change after the first ten in one
+		answer. Photos you attach are copied into the chat, and the conversations and their photos stay
+		stored until you delete them.
 	</p>
 
 	<h2 class="mb-3 mt-8 text-xl font-semibold">AI meal estimation (iOS)</h2>

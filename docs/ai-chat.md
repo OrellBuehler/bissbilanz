@@ -253,6 +253,8 @@ These calls never run without the user's approval:
   (`set_food_labels` / `set_recipe_labels` with an empty list when it wrote some before);
 - changing a recipe's ingredients or steps, or the servings or cooked weight of a recipe that has
   diary entries; changing a supplement's ingredients; replacing the favourite meal time windows;
+  replacing the visible nutrients or pinned insights so that one set now is removed (the card
+  names what goes);
 - any call with a `force` flag;
 - every write after the first 10 writes of one run (a "log all of these" request with many items
   asks again from the 11th on).
@@ -261,8 +263,9 @@ Everything else (logging, creating, other edits, goals, weight and sleep logs, o
 properties, labels, fasts, reminders, custom meal types, other preferences) runs at once and is
 reported in `changed` (§10). Deliberately without a card: switching the fasting-day flag, clearing
 an entry's note, the target weight or a supplement's reminder times, and display preferences
-(widgets, meal order, visible nutrients, pinned insights, water goal) — single fields or settings
-that are easy to set again. When the model calls a tool that needs approval, the run pauses:
+(widget visibility and order, meal order, water goal, and visible nutrients or pinned insights
+when nothing is removed) — single fields or settings that are easy to set again. A water goal sent
+as `null` is shown as a reset to the default. When the model calls a tool that needs approval, the run pauses:
 
 1. `action_required` event with `partIndex` and the full `action` (`ChatAction`); the message gets
    an `action` part with `status: "pending"`; the run's status becomes `awaiting_confirmation`

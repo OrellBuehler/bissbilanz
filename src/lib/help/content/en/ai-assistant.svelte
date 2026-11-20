@@ -67,8 +67,8 @@
 	replacing or removing the photo of any food or recipe, clearing a day's note, water or activity
 	details or all the labels the assistant gave a food or recipe, changing a recipe's ingredients or
 	steps (or the servings or cooked weight of a recipe you already logged), changing a supplement's
-	ingredients, replacing the time windows for favourites, anything forced, and every change after
-	the first ten in one answer.
+	ingredients, replacing the time windows for favourites, removing visible nutrients or pinned
+	insights, anything forced, and every change after the first ten in one answer.
 </p>
 <p class="mb-6">
 	Your messages, the photos you attach, the earlier conversation and whatever diary data the

@@ -11,8 +11,14 @@ vi.mock('$lib/server/db', () => ({
 	...Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, value]))
 }));
 
-const { listFastingSessions, upsertFastingSession, updateFastingSession, deleteFastingSession } =
-	await import('$lib/server/fasting');
+const {
+	listFastingSessions,
+	getFastingSession,
+	findOverlappingFast,
+	upsertFastingSession,
+	updateFastingSession,
+	deleteFastingSession
+} = await import('$lib/server/fasting');
 
 const FAST_ID = '10000000-0000-4000-8000-0000000000f1';
 const ROW = {
@@ -25,6 +31,20 @@ const ROW = {
 
 describe('fasting-db', () => {
 	beforeEach(() => reset());
+
+	test('getFastingSession returns the user’s fast or null', async () => {
+		setResult([ROW]);
+		expect(await getFastingSession(TEST_USER.id, FAST_ID)).toEqual(ROW);
+		setResult([]);
+		expect(await getFastingSession(TEST_USER.id, FAST_ID)).toBeNull();
+	});
+
+	test('findOverlappingFast returns the first overlap, optionally ignoring one fast', async () => {
+		setResult([ROW]);
+		expect(await findOverlappingFast(TEST_USER.id, ROW.startedAt, ROW.endedAt)).toEqual(ROW);
+		setResult([]);
+		expect(await findOverlappingFast(TEST_USER.id, ROW.startedAt, ROW.endedAt, FAST_ID)).toBeNull();
+	});
 
 	test('listFastingSessions returns rows', async () => {
 		setResult([ROW]);

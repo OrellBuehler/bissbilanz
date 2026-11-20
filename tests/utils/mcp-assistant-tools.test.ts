@@ -80,7 +80,7 @@ describe('assistant gap tools', () => {
 			delete_meal_type: { mealTypeId: ID },
 			get_food_usage: { foodId: ID, limit: 10 },
 			get_recipe_usage: { recipeId: ID },
-			list_food_brands: {},
+			list_food_brands: { query: 'migros', limit: 10 },
 			search_nutrient_database: { query: ' pear raw ' }
 		};
 		for (const tool of NEW_TOOLS) {
@@ -90,6 +90,7 @@ describe('assistant gap tools', () => {
 			expect(handlers[tool]!.mock.calls[0]![0], tool).toBe('test-user');
 		}
 		expect(handlers.search_nutrient_database!.mock.calls[0]![1]).toEqual({ query: 'pear raw' });
+		expect(handlers.list_food_brands!.mock.calls[0]![1]).toEqual({ query: 'migros', limit: 10 });
 		expect(handlers.create_reminder!.mock.calls[0]![1]).toEqual({
 			kind: 'weight',
 			time: '07:30',
@@ -117,7 +118,9 @@ describe('assistant gap tools', () => {
 			['delete_meal_type', { mealTypeId: 'nope' }],
 			['log_fast', { startedAt: 'yesterday', endedAt: 'today', targetHours: 16 }],
 			['create_reminder', { kind: 'weight', time: '7:30' }],
-			['search_nutrient_database', { query: '   ' }]
+			['search_nutrient_database', { query: '   ' }],
+			['create_meal_type', { name: 'Brunch', sortOrder: 2_147_483_648 }],
+			['update_meal_type', { mealTypeId: ID, sortOrder: 2_147_483_648 }]
 		] as const) {
 			const result = await call(tool, args);
 			expect(result.isError, tool).toBe(true);

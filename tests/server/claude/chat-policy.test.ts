@@ -260,13 +260,18 @@ describe('confirmations', () => {
 		entries: boolean,
 		photo: string | null = null,
 		day: Record<string, unknown> | null = null,
-		labels: string[] = []
+		labels: string[] = [],
+		lists: { visibleNutrients: string[]; pinnedInsights: string[] } = {
+			visibleNutrients: ['sodium', 'sugar'],
+			pinnedInsights: ['tef']
+		}
 	) => ({
 		foodInUse: async () => entries,
 		recipeHasEntries: async () => entries,
 		photoOf: async () => photo,
 		dayProperties: async () => day,
-		assistantLabels: async () => labels
+		assistantLabels: async () => labels,
+		preferenceLists: async () => lists
 	});
 	const confirms = (
 		name: string,
@@ -316,6 +321,16 @@ describe('confirmations', () => {
 		expect(await confirms('update_supplement', { supplementId: 's', isActive: false })).toBe(false);
 		expect(await confirms('update_preferences', { favoriteMealTimeframes: [] })).toBe(true);
 		expect(await confirms('update_preferences', { widgetOrder: ['daylog'] })).toBe(false);
+		expect(await confirms('update_preferences', { mealOrder: ['Dinner'] })).toBe(false);
+		expect(
+			await confirms('update_preferences', { visibleNutrients: ['sugar', 'sodium', 'iron'] })
+		).toBe(false);
+		expect(await confirms('update_preferences', { visibleNutrients: ['sodium'] })).toBe(true);
+		expect(await confirms('update_preferences', { visibleNutrients: [] })).toBe(true);
+		expect(await confirms('update_preferences', { pinnedInsights: ['tef', 'dii-score'] })).toBe(
+			false
+		);
+		expect(await confirms('update_preferences', { pinnedInsights: ['dii-score'] })).toBe(true);
 		expect(await confirms('delete_fast', { fastId: 'f' })).toBe(true);
 		expect(await confirms('delete_reminder', { reminderId: 'r' })).toBe(true);
 		expect(await confirms('delete_meal_type', { mealTypeId: 'm' })).toBe(true);
@@ -349,6 +364,10 @@ describe('confirmations', () => {
 			assistantLabels: async (table: 'foods' | 'recipes', id: unknown) => (
 				seen.push(['labels', table, id]),
 				[]
+			),
+			preferenceLists: async () => (
+				seen.push(['preferences']),
+				{ visibleNutrients: [], pinnedInsights: [] }
 			)
 		};
 		await needsConfirmation(

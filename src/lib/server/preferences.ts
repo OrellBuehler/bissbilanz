@@ -94,7 +94,7 @@ const DAY_DETAIL_VISIBILITY_KEYS = [
 const normalizeMealOrder = (order: string[], customMealNames: string[]): string[] => {
 	const allMeals = [...(DEFAULT_MEAL_TYPES as readonly string[]), ...customMealNames];
 	const validSet = new Set(allMeals);
-	const result = order.filter((m) => validSet.has(m));
+	const result = [...new Set(order)].filter((m) => validSet.has(m));
 	for (const meal of allMeals) {
 		if (!result.includes(meal)) {
 			result.push(meal);
@@ -240,6 +240,13 @@ export const getUserTimeZone = async (userId: string): Promise<string> => {
 	return row?.timeZone ?? 'UTC';
 };
 
+/** The account's language (users.locale), 'en' when unset. */
+export const getUserLocale = async (userId: string): Promise<string> => {
+	const db = getDB();
+	const [row] = await db.select({ locale: users.locale }).from(users).where(eq(users.id, userId));
+	return row?.locale ?? 'en';
+};
+
 export const getPreferences = async (userId: string) => {
 	const db = getDB();
 	const [prefsResult, timeframeRows, userResult, customMeals] = await Promise.all([
@@ -269,6 +276,9 @@ export const getPreferences = async (userId: string) => {
 		aiTaskProcessorKind: prefs.aiTaskProcessor,
 		widgetOrder: normalizeSectionOrder(prefs.widgetOrder),
 		mealOrder: normalizeMealOrder(prefs.mealOrder ?? [], customMealNames),
+		// Clients key their lists by these values; a stored duplicate would crash them.
+		visibleNutrients: [...new Set(prefs.visibleNutrients)],
+		pinnedInsights: [...new Set(prefs.pinnedInsights)],
 		locale: user?.locale ?? 'en',
 		favoriteMealTimeframes: timeframeRows.map(serializeFavoriteMealTimeframe)
 	};

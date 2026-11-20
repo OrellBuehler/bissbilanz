@@ -74,8 +74,9 @@
 	Notiz, das Wasser oder die Aktivität eines Tages leeren oder alle Labels entfernen, die der
 	Assistent einem Lebensmittel oder Rezept gegeben hat, die Zutaten oder Schritte eines Rezepts
 	ändern (oder Portionen und gekochtes Gewicht eines Rezepts, das du schon erfasst hast), die
-	Zutaten eines Supplements ändern, die Zeitfenster für Favoriten ersetzen, alles Erzwungene und
-	jede Änderung nach den ersten zehn in einer Antwort.
+	Zutaten eines Supplements ändern, die Zeitfenster für Favoriten ersetzen, sichtbare Nährstoffe
+	oder angeheftete Einblicke entfernen, alles Erzwungene und jede Änderung nach den ersten zehn in
+	einer Antwort.
 </p>
 <p class="mb-6">
 	Deine Nachrichten, angehängte Fotos, das bisherige Gespräch und alle Tagebuchdaten, die der

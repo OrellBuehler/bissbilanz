@@ -15,7 +15,12 @@ export type ConfirmLookup = {
 	dayProperties: (date: unknown) => Promise<Record<string, unknown> | null>;
 	// The labels a set_*_labels call replaces (the ones the assistant wrote).
 	assistantLabels: (table: 'foods' | 'recipes', id: unknown) => Promise<string[]>;
+	// The display lists an update_preferences call replaces, as they are now.
+	preferenceLists: () => Promise<Record<(typeof PREFERENCE_LISTS)[number], string[]>>;
 };
+
+// Preference lists whose replacement asks first when it drops an item.
+export const PREFERENCE_LISTS = ['visibleNutrients', 'pinnedInsights'] as const;
 
 export type ChangeContext = {
 	input: Record<string, unknown>;
@@ -108,6 +113,15 @@ const clearsLabels = async (
 	input: Record<string, unknown>,
 	lookup: ConfirmLookup
 ) => isCleared(input.labels) && (await lookup.assistantLabels(table, id)).length > 0;
+
+const dropsPreferenceItems = async (input: Record<string, unknown>, lookup: ConfirmLookup) => {
+	const given = PREFERENCE_LISTS.filter((key) => Array.isArray(input[key]));
+	if (given.length === 0) return false;
+	const current = await lookup.preferenceLists();
+	return given.some((key) =>
+		current[key].some((item) => !(input[key] as unknown[]).includes(item))
+	);
+};
 
 const createsFoods = (input: Record<string, unknown>) =>
 	Array.isArray(input.ingredients) &&
@@ -292,9 +306,12 @@ export const CHAT_TOOL_POLICY: Record<string, ChatToolPolicy> = {
 	update_reminder: write(({ input }) => [change('reminders', { ids: [str(input.reminderId)] })]),
 	delete_reminder: confirm(({ input }) => [change('reminders', { ids: [str(input.reminderId)] })]),
 	get_preferences: READ,
-	// Replacing the favourite time windows drops every window the call leaves out.
+	// Replacing the favourite time windows drops every window the call leaves
+	// out; replacing the visible nutrients or pinned insights asks when it
+	// removes one that is set now. Orders and single settings do not ask.
 	update_preferences: write(() => [change('preferences')], {
-		confirmWhen: (input) => has(input, ['favoriteMealTimeframes'])
+		confirmWhen: async (input, lookup) =>
+			has(input, ['favoriteMealTimeframes']) || (await dropsPreferenceItems(input, lookup))
 	}),
 	// A new or removed custom meal changes the meal order the preferences report.
 	create_meal_type: write(({ result }) => [

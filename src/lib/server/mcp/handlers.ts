@@ -51,6 +51,7 @@ import { todayInTimeZone } from '$lib/utils/dates';
 import {
 	getUserTimeZone,
 	getPreferences,
+	getUserLocale,
 	updatePreferences,
 	DEFAULT_PREFERENCES
 } from '$lib/server/preferences';
@@ -95,10 +96,13 @@ import {
 	listMealTypes,
 	createMealType,
 	updateMealType,
+	renameMealType,
 	deleteMealType
 } from '$lib/server/meal-types';
 import {
 	listFastingSessions,
+	getFastingSession,
+	findOverlappingFast,
 	upsertFastingSession,
 	updateFastingSession,
 	deleteFastingSession
@@ -294,14 +298,18 @@ export const {
 	getBiologicalSex,
 	getUserTimeZone,
 	getPreferences,
+	getUserLocale,
 	updatePreferences,
 	defaultPreferences: DEFAULT_PREFERENCES,
 	getClaudeCapabilitySafe,
 	listMealTypes,
 	createMealType,
 	updateMealType,
+	renameMealType,
 	deleteMealType,
 	listFastingSessions,
+	getFastingSession,
+	findOverlappingFast,
 	upsertFastingSession,
 	updateFastingSession,
 	deleteFastingSession,

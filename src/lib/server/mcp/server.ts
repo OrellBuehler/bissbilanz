@@ -124,6 +124,8 @@ const WRITE = { readOnlyHint: false, destructiveHint: false } as const;
 const UPDATE = { readOnlyHint: false, destructiveHint: false, idempotentHint: true } as const;
 const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true, idempotentHint: true } as const;
 
+const INT4_MAX = 2_147_483_647;
+
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD format');
 
 const dateRangeSchema = {
@@ -1811,7 +1813,7 @@ export function createMcpServer(userId: string): McpServer {
 					.min(1)
 					.max(500)
 					.optional()
-					.describe('Max fasts to return. Defaults to 100.')
+					.describe('Max fasts to return. Defaults to 30.')
 			},
 			annotations: READ_ONLY
 		},
@@ -1824,7 +1826,7 @@ export function createMcpServer(userId: string): McpServer {
 		'log_fast',
 		{
 			title: 'Log Fast',
-			description: `Record a finished fast, e.g. one the user tells you about afterwards. ${FAST_DOC} If the user is still timing the fast in the app, let them end it there: the app saves it itself, so logging it here as well would record it twice. Ending a fast with the app's timer also flags the day it ended as a fasting day; do that with set_day_properties (isFastingDay) when the user wants the same.`,
+			description: `Record a finished fast, e.g. one the user tells you about afterwards. ${FAST_DOC} The fast must be over (endedAt not in the future), last at most 14 days and not overlap a fast already recorded (see list_fasts). If the user is still timing the fast in the app, let them end it there: the app saves it itself, so logging it here as well would record it twice. Ending a fast with the app's timer also flags the day it ended as a fasting day; do that with set_day_properties (isFastingDay) when the user wants the same.`,
 			inputSchema: describeShape({ startedAt, endedAt, targetHours }, FAST_FIELD_DOCS),
 			annotations: WRITE
 		},
@@ -1836,7 +1838,7 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'Update Fast',
 			description:
-				'Change the start, end or target of a recorded fast (see list_fasts). Omitted fields keep their value.',
+				'Change the start, end or target of a recorded fast (see list_fasts). Omitted fields keep their value. The changed fast must be over, last at most 14 days and not overlap another recorded fast.',
 			inputSchema: {
 				fastId: z.string().uuid().describe('ID of the fast to update'),
 				...describeShape(fastingSessionUpdateSchema.shape, FAST_FIELD_DOCS)
@@ -1861,7 +1863,7 @@ export function createMcpServer(userId: string): McpServer {
 
 	// Reminders
 	const REMINDER_DOC =
-		'A reminder prompts the user to log their weight, their sleep or a meal (kind "meal" with mealType) at a local wall-clock time on the chosen weekdays. The Android and iOS apps schedule it as a local notification with Snooze and Skip-today actions once they have synced it; the web app gets a Web Push notification from the server if the user has turned push notifications on. A reminder stays silent on a day when what it asks for is already logged (any weight entry, any sleep entry, or any entry in that meal), and enabled: false keeps it without notifying. Supplement reminders are separate: they are the reminderTimes of each supplement.';
+		'A reminder prompts the user to log their weight, their sleep or a meal (kind "meal" with mealType) at a local wall-clock time on the chosen weekdays. The Android and iOS apps schedule it as a local notification with Snooze and Skip-today actions once they have synced it; the web app gets a Web Push notification from the server if the user has turned push notifications on. A reminder stays silent on a day when what it asks for is already logged (any weight entry, any sleep entry, or any entry in that meal), and enabled: false keeps it without notifying. Supplement reminders are separate: they are the reminderTimes of each supplement. mealType must be a meal the user has (a default or one of their custom meal types; "lunch" is stored as "Lunch"), and a reminder identical to an existing one (same kind, meal, time and weekdays) is refused.';
 
 	const REMINDER_FIELD_DOCS = {
 		kind: 'What to log: "weight", "sleep" or "meal"',
@@ -1951,7 +1953,7 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'Update Preferences',
 			description:
-				"Change the user's app preferences. Omitted fields keep their value; widgetOrder, mealOrder, visibleNutrients, pinnedInsights and favoriteMealTimeframes each replace the whole list. Only the fields listed here can be changed: the language, time zone, biological sex, AI task processing and account settings are for the user to change in the app's settings. Returns the stored values of the fields you changed.",
+				'Change the user\'s app preferences. Omitted fields keep their value; widgetOrder, mealOrder, visibleNutrients, pinnedInsights and favoriteMealTimeframes each replace the whole list, and repeated items are dropped. Meal names in mealOrder and favoriteMealTimeframes must be meals the user has and are stored under their stored names ("lunch" becomes "Lunch"); a custom meal named without customMealTypeId is matched to it, and a mealType that does not fit its customMealTypeId is refused. Only the fields listed here can be changed: the language, time zone, biological sex, AI task processing and account settings are for the user to change in the app\'s settings. Returns the stored values of the fields you changed.',
 			inputSchema: describeShape(preferenceShape, {
 				showChartWidget: 'Show the calorie and macro chart on the dashboard',
 				showFavoritesWidget: 'Show the favourites card for one-tap logging',
@@ -2000,7 +2002,7 @@ export function createMcpServer(userId: string): McpServer {
 			inputSchema: describeShape(
 				{
 					...mealTypeCreateSchema.shape,
-					sortOrder: mealTypeCreateSchema.shape.sortOrder.optional()
+					sortOrder: mealTypeCreateSchema.shape.sortOrder.max(INT4_MAX).optional()
 				},
 				{
 					name: 'Meal type name, up to 50 characters',
@@ -2021,10 +2023,16 @@ export function createMcpServer(userId: string): McpServer {
 				'Rename a custom meal type (from list_meal_types), or change its sortOrder. A renamed meal keeps its place in the meal order, its favourite time windows and its meal reminders. Diary entries already logged under the old name keep that name and still show under it; move them with update_entry if the user wants them under the new one. Default meal types cannot be renamed.',
 			inputSchema: {
 				mealTypeId: z.string().uuid().describe('ID of the custom meal type'),
-				...describeShape(mealTypeUpdateSchema.shape, {
-					name: 'New name, up to 50 characters',
-					sortOrder: 'New position among the custom meal types'
-				})
+				...describeShape(
+					{
+						...mealTypeUpdateSchema.shape,
+						sortOrder: mealTypeCreateSchema.shape.sortOrder.max(INT4_MAX).optional()
+					},
+					{
+						name: 'New name, up to 50 characters',
+						sortOrder: 'New position among the custom meal types'
+					}
+				)
 			},
 			annotations: UPDATE
 		},
@@ -2052,14 +2060,14 @@ export function createMcpServer(userId: string): McpServer {
 		.min(1)
 		.max(200)
 		.optional()
-		.describe('Most recent entries to return, 1-200. Defaults to 50.');
+		.describe('Most recent entries to return, 1-200. Defaults to 20.');
 
 	server.registerTool(
 		'get_food_usage',
 		{
 			title: 'Get Food Usage',
 			description:
-				'Where a food is used: how many diary entries log it (totalEntries) with the most recent ones (date, mealType, servings, eatenAt), the recipes that use it as an ingredient (isLastIngredient: it is their only ingredient, so delete_food cannot remove it), and the supplements it backs. Check it before deleting, merging or changing the nutrition of a food.',
+				'Where a food is used: how many diary entries log it (totalEntries) with the most recent ones (date, mealType, servings, eatenAt), the recipes that use it as an ingredient (totalRecipes, up to 50 listed; isLastIngredient: it is their only ingredient, so delete_food cannot remove it), and the supplements it backs (totalSupplements, up to 50 listed). Check it before deleting, merging or changing the nutrition of a food.',
 			inputSchema: {
 				foodId: z.string().uuid().describe('ID of the food'),
 				limit: usageLimit
@@ -2089,11 +2097,24 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'List Food Brands',
 			description:
-				"The brands in the user's food database with how many foods carry each, most common first. Spellings that differ only in case or spacing count as one brand, shown in its most common spelling.",
-			inputSchema: {},
+				"The brands in the user's food database with how many foods carry each, most common first, and how many brands match (total). Spellings that differ only in case or spacing count as one brand, shown in its most common spelling.",
+			inputSchema: {
+				query: z
+					.string()
+					.max(200)
+					.optional()
+					.describe('Only brands containing this text, ignoring case'),
+				limit: z
+					.number()
+					.int()
+					.min(1)
+					.max(500)
+					.optional()
+					.describe('Max brands to return. Defaults to 100.')
+			},
 			annotations: READ_ONLY
 		},
-		safe(() => handleListFoodBrands(userId))
+		safe((args) => handleListFoodBrands(userId, args))
 	);
 
 	server.registerTool(

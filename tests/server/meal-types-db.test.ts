@@ -4,7 +4,7 @@ import { createMockDB } from '../helpers/mock-db';
 import { TEST_USER, TEST_MEAL_TYPE, VALID_MEAL_TYPE_PAYLOAD } from '../helpers/fixtures';
 
 // Create mock DB
-const { db, setResult, setError, reset } = createMockDB();
+const { db, setResult, setError, queueResults, reset, getCalls } = createMockDB();
 
 // Import schema for re-export in mock
 const schema = await import('$lib/server/schema');
@@ -16,7 +16,7 @@ vi.mock('$lib/server/db', () => ({
 }));
 
 // Import after mocking
-const { listMealTypes, createMealType, updateMealType, deleteMealType } =
+const { listMealTypes, createMealType, updateMealType, renameMealType, deleteMealType } =
 	await import('$lib/server/meal-types');
 
 describe('meal-types-db', () => {
@@ -117,6 +117,49 @@ describe('meal-types-db', () => {
 			if (result.success) {
 				expect(result.data).toBeUndefined();
 			}
+		});
+	});
+
+	describe('renameMealType', () => {
+		const writes = () => getCalls().filter((call) => call.method === 'update');
+
+		test('renames and carries reminders, time windows and the meal order in one transaction', async () => {
+			const renamed = { ...TEST_MEAL_TYPE, name: 'Gym', sortOrder: 4 };
+			queueResults([[{ name: 'Pre-Workout' }], [renamed], [], [], []]);
+			expect(
+				await renameMealType(TEST_USER.id, TEST_MEAL_TYPE.id, { name: 'Gym', sortOrder: 4 })
+			).toEqual({ success: true, data: renamed });
+			expect(getCalls()[0]?.method).toBe('transaction');
+			expect(writes()).toHaveLength(4);
+		});
+
+		test('a same-name update writes only the meal type', async () => {
+			queueResults([[{ name: 'Pre-Workout' }], [TEST_MEAL_TYPE]]);
+			expect(
+				await renameMealType(TEST_USER.id, TEST_MEAL_TYPE.id, { name: 'Pre-Workout' })
+			).toEqual({ success: true, data: TEST_MEAL_TYPE });
+			expect(writes()).toHaveLength(1);
+		});
+
+		test('another user’s or an unknown meal type changes nothing', async () => {
+			queueResults([[]]);
+			expect(await renameMealType(TEST_USER.id, TEST_MEAL_TYPE.id, { name: 'Gym' })).toEqual({
+				success: true,
+				data: undefined
+			});
+			expect(writes()).toHaveLength(0);
+		});
+
+		test('a failing statement fails the whole rename and reaches the caller', async () => {
+			setError(new Error('Failed query: update "reminders"'));
+			const result = await renameMealType(TEST_USER.id, TEST_MEAL_TYPE.id, { name: 'Gym' });
+			expect(result.success).toBe(false);
+		});
+
+		test('rejects an empty name before any statement', async () => {
+			const result = await renameMealType(TEST_USER.id, TEST_MEAL_TYPE.id, { name: '' });
+			expect(result.success).toBe(false);
+			expect(getCalls()).toHaveLength(0);
 		});
 	});
 

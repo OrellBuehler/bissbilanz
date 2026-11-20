@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createHandlers, type HandlerDeps } from '../../src/lib/server/mcp/create-handlers';
-import { ApiError } from '../../src/lib/server/errors';
+import { ApiError, McpUserError } from '../../src/lib/server/errors';
 import { NutrientDatabaseError } from '../../src/lib/server/fooddata-central';
 import { DEFAULT_PREFERENCES } from '../../src/lib/server/preferences';
 import { fastingSessionUpsertSchema } from '../../src/lib/server/validation/fasting';
@@ -59,6 +59,8 @@ const mealTypeRow = {
 
 const deps = {
 	listFastingSessions: vi.fn(),
+	getFastingSession: vi.fn(),
+	findOverlappingFast: vi.fn(),
 	upsertFastingSession: vi.fn(),
 	updateFastingSession: vi.fn(),
 	deleteFastingSession: vi.fn(),
@@ -68,11 +70,13 @@ const deps = {
 	updateReminder: vi.fn(),
 	deleteReminder: vi.fn(),
 	getPreferences: vi.fn(),
+	getUserLocale: vi.fn(),
 	updatePreferences: vi.fn(),
 	defaultPreferences: DEFAULT_PREFERENCES,
 	listMealTypes: vi.fn(),
 	createMealType: vi.fn(),
 	updateMealType: vi.fn(),
+	renameMealType: vi.fn(),
 	deleteMealType: vi.fn(),
 	getFoodUsage: vi.fn(),
 	getRecipeUsage: vi.fn(),
@@ -86,16 +90,20 @@ beforeEach(() => {
 	for (const value of Object.values(deps)) {
 		if (typeof value === 'function' && 'mockReset' in value) value.mockReset();
 	}
+	deps.findOverlappingFast.mockResolvedValue(null);
+	deps.listReminders.mockResolvedValue([]);
+	deps.listMealTypes.mockResolvedValue([]);
 });
 
 describe('fasting tools', () => {
-	test('list_fasts passes the window through and adds the length and target result', async () => {
+	const log = { startedAt: '2026-11-18T20:00:00+01:00', endedAt: '2026-11-19T12:30:00+01:00' };
+
+	test('list_fasts passes the window through, 30 by default, with length and target result', async () => {
 		deps.listFastingSessions.mockResolvedValue([
 			fastRow,
 			{ ...fastRow, id: 'short', endedAt: new Date('2026-11-19T05:00:00Z') }
 		]);
-		const args = { from: '2026-11-01T00:00:00+01:00', limit: 10 };
-		expect(await h.handleListFasts(USER, args)).toEqual({
+		expect(await h.handleListFasts(USER, { from: '2026-11-01T00:00:00+01:00' })).toEqual({
 			fasts: [
 				{
 					id: FAST_ID,
@@ -108,14 +116,18 @@ describe('fasting tools', () => {
 				expect.objectContaining({ id: 'short', durationMinutes: 600, targetReached: false })
 			]
 		});
-		expect(deps.listFastingSessions).toHaveBeenCalledWith(USER, args);
+		expect(deps.listFastingSessions).toHaveBeenCalledWith(USER, {
+			from: '2026-11-01T00:00:00+01:00',
+			limit: 30
+		});
+		await h.handleListFasts(USER, { limit: 5 });
+		expect(deps.listFastingSessions).toHaveBeenLastCalledWith(USER, { limit: 5 });
 	});
 
 	test('log_fast records only the start, end and target', async () => {
 		deps.upsertFastingSession.mockResolvedValue(ok(fastRow));
 		const result = await h.handleLogFast(USER, {
-			startedAt: '2026-11-18T20:00:00+01:00',
-			endedAt: '2026-11-19T12:30:00+01:00',
+			...log,
 			targetHours: 16,
 			id: FAST_ID
 		} as never);
@@ -124,58 +136,92 @@ describe('fasting tools', () => {
 			fastId: FAST_ID,
 			fast: { durationMinutes: 990 }
 		});
-		expect(deps.upsertFastingSession).toHaveBeenCalledWith(USER, {
-			startedAt: '2026-11-18T20:00:00+01:00',
-			endedAt: '2026-11-19T12:30:00+01:00',
-			targetHours: 16
+		expect(deps.upsertFastingSession).toHaveBeenCalledWith(USER, { ...log, targetHours: 16 });
+		expect(deps.findOverlappingFast).toHaveBeenCalledWith(
+			USER,
+			new Date(log.startedAt),
+			new Date(log.endedAt),
+			undefined
+		);
+	});
+
+	test('log_fast refuses a fast that is not over, too long, inverted or overlapping', async () => {
+		const later = new Date(Date.now() + 60 * 60_000).toISOString();
+		expect(
+			await h.handleLogFast(USER, { startedAt: log.startedAt, endedAt: later, targetHours: 16 })
+		).toEqual({ error: 'endedAt is in the future: only a finished fast can be recorded' });
+		expect(
+			await h.handleLogFast(USER, {
+				startedAt: '2026-10-01T00:00:00Z',
+				endedAt: '2026-10-16T00:00:00Z',
+				targetHours: 16
+			})
+		).toEqual({ error: 'A fast can last at most 14 days' });
+		expect(
+			await h.handleLogFast(USER, {
+				startedAt: log.endedAt,
+				endedAt: log.startedAt,
+				targetHours: 16
+			})
+		).toEqual({ error: 'endedAt must be after startedAt' });
+		deps.findOverlappingFast.mockResolvedValue(fastRow);
+		expect(await h.handleLogFast(USER, { ...log, targetHours: 16 })).toEqual({
+			error: `This overlaps the recorded fast ${FAST_ID} from 2026-11-18T19:00:00.000Z to 2026-11-19T11:30:00.000Z`
 		});
+		expect(deps.upsertFastingSession).not.toHaveBeenCalled();
 	});
 
 	test('log_fast reports validation failures and an unsaved fast', async () => {
-		const invalid = fastingSessionUpsertSchema.safeParse({
-			startedAt: '2026-11-19T12:00:00Z',
-			endedAt: '2026-11-19T10:00:00Z',
-			targetHours: 16
-		});
+		const invalid = fastingSessionUpsertSchema.safeParse({ ...log, targetHours: 0 });
 		if (invalid.success) throw new Error('expected a validation error');
 		deps.upsertFastingSession.mockResolvedValue(fail(invalid.error));
-		expect(
-			await h.handleLogFast(USER, {
-				startedAt: '2026-11-19T12:00:00Z',
-				endedAt: '2026-11-19T10:00:00Z',
-				targetHours: 16
-			})
-		).toEqual({
+		expect(await h.handleLogFast(USER, { ...log, targetHours: 0 })).toMatchObject({
 			error: 'validation_failed',
-			issues: [{ path: 'endedAt', message: 'endedAt must be after startedAt' }]
+			issues: [{ path: 'targetHours' }]
 		});
 		deps.upsertFastingSession.mockResolvedValue(ok(undefined));
-		expect(
-			await h.handleLogFast(USER, {
-				startedAt: '2026-11-19T08:00:00Z',
-				endedAt: '2026-11-19T10:00:00Z',
-				targetHours: 16
-			})
-		).toEqual({ error: 'The fast could not be saved' });
+		expect(await h.handleLogFast(USER, { ...log, targetHours: 16 })).toEqual({
+			error: 'The fast could not be saved'
+		});
 	});
 
-	test('update_fast turns a range the database refuses into a readable error', async () => {
+	test('update_fast checks the changed range against the stored fast and the others', async () => {
 		deps.updateFastingSession.mockResolvedValue(ok({ ...fastRow, targetHours: 18 }));
 		expect(await h.handleUpdateFast(USER, { fastId: FAST_ID, targetHours: 18 })).toMatchObject({
 			success: true,
 			fastId: FAST_ID,
 			fast: { targetHours: 18, targetReached: false }
 		});
+		expect(deps.getFastingSession).not.toHaveBeenCalled();
 		expect(deps.updateFastingSession).toHaveBeenCalledWith(USER, FAST_ID, { targetHours: 18 });
 
-		deps.updateFastingSession.mockResolvedValue(fail(pgError('fasting_sessions_range_valid')));
+		deps.getFastingSession.mockResolvedValue(fastRow);
 		expect(
 			await h.handleUpdateFast(USER, { fastId: FAST_ID, endedAt: '2026-11-18T18:00:00Z' })
 		).toEqual({ error: 'endedAt must be after startedAt' });
+		await h.handleUpdateFast(USER, { fastId: FAST_ID, endedAt: '2026-11-19T12:00:00Z' });
+		expect(deps.findOverlappingFast).toHaveBeenLastCalledWith(
+			USER,
+			fastRow.startedAt,
+			new Date('2026-11-19T12:00:00Z'),
+			FAST_ID
+		);
 
+		deps.getFastingSession.mockResolvedValue(null);
+		expect(
+			await h.handleUpdateFast(USER, { fastId: FAST_ID, startedAt: '2026-11-18T20:00:00Z' })
+		).toEqual({ error: 'Fast not found' });
+
+		deps.updateFastingSession.mockResolvedValue(fail(pgError('fasting_sessions_range_valid')));
+		expect(await h.handleUpdateFast(USER, { fastId: FAST_ID, targetHours: 18 })).toEqual({
+			error: 'endedAt must be after startedAt'
+		});
 		deps.updateFastingSession.mockResolvedValue(ok(undefined));
 		expect(await h.handleUpdateFast(USER, { fastId: FAST_ID, targetHours: 18 })).toEqual({
 			error: 'Fast not found'
+		});
+		expect(await h.handleUpdateFast(USER, { fastId: FAST_ID })).toEqual({
+			error: 'Nothing to change: pass at least one field to update'
 		});
 	});
 
@@ -195,12 +241,12 @@ describe('fasting tools', () => {
 		await expect(h.handleDeleteFast(USER, { fastId: FAST_ID })).rejects.toThrow(
 			'Failed to delete fast'
 		);
-		deps.upsertFastingSession.mockRejectedValue(new Error('connection reset'));
-		await expect(
-			h.handleLogFast(USER, { startedAt: 'a', endedAt: 'b', targetHours: 1 })
-		).rejects.toThrow('Failed to log fast');
+		deps.findOverlappingFast.mockRejectedValue(new Error('connection reset'));
+		await expect(h.handleLogFast(USER, { ...log, targetHours: 1 })).rejects.toThrow(
+			'Failed to log fast'
+		);
 		deps.updateFastingSession.mockRejectedValue(new Error('connection reset'));
-		await expect(h.handleUpdateFast(USER, { fastId: FAST_ID })).rejects.toThrow(
+		await expect(h.handleUpdateFast(USER, { fastId: FAST_ID, targetHours: 2 })).rejects.toThrow(
 			'Failed to update fast'
 		);
 	});
@@ -221,7 +267,8 @@ describe('reminder tools', () => {
 		expect(await h.handleListReminders(USER)).toEqual({ reminders: [serialized] });
 	});
 
-	test('create_reminder files a lowercase meal under its canonical name', async () => {
+	test('create_reminder stores a meal under the name the user has', async () => {
+		deps.listMealTypes.mockResolvedValue([mealTypeRow]);
 		deps.createReminder.mockResolvedValue(ok(reminderRow));
 		expect(
 			await h.handleCreateReminder(USER, { kind: 'meal', mealType: ' lunch ', time: '12:00' })
@@ -231,6 +278,12 @@ describe('reminder tools', () => {
 			mealType: 'Lunch',
 			time: '12:00'
 		});
+		await h.handleCreateReminder(USER, { kind: 'meal', mealType: 'PRE-WORKOUT', time: '06:00' });
+		expect(deps.createReminder).toHaveBeenLastCalledWith(USER, {
+			kind: 'meal',
+			mealType: 'Pre-workout',
+			time: '06:00'
+		});
 
 		deps.createReminder.mockResolvedValue(ok({ ...reminderRow, kind: 'weight', mealType: null }));
 		await h.handleCreateReminder(USER, { kind: 'weight', time: '07:00' });
@@ -238,11 +291,46 @@ describe('reminder tools', () => {
 
 		deps.createReminder.mockResolvedValue(fail(new Error('Failed to create reminder')));
 		expect(await h.handleCreateReminder(USER, { kind: 'weight', time: '07:00' })).toEqual({
-			error: 'Failed to create reminder'
+			error: 'Internal error. The request could not be completed.'
 		});
 	});
 
-	test('update_reminder explains a meal type that does not fit the kind', async () => {
+	test('create_reminder refuses a meal the user does not have and an identical reminder', async () => {
+		expect(
+			await h.handleCreateReminder(USER, { kind: 'meal', mealType: 'Brunch', time: '11:00' })
+		).toEqual({
+			error:
+				'Unknown meal type "Brunch": use Breakfast, Lunch, Dinner, Snacks or one of the user\'s custom meal types (list_meal_types)'
+		});
+		deps.listReminders.mockResolvedValue([
+			reminderRow,
+			{
+				...reminderRow,
+				id: 'every-day',
+				kind: 'weight',
+				mealType: null,
+				time: '07:00',
+				weekdays: [0, 1, 2, 3, 4, 5, 6]
+			}
+		]);
+		expect(
+			await h.handleCreateReminder(USER, {
+				kind: 'meal',
+				mealType: 'lunch',
+				time: '12:00',
+				weekdays: [1, 2, 3, 4, 5]
+			})
+		).toEqual({
+			error: `An identical reminder already exists (${REMINDER_ID}); change that one instead`
+		});
+		expect(await h.handleCreateReminder(USER, { kind: 'weight', time: '07:00' })).toEqual({
+			error: 'An identical reminder already exists (every-day); change that one instead'
+		});
+		expect(deps.createReminder).not.toHaveBeenCalled();
+	});
+
+	test('update_reminder checks the merged reminder and explains a meal that does not fit', async () => {
+		deps.getReminderById.mockResolvedValue(reminderRow);
 		deps.updateReminder.mockResolvedValue(ok({ ...reminderRow, time: '12:30' }));
 		expect(await h.handleUpdateReminder(USER, { reminderId: REMINDER_ID, time: '12:30' })).toEqual({
 			success: true,
@@ -251,6 +339,22 @@ describe('reminder tools', () => {
 		});
 		expect(deps.updateReminder).toHaveBeenCalledWith(USER, REMINDER_ID, { time: '12:30' });
 
+		deps.listReminders.mockResolvedValue([
+			reminderRow,
+			{ ...reminderRow, id: 'dinner', mealType: 'Dinner', time: '19:00' },
+			{ ...reminderRow, id: 'scale', kind: 'weight', mealType: null, time: '07:00' }
+		]);
+		expect(
+			await h.handleUpdateReminder(USER, {
+				reminderId: REMINDER_ID,
+				mealType: 'dinner',
+				time: '19:00'
+			})
+		).toEqual({ error: 'An identical reminder already exists (dinner); change that one instead' });
+		expect(
+			await h.handleUpdateReminder(USER, { reminderId: REMINDER_ID, kind: 'weight', time: '07:00' })
+		).toEqual({ error: 'An identical reminder already exists (scale); change that one instead' });
+
 		deps.updateReminder.mockResolvedValue(fail(pgError('reminders_meal_type_required')));
 		expect(
 			await h.handleUpdateReminder(USER, { reminderId: REMINDER_ID, mealType: 'snack' })
@@ -258,12 +362,21 @@ describe('reminder tools', () => {
 		expect(deps.updateReminder).toHaveBeenLastCalledWith(USER, REMINDER_ID, { mealType: 'Snacks' });
 
 		deps.updateReminder.mockResolvedValue(fail(pgError('some_other_constraint')));
-		expect(await h.handleUpdateReminder(USER, { reminderId: REMINDER_ID, time: '12:30' })).toEqual({
+		expect(await h.handleUpdateReminder(USER, { reminderId: REMINDER_ID, time: '12:45' })).toEqual({
 			error: 'Internal error. The request could not be completed.'
 		});
-
 		deps.updateReminder.mockResolvedValue(ok(undefined));
-		expect(await h.handleUpdateReminder(USER, { reminderId: REMINDER_ID, time: '12:30' })).toEqual({
+		expect(await h.handleUpdateReminder(USER, { reminderId: REMINDER_ID, time: '12:45' })).toEqual({
+			error: 'Reminder not found'
+		});
+		expect(
+			await h.handleUpdateReminder(USER, { reminderId: REMINDER_ID, mealType: 'Tea' })
+		).toEqual({ error: expect.stringContaining('Unknown meal type "Tea"') });
+		expect(await h.handleUpdateReminder(USER, { reminderId: REMINDER_ID })).toEqual({
+			error: 'Nothing to change: pass at least one field to update'
+		});
+		deps.getReminderById.mockResolvedValue(null);
+		expect(await h.handleUpdateReminder(USER, { reminderId: REMINDER_ID, time: '12:45' })).toEqual({
 			error: 'Reminder not found'
 		});
 	});
@@ -286,15 +399,13 @@ describe('reminder tools', () => {
 	test('failures become tool errors', async () => {
 		deps.listReminders.mockRejectedValue(new Error('down'));
 		await expect(h.handleListReminders(USER)).rejects.toThrow('Failed to list reminders');
-		deps.createReminder.mockRejectedValue(new Error('down'));
 		await expect(h.handleCreateReminder(USER, { kind: 'sleep', time: '22:00' })).rejects.toThrow(
 			'Failed to create reminder'
 		);
-		deps.updateReminder.mockRejectedValue(new Error('down'));
-		await expect(h.handleUpdateReminder(USER, { reminderId: REMINDER_ID })).rejects.toThrow(
-			'Failed to update reminder'
-		);
 		deps.getReminderById.mockRejectedValue(new Error('down'));
+		await expect(
+			h.handleUpdateReminder(USER, { reminderId: REMINDER_ID, time: '22:00' })
+		).rejects.toThrow('Failed to update reminder');
 		await expect(h.handleDeleteReminder(USER, { reminderId: REMINDER_ID })).rejects.toThrow(
 			'Failed to delete reminder'
 		);
@@ -302,13 +413,16 @@ describe('reminder tools', () => {
 });
 
 describe('preference tools', () => {
-	test('get_preferences returns the stored preferences, or the defaults', async () => {
+	test('get_preferences returns the stored preferences, or the defaults in the account language', async () => {
 		deps.getPreferences.mockResolvedValue({ userId: USER, showChartWidget: false, locale: 'de' });
 		expect(await h.handleGetPreferences(USER)).toEqual({
 			preferences: { showChartWidget: false, locale: 'de' }
 		});
 		deps.getPreferences.mockResolvedValue(null);
-		expect(await h.handleGetPreferences(USER)).toEqual({ preferences: DEFAULT_PREFERENCES });
+		deps.getUserLocale.mockResolvedValue('de');
+		expect(await h.handleGetPreferences(USER)).toEqual({
+			preferences: { ...DEFAULT_PREFERENCES, locale: 'de' }
+		});
 		deps.getPreferences.mockRejectedValue(new Error('down'));
 		await expect(h.handleGetPreferences(USER)).rejects.toThrow('Failed to get preferences');
 	});
@@ -333,16 +447,96 @@ describe('preference tools', () => {
 			waterGoalMl: null,
 			showChartWidget: false
 		});
+		expect(deps.listMealTypes).not.toHaveBeenCalled();
 	});
 
-	test('update_preferences refuses a call that changes nothing it may change', async () => {
+	test('update_preferences drops repeats and stores meals under the names the user has', async () => {
+		deps.listMealTypes.mockResolvedValue([mealTypeRow]);
+		deps.updatePreferences.mockResolvedValue(ok({}));
+		await h.handleUpdatePreferences(USER, {
+			widgetOrder: ['chart', 'daylog', 'chart'],
+			visibleNutrients: ['sodium', 'sodium', 'sugar'],
+			pinnedInsights: ['tef', 'tef'],
+			mealOrder: ['dinner', 'pre-workout', 'Dinner', 'breakfast'],
+			favoriteMealTimeframes: [
+				{ mealType: 'pre-WORKOUT', startTime: '06:00', endTime: '07:00' },
+				{ mealType: 'lunch', startTime: '11:30', endTime: '14:00' },
+				{
+					mealType: 'Pre-workout',
+					customMealTypeId: MEAL_TYPE_ID,
+					startTime: '17:00',
+					endTime: '18:00'
+				}
+			]
+		});
+		expect(deps.updatePreferences).toHaveBeenCalledWith(USER, {
+			widgetOrder: ['chart', 'daylog'],
+			visibleNutrients: ['sodium', 'sugar'],
+			pinnedInsights: ['tef'],
+			mealOrder: ['Dinner', 'Pre-workout', 'Breakfast'],
+			favoriteMealTimeframes: [
+				{
+					mealType: 'Pre-workout',
+					customMealTypeId: MEAL_TYPE_ID,
+					startTime: '06:00',
+					endTime: '07:00'
+				},
+				{ mealType: 'Lunch', customMealTypeId: null, startTime: '11:30', endTime: '14:00' },
+				{
+					mealType: 'Pre-workout',
+					customMealTypeId: MEAL_TYPE_ID,
+					startTime: '17:00',
+					endTime: '18:00'
+				}
+			]
+		});
+	});
+
+	test('update_preferences refuses unknown meals and a meal name that does not fit its id', async () => {
+		deps.listMealTypes.mockResolvedValue([mealTypeRow]);
+		expect(
+			await h.handleUpdatePreferences(USER, { mealOrder: ['Breakfast', 'Elevenses'] })
+		).toEqual({ error: expect.stringContaining('Unknown meal type "Elevenses"') });
+		expect(
+			await h.handleUpdatePreferences(USER, {
+				favoriteMealTimeframes: [
+					{
+						mealType: 'Lunch',
+						customMealTypeId: MEAL_TYPE_ID,
+						startTime: '12:00',
+						endTime: '13:00'
+					}
+				]
+			})
+		).toEqual({
+			error: `mealType "Lunch" does not match customMealTypeId ${MEAL_TYPE_ID}, which is "Pre-workout"`
+		});
+		expect(
+			await h.handleUpdatePreferences(USER, {
+				favoriteMealTimeframes: [
+					{
+						mealType: 'Brunch',
+						customMealTypeId: OTHER_MEAL_TYPE_ID,
+						startTime: '10:00',
+						endTime: '11:00'
+					}
+				]
+			})
+		).toEqual({
+			error: `customMealTypeId ${OTHER_MEAL_TYPE_ID} is not one of the user's custom meal types`
+		});
+		expect(
+			await h.handleUpdatePreferences(USER, {
+				favoriteMealTimeframes: [{ mealType: 'Brunch', startTime: '10:00', endTime: '11:00' }]
+			})
+		).toEqual({ error: expect.stringContaining('Unknown meal type "Brunch"') });
 		expect(await h.handleUpdatePreferences(USER, { locale: 'de' })).toEqual({
 			error: 'Pass at least one preference to change'
 		});
 		expect(deps.updatePreferences).not.toHaveBeenCalled();
 	});
 
-	test('update_preferences passes refusals through', async () => {
+	test('update_preferences passes refusals written for the caller and hides the rest', async () => {
 		deps.updatePreferences.mockResolvedValue(
 			fail(new ApiError(409, 'Favorite meal timeframes overlap'))
 		);
@@ -354,6 +548,18 @@ describe('preference tools', () => {
 				]
 			})
 		).toEqual({ error: 'Favorite meal timeframes overlap' });
+		deps.updatePreferences.mockResolvedValue(fail(new McpUserError('Written for you')));
+		expect(await h.handleUpdatePreferences(USER, { startPage: 'favorites' })).toEqual({
+			error: 'Written for you'
+		});
+		deps.updatePreferences.mockResolvedValue(fail(new Error('Failed to load updated preferences')));
+		expect(await h.handleUpdatePreferences(USER, { startPage: 'favorites' })).toEqual({
+			error: 'Internal error. The request could not be completed.'
+		});
+		deps.updatePreferences.mockResolvedValue(fail(new ApiError(500, 'Server broke')));
+		expect(await h.handleUpdatePreferences(USER, { startPage: 'favorites' })).toEqual({
+			error: 'Internal error. The request could not be completed.'
+		});
 		deps.updatePreferences.mockResolvedValue(ok(undefined));
 		expect(await h.handleUpdatePreferences(USER, { startPage: 'favorites' })).toEqual({
 			success: true,
@@ -367,32 +573,6 @@ describe('preference tools', () => {
 });
 
 describe('meal type tools', () => {
-	const preferences = {
-		mealOrder: ['Breakfast', 'Pre-workout', 'Lunch', 'Dinner', 'Snacks'],
-		favoriteMealTimeframes: [
-			{
-				id: 'tf-1',
-				mealType: 'Pre-workout',
-				customMealTypeId: MEAL_TYPE_ID,
-				startMinute: 360,
-				endMinute: 420,
-				startTime: '06:00',
-				endTime: '07:00',
-				sortOrder: 0
-			},
-			{
-				id: 'tf-2',
-				mealType: 'Lunch',
-				customMealTypeId: null,
-				startMinute: 690,
-				endMinute: 840,
-				startTime: '11:30',
-				endTime: '14:00',
-				sortOrder: 1
-			}
-		]
-	};
-
 	test('create_meal_type refuses duplicates and default names, ignoring case', async () => {
 		deps.listMealTypes.mockResolvedValue([mealTypeRow]);
 		expect(await h.handleCreateMealType(USER, { name: 'pre-WORKOUT' })).toEqual({
@@ -404,7 +584,7 @@ describe('meal type tools', () => {
 		expect(deps.createMealType).not.toHaveBeenCalled();
 	});
 
-	test('create_meal_type adds the meal after the last custom one', async () => {
+	test('create_meal_type adds the meal after the last custom one, within int4', async () => {
 		deps.listMealTypes.mockResolvedValue([mealTypeRow]);
 		const created = {
 			...mealTypeRow,
@@ -428,10 +608,16 @@ describe('meal type tools', () => {
 		expect(deps.createMealType).toHaveBeenLastCalledWith(USER, { name: 'Brunch', sortOrder: 0 });
 		await h.handleCreateMealType(USER, { name: 'Brunch' });
 		expect(deps.createMealType).toHaveBeenLastCalledWith(USER, { name: 'Brunch', sortOrder: 1 });
+		deps.listMealTypes.mockResolvedValue([{ ...mealTypeRow, sortOrder: 2_147_483_647 }]);
+		await h.handleCreateMealType(USER, { name: 'Brunch' });
+		expect(deps.createMealType).toHaveBeenLastCalledWith(USER, {
+			name: 'Brunch',
+			sortOrder: 2_147_483_647
+		});
 
-		deps.createMealType.mockResolvedValue(fail(new Error('Name is required')));
-		expect(await h.handleCreateMealType(USER, { name: '   ' })).toEqual({
-			error: 'Name is required'
+		deps.createMealType.mockResolvedValue(fail(new Error('Failed to create meal type')));
+		expect(await h.handleCreateMealType(USER, { name: 'Tea' })).toEqual({
+			error: 'Internal error. The request could not be completed.'
 		});
 		deps.listMealTypes.mockRejectedValue(new Error('down'));
 		await expect(h.handleCreateMealType(USER, { name: 'Brunch' })).rejects.toThrow(
@@ -439,79 +625,56 @@ describe('meal type tools', () => {
 		);
 	});
 
-	test('a rename carries the meal order, its time windows and its reminders', async () => {
+	test('a rename goes through the single transactional rename', async () => {
 		deps.listMealTypes.mockResolvedValue([mealTypeRow]);
-		deps.getPreferences.mockResolvedValue(preferences);
-		deps.updateMealType.mockResolvedValue(ok({ ...mealTypeRow, name: 'Pre-training' }));
-		deps.listReminders.mockResolvedValue([
-			{ ...reminderRow, id: 'r-meal', mealType: 'Pre-workout' },
-			{ ...reminderRow, id: 'r-lunch' },
-			{ ...reminderRow, id: 'r-weight', kind: 'weight', mealType: null }
-		]);
-		deps.updateReminder.mockResolvedValue(ok(reminderRow));
-		deps.updatePreferences.mockResolvedValue(ok({}));
-
+		deps.renameMealType.mockResolvedValue(ok({ ...mealTypeRow, name: 'Pre-training' }));
 		expect(
-			await h.handleUpdateMealType(USER, { mealTypeId: MEAL_TYPE_ID, name: ' Pre-training ' })
+			await h.handleUpdateMealType(USER, {
+				mealTypeId: MEAL_TYPE_ID,
+				name: ' Pre-training ',
+				sortOrder: 5
+			})
 		).toEqual({
 			success: true,
 			mealTypeId: MEAL_TYPE_ID,
 			mealType: { ...mealTypeRow, name: 'Pre-training' }
 		});
-		expect(deps.updateMealType).toHaveBeenCalledWith(USER, MEAL_TYPE_ID, { name: 'Pre-training' });
-		expect(deps.updateReminder).toHaveBeenCalledTimes(1);
-		expect(deps.updateReminder).toHaveBeenCalledWith(USER, 'r-meal', {
-			kind: 'meal',
-			mealType: 'Pre-training'
+		expect(deps.renameMealType).toHaveBeenCalledWith(USER, MEAL_TYPE_ID, {
+			name: 'Pre-training',
+			sortOrder: 5
 		});
-		expect(deps.updatePreferences).toHaveBeenCalledWith(USER, {
-			mealOrder: ['Breakfast', 'Pre-training', 'Lunch', 'Dinner', 'Snacks'],
-			favoriteMealTimeframes: [
-				{
-					mealType: 'Pre-workout',
-					customMealTypeId: MEAL_TYPE_ID,
-					startTime: '06:00',
-					endTime: '07:00'
-				},
-				{ mealType: 'Lunch', customMealTypeId: null, startTime: '11:30', endTime: '14:00' }
-			]
-		});
-	});
-
-	test('a rename leaves the time windows alone when none use the meal', async () => {
-		deps.listMealTypes.mockResolvedValue([mealTypeRow]);
-		deps.getPreferences.mockResolvedValue({
-			...preferences,
-			favoriteMealTimeframes: [preferences.favoriteMealTimeframes[1]]
-		});
-		deps.updateMealType.mockResolvedValue(ok({ ...mealTypeRow, name: 'Gym' }));
-		deps.listReminders.mockResolvedValue([]);
-		deps.updatePreferences.mockResolvedValue(ok({}));
-		await h.handleUpdateMealType(USER, { mealTypeId: MEAL_TYPE_ID, name: 'Gym' });
-		expect(deps.updatePreferences).toHaveBeenCalledWith(USER, {
-			mealOrder: ['Breakfast', 'Gym', 'Lunch', 'Dinner', 'Snacks']
-		});
-
-		deps.updatePreferences.mockReset();
-		deps.getPreferences.mockResolvedValue(null);
-		await h.handleUpdateMealType(USER, { mealTypeId: MEAL_TYPE_ID, name: 'Gym' });
+		expect(deps.updateMealType).not.toHaveBeenCalled();
+		expect(deps.updateReminder).not.toHaveBeenCalled();
 		expect(deps.updatePreferences).not.toHaveBeenCalled();
 	});
 
-	test('a sort order change or a same-name update touches nothing else', async () => {
+	test('a failed rename is reported and nothing else is written', async () => {
+		deps.listMealTypes.mockResolvedValue([mealTypeRow]);
+		deps.renameMealType.mockResolvedValue(fail(new Error('Failed query: update reminders')));
+		expect(await h.handleUpdateMealType(USER, { mealTypeId: MEAL_TYPE_ID, name: 'Gym' })).toEqual({
+			error: 'Internal error. The request could not be completed.'
+		});
+		deps.renameMealType.mockResolvedValue(fail(new Error('Name is required')));
+		expect(await h.handleUpdateMealType(USER, { mealTypeId: MEAL_TYPE_ID, name: ' ' })).toEqual({
+			error: 'Internal error. The request could not be completed.'
+		});
+		deps.renameMealType.mockResolvedValue(ok(undefined));
+		expect(await h.handleUpdateMealType(USER, { mealTypeId: MEAL_TYPE_ID, name: 'Gym' })).toEqual({
+			error: 'Meal type not found'
+		});
+		expect(deps.updateReminder).not.toHaveBeenCalled();
+		expect(deps.updatePreferences).not.toHaveBeenCalled();
+	});
+
+	test('a sort order change alone does not rename', async () => {
 		deps.listMealTypes.mockResolvedValue([mealTypeRow]);
 		deps.updateMealType.mockResolvedValue(ok({ ...mealTypeRow, sortOrder: 7 }));
 		await h.handleUpdateMealType(USER, { mealTypeId: MEAL_TYPE_ID, sortOrder: 7 });
-		await h.handleUpdateMealType(USER, { mealTypeId: MEAL_TYPE_ID, name: 'Pre-workout' });
-		expect(deps.updateMealType).toHaveBeenNthCalledWith(1, USER, MEAL_TYPE_ID, { sortOrder: 7 });
-		expect(deps.updateMealType).toHaveBeenNthCalledWith(2, USER, MEAL_TYPE_ID, {
-			name: 'Pre-workout'
-		});
-		expect(deps.getPreferences).not.toHaveBeenCalled();
-		expect(deps.listReminders).not.toHaveBeenCalled();
+		expect(deps.updateMealType).toHaveBeenCalledWith(USER, MEAL_TYPE_ID, { sortOrder: 7 });
+		expect(deps.renameMealType).not.toHaveBeenCalled();
 	});
 
-	test('update_meal_type refuses unknown ids, taken names and invalid input', async () => {
+	test('update_meal_type refuses unknown ids, taken names and empty calls', async () => {
 		deps.listMealTypes.mockResolvedValue([
 			mealTypeRow,
 			{ ...mealTypeRow, id: OTHER_MEAL_TYPE_ID, name: 'Brunch' }
@@ -525,30 +688,16 @@ describe('meal type tools', () => {
 		expect(
 			await h.handleUpdateMealType(USER, { mealTypeId: MEAL_TYPE_ID, name: 'Dinner' })
 		).toEqual({ error: 'A meal type named "Dinner" already exists' });
-		deps.updateMealType.mockResolvedValue(fail(new Error('Name is required')));
-		expect(await h.handleUpdateMealType(USER, { mealTypeId: MEAL_TYPE_ID, name: ' ' })).toEqual({
-			error: 'Name is required'
+		expect(await h.handleUpdateMealType(USER, { mealTypeId: MEAL_TYPE_ID })).toEqual({
+			error: 'Nothing to change: pass at least one field to update'
 		});
 		deps.updateMealType.mockResolvedValue(ok(undefined));
 		expect(await h.handleUpdateMealType(USER, { mealTypeId: MEAL_TYPE_ID, sortOrder: 1 })).toEqual({
 			error: 'Meal type not found'
 		});
-	});
-
-	test('a rename whose follow-up write fails is reported', async () => {
-		deps.listMealTypes.mockResolvedValue([mealTypeRow]);
-		deps.getPreferences.mockResolvedValue(preferences);
-		deps.updateMealType.mockResolvedValue(ok({ ...mealTypeRow, name: 'Gym' }));
-		deps.listReminders.mockResolvedValue([{ ...reminderRow, mealType: 'Pre-workout' }]);
-		deps.updateReminder.mockResolvedValue(fail(new Error('Reminder update refused')));
+		deps.listMealTypes.mockRejectedValue(new Error('down'));
 		await expect(
-			h.handleUpdateMealType(USER, { mealTypeId: MEAL_TYPE_ID, name: 'Gym' })
-		).rejects.toThrow('Failed to update meal type');
-
-		deps.listReminders.mockResolvedValue([]);
-		deps.updatePreferences.mockResolvedValue(fail(new ApiError(400, 'Invalid range')));
-		await expect(
-			h.handleUpdateMealType(USER, { mealTypeId: MEAL_TYPE_ID, name: 'Gym' })
+			h.handleUpdateMealType(USER, { mealTypeId: MEAL_TYPE_ID, sortOrder: 1 })
 		).rejects.toThrow('Failed to update meal type');
 	});
 
@@ -581,17 +730,22 @@ describe('where-used, brands and the nutrient database', () => {
 		servings: 1,
 		eatenAt: '2026-11-19T12:00:00.000Z'
 	}));
+	const named = (prefix: string, count: number) =>
+		Array.from({ length: count }, (_, i) => ({ id: `${prefix}${i}`, name: `${prefix} ${i}` }));
 
-	test('get_food_usage caps the entry list and keeps the total', async () => {
+	test('get_food_usage caps every list and reports the totals', async () => {
 		deps.getFoodUsage.mockResolvedValue({
 			totalEntries: 60,
 			entries,
-			recipes: [{ id: 'r', name: 'Porridge', isLastIngredient: false }],
-			supplements: []
+			recipes: named('recipe', 70).map((recipe) => ({ ...recipe, isLastIngredient: false })),
+			supplements: named('supplement', 2)
 		});
-		const result = await h.handleGetFoodUsage(USER, { foodId: 'f' });
-		expect(result).toMatchObject({ totalEntries: 60, recipes: [{ name: 'Porridge' }] });
-		expect((result as { entries: unknown[] }).entries).toHaveLength(50);
+		const result = (await h.handleGetFoodUsage(USER, { foodId: 'f' })) as Record<string, any>;
+		expect(result).toMatchObject({ totalEntries: 60, totalRecipes: 70, totalSupplements: 2 });
+		expect(result.entries).toHaveLength(20);
+		expect(result.recipes).toHaveLength(50);
+		expect(result.supplements).toHaveLength(2);
+		expect(JSON.stringify(result).length).toBeLessThan(12_000);
 		expect(
 			((await h.handleGetFoodUsage(USER, { foodId: 'f', limit: 5 })) as { entries: unknown[] })
 				.entries
@@ -607,6 +761,9 @@ describe('where-used, brands and the nutrient database', () => {
 	test('get_recipe_usage caps the entry list and reports unknown recipes', async () => {
 		deps.getRecipeUsage.mockResolvedValue({ totalEntries: 60, entries });
 		expect(
+			((await h.handleGetRecipeUsage(USER, { recipeId: 'r' })) as { entries: unknown[] }).entries
+		).toHaveLength(20);
+		expect(
 			((await h.handleGetRecipeUsage(USER, { recipeId: 'r', limit: 3 })) as { entries: unknown[] })
 				.entries
 		).toHaveLength(3);
@@ -620,18 +777,22 @@ describe('where-used, brands and the nutrient database', () => {
 		);
 	});
 
-	test('list_food_brands counts the brands', async () => {
-		deps.listFoodBrands.mockResolvedValue([
-			{ brand: 'Migros', count: 4 },
-			{ brand: 'Coop', count: 2 }
-		]);
-		expect(await h.handleListFoodBrands(USER)).toEqual({
-			total: 2,
-			brands: [
-				{ brand: 'Migros', count: 4 },
-				{ brand: 'Coop', count: 2 }
-			]
+	test('list_food_brands filters, caps at 100 by default and counts the matches', async () => {
+		const brands = Array.from({ length: 150 }, (_, i) => ({
+			brand: i === 3 ? 'Migros Bio' : `Brand ${i}`,
+			count: 150 - i
+		}));
+		deps.listFoodBrands.mockResolvedValue(brands);
+		const all = (await h.handleListFoodBrands(USER)) as { total: number; brands: unknown[] };
+		expect(all.total).toBe(150);
+		expect(all.brands).toHaveLength(100);
+		expect(await h.handleListFoodBrands(USER, { query: ' migros ' })).toEqual({
+			total: 1,
+			brands: [{ brand: 'Migros Bio', count: 147 }]
 		});
+		expect(
+			((await h.handleListFoodBrands(USER, { limit: 2 })) as { brands: unknown[] }).brands
+		).toHaveLength(2);
 		deps.listFoodBrands.mockRejectedValue(new Error('down'));
 		await expect(h.handleListFoodBrands(USER)).rejects.toThrow('Failed to list food brands');
 	});
