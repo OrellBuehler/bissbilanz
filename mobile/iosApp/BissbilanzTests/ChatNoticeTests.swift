@@ -73,6 +73,9 @@ struct ChatNoticeTests {
         }
         #expect(ChatNotice.conversationTooLong.offersNewChat)
         #expect(!ChatNotice.runActive.offersNewChat)
+        #expect(ChatNotice.uploadQuotaExceeded.returnsToComposer)
+        #expect(ChatNotice.invalidImage.returnsToComposer)
+        #expect(!ChatNotice.offline.returnsToComposer)
     }
 
     @Test("Transport failures read as offline or signed out")

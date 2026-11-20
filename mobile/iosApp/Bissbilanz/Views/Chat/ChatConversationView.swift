@@ -172,7 +172,8 @@ struct ChatConversationView: View {
             ChatPendingMessageView(
                 message: message,
                 onRetry: { store.retry(message.id) },
-                onDiscard: { discard(message.id) },
+                onDiscard: { discard(message.id, restore: false) },
+                onEdit: { discard(message.id, restore: true) },
                 onNewChat: { onOpen(store.moveToNewChat(message.id)) }
             )
         }
@@ -292,12 +293,14 @@ struct ChatConversationView: View {
         }
     }
 
-    private func discard(_ localId: UUID) {
+    /// Delete drops the message; Edit puts its text and photos back in the
+    /// composer, after what is being typed there.
+    private func discard(_ localId: UUID, restore: Bool) {
         Task {
-            guard let message = await store.discard(localId) else { return }
-            if store.draft(for: route.id).isEmpty {
-                seed = ChatComposerSeed(text: message.text, images: message.images)
-            }
+            guard let message = await store.discard(localId), restore else { return }
+            let draft = store.draft(for: route.id)
+            let text = draft.isEmpty ? message.text : draft + "\n\n" + message.text
+            seed = ChatComposerSeed(text: text, images: message.images)
         }
     }
 

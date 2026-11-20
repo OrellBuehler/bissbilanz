@@ -191,6 +191,47 @@ struct ChatTranscriptTests {
         #expect(transcript.pendingActions.isEmpty)
     }
 
+    /// Verbatim from docs/ai-chat.md §9.
+    private static let documentedActionRequired = #"""
+    {"seq":6,"type":"action_required","createdAt":"2026-11-19T20:56:15.144Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","partIndex":2,"action":{"id":"435baadf-008d-4a69-a948-659b75aa3589","conversationId":"83e75848-4125-4fab-b1d5-671e38b93bba","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","toolUseId":"toolu_17f54b831c2240e493a1","name":"delete_entry","label":"Deleting an entry","status":"pending","preview":{"summary":"Delete “Greek yogurt” from Breakfast on 18 Nov 2026","details":["2 servings · 120 kcal"]},"expiresAt":"2026-11-19T21:56:15.139Z","decidedAt":null,"createdAt":"2026-11-19T20:56:15.124Z"}}
+    """#
+
+    private static let documentedRunFinished = #"""
+    {"seq":13,"type":"run_finished","createdAt":"2026-11-19T20:56:15.274Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","status":"completed","reason":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}],"run":{"id":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","conversationId":"83e75848-4125-4fab-b1d5-671e38b93bba","userMessageId":"d0a7f2a9-8122-420c-ad0b-e2e5c29644a7","assistantMessageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","status":"completed","reason":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}],"createdAt":"2026-11-19T20:56:14.871Z","startedAt":"2026-11-19T20:56:14.893Z","finishedAt":"2026-11-19T20:56:15.274Z"},"capability":{"available":true,"remainingBudgetUsd":9.98}}
+    """#
+
+    @Test("The documented events decode and fold")
+    func documentedEventsDecode() throws {
+        let required = try #require(ChatStore.decodeEvent(Self.documentedActionRequired))
+        let finished = try #require(ChatStore.decodeEvent(Self.documentedRunFinished))
+        #expect(required.action?.preview?.details == ["2 servings · 120 kcal"])
+        #expect(DateFormatting.isoDateTime(from: required.action?.expiresAt ?? "") != nil)
+        var transcript = ChatTranscript(lastSeq: 5, activeRun: Fixture.run(status: "running"))
+        #expect(transcript.apply(required).outcome == .applied)
+        #expect(transcript.activeRun?.status == ChatRunStatus.awaitingConfirmation)
+        #expect(transcript.messages.last?.parts.last?.actionId == Fixture.actionId)
+        let effect = transcript.apply(finished)
+        #expect(effect.changes == [Fixture.entryChange])
+        #expect(effect.capability == ChatCapability(available: true, remainingBudgetUsd: 9.98))
+        #expect(transcript.activeRun == nil)
+        #expect(transcript.pendingActions.isEmpty)
+    }
+
+    @Test("An action without expiresAt never counts as expired")
+    func missingExpiry() {
+        var transcript = ChatTranscript()
+        var action = Fixture.action
+        action.expiresAt = nil
+        var required = Fixture.event(1, ChatEventType.actionRequired)
+        required.partIndex = 0
+        required.action = action
+        _ = transcript.apply(required)
+        let part = transcript.messages.last?.parts.first
+        #expect(part?.status == ChatActionStatus.pending)
+        #expect(part?.expiresAt.flatMap(DateFormatting.isoDateTime(from:)) == nil)
+        #expect(DateFormatting.isoDateTime(from: "") == nil)
+    }
+
     @Test("Text deltas append in order and a replay never appends twice")
     func replayIsIdempotent() {
         let events = [

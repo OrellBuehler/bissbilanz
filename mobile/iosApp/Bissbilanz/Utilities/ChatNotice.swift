@@ -33,6 +33,15 @@ enum ChatNotice: Equatable, Sendable {
         self == .conversationTooLong
     }
 
+    /// Sending the same again cannot work: the message goes back to the
+    /// composer, photos included, to be changed instead of retried.
+    var returnsToComposer: Bool {
+        switch self {
+        case .uploadQuotaExceeded, .invalidImage: true
+        default: false
+        }
+    }
+
     var message: String {
         L10n.chatNotice(self)
     }

@@ -222,6 +222,7 @@ struct ChatPendingMessageView: View {
     let message: ChatPendingMessage
     let onRetry: () -> Void
     let onDiscard: () -> Void
+    let onEdit: () -> Void
     let onNewChat: () -> Void
 
     var body: some View {
@@ -261,7 +262,9 @@ struct ChatPendingMessageView: View {
             .foregroundStyle(.secondary)
             .accessibilityElement(children: .combine)
         case let .failed(notice):
-            ChatPendingFailure(notice: notice, onRetry: onRetry, onDiscard: onDiscard, onNewChat: onNewChat)
+            ChatPendingFailure(
+                notice: notice, onRetry: onRetry, onDiscard: onDiscard, onEdit: onEdit, onNewChat: onNewChat
+            )
         }
     }
 }
@@ -270,6 +273,7 @@ private struct ChatPendingFailure: View {
     let notice: ChatNotice
     let onRetry: () -> Void
     let onDiscard: () -> Void
+    let onEdit: () -> Void
     let onNewChat: () -> Void
 
     var body: some View {
@@ -279,13 +283,19 @@ private struct ChatPendingFailure: View {
                 .foregroundStyle(.orange)
                 .multilineTextAlignment(.trailing)
             HStack(spacing: 8) {
-                Button(L10n.delete, role: .destructive, action: onDiscard)
-                if notice.offersNewChat {
-                    Button(action: onNewChat) {
-                        Label(L10n.chatNewChat, systemImage: ChatSymbols.newChat)
+                if notice.returnsToComposer {
+                    Button(action: onEdit) {
+                        Label(L10n.edit, systemImage: "pencil")
                     }
                 } else {
-                    Button(L10n.retry, action: onRetry)
+                    Button(L10n.delete, role: .destructive, action: onDiscard)
+                    if notice.offersNewChat {
+                        Button(action: onNewChat) {
+                            Label(L10n.chatNewChat, systemImage: ChatSymbols.newChat)
+                        }
+                    } else {
+                        Button(L10n.retry, action: onRetry)
+                    }
                 }
             }
             .buttonStyle(.bordered)

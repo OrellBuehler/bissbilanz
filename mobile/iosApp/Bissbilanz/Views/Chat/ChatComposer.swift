@@ -89,7 +89,7 @@ struct ChatComposer: View {
             guard let newValue else { return }
             text = newValue.text
             if !newValue.images.isEmpty {
-                images = Array(newValue.images.prefix(store.photoRoom(in: conversationId)))
+                images += newValue.images.prefix(photoRoom)
             }
             seed = nil
             isFocused = true
