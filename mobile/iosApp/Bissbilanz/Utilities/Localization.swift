@@ -3640,10 +3640,6 @@ enum L10n {
         localized("navigation_tabs", en: "Navigation Tabs", de: "Navigationsleiste")
     }
 
-    static var selectTabs: String {
-        localized("select_tabs", en: "Select up to 3 tabs", de: "Wähle bis zu 3 Tabs")
-    }
-
     // MARK: - Entries (additional)
 
     static func entriesCopied(_ count: Int) -> String {
