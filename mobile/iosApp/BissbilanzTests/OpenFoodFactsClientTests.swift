@@ -70,13 +70,26 @@ struct OpenFoodFactsClientTests {
         #expect(food.imageUrl == "https://images.example/crackers.jpg")
     }
 
-    @Test("Unknown products and invalid payloads return nil")
+    @Test("Only a product Open Food Facts reports as unknown returns nil")
     func unknownProductReturnsNil() async throws {
         stubProduct("7610000000002", json: #"{"status": 0, "status_verbose": "product not found"}"#)
         #expect(try await makeClient().lookupBarcode("7610000000002") == nil)
 
+        StubURLProtocol.stub(
+            "GET",
+            "https://world.openfoodfacts.org/api/v2/product/7610000000006.json",
+            status: 404,
+            json: #"{"status": 0}"#
+        )
+        #expect(try await makeClient().lookupBarcode("7610000000006") == nil)
+    }
+
+    @Test("An unreadable payload or an unavailable service throws instead of reading as unknown")
+    func failedLookupsThrow() async throws {
         stubProduct("7610000000003", json: "not json")
-        #expect(try await makeClient().lookupBarcode("7610000000003") == nil)
+        await #expect(throws: OpenFoodFactsLookupFailure.unavailable(retryAfter: nil)) {
+            try await makeClient().lookupBarcode("7610000000003")
+        }
 
         StubURLProtocol.stub(
             "GET",
@@ -84,7 +97,67 @@ struct OpenFoodFactsClientTests {
             status: 500,
             json: #"{"error": "boom"}"#
         )
-        #expect(try await makeClient().lookupBarcode("7610000000004") == nil)
+        await #expect(throws: OpenFoodFactsLookupFailure.unavailable(retryAfter: nil)) {
+            try await makeClient().lookupBarcode("7610000000004")
+        }
+
+        StubURLProtocol.stub(
+            "GET",
+            "https://world.openfoodfacts.org/api/v2/product/7610000000007.json",
+            status: 429,
+            json: #"{"error": "slow down"}"#,
+            headers: ["Retry-After": "40"]
+        )
+        await #expect(throws: OpenFoodFactsLookupFailure.unavailable(retryAfter: 40)) {
+            try await makeClient().lookupBarcode("7610000000007")
+        }
+
+        stubProduct("7610000000008", json: #"{"product": {}}"#)
+        await #expect(throws: OpenFoodFactsLookupFailure.invalidResponse) {
+            try await makeClient().lookupBarcode("7610000000008")
+        }
+    }
+
+    @Test("A transport failure propagates")
+    func transportFailureThrows() async {
+        StubURLProtocol.stubError(
+            "GET",
+            "https://world.openfoodfacts.org/api/v2/product/7610000000009.json",
+            code: .notConnectedToInternet
+        )
+        await #expect(throws: URLError.self) {
+            try await makeClient().lookupBarcode("7610000000009")
+        }
+    }
+
+    @Test("Lookup outcomes map to a product, unknown, or a failure")
+    func lookupOutcomeMapping() throws {
+        let food = try JSONPatch.decode(Food.self, from: [
+            "id": "1", "userId": "", "name": "Oats", "servingSize": 100, "servingUnit": "g",
+            "calories": 1, "protein": 1, "carbs": 1, "fat": 1, "fiber": 1, "isFavorite": false,
+        ])
+        #expect(try OpenFoodFactsClient.food(from: .found(food)) == food)
+        #expect(try OpenFoodFactsClient.food(from: .notFound) == nil)
+        #expect(throws: OpenFoodFactsLookupFailure.invalidResponse) {
+            try OpenFoodFactsClient.food(from: .invalid)
+        }
+        #expect(throws: OpenFoodFactsLookupFailure.unavailable(retryAfter: 3)) {
+            try OpenFoodFactsClient.food(from: .unavailable(retryAfter: 3))
+        }
+    }
+
+    @Test("Failure reasons name Open Food Facts problems and mark the expected ones")
+    func failureReasons() {
+        #expect(OpenFoodFactsLookupFailure.reason(for: OpenFoodFactsLookupFailure.unavailable(retryAfter: nil)) == "off_unavailable")
+        #expect(OpenFoodFactsLookupFailure.reason(for: OpenFoodFactsLookupFailure.invalidResponse) == "off_invalid_response")
+        #expect(OpenFoodFactsLookupFailure.reason(for: URLError(.notConnectedToInternet)) == "offline")
+        #expect(OpenFoodFactsLookupFailure.reason(for: APIError.serverError(502, nil)) == "server_error_502")
+        #expect(OpenFoodFactsLookupFailure.isExpected(reason: "off_unavailable"))
+        #expect(OpenFoodFactsLookupFailure.isExpected(reason: "server_error_429"))
+        #expect(OpenFoodFactsLookupFailure.isExpected(reason: "offline"))
+        #expect(!OpenFoodFactsLookupFailure.isExpected(reason: "off_invalid_response"))
+        #expect(!OpenFoodFactsLookupFailure.isExpected(reason: "server_error_502"))
+        #expect(!OpenFoodFactsLookupFailure.isExpected(reason: "decoding_error_200"))
     }
 
     @Test("Missing optional fields map to defaults")
