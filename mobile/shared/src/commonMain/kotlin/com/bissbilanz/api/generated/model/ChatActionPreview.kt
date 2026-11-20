@@ -23,12 +23,12 @@ import kotlinx.serialization.encoding.*
  *
  *
  * @param summary One line in the user’s language, e.g. \"Delete “Greek yogurt” from Breakfast on 18 Nov 2026\".
- * @param details Extra lines, possibly empty.
+ * @param details Extra lines, possibly empty: every field the call sets, replaced lists item by item, nothing shortened. At most 200 lines; a line can be long (up to about 10,000 characters), so let the card scroll and wrap.
  */
 @Serializable
 data class ChatActionPreview(
     // One line in the user’s language, e.g. \"Delete “Greek yogurt” from Breakfast on 18 Nov 2026\".
     @SerialName(value = "summary") @Required val summary: kotlin.String,
-    // Extra lines, possibly empty.
+    // Extra lines, possibly empty: every field the call sets, replaced lists item by item, nothing shortened. At most 200 lines; a line can be long (up to about 10,000 characters), so let the card scroll and wrap.
     @SerialName(value = "details") @Required val details: kotlin.collections.List<kotlin.String>,
 )

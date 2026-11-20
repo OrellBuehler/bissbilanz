@@ -5,8 +5,11 @@ import { getDB } from '../../db';
 import {
 	foodEntries,
 	foods,
+	recipeIngredients,
 	recipes,
+	recipeSteps,
 	sleepEntries,
+	supplementIngredients,
 	supplements,
 	weightEntries
 } from '../../schema';
@@ -49,8 +52,10 @@ export type PreviewContext = {
 
 type Builder = (input: Record<string, unknown>, context: PreviewContext) => Promise<PreviewResult>;
 
-const MAX_DETAILS = 20;
-const MAX_VALUE_CHARS = 120;
+// A card holds the whole call: values are never shortened, lists are shown
+// item by item, and a call that needs more lines is sent back to the model to
+// split (a full replacement of a recipe's 100 ingredients and 50 steps fits).
+export const MAX_PREVIEW_DETAILS = 200;
 
 const notFound = (what: string): PreviewResult => ({ error: `${what} not found` });
 
@@ -116,10 +121,6 @@ async function namesOf(userId: string, input: unknown): Promise<Map<string, stri
 	return names;
 }
 
-function clip(text: string): string {
-	return text.length > MAX_VALUE_CHARS ? `${text.slice(0, MAX_VALUE_CHARS - 1)}…` : text;
-}
-
 /** A readable form of any input value: ids become names, objects their fields. */
 export function describeValue(
 	value: unknown,
@@ -129,13 +130,13 @@ export function describeValue(
 	if (value === null || value === undefined) return '—';
 	if (typeof value === 'string') {
 		const name = names.get(value);
-		return name !== undefined ? quoted(name) : clip(value);
+		return name !== undefined ? quoted(name) : value;
 	}
-	if (typeof value === 'number') return formatNumber(value, locale, 2);
+	if (typeof value === 'number') return formatNumber(value, locale, 6);
 	if (typeof value === 'boolean') return String(value);
 	if (Array.isArray(value)) {
 		if (value.length === 0) return '—';
-		return clip(value.map((item) => describeValue(item, names, locale)).join(', '));
+		return value.map((item) => describeValue(item, names, locale)).join(', ');
 	}
 	const fields = Object.entries(value as Record<string, unknown>)
 		.filter(([, field]) => field !== undefined)
@@ -144,37 +145,86 @@ export function describeValue(
 				? describeValue(field, names, locale)
 				: `${key} ${describeValue(field, names, locale)}`
 		);
-	return clip(fields.join(' '));
+	return fields.join(' ');
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+	!!value && typeof value === 'object' && !Array.isArray(value);
+
+/** One line per list item, numbered from 1. */
+const itemLines = (
+	items: unknown[],
+	line: (item: unknown, index: number) => string | null,
+	names: Map<string, string>,
+	locale: ChatLocale
+) =>
+	items.map(
+		(item, index) =>
+			line(item, index + 1) ??
+			message(
+				'chat_action_list_item',
+				{ index: index + 1, value: describeValue(item, names, locale) },
+				locale
+			)
+	);
+
 /**
- * One line per field the call sets, with the current value where there is
- * one, so the card shows every effect of the call.
+ * The lines for one field the call sets, with the current value where there
+ * is one; a list of records gets a heading and one line per item.
  */
-function fieldLines(
-	input: Record<string, unknown>,
-	skip: string[],
+function fieldLine(
+	key: string,
+	value: unknown,
 	current: Record<string, unknown> | null,
 	names: Map<string, string>,
 	locale: ChatLocale
 ): string[] {
-	return Object.entries(input)
-		.filter(([key, value]) => !skip.includes(key) && value !== undefined)
-		.map(([key, value]) => {
-			const now = describeValue(value, names, locale);
-			const before = current && key in current ? current[key] : undefined;
-			if (before === undefined || Array.isArray(value) || (value && typeof value === 'object')) {
-				return message('chat_action_field_set', { field: key, value: now }, locale);
-			}
-			return message(
-				'chat_action_field_changed',
-				{ field: key, from: describeValue(before, names, locale), to: now },
-				locale
-			);
-		});
+	if (Array.isArray(value) && value.length === 0) {
+		return [message('chat_action_field_cleared', { field: key }, locale)];
+	}
+	if (Array.isArray(value) && value.some(isRecord)) {
+		return [
+			message('chat_action_list_set', { field: key, count: value.length }, locale),
+			...itemLines(value, () => null, names, locale)
+		];
+	}
+	const now = describeValue(value, names, locale);
+	const before = current && key in current ? current[key] : undefined;
+	if (before === undefined || Array.isArray(value) || isRecord(value)) {
+		return [message('chat_action_field_set', { field: key, value: now }, locale)];
+	}
+	return [
+		message(
+			'chat_action_field_changed',
+			{ field: key, from: describeValue(before, names, locale), to: now },
+			locale
+		)
+	];
 }
 
-const limitDetails = (lines: string[]) => lines.slice(0, MAX_DETAILS);
+/** Every field the call sets, in the order of the input. */
+function fieldLines(
+	input: Record<string, unknown>,
+	names: Map<string, string>,
+	locale: ChatLocale
+): string[] {
+	return Object.entries(input)
+		.filter(([, value]) => value !== undefined)
+		.flatMap(([key, value]) => fieldLine(key, value, null, names, locale));
+}
+
+/** What happens to the current photo; a replaced or removed one is deleted. */
+function photoLine(current: unknown, next: unknown, locale: ChatLocale): string {
+	if (current === next) return message('chat_action_photo_unchanged', {}, locale);
+	if (current === null || current === undefined) {
+		return message('chat_action_photo_added', {}, locale);
+	}
+	return message(
+		next === null ? 'chat_action_photo_removed' : 'chat_action_photo_replaced',
+		{},
+		locale
+	);
+}
 
 const deleteEntry: Builder = async (input, { userId, locale }) => {
 	const parsed = parse(PREVIEW_SCHEMAS.delete_entry, input);
@@ -247,7 +297,7 @@ const copyEntries: Builder = async (input, { userId, locale, today }) => {
 				},
 				locale
 			),
-			details: limitDetails(rows.map((row) => `${row.name} (${row.mealType})`))
+			details: rows.map((row) => `${row.name} (${row.mealType})`)
 		}
 	};
 };
@@ -332,12 +382,12 @@ const mergeFoods: Builder = async (input, { userId, locale }) => {
 				{ count: sources.length + 1, name: names.get(parsed.data.keeperId)! },
 				locale
 			),
-			details: limitDetails([
+			details: [
 				...overrides,
 				...sources.map((id) =>
 					message('chat_action_merge_foods_detail', { name: names.get(id)! }, locale)
 				)
-			])
+			]
 		}
 	};
 };
@@ -440,39 +490,243 @@ const deleteDayProperties: Builder = async (input, { locale }) => {
 	};
 };
 
+type Loaded = { row: Record<string, unknown>; extra: Record<string, unknown> };
+
+/**
+ * A change to a food, recipe or supplement: every field of the call with its
+ * current value. claim returns the lines of fields that need more than one
+ * (replaced lists item by item, the photo); the rest are listed as they are.
+ */
 const recordUpdate =
 	(
 		key: string,
 		summaryKey: string,
 		what: string,
-		load: (userId: string, id: string) => Promise<Record<string, unknown> | null>
+		load: (userId: string, id: string) => Promise<Loaded | null>,
+		claim: (
+			input: Record<string, unknown>,
+			loaded: Loaded,
+			names: Map<string, string>,
+			locale: ChatLocale
+		) => Record<string, string[]>
 	): Builder =>
 	async (input, { userId, locale }) => {
 		const id = input[key];
 		if (typeof id !== 'string' || !UUID_RE.test(id)) {
 			return { error: `Invalid arguments: ${key}: Invalid UUID` };
 		}
-		const current = await load(userId, id);
-		if (!current) return notFound(what);
+		const loaded = await load(userId, id);
+		if (!loaded) return notFound(what);
 		const names = await namesOf(userId, input);
+		const claimed = claim(input, loaded, names, locale);
 		return {
 			input,
 			preview: {
-				summary: message(summaryKey, { name: String(current.name) }, locale),
-				details: limitDetails(fieldLines(input, [key], current, names, locale))
+				summary: message(summaryKey, { name: String(loaded.row.name) }, locale),
+				details: Object.entries(input)
+					.filter(([field, value]) => field !== key && value !== undefined)
+					.flatMap(
+						([field, value]) => claimed[field] ?? fieldLine(field, value, loaded.row, names, locale)
+					)
 			}
 		};
 	};
 
-const loadRow =
-	(table: typeof foods | typeof recipes | typeof supplements) =>
-	async (userId: string, id: string): Promise<Record<string, unknown> | null> => {
-		const [row] = await getDB()
-			.select()
-			.from(table)
-			.where(and(eq(table.id, id), eq(table.userId, userId)));
-		return (row as Record<string, unknown> | undefined) ?? null;
+const loadRow = async (
+	table: typeof foods | typeof recipes | typeof supplements,
+	userId: string,
+	id: string
+): Promise<Record<string, unknown> | null> => {
+	const [row] = await getDB()
+		.select()
+		.from(table)
+		.where(and(eq(table.id, id), eq(table.userId, userId)));
+	return (row as Record<string, unknown> | undefined) ?? null;
+};
+
+const countOf = async (
+	table: typeof recipeIngredients | typeof supplementIngredients,
+	column: AnyPgColumn,
+	id: string
+) => {
+	const [row] = await getDB().select({ count: count() }).from(table).where(eq(column, id));
+	return Number(row?.count ?? 0);
+};
+
+const photoLines = (
+	input: Record<string, unknown>,
+	row: Record<string, unknown>,
+	locale: ChatLocale
+): Record<string, string[]> =>
+	input.imageUrl !== undefined
+		? { imageUrl: [photoLine(row.imageUrl ?? null, input.imageUrl, locale)] }
+		: {};
+
+const ingredientsHeading = (from: number, to: number, locale: ChatLocale) =>
+	message('chat_action_ingredients_replaced', { from, to }, locale);
+
+const updateFood = recordUpdate(
+	'foodId',
+	'chat_action_update_food',
+	'Food',
+	async (userId, id) => {
+		const row = await loadRow(foods, userId, id);
+		return row ? { row, extra: {} } : null;
+	},
+	(input, { row }, _names, locale) => photoLines(input, row, locale)
+);
+
+const recipeIngredientLine =
+	(names: Map<string, string>, locale: ChatLocale) => (item: unknown, index: number) =>
+		isRecord(item) && typeof item.foodId === 'string' && typeof item.quantity === 'number'
+			? message(
+					'chat_action_recipe_ingredient',
+					{
+						index,
+						quantity: formatNumber(item.quantity, locale, 6),
+						unit: describeValue(item.servingUnit, names, locale),
+						name: describeValue(item.foodId, names, locale)
+					},
+					locale
+				)
+			: null;
+
+const includedRecipeLine =
+	(names: Map<string, string>, locale: ChatLocale) => (item: unknown, index: number) => {
+		if (!isRecord(item) || typeof item.recipeId !== 'string') return null;
+		const name = describeValue(item.recipeId, names, locale);
+		if (typeof item.servings === 'number' && item.grams === undefined) {
+			return message(
+				'chat_action_include_servings',
+				{ index, servings: formatNumber(item.servings, locale, 6), name },
+				locale
+			);
+		}
+		if (typeof item.grams === 'number' && item.servings === undefined) {
+			return message(
+				'chat_action_include_grams',
+				{ index, grams: formatNumber(item.grams, locale, 6), name },
+				locale
+			);
+		}
+		return null;
 	};
+
+const stepLine = (locale: ChatLocale) => (item: unknown, index: number) =>
+	isRecord(item) && typeof item.text === 'string'
+		? message(
+				item.imageUrl ? 'chat_action_step_with_photo' : 'chat_action_step',
+				{ index, text: item.text },
+				locale
+			)
+		: null;
+
+/** A steps replacement: every new step, and what is deleted with the old ones. */
+function stepLines(
+	steps: unknown[],
+	current: (string | null)[],
+	names: Map<string, string>,
+	locale: ChatLocale
+): string[] {
+	const photos = current.filter((url): url is string => url !== null);
+	if (steps.length === 0) {
+		return [
+			message('chat_action_steps_cleared', { count: current.length, photos: photos.length }, locale)
+		];
+	}
+	const kept = new Set(steps.map((step) => (isRecord(step) ? step.imageUrl : undefined)));
+	const dropped = photos.filter((url) => !kept.has(url)).length;
+	return [
+		message('chat_action_steps_replaced', { from: current.length, to: steps.length }, locale),
+		...itemLines(steps, stepLine(locale), names, locale),
+		...(dropped > 0 ? [message('chat_action_step_photos_deleted', { count: dropped }, locale)] : [])
+	];
+}
+
+const updateRecipe = recordUpdate(
+	'recipeId',
+	'chat_action_update_recipe',
+	'Recipe',
+	async (userId, id) => {
+		const row = await loadRow(recipes, userId, id);
+		if (!row) return null;
+		const [ingredients, steps] = await Promise.all([
+			countOf(recipeIngredients, recipeIngredients.recipeId, id),
+			getDB()
+				.select({ imageUrl: recipeSteps.imageUrl })
+				.from(recipeSteps)
+				.where(eq(recipeSteps.recipeId, id))
+				.orderBy(asc(recipeSteps.sortOrder))
+		]);
+		return { row, extra: { ingredients, steps: steps.map((step) => step.imageUrl) } };
+	},
+	(input, { row, extra }, names, locale) => {
+		const claimed = photoLines(input, row, locale);
+		if (Array.isArray(input.ingredients) && input.ingredients.length > 0) {
+			claimed.ingredients = [
+				ingredientsHeading(Number(extra.ingredients), input.ingredients.length, locale),
+				...itemLines(input.ingredients, recipeIngredientLine(names, locale), names, locale)
+			];
+		}
+		if (Array.isArray(input.includeRecipes) && input.includeRecipes.length > 0) {
+			claimed.includeRecipes = [
+				message('chat_action_include_recipes', { count: input.includeRecipes.length }, locale),
+				...itemLines(input.includeRecipes, includedRecipeLine(names, locale), names, locale)
+			];
+		}
+		if (Array.isArray(input.steps)) {
+			claimed.steps = stepLines(input.steps, extra.steps as (string | null)[], names, locale);
+		}
+		return claimed;
+	}
+);
+
+const supplementIngredientLine =
+	(names: Map<string, string>, locale: ChatLocale) => (item: unknown, index: number) => {
+		if (!isRecord(item)) return null;
+		const servings = formatNumber(typeof item.servings === 'number' ? item.servings : 1, locale, 6);
+		if (typeof item.foodId === 'string' && item.food === undefined) {
+			return message(
+				'chat_action_supplement_ingredient',
+				{ index, servings, name: describeValue(item.foodId, names, locale) },
+				locale
+			);
+		}
+		if (isRecord(item.food) && typeof item.food.name === 'string' && item.foodId === undefined) {
+			const { name, ...fields } = item.food;
+			return message(
+				'chat_action_supplement_new_food',
+				{ index, servings, name, fields: describeValue(fields, names, locale) },
+				locale
+			);
+		}
+		return null;
+	};
+
+const updateSupplement = recordUpdate(
+	'supplementId',
+	'chat_action_update_supplement',
+	'Supplement',
+	async (userId, id) => {
+		const row = await loadRow(supplements, userId, id);
+		if (!row) return null;
+		const ingredients = await countOf(
+			supplementIngredients,
+			supplementIngredients.supplementId,
+			id
+		);
+		return { row, extra: { ingredients } };
+	},
+	(input, { extra }, names, locale): Record<string, string[]> =>
+		Array.isArray(input.ingredients) && input.ingredients.length > 0
+			? {
+					ingredients: [
+						ingredientsHeading(Number(extra.ingredients), input.ingredients.length, locale),
+						...itemLines(input.ingredients, supplementIngredientLine(names, locale), names, locale)
+					]
+				}
+			: {}
+);
 
 /** Any other write: the tool's label and every field of the call. */
 const genericWrite =
@@ -483,7 +737,7 @@ const genericWrite =
 			input,
 			preview: {
 				summary: message('chat_action_generic', { label: toolLabel(name, locale) }, locale),
-				details: limitDetails(fieldLines(input, [], null, names, locale))
+				details: fieldLines(input, names, locale)
 			}
 		};
 	};
@@ -505,21 +759,16 @@ export const PREVIEW_BUILDERS: Record<string, Builder> = {
 
 // Builders that list every field the call sets.
 export const FIELD_PREVIEW_BUILDERS: Record<string, Builder> = {
-	update_food: recordUpdate('foodId', 'chat_action_update_food', 'Food', loadRow(foods)),
-	update_recipe: recordUpdate('recipeId', 'chat_action_update_recipe', 'Recipe', loadRow(recipes)),
-	update_supplement: recordUpdate(
-		'supplementId',
-		'chat_action_update_supplement',
-		'Supplement',
-		loadRow(supplements)
-	)
+	update_food: updateFood,
+	update_recipe: updateRecipe,
+	update_supplement: updateSupplement
 };
 
 /**
  * What a confirmation card shows, built from the user's current data, and the
  * exact input that runs once the user approves. An error means the call cannot
- * run (bad arguments, or the record is not the user's); it goes back to the
- * model without asking the user.
+ * run (bad arguments, the record is not the user's, or the card would not hold
+ * the whole call); it goes back to the model without asking the user.
  */
 export async function buildActionPreview(
 	name: string,
@@ -527,5 +776,9 @@ export async function buildActionPreview(
 	context: PreviewContext
 ): Promise<PreviewResult> {
 	const builder = PREVIEW_BUILDERS[name] ?? FIELD_PREVIEW_BUILDERS[name] ?? genericWrite(name);
-	return builder(input, context);
+	const built = await builder(input, context);
+	if ('error' in built || built.preview.details.length <= MAX_PREVIEW_DETAILS) return built;
+	return {
+		error: `This change needs ${built.preview.details.length} lines to show the user, more than the ${MAX_PREVIEW_DETAILS} a confirmation holds. Split it into smaller calls and confirm each one.`
+	};
 }

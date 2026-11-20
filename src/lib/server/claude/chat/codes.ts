@@ -49,6 +49,7 @@ export const chatErrorCodeValues = [
 	'chat_unavailable',
 	'budget_exhausted',
 	'invalid_image',
+	'upload_quota_exceeded',
 	'run_not_found',
 	'run_not_active',
 	'action_not_found',

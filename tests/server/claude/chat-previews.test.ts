@@ -185,49 +185,159 @@ describe('confirmation previews', () => {
 		expect(await preview('delete_day_properties', {})).toHaveProperty('error');
 	});
 
-	test('updates list every field they set, with the current value where there is one', async () => {
+	test('update_food lists every field in full, with the current value', async () => {
+		const nutrients = Object.fromEntries(
+			Array.from({ length: 24 }, (_, index) => [`nutrient${index}`, index + 0.125])
+		);
+		const ingredientsText = 'oats, '.repeat(400).trim();
 		queueResults([
-			[{ id: ID, name: 'Skyr', calories: 60, servingSize: 100 }],
+			[{ id: ID, name: 'Skyr', calories: 60, servingSize: 100, imageUrl: null }],
 			[{ id: OTHER, name: 'Oats' }],
 			[],
 			[],
 			[]
 		]);
-		expect(
-			await preview('update_food', { foodId: ID, calories: 63, brand: null, labels: ['skyr'] })
-		).toEqual({
-			input: { foodId: ID, calories: 63, brand: null, labels: ['skyr'] },
+		const input = {
+			foodId: ID,
+			...nutrients,
+			calories: 63,
+			brand: null,
+			labels: ['skyr'],
+			ingredientsText
+		};
+		const built = await preview('update_food', input);
+		expect(built).toMatchObject({ input, preview: { summary: 'Change the food “Skyr”' } });
+		const details = (built as { preview: { details: string[] } }).preview.details;
+		expect(details).toHaveLength(28);
+		expect(details).toContain('calories: 60 → 63');
+		expect(details).toContain('nutrient23: 23.125');
+		expect(details).toContain('brand: —');
+		expect(details).toContain('labels: skyr');
+		expect(details).toContain(`ingredientsText: ${ingredientsText}`);
+	});
+
+	test('update_food says what happens to the photo', async () => {
+		const card = async (current: string | null, next: string | null) => {
+			reset();
+			queueResults([[{ id: ID, name: 'Skyr', imageUrl: current }], [], [], [], []]);
+			const built = await preview('update_food', { foodId: ID, imageUrl: next });
+			return (built as { preview: { details: string[] } }).preview.details;
+		};
+		expect(await card('/uploads/a.webp', '/uploads/b.webp')).toEqual([
+			'Photo: replaced, the current photo is deleted'
+		]);
+		expect(await card('/uploads/a.webp', null)).toEqual([
+			'Photo: removed, the current photo is deleted'
+		]);
+		expect(await card(null, '/uploads/b.webp')).toEqual(['Photo: added']);
+		expect(await card('/uploads/a.webp', '/uploads/a.webp')).toEqual(['Photo: unchanged']);
+	});
+
+	test('update_recipe lists every new ingredient and step and what is deleted', async () => {
+		const ingredients = Array.from({ length: 12 }, (_, index) => ({
+			foodId: OTHER,
+			quantity: 10 + index,
+			servingUnit: 'g'
+		}));
+		queueResults([
+			[{ id: ID, name: 'Porridge', totalServings: 2, imageUrl: '/uploads/cover.webp' }],
+			[{ count: 3 }],
+			[{ imageUrl: '/uploads/s1.webp' }, { imageUrl: null }, { imageUrl: '/uploads/s3.webp' }],
+			[{ id: OTHER, name: 'Oats' }],
+			[{ id: ID, name: 'Porridge' }],
+			[],
+			[]
+		]);
+		const built = await preview('update_recipe', {
+			recipeId: ID,
+			totalServings: 3,
+			imageUrl: null,
+			ingredients,
+			includeRecipes: [
+				{ recipeId: ID, servings: 2 },
+				{ recipeId: ID, grams: 150 },
+				{ recipeId: ID }
+			],
+			steps: [{ text: 'Boil the oats' }, { text: 'Serve', imageUrl: '/uploads/s1.webp' }]
+		});
+		expect(built).toMatchObject({ preview: { summary: 'Change the recipe “Porridge”' } });
+		expect((built as { preview: { details: string[] } }).preview.details).toEqual([
+			'totalServings: 2 → 3',
+			'Photo: removed, the current photo is deleted',
+			'Ingredients: the current 3 are replaced by these 12:',
+			...ingredients.map((item, index) => `${index + 1}. ${item.quantity} g “Oats”`),
+			'Adds the ingredients of 3 recipes:',
+			'1. 2 servings of “Porridge”',
+			'2. 150 g of “Porridge”',
+			'3. “Porridge”',
+			'Steps: the current 3 are replaced by these 2:',
+			'1. Boil the oats',
+			'2. Serve (with photo)',
+			'1 photos of the current steps are deleted'
+		]);
+	});
+
+	test('update_recipe states that clearing the steps deletes them and their photos', async () => {
+		queueResults([
+			[{ id: ID, name: 'Porridge' }],
+			[{ count: 0 }],
+			[{ imageUrl: '/uploads/s1.webp' }, { imageUrl: null }],
+			[{ id: ID, name: 'Porridge' }],
+			[],
+			[],
+			[]
+		]);
+		expect(await preview('update_recipe', { recipeId: ID, steps: [] }, 'de')).toMatchObject({
 			preview: {
-				summary: 'Change the food “Skyr”',
-				details: ['calories: 60 → 63', 'brand: —', 'labels: skyr']
+				summary: 'Rezept „Porridge“ ändern',
+				details: ['Schritte: alle 2 Schritte werden gelöscht, mit ihren 1 Fotos']
 			}
 		});
 		reset();
+		queueResults([[{ id: ID, name: 'Porridge' }], [{ count: 1 }], [], [], [], [], []]);
+		expect(
+			await preview('update_recipe', { recipeId: ID, steps: ['loose text'], ingredients: [] })
+		).toMatchObject({
+			preview: {
+				details: [
+					'Steps: the current 0 are replaced by these 1:',
+					'1. loose text',
+					'ingredients: cleared'
+				]
+			}
+		});
+	});
+
+	test('update_supplement lists every ingredient, existing or new', async () => {
 		queueResults([
-			[{ id: ID, name: 'Porridge', totalServings: 2 }],
-			[{ id: OTHER, name: 'Oats' }],
+			[{ id: ID, name: 'Multi', isActive: true }],
+			[{ count: 2 }],
+			[{ id: OTHER, name: 'Vitamin D' }],
 			[],
 			[],
 			[]
 		]);
 		expect(
-			await preview(
-				'update_recipe',
-				{
-					recipeId: ID,
-					totalServings: 3,
-					ingredients: [{ foodId: OTHER, quantity: 80, servingUnit: 'g' }],
-					steps: [{ text: 'Boil' }]
-				},
-				'de'
-			)
+			await preview('update_supplement', {
+				supplementId: ID,
+				isActive: false,
+				reminderTimes: ['08:00', '20:00'],
+				ingredients: [
+					{ foodId: OTHER, servings: 2 },
+					{ food: { name: 'Zinc', ingredientsText: '10 mg', zinc: 10 } },
+					{ foodId: OTHER, food: { name: 'Both' } }
+				]
+			})
 		).toMatchObject({
 			preview: {
-				summary: 'Rezept „Porridge“ ändern',
+				summary: 'Change the supplement “Multi”',
 				details: [
-					'totalServings: 2 → 3',
-					'ingredients: “Oats” quantity 80 servingUnit g',
-					'steps: text Boil'
+					'isActive: true → false',
+					'reminderTimes: 08:00, 20:00',
+					'Ingredients: the current 2 are replaced by these 3:',
+					'1. 2 × “Vitamin D”',
+					'2. 1 × new food “Zinc”: ingredientsText 10 mg zinc 10',
+					'3. “Vitamin D” food name Both'
 				]
 			}
 		});
@@ -239,6 +349,36 @@ describe('confirmation previews', () => {
 		expect(await preview('update_food', { foodId: 'x' })).toMatchObject({
 			error: expect.stringContaining('foodId')
 		});
+	});
+
+	test('a call that needs more than 200 lines goes back to the model to split', async () => {
+		const overrides = Object.fromEntries(
+			Array.from({ length: 200 }, (_, index) => [`field${index}`, index])
+		);
+		queueResults([
+			[
+				{ id: ID, name: 'Greek yogurt' },
+				{ id: OTHER, name: 'Greek Yoghurt 0%' }
+			]
+		]);
+		expect(await preview('merge_foods', { keeperId: ID, sourceIds: [OTHER], overrides })).toEqual({
+			error:
+				'This change needs 201 lines to show the user, more than the 200 a confirmation holds. Split it into smaller calls and confirm each one.'
+		});
+		reset();
+		queueResults([
+			[
+				{ id: ID, name: 'Greek yogurt' },
+				{ id: OTHER, name: 'Greek Yoghurt 0%' }
+			]
+		]);
+		const fits = Object.fromEntries(Object.entries(overrides).slice(0, 199));
+		const built = await preview('merge_foods', {
+			keeperId: ID,
+			sourceIds: [OTHER],
+			overrides: fits
+		});
+		expect((built as { preview: { details: string[] } }).preview.details).toHaveLength(200);
 	});
 
 	test('any other write gets a generic card with every field', async () => {
@@ -256,6 +396,24 @@ describe('confirmation previews', () => {
 			input: {},
 			preview: { summary: 'Allow: Updating goals', details: [] }
 		});
+		setResult([]);
+		expect(
+			await preview('create_recipe', {
+				name: 'Bowl',
+				ingredients: [{ foodId: OTHER, quantity: 1, servingUnit: 'g' }, 'extra'],
+				steps: []
+			})
+		).toMatchObject({
+			preview: {
+				details: [
+					'name: Bowl',
+					'ingredients (2):',
+					`1. ${OTHER} quantity 1 servingUnit g`,
+					'2. extra',
+					'steps: cleared'
+				]
+			}
+		});
 	});
 
 	test('describes values readably', () => {
@@ -264,10 +422,12 @@ describe('confirmation previews', () => {
 		expect(describeValue([], names, 'en')).toBe('—');
 		expect(describeValue(ID, names, 'en')).toBe('“Skyr”');
 		expect(describeValue(true, names, 'en')).toBe('true');
-		expect(describeValue(1.234, names, 'de')).toBe('1.23');
+		expect(describeValue(1.234567, names, 'de')).toBe('1.234567');
+		expect(describeValue(0.1234567, names, 'en')).toBe('0.123457');
 		expect(describeValue({ foodId: ID, servings: 2, skip: undefined }, names, 'en')).toBe(
 			'“Skyr” servings 2'
 		);
-		expect(describeValue('x'.repeat(200), names, 'en')).toHaveLength(120);
+		expect(describeValue('x'.repeat(5000), names, 'en')).toHaveLength(5000);
+		expect(describeValue(['a'.repeat(300), ID], names, 'en')).toBe(`${'a'.repeat(300)}, “Skyr”`);
 	});
 });

@@ -10,7 +10,7 @@ import {
 	type ChatConversation
 } from '../../schema';
 import { loadTaskPhotos } from '../tasks/photos';
-import { taskServerTools } from '../models';
+import { isWebFetchTool, taskServerTools } from '../models';
 import { chatSystem, isStoredImage, type StoredContentBlock } from './prompt';
 import { chatToolDefinitions, listMcpTools } from './tools';
 
@@ -80,10 +80,15 @@ export type ImageCache = Map<string, string | null>;
 const isThinking = (block: StoredContentBlock) =>
 	block.type === 'thinking' || block.type === 'redacted_thinking';
 
+/** Whether a turn says anything the API can replay: an assistant turn of only thinking does not. */
+export const hasReplayableContent = (message: RawMessage): boolean =>
+	message.content.some((block) => message.role !== 'assistant' || !isThinking(block));
+
 /**
  * The transcript as the API takes it: stored image references become base64
  * images, and thinking blocks of turns before stripThinkingBefore (bound to an
- * earlier prompt of the conversation) are left out, from the front only.
+ * earlier prompt of the conversation) are left out, from the front only. A
+ * turn left empty is skipped; the API joins the user turns around it.
  */
 export async function hydrate(
 	userId: string,
@@ -104,12 +109,13 @@ export async function hydrate(
 		missing.forEach((upload, index) => images.set(upload, loaded[index] ?? null));
 	}
 	let imageCount = 0;
-	const messages = raw.map((message, position): Anthropic.MessageParam => {
+	const messages = raw.flatMap((message, position): Anthropic.MessageParam[] => {
 		let photo = 0;
 		const kept =
 			position < stripThinkingBefore
 				? message.content.filter((block) => !isThinking(block))
 				: message.content;
+		if (kept.length === 0) return [];
 		const content = kept.map((block): Anthropic.ContentBlockParam => {
 			if (!isStoredImage(block)) return block;
 			photo++;
@@ -118,7 +124,7 @@ export async function hydrate(
 			imageCount++;
 			return { type: 'image', source: { type: 'base64', media_type: 'image/webp', data } };
 		});
-		return { role: message.role, content };
+		return [{ role: message.role, content }];
 	});
 	return { messages, imageCount };
 }
@@ -129,30 +135,70 @@ export type PromptSnapshot = {
 	tools: Anthropic.ToolUnion[];
 };
 
+const promptId = (model: string, system: unknown, tools: unknown) =>
+	createHash('sha256').update(JSON.stringify({ model, system, tools })).digest('hex');
+
 export async function buildPromptSnapshot(model: string): Promise<PromptSnapshot> {
 	const system = chatSystem();
 	const tools: Anthropic.ToolUnion[] = [
 		...taskServerTools(model),
 		...chatToolDefinitions(await listMcpTools())
 	];
-	const id = createHash('sha256').update(JSON.stringify({ model, system, tools })).digest('hex');
-	return { id, system, tools };
+	return { id: promptId(model, system, tools), system, tools };
+}
+
+/** The same prompt without web fetch, from fromPosition on (not stored yet). */
+export function withoutWebFetch(
+	model: string,
+	snapshot: PromptSnapshot,
+	fromPosition: number
+): PromptSnapshot & { fromPosition: number } {
+	const tools = snapshot.tools.filter((tool) => !isWebFetchTool(tool));
+	return {
+		id: promptId(model, snapshot.system, tools),
+		system: snapshot.system,
+		tools,
+		fromPosition
+	};
+}
+
+/** Makes snapshot the prompt the conversation replays from fromPosition on. */
+export async function storePromptSnapshot(
+	conversationId: string,
+	model: string,
+	snapshot: PromptSnapshot,
+	fromPosition: number
+): Promise<void> {
+	const db = getDB();
+	await db
+		.insert(chatPrompts)
+		.values({
+			id: snapshot.id,
+			model,
+			system: JSON.stringify(snapshot.system),
+			tools: JSON.stringify(snapshot.tools)
+		})
+		.onConflictDoNothing({ target: chatPrompts.id });
+	await db
+		.update(chatConversations)
+		.set({ promptId: snapshot.id, promptFromPosition: fromPosition })
+		.where(eq(chatConversations.id, conversationId));
 }
 
 /**
  * The prompt a conversation replays. It is frozen per conversation and model:
  * thinking blocks are bound to the system prompt and tools they were produced
  * with, so a deploy that changes either must not reach a running conversation.
- * A new model, or a rebuild (web fetch rejected), starts a new prompt at the
- * current transcript length; thinking blocks before it are no longer replayed.
+ * A new model starts a new prompt at the current transcript length; thinking
+ * blocks before it are no longer replayed.
  */
 export async function ensurePromptSnapshot(
 	conversation: ChatConversation,
 	model: string,
-	options: { rebuild?: boolean; transcriptLength?: number } = {}
+	options: { transcriptLength?: number } = {}
 ): Promise<PromptSnapshot & { fromPosition: number }> {
 	const db = getDB();
-	if (conversation.promptId && !options.rebuild) {
+	if (conversation.promptId) {
 		const [stored] = await db
 			.select()
 			.from(chatPrompts)
@@ -168,19 +214,7 @@ export async function ensurePromptSnapshot(
 	}
 	const snapshot = await buildPromptSnapshot(model);
 	const fromPosition = conversation.promptId ? (options.transcriptLength ?? 0) : 0;
-	await db
-		.insert(chatPrompts)
-		.values({
-			id: snapshot.id,
-			model,
-			system: JSON.stringify(snapshot.system),
-			tools: JSON.stringify(snapshot.tools)
-		})
-		.onConflictDoNothing({ target: chatPrompts.id });
-	await db
-		.update(chatConversations)
-		.set({ promptId: snapshot.id, promptFromPosition: fromPosition })
-		.where(eq(chatConversations.id, conversation.id));
+	await storePromptSnapshot(conversation.id, model, snapshot, fromPosition);
 	return { ...snapshot, fromPosition };
 }
 

@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/sveltekit';
 import { getDB } from './db';
-import { uploads } from './schema';
-import { and, eq, inArray } from 'drizzle-orm';
+import { chatMessages, uploads } from './schema';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import sharp from 'sharp';
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -131,6 +131,18 @@ export const ownsUpload = async (userId: string, filename: string): Promise<bool
 	return !!owner;
 };
 
+// A photo attached in the assistant chat belongs to its transcript, even when a
+// food or recipe was later pointed at the same file: replacing that photo must
+// not delete it. The orphan sweep removes it once no message refers to it.
+const attachedInChat = async (userId: string, imageUrl: string): Promise<boolean> => {
+	const [row] = await getDB()
+		.select({ id: chatMessages.id })
+		.from(chatMessages)
+		.where(and(eq(chatMessages.userId, userId), sql`${imageUrl} = ANY(${chatMessages.imageUrls})`))
+		.limit(1);
+	return !!row;
+};
+
 export const unlinkUpload = async (
 	imageUrl: string | null | undefined,
 	userId: string
@@ -139,6 +151,7 @@ export const unlinkUpload = async (
 	if (!filename) return;
 	try {
 		if (!(await ownsUpload(userId, filename))) return;
+		if (await attachedInChat(userId, `/uploads/${filename}`)) return;
 		await unlink(join(UPLOAD_DIR, filename)).catch((err) => {
 			// The file may already be gone; the ownership row still has to go.
 			if (err?.code !== 'ENOENT') Sentry.captureException(err, { level: 'warning' });

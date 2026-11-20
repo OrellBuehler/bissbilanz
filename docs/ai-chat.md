@@ -14,8 +14,9 @@ not use closed `Codable` enums for them.
 
 ## 1. Availability and gating
 
-Show the chat entry point only when chat is available. The capability comes from four places,
-all with the same shape (`ChatCapability`):
+The chat screen stays reachable for every signed-in account user. Whether a message can be sent
+right now is the capability, which comes from four places, all with the same shape
+(`ChatCapability`):
 
 | Where                                             | When to read it                               |
 | ------------------------------------------------- | --------------------------------------------- |
@@ -33,8 +34,8 @@ all with the same shape (`ChatCapability`):
 `disabled` (admin kill switch), `no_access` (user not granted), `user_budget_exhausted`,
 `global_budget_exhausted`. Unknown value → treat as "not available right now". Chat needs more
 budget headroom than an AI-task call, so `claude.chat.available` can be false while
-`claude.available` is true. When unavailable, keep existing conversations readable (GET still
-works) but disable the composer.
+`claude.available` is true. When unavailable, keep the screen and existing conversations
+readable (GET still works), show the reason (`blockedReason`), and disable the composer.
 
 ## 2. Authentication
 
@@ -99,7 +100,10 @@ POST /api/chat/conversations/83e75848-4125-4fab-b1d5-671e38b93bba/messages
   user's own upload, is missing on the server or is over 4 MB answers `400 invalid_image`. The
   server copies each photo into the chat: the `image` parts of the user message point to the copy
   (`/uploads/<new uuid>.webp`), so replacing or deleting the original elsewhere never changes the
-  conversation. A conversation holds at most 20 photos (12 MB of photo data).
+  conversation, and a food or recipe photo replaced later never deletes a copy a message still
+  shows. The copies count against the user's upload storage quota (`UPLOAD_QUOTA_BYTES`, 5 GB by
+  default): a message whose copies would exceed it answers `409 upload_quota_exceeded`. A
+  conversation holds at most 20 photos (12 MB of photo data).
 - `context` (optional, recommended): `date` = the diary day the user has open (YYYY-MM-DD);
   `timezone` = the device's IANA zone (only informs the assistant; the diary keeps using the
   user's time-zone preference); `locale` = the app language (BCP 47). The assistant answers in
@@ -126,6 +130,7 @@ Errors (`ChatErrorResponse { error, code?, … }`):
 | 409    | `run_active`             | A run is still `queued`/`running`: wait for `run_finished` or cancel it                                   |
 | 409    | `conversation_too_long`  | 40 user messages, ~1 MB of transcript, 20 photos or 12 MB of photo data reached: offer "Start a new chat" |
 | 409    | `message_id_conflict`    | The id is used by another conversation or user: generate a new id                                         |
+| 409    | `upload_quota_exceeded`  | The photo copies would exceed the user's upload storage: send without photos or free space                |
 | 429    | `daily_limit_reached`    | 60 messages in 24 hours (deleting conversations does not reset it); `Retry-After` header (seconds)        |
 | 429    | (none)                   | Shared write rate limit (120 writes/min); `Retry-After`                                                   |
 
@@ -137,9 +142,11 @@ generically.
 
 ## 5. Receiving events
 
-Every change to a conversation is an event with a `seq` that increases by exactly one per event
-within the conversation (`ChatEvent`). Keep `lastSeq` per conversation (persist it with the
-cached messages if you cache them).
+Every change to a conversation is an event with a `seq` that increases with every event within
+the conversation (`ChatEvent`). The server writes seqs one by one, but a reader can see gaps:
+`text_delta` events are deleted 24 hours after they were written. Never require the seqs you
+receive to be contiguous. Keep `lastSeq` per conversation (persist it with the cached messages
+if you cache them).
 
 `GET /api/chat/conversations/{id}/events?after=<lastSeq>` returns the events with `seq > after`
 in order. Two ways to read it:
@@ -153,7 +160,7 @@ retry: 3000
 
 id: 3
 event: text_delta
-data: {"seq":3,"type":"text_delta","runId":"9eab…","messageId":"3638…","partIndex":0,"text":"Let me ","createdAt":"…"}
+data: {"seq":3,"type":"text_delta","createdAt":"2026-11-19T20:56:15.059Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","partIndex":0,"text":"Let me "}
 
 : ping
 
@@ -187,8 +194,9 @@ Any other `Accept` returns one page:
 ### 5.3 Rules for applying events
 
 1. Apply events strictly in seq order; ignore any event with `seq <= lastSeq` (duplicates after a
-   reconnect); then set `lastSeq = seq`. Advance `lastSeq` past events of an unknown `type`
-   without applying them.
+   reconnect); then set `lastSeq = seq`. Gaps between seqs are normal (pruned `text_delta` events):
+   apply the next event you receive, never wait for a missing seq. Advance `lastSeq` past events
+   of an unknown `type` without applying them.
 2. Opening a conversation: `GET /api/chat/conversations/{id}` returns all messages in display form
    and `lastSeq`. The in-progress assistant message (if a run is active) already contains
    everything up to `lastSeq`. Then follow events with `after=lastSeq`.
@@ -217,13 +225,14 @@ Any other `Accept` returns one page:
 | `action` | `actionId`, `toolUseId`, `name`, `label`, `status`, `preview { summary, details[] }`, `expiresAt` | Confirmation card (§7)                                                     |
 
 Unknown part `type` → skip it. `tool.status`: `running`, `ok`, `error` (show `summary`, the error
-message); unknown → like `ok`. A finished message never contains a `running` tool part: a call the
-run stopped during ends as `error` with a summary such as "Stopped before it finished. Check the
-result." A confirmation the user rejected is an `action` part with status `rejected` and has no
-`tool` part. `label` is already in the user's language
-(e.g. "Logging food" / "Trage Essen ein"). Web searches and page fetches the assistant does
-appear as tool parts named `web_search` / `web_fetch` ("Searching the web"); they change nothing.
-A tool part can still be `running` in a final message when the run stopped during that call.
+message); unknown → like `ok`. Only a message whose run is still active can contain a `running`
+tool part. A finished message (any final `status`) never does: when a run stops during a call, the
+server writes a `tool_finished` with `status: "error"` and a summary such as "Stopped before it
+finished. Check the result." before `message_completed`. A confirmation the user rejected is an
+`action` part with status `rejected` and has no `tool` part. `label` is already in the user's
+language (e.g. "Logging food" / "Trage Essen ein"). Web searches and page fetches the assistant
+does appear as tool parts named `web_search` / `web_fetch` ("Searching the web"); they change
+nothing.
 
 ## 7. Confirmations
 
@@ -232,7 +241,10 @@ These calls never run without the user's approval:
 - deleting an entry, food, recipe, supplement, weight or sleep entry, or a day's details (water,
   activity, fasting flag, notes); merging foods; copying a day of entries; removing a supplement
   log;
-- changing the serving size, nutrition values or photo of a food that has diary entries;
+- changing the serving size, nutrition values or photo of a food that is in use: logged directly
+  or as a supplement, or an ingredient of a recipe that has diary entries (recipe entries compute
+  their macros from their ingredients, so such a change rewrites past days);
+- replacing or removing the photo of any food or recipe (the current photo file is deleted);
 - changing a recipe's ingredients or steps, or the servings or cooked weight of a recipe that has
   diary entries; changing a supplement's ingredients;
 - any call with a `force` flag;
@@ -252,13 +264,25 @@ approval, the run pauses:
    defaults are resolved when the card is built (copying "to today" names the day; approving after
    midnight still acts on that day), every field the call sets is listed (e.g.
    `calories: 60 → 75`, or the overrides of a merge), and fields the card cannot show are rejected
-   before any card is created.
+   before any card is created. Nothing is shortened: a replaced list (a recipe's ingredients or
+   steps, a supplement's ingredients) gets a heading line ("the current 12 are replaced by these
+   10") and one line per new item; deleting steps, and the step photos and food or recipe photos
+   that go with a change, are stated as deletions.
+
+   Layout limits: `summary` is one line (it names the record, so it can be as long as a food name);
+   `details` holds at most **200 lines**, and a line is never cut, so it can be long (a step text
+   up to 2,000 characters, a food's ingredients text up to 10,000). Let the card scroll and wrap
+   lines. A call that needs more than 200 lines never reaches the user: the model is told to split
+   it into smaller calls.
+
 3. `POST /api/chat/actions/{actionId}` with `{ "decision": "approve" }` or `"reject"` →
    `200 { action, run }` (`run.status` is `queued`). The run resumes at once. The card is written in
    the same transaction that pauses the run, so an approval right after `action_required` always
    finds the action pending. Events follow on the stream:
    `action_resolved` (`status: approved | rejected`), `run_resumed`, then for an approval
-   `tool_started`/`tool_finished` of the call itself, then the model's reply.
+   `tool_started`/`tool_finished` of the call itself, then the model's reply. An action that
+   expires, or whose run is cancelled or superseded, also gets an `action_resolved`, with
+   `status: expired | cancelled`, before the run's `run_finished`.
 4. Errors: `404 action_not_found`; `409 action_not_pending` (already decided, cancelled, or the
    run ended) and `409 action_expired`, both with the current `action` in the body — refresh the
    conversation. Retrying an approve that already went through answers 409; the call never runs
@@ -296,9 +320,15 @@ changes, createdAt, startedAt, finishedAt }`
 
 Unknown reason → generic message for the status. After a failure the user can simply send
 another message. Partial text and the tool calls that already ran are kept in the message.
-Overload, rate-limit, server and connection errors (and a stalled stream: 90 s without data or 10
-minutes in total) are retried up to twice by the server, but only while nothing of that answer has
-streamed; `api_error` means the retries did not help or text had already arrived.
+Rate-limit, overload and server errors, and a connection that failed before any data came back,
+are retried up to twice by the server (after 1 and 4 seconds), each try with its own budget
+reservation. The first three are answered by the API and cost nothing. A failed connection is
+settled at its full reservation, because the server cannot know whether it was billed, so in the
+worst case one model call reserves three times its maximum cost. A stalled stream (90 s without
+data, or 10 minutes in total) or a stream that breaks after data arrived is not retried, because
+that call may already be billed. `api_error` means the retries did not help, or the failure was
+one of these. A request the API finds too long for the model's context window ends `failed` /
+`conversation_too_long`.
 `interrupted` / `server_restart` also covers a run that stopped without a known cause (e.g. its
 access was revoked and restored while it stopped). A run left by a restart is settled within about
 1.5 minutes (the heartbeat goes stale after 60 s, the sweep runs every 30 s) or when the
@@ -325,7 +355,7 @@ All events have `seq`, `type`, `createdAt`. The fields per type (others are abse
 | `tool_started`      | `runId`, `messageId`, `partIndex`, `toolUseId`, `name`, `label`                                                     |
 | `tool_finished`     | `runId`, `messageId`, `partIndex`, `toolUseId`, `name`, `status`, `summary`, `changed`, `changes`                   |
 | `action_required`   | `runId`, `messageId`, `partIndex`, `action`                                                                         |
-| `action_resolved`   | `runId`, `messageId`, `partIndex`, `actionId`, `status`                                                             |
+| `action_resolved`   | `runId`, `messageId`, `partIndex`, `actionId`, `status` (`approved`, `rejected`, `expired`, `cancelled`)            |
 | `message_completed` | `runId`, `messageId`, `message` (the final assistant message)                                                       |
 | `run_finished`      | `runId`, `messageId` (null if the run never started), `status`, `reason`, `changed`, `changes`, `run`, `capability` |
 | `error`             | `runId`, `code` (= the run's reason), `error` (English text for logs); always followed by `run_finished`            |
@@ -357,20 +387,20 @@ on run_finished:     update the run, refresh `changed` data (§10), update the c
 {"seq":6,"type":"action_required","createdAt":"2026-11-19T20:56:15.144Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","partIndex":2,"action":{"id":"435baadf-008d-4a69-a948-659b75aa3589","conversationId":"83e75848-4125-4fab-b1d5-671e38b93bba","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","toolUseId":"toolu_17f54b831c2240e493a1","name":"delete_entry","label":"Deleting an entry","status":"pending","preview":{"summary":"Delete “Greek yogurt” from Breakfast on 18 Nov 2026","details":["2 servings · 120 kcal"]},"expiresAt":"2026-11-19T21:56:15.139Z","decidedAt":null,"createdAt":"2026-11-19T20:56:15.124Z"}}
 ```
 
-The user approves (`POST /api/chat/actions/435baadf-…` `{"decision":"approve"}`):
+The user approves (`POST /api/chat/actions/435baadf-008d-4a69-a948-659b75aa3589` with `{"decision":"approve"}`):
 
 ```json
-{"seq":7,"type":"action_resolved","createdAt":"2026-11-19T20:56:15.172Z","runId":"9eab9b08-…","messageId":"36380e54-…","partIndex":2,"actionId":"435baadf-008d-4a69-a948-659b75aa3589","status":"approved"}
-{"seq":8,"type":"run_resumed","createdAt":"2026-11-19T20:56:15.193Z","runId":"9eab9b08-…","messageId":"36380e54-…","run":{"…":"…","status":"running","changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}]}}
-{"seq":9,"type":"tool_started","createdAt":"2026-11-19T20:56:15.220Z","runId":"9eab9b08-…","messageId":"36380e54-…","partIndex":3,"toolUseId":"toolu_17f54b831c2240e493a1","name":"delete_entry","label":"Deleting an entry"}
-{"seq":10,"type":"tool_finished","createdAt":"2026-11-19T20:56:15.234Z","runId":"9eab9b08-…","messageId":"36380e54-…","partIndex":3,"toolUseId":"toolu_17f54b831c2240e493a1","name":"delete_entry","status":"ok","summary":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}]}
-{"seq":11,"type":"text_delta","createdAt":"2026-11-19T20:56:15.254Z","runId":"9eab9b08-…","messageId":"36380e54-…","partIndex":4,"text":"Logged 150 g Greek yogurt and removed the old entry."}
-{"seq":12,"type":"message_completed","createdAt":"2026-11-19T20:56:15.274Z","runId":"9eab9b08-…","messageId":"36380e54-…","message":{"id":"36380e54-…","role":"assistant","status":"completed","reason":null,"runId":"9eab9b08-…","parts":[{"type":"text","text":"Let me log that."},{"type":"tool","toolUseId":"toolu_dca7…","name":"log_food","label":"Logging food","status":"ok","summary":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}]},{"type":"action","actionId":"435baadf-…","toolUseId":"toolu_17f5…","name":"delete_entry","label":"Deleting an entry","status":"approved","preview":{"summary":"Delete “Greek yogurt” from Breakfast on 18 Nov 2026","details":["2 servings · 120 kcal"]},"expiresAt":"2026-11-19T21:56:15.139Z"},{"type":"tool","toolUseId":"toolu_17f5…","name":"delete_entry","label":"Deleting an entry","status":"ok","summary":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}]},{"type":"text","text":"Logged 150 g Greek yogurt and removed the old entry."}],"conversationId":"83e75848-…","createdAt":"…","updatedAt":"…"}}
-{"seq":13,"type":"run_finished","createdAt":"2026-11-19T20:56:15.274Z","runId":"9eab9b08-…","messageId":"36380e54-…","status":"completed","reason":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}],"run":{"…":"…","status":"completed","finishedAt":"2026-11-19T20:56:15.274Z"},"capability":{"available":true,"remainingBudgetUsd":9.98}}
+{"seq":7,"type":"action_resolved","createdAt":"2026-11-19T20:56:15.172Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","partIndex":2,"actionId":"435baadf-008d-4a69-a948-659b75aa3589","status":"approved"}
+{"seq":8,"type":"run_resumed","createdAt":"2026-11-19T20:56:15.193Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","run":{"id":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","conversationId":"83e75848-4125-4fab-b1d5-671e38b93bba","userMessageId":"d0a7f2a9-8122-420c-ad0b-e2e5c29644a7","assistantMessageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","status":"running","reason":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}],"createdAt":"2026-11-19T20:56:14.871Z","startedAt":"2026-11-19T20:56:14.893Z","finishedAt":null}}
+{"seq":9,"type":"tool_started","createdAt":"2026-11-19T20:56:15.220Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","partIndex":3,"toolUseId":"toolu_17f54b831c2240e493a1","name":"delete_entry","label":"Deleting an entry"}
+{"seq":10,"type":"tool_finished","createdAt":"2026-11-19T20:56:15.234Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","partIndex":3,"toolUseId":"toolu_17f54b831c2240e493a1","name":"delete_entry","status":"ok","summary":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}]}
+{"seq":11,"type":"text_delta","createdAt":"2026-11-19T20:56:15.254Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","partIndex":4,"text":"Logged 150 g Greek yogurt and removed the old entry."}
+{"seq":12,"type":"message_completed","createdAt":"2026-11-19T20:56:15.274Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","message":{"id":"36380e54-7a5c-4e66-98ff-c9370ebecae3","conversationId":"83e75848-4125-4fab-b1d5-671e38b93bba","role":"assistant","status":"completed","reason":null,"runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","parts":[{"type":"text","text":"Let me log that."},{"type":"tool","toolUseId":"toolu_dca7168143174af29733","name":"log_food","label":"Logging food","status":"ok","summary":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}]},{"type":"action","actionId":"435baadf-008d-4a69-a948-659b75aa3589","toolUseId":"toolu_17f54b831c2240e493a1","name":"delete_entry","label":"Deleting an entry","status":"approved","preview":{"summary":"Delete “Greek yogurt” from Breakfast on 18 Nov 2026","details":["2 servings · 120 kcal"]},"expiresAt":"2026-11-19T21:56:15.139Z"},{"type":"tool","toolUseId":"toolu_17f54b831c2240e493a1","name":"delete_entry","label":"Deleting an entry","status":"ok","summary":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}]},{"type":"text","text":"Logged 150 g Greek yogurt and removed the old entry."}],"createdAt":"2026-11-19T20:56:14.906Z","updatedAt":"2026-11-19T20:56:15.274Z"}}
+{"seq":13,"type":"run_finished","createdAt":"2026-11-19T20:56:15.274Z","runId":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","messageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","status":"completed","reason":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}],"run":{"id":"9eab9b08-7b01-49f0-afb3-e2f749da54ae","conversationId":"83e75848-4125-4fab-b1d5-671e38b93bba","userMessageId":"d0a7f2a9-8122-420c-ad0b-e2e5c29644a7","assistantMessageId":"36380e54-7a5c-4e66-98ff-c9370ebecae3","status":"completed","reason":null,"changed":["entries"],"changes":[{"domain":"entries","dates":["2026-11-18"]}],"createdAt":"2026-11-19T20:56:14.871Z","startedAt":"2026-11-19T20:56:14.893Z","finishedAt":"2026-11-19T20:56:15.274Z"},"capability":{"available":true,"remainingBudgetUsd":9.98}}
 ```
 
 A failed run ends with `error` then `message_completed` then `run_finished`, e.g.
-`{"type":"error","code":"user_budget_exhausted","error":"This month's assistant budget is used up.",…}`.
+`{"seq":14,"type":"error","createdAt":"2026-11-19T21:02:03.120Z","runId":"5c1d2e3f-4a5b-4c6d-8e7f-901234567890","code":"user_budget_exhausted","error":"This month's assistant budget is used up."}`.
 
 ## 10. Keeping cached data fresh (`changed`)
 
@@ -411,6 +441,8 @@ touched, without scope, so `run_finished` always covers everything that may have
 | Messages per user             | 60 per rolling 24 h, deleted conversations included         | 429 `daily_limit_reached`              |
 | Conversation length           | 40 user messages, ~1 MB transcript, 20 photos, 12 MB photos | 409 `conversation_too_long`            |
 | Context window of the model   | full                                                        | run `failed` / `conversation_too_long` |
+| Photo copies                  | count against the upload storage quota (5 GB)               | 409 `upload_quota_exceeded`            |
+| Confirmation card             | 200 detail lines, nothing shortened                         | the model splits the call              |
 | Active runs                   | 1 per conversation                                          | 409 `run_active`                       |
 | Model calls per run           | `CLAUDE_MAX_ITERATIONS` (default 20)                        | run `completed` / `iteration_limit`    |
 | Writes without confirmation   | 10 per run, then every write asks                           | confirmation card                      |
