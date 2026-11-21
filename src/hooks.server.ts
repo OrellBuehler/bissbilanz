@@ -32,6 +32,7 @@ import {
 	updateRequiredResponse
 } from '$lib/server/client-version';
 import { PUBLIC_SENTRY_DSN, PUBLIC_SENTRY_ENVIRONMENT } from '$app/env/public';
+import { sentryRelease } from '$lib/sentry-release';
 
 // Both must be set: a DSN alone would make any local run of the built server
 // (default environment "production") report into the live Sentry project.
@@ -39,6 +40,7 @@ if (PUBLIC_SENTRY_DSN && PUBLIC_SENTRY_ENVIRONMENT) {
 	Sentry.init({
 		dsn: PUBLIC_SENTRY_DSN,
 		environment: PUBLIC_SENTRY_ENVIRONMENT,
+		release: sentryRelease(config.app.version),
 		tracesSampleRate: import.meta.env.DEV ? 1.0 : 0.2,
 		beforeSendLog: (log) => (import.meta.env.DEV ? log : null)
 	});
@@ -52,21 +54,14 @@ const API_ACCESS_SCOPE = 'mcp:access';
 // runs on every cold start (new process = flag resets to false).
 let migrationsRan = false;
 
-export async function init() {
+async function startServer() {
 	const problems = validateEnv();
 	if (problems.length > 0) {
 		throw new Error(`Invalid environment configuration:\n- ${problems.join('\n- ')}`);
 	}
 	if (!migrationsRan) {
-		try {
-			await runMigrations();
-			migrationsRan = true;
-		} catch (err) {
-			console.error('[startup] Migration failed:', err);
-			Sentry.captureException(err, { tags: { job: 'migrations' } });
-			await Sentry.flush(2000);
-			throw err;
-		}
+		await runMigrations();
+		migrationsRan = true;
 	}
 	await ensureMobileClient();
 	const runCleanup = () => {
@@ -90,6 +85,17 @@ export async function init() {
 	startClaudeWorker();
 	startChatWorker();
 	startFoodEnrichmentWorker();
+}
+
+export async function init() {
+	try {
+		await startServer();
+	} catch (err) {
+		console.error('[startup] Failed:', err);
+		Sentry.captureException(err, { tags: { job: 'startup' } });
+		await Sentry.flush(2000);
+		throw err;
+	}
 }
 
 const paraglideHandle: Handle = ({ event, resolve }) =>

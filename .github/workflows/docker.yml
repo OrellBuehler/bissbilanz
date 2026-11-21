@@ -96,6 +96,8 @@ jobs:
             APP_VERSION=${{ github.ref_name }}
             GIT_HASH=${{ github.sha }}
             BUILD_TIMESTAMP=${{ github.event.release.created_at }}
+          secrets: |
+            sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
 
       - name: Push Docker image
         run: docker image push --all-tags ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}

@@ -8,11 +8,18 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 import { cspDirectives } from './csp.config.ts';
 import { ocrAssetBase, ocrAssets } from './scripts/ocr-assets.ts';
+import { sentryRelease } from './src/lib/sentry-release.ts';
 
 // Self-hosted Tesseract assets for the nutrition-label scanner, staged out of
 // node_modules by the plugin below and addressed by version so a bumped core is
 // never served out of a stale runtime cache.
 const ocrBase = ocrAssetBase();
+
+// Source maps go to Sentry only for a release build that has the token (the
+// Dockerfile passes it as a build secret); local, PR and token-less builds
+// skip the upload and keep generating no maps.
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
+const release = sentryRelease(process.env.VITE_APP_VERSION);
 
 export default defineConfig({
 	server: {
@@ -37,7 +44,18 @@ export default defineConfig({
 	},
 	plugins: [
 		ocrAssets(),
-		sentrySvelteKit({ autoUploadSourceMaps: false, autoInstrument: false }),
+		sentrySvelteKit({
+			autoUploadSourceMaps: Boolean(sentryAuthToken && release),
+			autoInstrument: false,
+			org: 'orells-organization',
+			project: 'bissbilanz',
+			sentryUrl: 'https://de.sentry.io',
+			authToken: sentryAuthToken,
+			release: { name: release },
+			telemetry: false,
+			// A Sentry outage must not fail the release build.
+			errorHandler: (err) => console.warn('[sentry] source map upload failed:', err.message)
+		}),
 		tailwindcss(),
 		paraglideVitePlugin({
 			project: './project.inlang',
