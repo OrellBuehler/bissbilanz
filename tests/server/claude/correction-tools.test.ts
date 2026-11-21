@@ -548,6 +548,39 @@ describe('update_food', () => {
 		expect(allowed.body.food).toMatchObject({ usedOutsideThisTask: false, canChange: true });
 	});
 
+	test('drops a 0 for a vitamin or mineral, keeps one a label declares, and says so', async () => {
+		const ctx = await makeCtx();
+		const { body } = await run(
+			'update_food',
+			{
+				foodId: SKYR,
+				...foodPatch({
+					nutrients: [
+						{ nutrient: 'vitaminC', amount: 0 },
+						{ nutrient: 'sugar', amount: 0 },
+						{ nutrient: 'calcium', amount: 120 }
+					]
+				})
+			},
+			ctx
+		);
+		expect(body.droppedZeros).toEqual(['vitaminC']);
+		expect(ctx.foodPatches.get(SKYR)).toEqual({ sugar: 0, calcium: 120 });
+	});
+
+	test('explains an update that only held zeros for vitamins and minerals', async () => {
+		const ctx = await makeCtx();
+		const { body, isError } = await run(
+			'update_food',
+			{ foodId: SKYR, ...foodPatch({ nutrients: [{ nutrient: 'iron', amount: 0 }] }) },
+			ctx
+		);
+		expect(isError).toBe(true);
+		expect(body.error).toContain('nobody entered a value');
+		expect(body.error).toContain('iron');
+		expect(ctx.foodPatches.size).toBe(0);
+	});
+
 	test('refuses an empty change and invalid values', async () => {
 		const ctx = await makeCtx();
 		expect(

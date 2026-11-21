@@ -500,3 +500,23 @@ export function getCategoryLabel(
 	const fn = messages[CATEGORY_I18N_KEYS[category]];
 	return fn ? fn() : category;
 }
+
+/**
+ * Nutrients a nutrition label declares as a matter of course (EU and US panels),
+ * so a printed 0 is a measurement. For every other extended nutrient a 0 coming
+ * from Open Food Facts or a model is a placeholder for "not entered": in a
+ * sample of 200 Open Food Facts products, 11 carried 11 to 14 vitamin and
+ * mineral fields all at 0 (bread, skyr, cream cheese), starch was 0 in 32 of 33
+ * records that had it, and caffeine and alcohol were 0 wherever present.
+ */
+export const ZERO_RELIABLE_KEYS: ReadonlySet<string> = new Set([
+	'saturatedFat',
+	'transFat',
+	'cholesterol',
+	'sugar',
+	'sodium',
+	'salt'
+]);
+
+export const isUnreliableZero = (key: string, value: unknown): boolean =>
+	value === 0 && !ZERO_RELIABLE_KEYS.has(key);

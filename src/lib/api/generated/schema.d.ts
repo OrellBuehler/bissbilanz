@@ -2267,6 +2267,10 @@ export interface components {
 			/** @enum {string} */
 			aiTaskProcessor?: 'assistant' | 'device' | 'claude';
 			aiTaskAutoLog?: boolean;
+			aiResearchNutrients?: boolean;
+			aiWebResearch?: boolean;
+			aiRealServings?: boolean;
+			aiTaskCreateFoods?: boolean;
 			timeZone?: string;
 		};
 		FavoriteMealTimeframeInput: {
@@ -3356,6 +3360,10 @@ export interface components {
 			/** @description The stored processor, including values newer than the legacy aiTaskProcessor enum (e.g. 'claude'). Unknown values should be treated like aiTaskProcessor. */
 			aiTaskProcessorKind?: string;
 			aiTaskAutoLog: boolean;
+			aiResearchNutrients?: boolean;
+			aiWebResearch?: boolean;
+			aiRealServings?: boolean;
+			aiTaskCreateFoods?: boolean;
 			locale: string | null;
 			timeZone: string;
 			updatedAt?: string;
@@ -3905,6 +3913,10 @@ export interface components {
 			additives: string[] | null;
 			ingredientsText: string | null;
 			categoriesTags?: string[];
+			/** @description Net content as printed on the pack, e.g. "330 ml". */
+			quantity?: string | null;
+			/** @description Serving as printed on the pack, e.g. "1 can (330 ml)". */
+			servingDescription?: string | null;
 		};
 		OpenFoodFactsResponse: {
 			product: components['schemas']['OpenFoodFactsProduct'];

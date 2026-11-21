@@ -54,6 +54,10 @@ import kotlinx.serialization.encoding.*
  * @param caloricLagDaysOverride
  * @param biologicalSex
  * @param aiTaskProcessorKind The stored processor, including values newer than the legacy aiTaskProcessor enum (e.g. 'claude'). Unknown values should be treated like aiTaskProcessor.
+ * @param aiResearchNutrients
+ * @param aiWebResearch
+ * @param aiRealServings
+ * @param aiTaskCreateFoods
  * @param updatedAt
  */
 @Serializable
@@ -90,6 +94,10 @@ data class Preferences(
     @SerialName(value = "biologicalSex") val biologicalSex: Preferences.BiologicalSex? = null,
     // The stored processor, including values newer than the legacy aiTaskProcessor enum (e.g. 'claude'). Unknown values should be treated like aiTaskProcessor.
     @SerialName(value = "aiTaskProcessorKind") val aiTaskProcessorKind: kotlin.String? = null,
+    @SerialName(value = "aiResearchNutrients") val aiResearchNutrients: kotlin.Boolean? = null,
+    @SerialName(value = "aiWebResearch") val aiWebResearch: kotlin.Boolean? = null,
+    @SerialName(value = "aiRealServings") val aiRealServings: kotlin.Boolean? = null,
+    @SerialName(value = "aiTaskCreateFoods") val aiTaskCreateFoods: kotlin.Boolean? = null,
     @SerialName(value = "updatedAt") val updatedAt: kotlin.String? = null,
 ) {
     /**

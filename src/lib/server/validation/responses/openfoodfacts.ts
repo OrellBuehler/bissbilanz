@@ -26,7 +26,17 @@ const productSchema = z
 		ingredientsText: z.string().nullable(),
 		// Raw OFF `categories_tags`, forwarded verbatim to `FoodCreate.categoriesTags`
 		// so the server can seed labels; clients never interpret them.
-		categoriesTags: z.array(z.string()).optional()
+		categoriesTags: z.array(z.string()).optional(),
+		quantity: z
+			.string()
+			.nullable()
+			.optional()
+			.meta({ description: 'Net content as printed on the pack, e.g. "330 ml".' }),
+		servingDescription: z
+			.string()
+			.nullable()
+			.optional()
+			.meta({ description: 'Serving as printed on the pack, e.g. "1 can (330 ml)".' })
 	})
 	.meta({ id: 'OpenFoodFactsProduct' });
 

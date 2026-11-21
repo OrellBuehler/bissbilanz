@@ -8,6 +8,12 @@ import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 import { getUserTimeZone } from '../../preferences';
 import { claudeAccess, userPreferences } from '../../schema';
 import { assertClaudeAllowed } from '../capability';
+import {
+	DEFAULT_ASSISTANT_OPTIONS,
+	assistantOptionColumns,
+	resolveAssistantOptions,
+	type AssistantOptions
+} from '../assistant-options';
 import { isFdcConfigured } from '../../fooddata-central';
 import { resolveClaudeModel, taskServerTools } from '../models';
 import { AI_TASK_FEATURE } from '../constants';
@@ -30,7 +36,7 @@ import {
 import { runToolLoop } from './loop';
 import { failureDetail, loadLocale, startHeartbeat } from './run-support';
 import { loadTaskPhotos } from './photos';
-import { TASK_SYSTEM, buildTaskUserContent } from './prompt';
+import { buildTaskUserContent, taskSystem } from './prompt';
 import { MAX_FAILURES, claimRun, listLoggedLedger, supersedeIfProcessorChanged } from './runs';
 import { isTerminalTool, runTaskTool, taskTools, type TaskToolContext } from './tools';
 import type { ClaudeRun, Fence, TaskMode } from './types';
@@ -42,9 +48,13 @@ export const MAX_LOG_CALLS_PER_RUN = 30;
 export const MAX_FOODS_CREATED_PER_RUN = 5;
 
 /** Every tool a first-run request declares; tool-limits.test.ts checks them against the API limits. */
-export const firstRunTools = (model: string, nutrientDatabase: boolean) => [
-	...taskServerTools(model),
-	...taskTools(nutrientDatabase)
+export const firstRunTools = (
+	model: string,
+	nutrientDatabase: boolean,
+	options: Pick<AssistantOptions, 'webResearch' | 'createFoods'> = DEFAULT_ASSISTANT_OPTIONS
+) => [
+	...taskServerTools(model, options.webResearch),
+	...taskTools(nutrientDatabase, options.createFoods)
 ];
 
 const NUDGE =
@@ -67,6 +77,7 @@ type Loaded = {
 	content: Anthropic.ContentBlockParam[];
 	imageCount: number;
 	model: string;
+	options: AssistantOptions;
 };
 
 async function loadInputs(run: ClaudeRun, locale: string | null): Promise<Loaded | null> {
@@ -74,7 +85,7 @@ async function loadInputs(run: ClaudeRun, locale: string | null): Promise<Loaded
 	if (!task || task.status !== 'pending') return null;
 	const db = getDB();
 	const [prefs] = await db
-		.select({ autoLog: userPreferences.aiTaskAutoLog })
+		.select({ autoLog: userPreferences.aiTaskAutoLog, ...assistantOptionColumns })
 		.from(userPreferences)
 		.where(eq(userPreferences.userId, run.userId));
 	const mode: TaskMode =
@@ -108,7 +119,8 @@ async function loadInputs(run: ClaudeRun, locale: string | null): Promise<Loaded
 		locale,
 		content,
 		imageCount: content.filter((block) => block.type === 'image').length,
-		model: resolveClaudeModel(access?.model)
+		model: resolveClaudeModel(access?.model),
+		options: resolveAssistantOptions(prefs)
 	};
 }
 
@@ -123,7 +135,8 @@ async function runLoop(
 	ctx: OutcomeContext,
 	signal: AbortSignal
 ): Promise<void> {
-	const { task, mode } = loaded;
+	const { task, mode, options } = loaded;
+	const tools = firstRunTools(loaded.model, isFdcConfigured(), options);
 	const toolCtx: TaskToolContext = {
 		userId: run.userId,
 		task: { id: task.id, date: task.date, mealType: task.mealType, eatenAt: task.eatenAt },
@@ -135,6 +148,7 @@ async function runLoop(
 		foods: new Map(),
 		createdFoods: new Map(),
 		nutrientRecords: new Set(),
+		assistant: options,
 		signal
 	};
 	let logCalls = 0;
@@ -144,10 +158,10 @@ async function runLoop(
 		taskId: task.id,
 		feature: AI_TASK_FEATURE,
 		model: loaded.model,
-		system: TASK_SYSTEM,
+		system: taskSystem(options, tools),
 		content: loaded.content,
 		imageCount: loaded.imageCount,
-		tools: firstRunTools(loaded.model, isFdcConfigured()),
+		tools,
 		signal,
 		nudge: NUDGE,
 		nudgeNoTerminal: NUDGE_NO_TERMINAL,

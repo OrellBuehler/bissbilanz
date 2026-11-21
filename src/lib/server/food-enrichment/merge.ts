@@ -1,4 +1,4 @@
-import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
+import { ALL_NUTRIENT_KEYS, isUnreliableZero } from '$lib/nutrients';
 import { per100Scale, type ServingUnit } from '$lib/units';
 import type { OFFProduct } from '$lib/server/openfoodfacts';
 import { allowedImageUrl } from '$lib/server/catalog/image-hosts';
@@ -63,6 +63,7 @@ export function mergeOffProduct(food: StoredFood, product: OFFProduct): Record<s
 		const value = product[key];
 		if (!isEmpty(food[key])) continue;
 		if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) continue;
+		if (isUnreliableZero(key, value)) continue;
 		patch[key] = round(value * scale);
 	}
 	return patch;

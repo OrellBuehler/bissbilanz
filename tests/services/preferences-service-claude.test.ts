@@ -66,6 +66,35 @@ describe('preferencesService claude fields', () => {
 		expect(effectiveProcessor(row)).toBe('claude');
 	});
 
+	test('refresh caches the assistant options and update writes them through', async () => {
+		mockApi.GET.mockResolvedValue({
+			data: {
+				preferences: serverPrefs({
+					aiResearchNutrients: false,
+					aiWebResearch: true,
+					aiRealServings: false,
+					aiTaskCreateFoods: true
+				})
+			}
+		});
+		await preferencesService.refresh();
+		let row = await db.userPreferences.toCollection().first();
+		expect(row).toMatchObject({
+			aiResearchNutrients: false,
+			aiWebResearch: true,
+			aiRealServings: false,
+			aiTaskCreateFoods: true
+		});
+
+		await preferencesService.update({ aiWebResearch: false });
+		row = await db.userPreferences.toCollection().first();
+		expect(row?.aiWebResearch).toBe(false);
+		expect(row?.aiRealServings).toBe(false);
+		expect(mockApi.PATCH).toHaveBeenCalledWith('/api/preferences', {
+			body: { aiWebResearch: false }
+		});
+	});
+
 	test('a response without capability or kind leaves no trace of claude', async () => {
 		mockApi.GET.mockResolvedValue({
 			data: { preferences: serverPrefs({ aiTaskProcessor: 'device' }) }

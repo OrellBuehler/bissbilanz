@@ -224,8 +224,20 @@ describe('mergeOffProduct', () => {
 		expect(patch).not.toHaveProperty('sodium');
 	});
 
-	test('fills a missing nutrient with an Open Food Facts zero', () => {
+	test('fills a missing nutrient with an Open Food Facts zero a label declares', () => {
 		expect(mergeOffProduct(food(), product({ sugar: 0 })).sugar).toBe(0);
+	});
+
+	test('leaves a vitamin or mineral empty when Open Food Facts says 0, and fills the rest', () => {
+		const patch = mergeOffProduct(
+			food(),
+			product({ vitaminC: 0, iron: 0, starch: 0, calcium: 120, saturatedFat: 0 })
+		);
+		expect(patch).not.toHaveProperty('vitaminC');
+		expect(patch).not.toHaveProperty('iron');
+		expect(patch).not.toHaveProperty('starch');
+		expect(patch.calcium).toBe(120);
+		expect(patch.saturatedFat).toBe(0);
 	});
 
 	test('skips negative or non-finite product nutrients', () => {

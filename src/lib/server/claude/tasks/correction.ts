@@ -6,13 +6,24 @@ import { getDB } from '../../db';
 import { isFdcConfigured } from '../../fooddata-central';
 import { listMealTypes } from '../../meal-types';
 import { getUserTimeZone } from '../../preferences';
-import { claudeAccess, claudeTaskMessages, type ClaudeTaskCorrection } from '../../schema';
+import {
+	claudeAccess,
+	claudeTaskMessages,
+	userPreferences,
+	type ClaudeTaskCorrection
+} from '../../schema';
 import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 import { assertClaudeGates } from '../capability';
 import { AI_TASK_REPLY_FEATURE } from '../constants';
 import { ClaudeAbortedError, ClaudeApiError, ClaudeGateError, LeaseLostError } from '../errors';
+import {
+	DEFAULT_ASSISTANT_OPTIONS,
+	assistantOptionColumns,
+	resolveAssistantOptions,
+	type AssistantOptions
+} from '../assistant-options';
 import { resolveClaudeModel, taskServerTools } from '../models';
-import { CORRECTION_SYSTEM, buildCorrectionUserContent } from './correction-prompt';
+import { buildCorrectionUserContent, correctionSystem } from './correction-prompt';
 import {
 	ENTRY_TOOLS,
 	MAX_ENTRY_CHANGES_PER_CORRECTION,
@@ -46,9 +57,13 @@ import { MAX_FAILURES } from './runs';
 import type { Fence } from './types';
 
 /** Every tool a correction request declares; tool-limits.test.ts checks them against the API limits. */
-export const correctionRunTools = (model: string, nutrientDatabase: boolean) => [
-	...taskServerTools(model),
-	...correctionTools(nutrientDatabase)
+export const correctionRunTools = (
+	model: string,
+	nutrientDatabase: boolean,
+	options: Pick<AssistantOptions, 'webResearch' | 'createFoods'> = DEFAULT_ASSISTANT_OPTIONS
+) => [
+	...taskServerTools(model, options.webResearch),
+	...correctionTools(nutrientDatabase, options.createFoods)
 ];
 
 const NUDGE = 'Your reply was cut off. Keep it short: call reply_to_user now.';
@@ -59,6 +74,7 @@ type Loaded = {
 	content: Anthropic.ContentBlockParam[];
 	imageCount: number;
 	model: string;
+	options: AssistantOptions;
 };
 
 async function loadInputs(
@@ -71,7 +87,7 @@ async function loadInputs(
 	const task = await getAiTask(userId, taskId);
 	if (!task || task.status !== 'completed' || task.processedBy !== 'claude') return null;
 	const db = getDB();
-	const [timeZone, customMealTypes, photos, [access], thread] = await Promise.all([
+	const [timeZone, customMealTypes, photos, [access], [prefs], thread] = await Promise.all([
 		getUserTimeZone(userId),
 		listMealTypes(userId),
 		loadTaskPhotos(userId, task.photoUrls),
@@ -79,6 +95,10 @@ async function loadInputs(
 			.select({ model: claudeAccess.model })
 			.from(claudeAccess)
 			.where(eq(claudeAccess.userId, userId)),
+		db
+			.select(assistantOptionColumns)
+			.from(userPreferences)
+			.where(eq(userPreferences.userId, userId)),
 		db
 			.select()
 			.from(claudeTaskMessages)
@@ -89,6 +109,7 @@ async function loadInputs(
 	const message = thread[index];
 	if (!message) return null;
 
+	const options = resolveAssistantOptions(prefs);
 	const tools = newCorrectionContext(
 		{
 			id: task.id,
@@ -109,6 +130,7 @@ async function loadInputs(
 			foods: new Map(),
 			createdFoods: new Map(),
 			nutrientRecords: new Set(),
+			assistant: options,
 			signal
 		},
 		message.createdAt
@@ -127,7 +149,8 @@ async function loadInputs(
 		tools,
 		content,
 		imageCount: content.filter((block) => block.type === 'image').length,
-		model: resolveClaudeModel(access?.model)
+		model: resolveClaudeModel(access?.model),
+		options
 	};
 }
 
@@ -143,15 +166,16 @@ async function runCorrection(
 	signal: AbortSignal
 ): Promise<void> {
 	const { tools } = loaded;
+	const requestTools = correctionRunTools(loaded.model, isFdcConfigured(), loaded.options);
 	await runToolLoop({
 		userId: correction.userId,
 		taskId: correction.taskId,
 		feature: AI_TASK_REPLY_FEATURE,
 		model: loaded.model,
-		system: CORRECTION_SYSTEM,
+		system: correctionSystem(loaded.options, requestTools),
 		content: loaded.content,
 		imageCount: loaded.imageCount,
-		tools: correctionRunTools(loaded.model, isFdcConfigured()),
+		tools: requestTools,
 		signal,
 		nudge: NUDGE,
 		nudgeNoTerminal: NUDGE_NO_TERMINAL,

@@ -21,7 +21,8 @@ const { CLAUDE_MODELS, rejectWebFetch, resetWebFetchForTests, taskServerTools } 
 	await import('$lib/server/claude/models');
 const { maxCallCostUsd } = await import('$lib/server/claude/pricing');
 const { TASK_MAX_TOKENS } = await import('$lib/server/claude/constants');
-const { TASK_SYSTEM, buildTaskUserContent } = await import('$lib/server/claude/tasks/prompt');
+const { buildTaskUserContent, taskSystem } = await import('$lib/server/claude/tasks/prompt');
+const { DEFAULT_ASSISTANT_OPTIONS } = await import('$lib/server/claude/assistant-options');
 const { taskTools } = await import('$lib/server/claude/tasks/tools');
 const { MAX_AI_TASK_PHOTOS } = await import('$lib/server/validation/ai-tasks');
 const { DEFAULT_MEAL_TYPES } = await import('$lib/utils/meals');
@@ -54,7 +55,11 @@ const largestFirstRequest = (model: string, database: boolean) => {
 		cache_control: { type: 'ephemeral' }
 	} as Anthropic.ContentBlockParam;
 	return {
-		params: { system: TASK_SYSTEM, tools, messages: [{ role: 'user' as const, content }] },
+		params: {
+			system: taskSystem(DEFAULT_ASSISTANT_OPTIONS, tools),
+			tools,
+			messages: [{ role: 'user' as const, content }]
+		},
 		imageCount: MAX_AI_TASK_PHOTOS
 	};
 };

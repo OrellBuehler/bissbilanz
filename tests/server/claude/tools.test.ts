@@ -252,7 +252,8 @@ describe('read tools', () => {
 			source: 'openfoodfacts',
 			name: 'Bar',
 			calories: 100,
-			hint: 'Not saved. If the user will likely eat it again, save it with create_food using these per-serving values and the barcode; otherwise log a quick entry.'
+			nutritionBasis: 'per 100 g',
+			hint: 'Not saved. If the user will likely eat it again, save it with create_food and the barcode; otherwise log a quick entry. The values are per nutritionBasis, not per serving: scale them to the serving you store.'
 		});
 		h.handleFindFoodByBarcode.mockResolvedValue({ found: false });
 		expect(
@@ -271,7 +272,7 @@ describe('read tools', () => {
 			runTaskTool('search_openfoodfacts', { query: 'bar', limit: 50 }, makeCtx())
 		);
 		expect(h.handleSearchOpenFoodFacts).toHaveBeenCalledWith('bar', 5);
-		expect(body.products).toEqual([{ name: 'p', calories: 1 }]);
+		expect(body.products).toEqual([{ name: 'p', calories: 1, nutritionBasis: 'per 100 g' }]);
 		await runTaskTool('search_openfoodfacts', { query: 'bar', limit: null }, makeCtx());
 		expect(h.handleSearchOpenFoodFacts).toHaveBeenLastCalledWith('bar', 5);
 		h.handleSearchOpenFoodFacts.mockResolvedValue({});
@@ -659,6 +660,7 @@ const foodInput = (overrides: Record<string, unknown> = {}) => ({
 describe('create_food', () => {
 	beforeEach(() => {
 		h.findFoodByBarcode.mockResolvedValue(null);
+		h.getFood.mockResolvedValue(null);
 	});
 
 	test('auto log creates the food through the MCP handler and returns its id', async () => {
@@ -1103,5 +1105,289 @@ describe('taskTools', () => {
 	test('has a definition for every tool the executor handles', () => {
 		expect(taskTools(false)).toHaveLength(9);
 		expect(taskTools(true)).toHaveLength(10);
+	});
+
+	test('leaves out create_food when creating foods is off and describes nothing it cannot do', () => {
+		const names = taskTools(true, false).map((tool) => tool.name);
+		expect(names).not.toContain('create_food');
+		expect(names).toHaveLength(9);
+		expect(taskTools(true, false).at(-1)?.cache_control).toEqual({ type: 'ephemeral' });
+		const text = JSON.stringify(taskTools(true, false));
+		expect(text).not.toContain('create_food');
+		expect(taskTools(true, false)).toBe(taskTools(true, false));
+	});
+});
+
+const BOTTLE_BARCODE = '7612345678900';
+const offProduct = (overrides: Record<string, unknown> = {}) => ({
+	found: true,
+	source: 'openfoodfacts',
+	barcode: BOTTLE_BARCODE,
+	name: 'Iced tea',
+	servingSize: 100,
+	servingUnit: 'g',
+	calories: 18,
+	protein: 0,
+	carbs: 4.4,
+	fat: 0,
+	fiber: 0,
+	quantity: '500 ml',
+	servingDescription: null,
+	...overrides
+});
+
+const assistant = (overrides: Record<string, unknown> = {}) => ({
+	assistant: { realServings: true, createFoods: true, ...overrides }
+});
+
+describe('Open Food Facts products for the model', () => {
+	test('a drink is per 100 ml and carries the serving printed on the pack', async () => {
+		h.handleFindFoodByBarcode.mockResolvedValue(
+			offProduct({ quantity: '330 ml', servingDescription: '1 can (330 ml)' })
+		);
+		const { body } = await parsed(
+			runTaskTool('find_food_by_barcode', { barcode: BOTTLE_BARCODE }, makeCtx())
+		);
+		expect(body).toMatchObject({
+			nutritionBasis: 'per 100 ml',
+			quantity: '330 ml',
+			servingDescription: '1 can (330 ml)',
+			suggestedServing: {
+				servingSize: 330,
+				servingUnit: 'ml',
+				multiplyValuesBy: 3.3,
+				because: 'single-serve container: the whole container is one serving'
+			}
+		});
+		expect(body).not.toHaveProperty('servingSize');
+		expect(body).not.toHaveProperty('servingUnit');
+	});
+
+	test('a label serving is suggested as such', async () => {
+		h.handleFindFoodByBarcode.mockResolvedValue(
+			offProduct({ name: 'Bread', quantity: '750 g', servingDescription: '1 slice (67 g)' })
+		);
+		const { body } = await parsed(
+			runTaskTool('find_food_by_barcode', { barcode: BOTTLE_BARCODE }, makeCtx())
+		);
+		expect(body).toMatchObject({
+			nutritionBasis: 'per 100 g',
+			suggestedServing: {
+				servingSize: 67,
+				servingUnit: 'g',
+				multiplyValuesBy: 0.67,
+				because: 'the serving printed on the pack'
+			}
+		});
+	});
+
+	test('no serving is suggested when the user wants every food per 100', async () => {
+		h.handleFindFoodByBarcode.mockResolvedValue(offProduct());
+		const { body } = await parsed(
+			runTaskTool(
+				'find_food_by_barcode',
+				{ barcode: BOTTLE_BARCODE },
+				makeCtx(assistant({ realServings: false }))
+			)
+		);
+		expect(body.nutritionBasis).toBe('per 100 ml');
+		expect(body).not.toHaveProperty('suggestedServing');
+	});
+
+	test('the hint points to a quick entry when creating foods is off', async () => {
+		h.handleFindFoodByBarcode.mockResolvedValue(offProduct());
+		const { body } = await parsed(
+			runTaskTool(
+				'find_food_by_barcode',
+				{ barcode: BOTTLE_BARCODE },
+				makeCtx(assistant({ createFoods: false }))
+			)
+		);
+		expect(body.hint).toContain('Log a quick entry');
+		expect(body.hint).not.toContain('create_food');
+	});
+
+	test('search results are per 100 ml too', async () => {
+		h.handleSearchOpenFoodFacts.mockResolvedValue({ products: [offProduct()], count: 1 });
+		const { body } = await parsed(
+			runTaskTool('search_openfoodfacts', { query: 'tea', limit: 5 }, makeCtx())
+		);
+		expect(body.products[0]).toMatchObject({
+			nutritionBasis: 'per 100 ml',
+			suggestedServing: { servingSize: 500, servingUnit: 'ml', multiplyValuesBy: 5 }
+		});
+	});
+
+	test('a user food found by barcode is passed through untouched', async () => {
+		h.handleFindFoodByBarcode.mockResolvedValue({
+			found: true,
+			source: 'database',
+			id: FOOD_ID,
+			name: 'Tea',
+			servingSize: 330,
+			servingUnit: 'ml'
+		});
+		const { body } = await parsed(
+			runTaskTool('find_food_by_barcode', { barcode: BOTTLE_BARCODE }, makeCtx())
+		);
+		expect(body).toEqual({
+			found: true,
+			source: 'database',
+			id: FOOD_ID,
+			name: 'Tea',
+			servingSize: 330,
+			servingUnit: 'ml'
+		});
+	});
+});
+
+describe('create_food checks the serving against the Open Food Facts product it names', () => {
+	const tea = (overrides: Record<string, unknown> = {}) =>
+		foodInput({
+			name: 'Iced tea',
+			brand: null,
+			barcode: BOTTLE_BARCODE,
+			servingSize: 500,
+			servingUnit: 'ml',
+			calories: 90,
+			protein: 0,
+			carbs: 22,
+			fat: 0,
+			fiber: 0,
+			nutrients: [],
+			...overrides
+		});
+
+	const withTea = async (ctx = makeCtx(assistant())) => {
+		h.handleFindFoodByBarcode.mockResolvedValue(offProduct());
+		await runTaskTool('find_food_by_barcode', { barcode: BOTTLE_BARCODE }, ctx);
+		return ctx;
+	};
+
+	beforeEach(() => {
+		h.findFoodByBarcode.mockResolvedValue(null);
+		h.getFood.mockResolvedValue(null);
+		h.handleCreateFood.mockResolvedValue({
+			success: true,
+			foodId: FOOD_ID,
+			food: { id: FOOD_ID, name: 'Iced tea' }
+		});
+	});
+
+	test('creates a food whose unit, serving and values fit the product', async () => {
+		const ctx = await withTea();
+		const result = await parsed(runTaskTool('create_food', tea(), ctx));
+		expect(result.isError).toBe(false);
+		expect(h.handleCreateFood).toHaveBeenCalledTimes(1);
+	});
+
+	test('refuses a liquid stored in grams once, then lets an unchanged repeat through', async () => {
+		const ctx = await withTea();
+		const input = tea({ servingUnit: 'g' });
+		const first = await parsed(runTaskTool('create_food', input, ctx));
+		expect(first.isError).toBe(true);
+		expect(first.body.error).toContain('it is a liquid');
+		expect(first.body.error).toContain('Nothing was created');
+		expect(h.handleCreateFood).not.toHaveBeenCalled();
+		const repeat = await parsed(runTaskTool('create_food', input, ctx));
+		expect(repeat.isError).toBe(false);
+		expect(h.handleCreateFood).toHaveBeenCalledTimes(1);
+	});
+
+	test('refuses 100 where the pack has a serving and says what to use', async () => {
+		const ctx = await withTea();
+		const result = await parsed(
+			runTaskTool('create_food', tea({ servingSize: 100, calories: 18, carbs: 4.4 }), ctx)
+		);
+		expect(result.isError).toBe(true);
+		expect(result.body.error).toContain('"500 ml"');
+		expect(result.body.error).toContain('servingSize 500 ml');
+		expect(result.body.error).toContain('multiply every per-100 value by 5');
+	});
+
+	test('does not ask for the pack serving when every food is kept per 100', async () => {
+		const ctx = await withTea(makeCtx(assistant({ realServings: false })));
+		const result = await parsed(
+			runTaskTool('create_food', tea({ servingSize: 100, calories: 18, carbs: 4.4 }), ctx)
+		);
+		expect(result.isError).toBe(false);
+	});
+
+	test('refuses values left per 100 for a larger serving', async () => {
+		const ctx = await withTea();
+		const result = await parsed(runTaskTool('create_food', tea({ calories: 18, carbs: 4.4 }), ctx));
+		expect(result.isError).toBe(true);
+		expect(result.body.error).toContain('calories');
+		expect(result.body.error).toContain('multiply them by servingSize');
+	});
+
+	test('does not check a food whose barcode the model did not look up', async () => {
+		const result = await parsed(
+			runTaskTool('create_food', tea({ servingUnit: 'g', servingSize: 100 }), makeCtx(assistant()))
+		);
+		expect(result.isError).toBe(false);
+	});
+});
+
+describe('create_food stores unknown nutrients as empty', () => {
+	beforeEach(() => {
+		h.findFoodByBarcode.mockResolvedValue(null);
+		h.getFood.mockResolvedValue(null);
+		h.handleCreateFood.mockResolvedValue({
+			success: true,
+			foodId: FOOD_ID,
+			food: { id: FOOD_ID, name: 'Skyr', sodium: 40, sugar: 0 }
+		});
+	});
+
+	test('drops a 0 for vitamins and minerals, keeps one a label declares, and says so', async () => {
+		const result = await parsed(
+			runTaskTool(
+				'create_food',
+				foodInput({
+					nutrients: [
+						{ nutrient: 'vitaminC', amount: 0 },
+						{ nutrient: 'iron', amount: 0 },
+						{ nutrient: 'sugar', amount: 0 },
+						{ nutrient: 'sodium', amount: 40 },
+						{ nutrient: 'calcium', amount: 120 }
+					]
+				}),
+				makeCtx()
+			)
+		);
+		const payload = h.handleCreateFood.mock.calls[0]![1];
+		expect(payload).toMatchObject({ sugar: 0, sodium: 40, calcium: 120 });
+		expect(payload).not.toHaveProperty('vitaminC');
+		expect(payload).not.toHaveProperty('iron');
+		expect(result.body.droppedZeros).toEqual({
+			nutrients: ['vitaminC', 'iron'],
+			reason: expect.stringContaining('nobody entered')
+		});
+	});
+
+	test('reports the nutrients the saved food has, Open Food Facts detail included', async () => {
+		h.getFood.mockResolvedValue({
+			id: FOOD_ID,
+			name: 'Skyr',
+			sodium: 40,
+			vitaminC: 3,
+			iron: null,
+			sugar: 0
+		});
+		const result = await parsed(runTaskTool('create_food', foodInput(), makeCtx()));
+		expect(result.body.nutrientsStored).toEqual(['sugar', 'sodium', 'vitaminC']);
+		expect(h.getFood).toHaveBeenCalledWith('user-1', FOOD_ID);
+	});
+
+	test('reports the nutrients a staged food has in review mode', async () => {
+		const result = await parsed(
+			runTaskTool(
+				'create_food',
+				foodInput({ nutrients: [{ nutrient: 'calcium', amount: 120 }] }),
+				makeCtx({ mode: 'review' })
+			)
+		);
+		expect(result.body.nutrientsStored).toEqual(['calcium']);
 	});
 });

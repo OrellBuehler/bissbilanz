@@ -24,13 +24,16 @@ import {
 	handleSearchFoods,
 	handleSearchOpenFoodFacts
 } from '../../mcp/handlers';
-import { ALL_NUTRIENTS } from '$lib/nutrients';
+import { ALL_NUTRIENTS, ALL_NUTRIENT_KEYS, isUnreliableZero } from '$lib/nutrients';
+import { normalizeBarcode } from '$lib/utils/barcode';
 import { servingUnitValues } from '$lib/units';
 import { entryCreateSchema, foodCreateSchema } from '../../validation';
+import type { AssistantOptions } from '../assistant-options';
 import { ClaudeAbortedError, LeaseLostError } from '../errors';
 import { addOpenFoodFactsDetail } from './off-detail';
 import { completeByModel, dismissByModel, type OutcomeContext } from './outcomes';
 import { ledgerGetOrCreate, loadRun, transitionFenced, withFence } from './runs';
+import { checkAgainstOff, offHintOf, servingHint, type OffHint } from './serving';
 import { recordTaskFoods } from './task-scope';
 import type { Fence, Proposal, ProposalItem, TaskMode, TaskOutcome } from './types';
 
@@ -60,7 +63,7 @@ export const strictTool = (
 });
 
 const createFoodDescription = (sources: string, extra: string) =>
-	`Create a new food in the user's food database, with nutrition per serving. Use it when nothing in the user's own foods fits, the user will likely eat the item again, and you have real nutrition data: ${sources}. Pass barcode whenever one is visible. Returns foodId, which log_food accepts. In REVIEW mode the food is created only if the user accepts the logged item.${extra}`;
+	`Create a new food in the user's food database. Every nutrition value is per serving, the serving being servingSize plus servingUnit: scale per-100 figures to it, and use ml for liquids and g for solids. Use it when nothing in the user's own foods fits, the user will likely eat the item again, and you have real nutrition data: ${sources}. Pass barcode whenever one is visible. Returns foodId, which log_food accepts, and nutrientsStored, every nutrient beyond the macros the food now has. In REVIEW mode the food is created only if the user accepts the logged item.${extra}`;
 
 const CREATE_FOOD_DESCRIPTION = createFoodDescription(
 	'a label photo, Open Food Facts or a web page',
@@ -82,11 +85,15 @@ const createFoodTool = (nutrientDatabase: boolean) =>
 		{
 			name: text('Food name'),
 			brand: nullable('string', 'Brand name'),
-			servingSize: { type: 'number', description: 'Serving size amount, greater than 0' },
+			servingSize: {
+				type: 'number',
+				description:
+					'Amount of one serving in servingUnit, greater than 0, for example 330 for a can or 67 for a slice'
+			},
 			servingUnit: {
 				type: 'string',
 				enum: [...servingUnitValues],
-				description: 'Unit of the serving size'
+				description: 'Unit of the serving size: ml for a liquid, g for a solid'
 			},
 			calories: { type: 'number', description: 'Calories per serving' },
 			protein: { type: 'number', description: 'Protein in grams per serving' },
@@ -104,7 +111,7 @@ const createFoodTool = (nutrientDatabase: boolean) =>
 					required: ['nutrient', 'amount'],
 					additionalProperties: false
 				},
-				description: `Nutrients read from a label, Open Food Facts or a web page, per serving, in the unit shown: ${NUTRIENT_LIST}. Never from memory.${nutrientDatabase ? ' They win over the fdcId record.' : ''} Empty array when none.`
+				description: `Nutrients read from a label, Open Food Facts or a web page, per serving, in the unit shown: ${NUTRIENT_LIST}. Never from memory. Leave out every nutrient you have no source for. Pass 0 only for sugar, saturatedFat, transFat, cholesterol, sodium or salt that a source states as 0; the server drops any other 0.${nutrientDatabase ? ' They win over the fdcId record.' : ''} Empty array when none.`
 			},
 			...(nutrientDatabase
 				? {
@@ -120,13 +127,21 @@ const createFoodTool = (nutrientDatabase: boolean) =>
 		}
 	);
 
-const nutrientDatabaseTool = strictTool(
-	'search_nutrient_database',
-	'Search the USDA FoodData Central nutrient database for generic and whole foods and plain packaged foods (produce, meat, fish, eggs, grains, nuts, milk, juice), raw or cooked. Returns candidate records with fdcId, energy and macros per 100 g, and how many nutrients each record covers. Pass the fdcId of the record that matches the food, its preparation and any salt or enrichment, to create_food.',
-	{ query: text('Food name in English, for example "pear raw" or "chicken breast roasted"') }
-);
+const nutrientDatabaseTool = (createFoods: boolean) =>
+	strictTool(
+		'search_nutrient_database',
+		`Search the USDA FoodData Central nutrient database for generic and whole foods and plain packaged foods (produce, meat, fish, eggs, grains, nuts, milk, juice), raw or cooked. Returns candidate records with fdcId, energy and macros per 100 g, and how many nutrients each record covers.${
+			createFoods
+				? ' Pass the fdcId of the record that matches the food, its preparation and any salt or enrichment, to create_food.'
+				: ''
+		}`,
+		{ query: text('Food name in English, for example "pear raw" or "chicken breast roasted"') }
+	);
 
-export const toolDefinitions = (nutrientDatabase: boolean): Anthropic.Tool[] => [
+export const toolDefinitions = (
+	nutrientDatabase: boolean,
+	createFoods = true
+): Anthropic.Tool[] => [
 	strictTool(
 		'search_foods',
 		"Search the user's saved foods by name. Foods the user logged recently come first. Returns serving size and per-serving macros.",
@@ -145,7 +160,11 @@ export const toolDefinitions = (nutrientDatabase: boolean): Anthropic.Tool[] => 
 	),
 	strictTool(
 		'find_food_by_barcode',
-		"Look up a barcode in the user's foods, then in Open Food Facts. Open Food Facts products are not saved: create them with create_food using the returned values when the user will likely eat them again, otherwise log a quick entry.",
+		`Look up a barcode in the user's foods, then in Open Food Facts. Open Food Facts products are not saved${
+			createFoods
+				? ': create them with create_food when the user will likely eat them again, otherwise log a quick entry. Their values are per 100 g or 100 ml (nutritionBasis), not per serving; scale them to the serving you store'
+				: ': log a quick entry. Their values are per 100 g or 100 ml (nutritionBasis), not per serving; scale them to the amount eaten'
+		}.`,
 		{ barcode: text('The barcode digits') }
 	),
 	strictTool(
@@ -156,8 +175,8 @@ export const toolDefinitions = (nutrientDatabase: boolean): Anthropic.Tool[] => 
 			limit: nullable('integer', 'Maximum number of results, at most 5. Default 5.')
 		}
 	),
-	...(nutrientDatabase ? [nutrientDatabaseTool] : []),
-	createFoodTool(nutrientDatabase),
+	...(nutrientDatabase ? [nutrientDatabaseTool(createFoods)] : []),
+	...(createFoods ? [createFoodTool(nutrientDatabase)] : []),
 	strictTool(
 		'log_food',
 		"Log one food, recipe or quick entry for the meal. Give foodId or recipeId, or the quick values for a one-off estimate. servings is the number of servings of the food's own serving size. Quick values are per serving. Use null for anything that does not apply.",
@@ -202,11 +221,18 @@ export const withCacheBreakpoint = (tools: Anthropic.Tool[]): Anthropic.Tool[] =
 		index === tools.length - 1 ? { ...tool, cache_control: { type: 'ephemeral' } } : tool
 	);
 
-const TOOLS_WITH_DATABASE = withCacheBreakpoint(toolDefinitions(true));
-const TOOLS_WITHOUT_DATABASE = withCacheBreakpoint(toolDefinitions(false));
+const TOOL_SETS = new Map<string, Anthropic.Tool[]>();
 
-export const taskTools = (nutrientDatabase: boolean): Anthropic.Tool[] =>
-	nutrientDatabase ? TOOLS_WITH_DATABASE : TOOLS_WITHOUT_DATABASE;
+/** Built once per combination, so the cached prefix of a request never changes. */
+export const taskTools = (nutrientDatabase: boolean, createFoods = true): Anthropic.Tool[] => {
+	const key = `${nutrientDatabase}:${createFoods}`;
+	let tools = TOOL_SETS.get(key);
+	if (!tools) {
+		tools = withCacheBreakpoint(toolDefinitions(nutrientDatabase, createFoods));
+		TOOL_SETS.set(key, tools);
+	}
+	return tools;
+};
 
 export const optionalNumber = z.number().nonnegative().nullish();
 
@@ -273,6 +299,11 @@ export type TaskToolContext = {
 	foods: Map<string, ProvisionalFood>;
 	createdFoods: Map<string, FoodToolResult>;
 	nutrientRecords: Set<number>;
+	// Which create_food calls were already refused once; an unchanged repeat goes through.
+	warned?: Set<string>;
+	// Open Food Facts products the model looked at in this run, by barcode.
+	offHints?: Map<string, OffHint>;
+	assistant?: Pick<AssistantOptions, 'realServings' | 'createFoods'>;
 	signal?: AbortSignal;
 	// What create_food tells the model about a food it only stages (REVIEW mode,
 	// corrections). Defaults to the REVIEW wording.
@@ -316,16 +347,60 @@ const pick = (source: Record<string, unknown>, fields: readonly string[]) =>
 
 const BARCODE_OMIT = /image|ingredient|additives|categories|nutriScore|novaGroup/i;
 
-const trimBarcodeResult = (result: Record<string, unknown>) => {
-	const trimmed = Object.fromEntries(
+const trimmedFields = (result: Record<string, unknown>) =>
+	Object.fromEntries(
 		Object.entries(result).filter(([key, value]) => value !== null && !BARCODE_OMIT.test(key))
 	);
-	if (result.source === 'openfoodfacts') {
-		trimmed.hint =
-			'Not saved. If the user will likely eat it again, save it with create_food using these per-serving values and the barcode; otherwise log a quick entry.';
-	}
-	return trimmed;
+
+const OFF_SAVE_HINT = {
+	create:
+		'Not saved. If the user will likely eat it again, save it with create_food and the barcode; otherwise log a quick entry. The values are per nutritionBasis, not per serving: scale them to the serving you store.',
+	quick:
+		'Not saved. Log a quick entry. The values are per nutritionBasis, not per serving: scale them to the amount eaten.'
 };
+
+/**
+ * An Open Food Facts product as the model sees it: its values are per 100 g or
+ * per 100 ml, which it says instead of the 100 g serving the mapping fills in,
+ * and a serving printed on the pack comes with the factor to scale by.
+ */
+function offProductView(product: Record<string, unknown>, ctx: Pick<TaskToolContext, 'assistant'>) {
+	const { servingSize: _size, servingUnit: _unit, ...rest } = trimmedFields(product);
+	const { liquid, suggested } = servingHint(product);
+	const realServings = ctx.assistant?.realServings ?? true;
+	return {
+		...rest,
+		nutritionBasis: liquid ? 'per 100 ml' : 'per 100 g',
+		...(realServings && suggested
+			? {
+					suggestedServing: {
+						servingSize: suggested.amount,
+						servingUnit: suggested.unit,
+						multiplyValuesBy: Math.round((suggested.amount / 100) * 1000) / 1000,
+						because:
+							suggested.kind === 'container'
+								? 'single-serve container: the whole container is one serving'
+								: 'the serving printed on the pack'
+					}
+				}
+			: {})
+	};
+}
+
+function rememberOffProduct(ctx: TaskToolContext, product: Record<string, unknown>) {
+	if (typeof product.barcode !== 'string' || !product.barcode) return;
+	ctx.offHints ??= new Map();
+	ctx.offHints.set(normalizeBarcode(product.barcode), offHintOf(product));
+}
+
+function barcodeResult(result: Record<string, unknown>, ctx: TaskToolContext) {
+	if (result.source !== 'openfoodfacts') return trimmedFields(result);
+	rememberOffProduct(ctx, result);
+	return {
+		...offProductView(result, ctx),
+		hint: OFF_SAVE_HINT[ctx.assistant?.createFoods === false ? 'quick' : 'create']
+	};
+}
 
 export const perServing = (value: unknown, servings: number) =>
 	servings > 0 ? Math.round((Number(value ?? 0) / servings) * 100) / 100 : 0;
@@ -444,7 +519,11 @@ function parseCreateFood(input: unknown) {
 	const args = inputSchemas.create_food.safeParse(input);
 	if (!args.success) return args;
 	const { nutrients, fdcId, ...fields } = args.data;
-	const explicit = Object.fromEntries(nutrients.map(({ nutrient, amount }) => [nutrient, amount]));
+	const kept = nutrients.filter(({ nutrient, amount }) => !isUnreliableZero(nutrient, amount));
+	const droppedZeros = nutrients
+		.filter(({ nutrient, amount }) => isUnreliableZero(nutrient, amount))
+		.map(({ nutrient }) => nutrient);
+	const explicit = Object.fromEntries(kept.map(({ nutrient, amount }) => [nutrient, amount]));
 	const parsed = foodCreateSchema.safeParse({
 		...Object.fromEntries(
 			Object.entries(fields).filter(([, value]) => value !== null && value !== '')
@@ -457,8 +536,31 @@ function parseCreateFood(input: unknown) {
 		data: parsed.data,
 		explicit,
 		fdcId,
+		droppedZeros,
 		hash: hashPayload({ ...parsed.data, fdcId: fdcId || null })
 	};
+}
+
+const storedNutrients = (food: Record<string, unknown>) =>
+	ALL_NUTRIENT_KEYS.filter((key) => food[key] != null);
+
+/** The first time a create_food call disagrees with the Open Food Facts product it names, say so; an unchanged repeat goes through. */
+function checkServingAgainstOff(
+	data: FoodCreateInput,
+	fdcId: number | null | undefined,
+	hash: string,
+	ctx: TaskToolContext
+) {
+	const barcode = data.barcode?.trim();
+	const hint = barcode ? ctx.offHints?.get(normalizeBarcode(barcode)) : undefined;
+	if (!hint || ctx.warned?.has(hash)) return;
+	const problem = checkAgainstOff(data, hint, {
+		realServings: ctx.assistant?.realServings ?? true,
+		checkValues: !fdcId
+	});
+	if (!problem) return;
+	(ctx.warned ??= new Set()).add(hash);
+	throw new ToolInputError(problem);
 }
 
 /** The food a create_food call names, the same for repeated calls; null for invalid input. */
@@ -470,7 +572,7 @@ export function createFoodKey(input: unknown): string | null {
 async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<FoodToolResult> {
 	const parsed = parseCreateFood(input);
 	if (!parsed.success) throw parsed.error;
-	const { explicit, fdcId, hash } = parsed;
+	const { explicit, fdcId, droppedZeros, hash } = parsed;
 	const known = ctx.createdFoods.get(hash);
 	if (known) return known;
 
@@ -483,11 +585,23 @@ async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<
 		}
 	}
 
+	checkServingAgainstOff(parsed.data, fdcId, hash, ctx);
+
 	const filled = fdcId
 		? await fillFromDatabase(parsed.data, fdcId, new Set(Object.keys(explicit)), ctx)
 		: null;
 	const data = filled?.data ?? parsed.data;
-	const nutrientSource = filled ? { nutrientSource: filled.source } : {};
+	const nutrientSource = {
+		...(filled ? { nutrientSource: filled.source } : {}),
+		...(droppedZeros.length > 0
+			? {
+					droppedZeros: {
+						nutrients: droppedZeros,
+						reason: 'A 0 for a vitamin or mineral means nobody entered a value: they stay empty.'
+					}
+				}
+			: {})
+	};
 
 	let result: FoodToolResult;
 	if (ctx.mode === 'review') {
@@ -496,6 +610,7 @@ async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<
 		result = {
 			foodId,
 			...pick(data, FOOD_RESULT_FIELDS),
+			nutrientsStored: storedNutrients(data),
 			...nutrientSource,
 			note:
 				ctx.provisionalNote ??
@@ -511,9 +626,11 @@ async function createFoodForTask(input: unknown, ctx: TaskToolContext): Promise<
 		await addOpenFoodFactsDetail(ctx.userId, [
 			{ id: String(created.foodId), barcode: asRecord(created.food).barcode as string | null }
 		]);
+		const stored = asRecord((await getFood(ctx.userId, String(created.foodId))) ?? created.food);
 		result = {
 			foodId: created.foodId,
-			...pick(asRecord(created.food), FOOD_RESULT_FIELDS),
+			...pick(stored, FOOD_RESULT_FIELDS),
+			nutrientsStored: storedNutrients(stored),
 			...nutrientSource
 		};
 	}
@@ -667,7 +784,7 @@ async function execute(name: string, input: unknown, ctx: TaskToolContext): Prom
 		}
 		case 'find_food_by_barcode': {
 			const args = inputSchemas.find_food_by_barcode.parse(input);
-			return trimBarcodeResult(asRecord(await handleFindFoodByBarcode(ctx.userId, args.barcode)));
+			return barcodeResult(asRecord(await handleFindFoodByBarcode(ctx.userId, args.barcode)), ctx);
 		}
 		case 'search_openfoodfacts': {
 			const args = inputSchemas.search_openfoodfacts.parse(input);
@@ -676,7 +793,10 @@ async function execute(name: string, input: unknown, ctx: TaskToolContext): Prom
 			);
 			const products = (result.products as Record<string, unknown>[] | undefined) ?? [];
 			return {
-				products: products.map(trimBarcodeResult),
+				products: products.map((product) => {
+					rememberOffProduct(ctx, product);
+					return offProductView(product, ctx);
+				}),
 				...(result.unavailable ? { unavailable: true, hint: result.hint } : {})
 			};
 		}

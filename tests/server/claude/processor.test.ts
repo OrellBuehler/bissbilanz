@@ -21,6 +21,7 @@ const h = vi.hoisted(() => ({
 	loadTaskPhotos: vi.fn(),
 	captureException: vi.fn(),
 	captureMessage: vi.fn(),
+	loggerInfo: vi.fn(),
 	config: { model: 'claude-sonnet-5-5', maxIterations: 5, maxWebSearches: 3, maxWebFetches: 3 },
 	fdc: { configured: false }
 }));
@@ -31,7 +32,7 @@ vi.mock('@sentry/sveltekit', () => ({
 	captureException: h.captureException,
 	captureMessage: h.captureMessage,
 	addBreadcrumb: vi.fn(),
-	logger: { info: vi.fn() }
+	logger: { info: h.loggerInfo }
 }));
 vi.mock('$lib/server/db', () => ({ getDB: () => db }));
 vi.mock('$lib/server/claude/tasks/runs', () => ({
@@ -50,8 +51,10 @@ vi.mock('$lib/server/claude/tasks/outcomes', () => ({
 	requeueRun: h.requeueRun
 }));
 vi.mock('$lib/server/claude/tasks/tools', () => ({
-	taskTools: (database: boolean) =>
-		database ? [{ name: 'search_nutrient_database' }, { name: 'tool' }] : [{ name: 'tool' }],
+	taskTools: (database: boolean, createFoods = true) => [
+		...(database ? [{ name: 'search_nutrient_database' }] : []),
+		{ name: createFoods ? 'create_food' : 'tool-without-create' }
+	],
 	isTerminalTool: (name: string) => name === 'complete_ai_task' || name === 'dismiss_ai_task',
 	runTaskTool: h.runTaskTool
 }));
@@ -168,13 +171,70 @@ describe('server tools', () => {
 		url_sources: { client_tool_results: { type: 'none' } }
 	});
 
+	test("follows the user's assistant options in the tools and the system prompt", async () => {
+		queueResults([
+			[{ locale: 'de' }],
+			[
+				{
+					autoLog: true,
+					researchNutrients: false,
+					webResearch: false,
+					realServings: false,
+					createFoods: false
+				}
+			]
+		]);
+		finish();
+		await processTask(TASK_ID, options());
+		const [call] = h.callClaude.mock.calls[0]!;
+		expect(call.params.tools).toEqual([{ name: 'tool-without-create' }]);
+		expect(call.params.system[0].text).toContain('switched off for this user');
+	});
+
+	test('logs how often each tool was used when the run ends', async () => {
+		h.callClaude
+			.mockResolvedValueOnce(
+				response('tool_use', [
+					{ type: 'server_tool_use', id: 'srv_1', name: 'web_search', input: {} },
+					toolUse('toolu_1', 'search_foods'),
+					toolUse('toolu_2', 'search_foods')
+				])
+			)
+			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
+		h.runTaskTool.mockImplementation(async (name: string) =>
+			name === 'complete_ai_task'
+				? { content: '{}', isError: false, outcome: 'completed' }
+				: { content: '{}', isError: false }
+		);
+		await processTask(TASK_ID, options());
+		expect(h.loggerInfo).toHaveBeenCalledWith('Claude run finished', {
+			feature: 'ai_task',
+			taskId: TASK_ID,
+			tools: JSON.stringify({ web_search: 1, search_foods: 2, complete_ai_task: 1 })
+		});
+	});
+
+	test('a user without options gets every option on', async () => {
+		finish();
+		await processTask(TASK_ID, options());
+		const [call] = h.callClaude.mock.calls[0]!;
+		expect(call.params.tools.map((tool: { name: string }) => tool.name)).toEqual([
+			'web_search',
+			'web_fetch',
+			'create_food'
+		]);
+		const system = call.params.system[0].text as string;
+		expect(system).toContain('The user wants the vitamins and minerals');
+		expect(system).toContain('A single-serve container is one serving');
+	});
+
 	test('puts the capped web search and web fetch in front of the task tools', async () => {
 		finish();
 		await processTask(TASK_ID, options());
 		expect(toolsOfFirstCall()).toEqual([
 			{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 },
 			webFetch('web_fetch_20260209'),
-			{ name: 'tool' }
+			{ name: 'create_food' }
 		]);
 	});
 
@@ -189,7 +249,7 @@ describe('server tools', () => {
 		await processTask(TASK_ID, options());
 		expect(toolsOfFirstCall().map((tool: { name: string }) => tool.name)).toEqual([
 			...names,
-			'tool'
+			'create_food'
 		]);
 	});
 
@@ -199,7 +259,7 @@ describe('server tools', () => {
 		await processTask(TASK_ID, options());
 		expect(toolsOfFirstCall()).toEqual([
 			{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 },
-			{ name: 'tool' }
+			{ name: 'create_food' }
 		]);
 	});
 
@@ -227,7 +287,7 @@ describe('server tools', () => {
 		await processTask(TASK_ID, options());
 		expect(h.callClaude.mock.calls[1]![0].params.tools.slice(-2)).toEqual([
 			{ name: 'search_nutrient_database' },
-			{ name: 'tool' }
+			{ name: 'create_food' }
 		]);
 	});
 
@@ -304,13 +364,13 @@ describe('when the API rejects web fetch', () => {
 			.mockResolvedValueOnce(response('tool_use', [toolUse('toolu_c', 'complete_ai_task')]));
 		finished();
 		await processTask(TASK_ID, options());
-		expect(toolNames(0)).toEqual(['web_search', 'web_fetch', 'tool']);
+		expect(toolNames(0)).toEqual(['web_search', 'web_fetch', 'create_food']);
 		const expected = h.callClaude.mock.calls[0]![0].expectedRejection;
 		expect(expected(rejected())).toBe(true);
 		expect(
 			expected(new errors.ClaudeApiError({ kind: 'auth', status: 401, retryable: false }))
 		).toBe(false);
-		expect(toolNames(1)).toEqual(['web_search', 'tool']);
+		expect(toolNames(1)).toEqual(['web_search', 'create_food']);
 		expect(h.callClaude.mock.calls[1]![0].expectedRejection).toBeUndefined();
 		expect(h.dismissRun).not.toHaveBeenCalled();
 		expect(isWebFetchRejected()).toBe(true);
@@ -326,7 +386,7 @@ describe('when the API rejects web fetch', () => {
 			response('tool_use', [toolUse('toolu_c', 'complete_ai_task')])
 		);
 		await processTask(TASK_ID, options());
-		expect(toolNames(2)).toEqual(['web_search', 'tool']);
+		expect(toolNames(2)).toEqual(['web_search', 'create_food']);
 		expect(h.captureMessage).toHaveBeenCalledTimes(1);
 	});
 
@@ -352,7 +412,7 @@ describe('when the API rejects web fetch', () => {
 		h.callClaude.mockRejectedValueOnce(rejected());
 		await processTask(TASK_ID, options());
 		expect(h.callClaude).toHaveBeenCalledTimes(3);
-		expect(toolNames(2)).toEqual(['web_search', 'web_fetch', 'tool']);
+		expect(toolNames(2)).toEqual(['web_search', 'web_fetch', 'create_food']);
 		expect(h.captureMessage).not.toHaveBeenCalled();
 	});
 
@@ -378,7 +438,7 @@ describe('when the API rejects web fetch', () => {
 		});
 		await processTask(TASK_ID, options());
 		expect(h.callClaude).toHaveBeenCalledTimes(2);
-		expect(toolNames(1)).toEqual(['web_search', 'web_fetch', 'tool']);
+		expect(toolNames(1)).toEqual(['web_search', 'web_fetch', 'create_food']);
 		expect(h.callClaude.mock.calls[1]![0].expectedRejection).toBeUndefined();
 		expect(isWebFetchRejected()).toBe(false);
 	});

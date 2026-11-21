@@ -494,6 +494,20 @@ visible nutrients, water goal, and activity goal adjustment. It reads but cannot
 language, time zone, biological sex, AI-task processing (and auto-log), the caloric-lag override
 of the insights page and the legacy combined day-details toggle.
 
+### Assistant options
+
+Four per-user preferences (`PATCH /api/preferences`, all optional booleans, all `true` by default)
+shape what Claude does, for AI tasks on every run and for the chat in new conversations only: the
+prompt and tool set are frozen with the conversation (thinking blocks are bound to them), so a
+changed option reaches the next conversation, or the current one after a model change.
+
+| Field                 | Off means                                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `aiResearchNutrients` | Vitamins and minerals come from the label or the exact Open Food Facts record only, unless the user asks otherwise |
+| `aiWebResearch`       | No web search or web fetch tool is declared                                                                        |
+| `aiRealServings`      | Every food is stored per 100 g or 100 ml instead of per can, bottle or label serving                               |
+| `aiTaskCreateFoods`   | AI tasks (not the chat) have no `create_food` tool and log existing foods and quick entries only                   |
+
 Not reachable (no MCP tools): a fast that is running (it lives in the device's fasting timer
 until the user ends it; the server only stores finished fasts), the AI-task queue, push
 notifications, account settings and sign-in methods, imports and exports. Those domains never

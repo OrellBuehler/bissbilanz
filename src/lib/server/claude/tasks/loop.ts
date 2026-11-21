@@ -62,6 +62,19 @@ function withCacheBreakpoint(messages: Anthropic.MessageParam[]): Anthropic.Mess
  * rejects it, and nudges once when the model stops without finishing.
  */
 export async function runToolLoop(loop: ToolLoop): Promise<void> {
+	const used: Record<string, number> = {};
+	try {
+		await driveToolLoop(loop, used);
+	} finally {
+		Sentry.logger.info('Claude run finished', {
+			feature: loop.feature,
+			taskId: loop.taskId,
+			tools: JSON.stringify(used)
+		});
+	}
+}
+
+async function driveToolLoop(loop: ToolLoop, used: Record<string, number>): Promise<void> {
 	const { signal } = loop;
 	const messages: Anthropic.MessageParam[] = [{ role: 'user', content: loop.content }];
 	let nudged = false;
@@ -114,6 +127,11 @@ export async function runToolLoop(loop: ToolLoop): Promise<void> {
 			}
 		}
 		container = response.container?.id ?? container;
+		for (const block of response.content) {
+			if (block.type === 'tool_use' || block.type === 'server_tool_use') {
+				used[block.name] = (used[block.name] ?? 0) + 1;
+			}
+		}
 
 		if (response.stop_reason === 'refusal') {
 			await loop.onRefusal();
