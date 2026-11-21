@@ -21,6 +21,11 @@ import FoundationModels
 /// hallucination guard) and produces the same `EstimatedMeal`/`MealEstimate`
 /// result as the text path, so the review/confirm UI needs no changes.
 extension MealEstimator {
+    /// Photos one estimate reads. A task can carry more (`AiTaskLimits.maxPhotos`),
+    /// but every image takes context from a model that already overflows on a
+    /// long meal, so the first ones are used and the rest are left out.
+    nonisolated static let maxEstimatePhotos = 5
+
     /// Whether photos can be estimated on this OS/device, on-device or via
     /// Private Cloud Compute. `AIMealSheet` uses this to decide whether to show
     /// the photo picker to Local (anonymous) users, who have no server fallback,
@@ -39,6 +44,7 @@ extension MealEstimator {
     /// supported on this OS/device — the caller only has to gate the *button*
     /// on `supportsPhotoInput`, not every call site.
     func estimate(description: String, images: [UIImage]) async throws -> MealEstimate {
+        let images = Array(images.prefix(Self.maxEstimatePhotos))
         guard !images.isEmpty, supportsPhotoInput else {
             return try await estimate(description: description)
         }
@@ -89,7 +95,7 @@ extension MealEstimator {
     """
 
     /// Matches the server's own downsize target for AI task photos
-    /// (`AiTaskStore.uploadMaxDimension`) — plenty for identifying food items,
+    /// (`AiTaskLimits.photoMaxDimension`) — plenty for identifying food items,
     /// and keeps a handful of full-resolution camera captures from turning into
     /// a multi-hundred-megabyte set of attachments before the model does its
     /// own (documented) internal scaling.

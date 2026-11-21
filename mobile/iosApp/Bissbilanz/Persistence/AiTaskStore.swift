@@ -92,11 +92,6 @@ final class AiTaskStore {
         self.defaults = defaults
     }
 
-    /// Photo size the server keeps (it downsizes every AI task photo to 1024px), so
-    /// sending more only costs upload time on a weak uplink.
-    private static let uploadMaxDimension: CGFloat = 1024
-    private static let uploadQuality: CGFloat = 0.75
-
     /// Returns immediately; the upload continues in the background.
     func enqueue(_ draft: AiTaskUploadDraft) {
         let id = UUID()
@@ -234,8 +229,8 @@ final class AiTaskStore {
         let startedAt = Date()
         do {
             if let images = freshImages[id] {
-                let maxDimension = Self.uploadMaxDimension
-                let quality = Self.uploadQuality
+                let maxDimension = AiTaskLimits.photoMaxDimension
+                let quality = AiTaskLimits.photoJPEGQuality
                 // JPEG encoding of a few 48MP captures is a visible main-thread hang.
                 let encoded: [Data] = await Task.detached(priority: .userInitiated) {
                     images.compactMap { $0.downscaledJPEGData(maxDimension: maxDimension, quality: quality) }
