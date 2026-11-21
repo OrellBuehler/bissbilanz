@@ -57,6 +57,26 @@ describe('POST /api/ai-tasks/photo', () => {
 		expect(data.photoUrls).toEqual(['/uploads/photo1.webp', '/uploads/photo2.webp']);
 	});
 
+	test('uploads ten photos in the order they were sent', async () => {
+		const urls = Array.from({ length: 10 }, (_, i) => `/uploads/photo-${i}.webp`);
+		mockPhotoUrls = [...urls];
+		const files = urls.map((_, i) => pngFile(`${i}.png`));
+		const response = await POST(upload({ files }));
+		await expectResponseContract('POST', '/api/ai-tasks/photo', response);
+		const data = await response.json();
+		expect(response.status).toBe(201);
+		expect(data.photoUrls).toEqual(urls);
+		expect(data.photoUrl).toBe(urls[0]);
+	});
+
+	test('returns 400 for an eleventh photo', async () => {
+		const files = Array.from({ length: 11 }, (_, i) => pngFile(`${i}.png`));
+		const response = await POST(upload({ files }));
+		await expectResponseContract('POST', '/api/ai-tasks/photo', response);
+		expect(response.status).toBe(400);
+		expect((await response.json()).error).toBe('At most 10 photos per upload');
+	});
+
 	test('returns 400 when no file is provided', async () => {
 		const response = await POST(upload({ files: [] }));
 		await expectResponseContract('POST', '/api/ai-tasks/photo', response);

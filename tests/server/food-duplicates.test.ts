@@ -406,3 +406,220 @@ describe('findDuplicateGroups', () => {
 		expect(groups).toHaveLength(0);
 	});
 });
+
+describe('findDuplicateGroups barcode rule', () => {
+	beforeEach(() => reset());
+
+	type Overrides = {
+		name?: string;
+		brand?: string | null;
+		barcode?: string | null;
+		servingUnit?: 'g' | 'ml';
+		calories?: number;
+		protein?: number;
+		carbs?: number;
+		fat?: number;
+	};
+	let nextId = 0;
+	const food = (overrides: Overrides) => {
+		nextId += 1;
+		return {
+			...TEST_FOOD,
+			id: `30000000-0000-4000-8000-${String(nextId).padStart(12, '0')}`,
+			brand: null,
+			barcode: null,
+			...overrides
+		};
+	};
+	const groupsOf = async (rows: { id: string }[]) => {
+		setResult(rows);
+		return findDuplicateGroups(TEST_USER.id);
+	};
+	const ids = (group: { foods: { id: string }[] }) => group.foods.map((f) => f.id).sort();
+	const joinsBoth = (groups: { foods: { id: string }[] }[], a: { id: string }, b: { id: string }) =>
+		groups.some((g) => ids(g).includes(a.id) && ids(g).includes(b.id));
+
+	const migrosKrustenkranz = () =>
+		food({
+			name: 'Krustenkranz',
+			brand: 'Migros',
+			barcode: '7613404176559',
+			calories: 258,
+			protein: 8.5,
+			carbs: 49,
+			fat: 2.5
+		});
+	const coopChrustenkranz = () =>
+		food({
+			name: 'Chrustenkranz',
+			brand: 'Coop',
+			barcode: '7613356157866',
+			calories: 272,
+			protein: 9,
+			carbs: 51,
+			fat: 3
+		});
+	const elTonyMateZero = () =>
+		food({
+			name: 'Mate Zero',
+			brand: 'El Tony',
+			barcode: '7640150491254',
+			servingUnit: 'ml',
+			calories: 3,
+			protein: 0,
+			carbs: 0.5,
+			fat: 0
+		});
+	const moaMateZero = () =>
+		food({
+			name: 'Mate Zero',
+			brand: 'Moa',
+			barcode: '7627538064729',
+			servingUnit: 'ml',
+			calories: 1,
+			protein: 0,
+			carbs: 0,
+			fat: 0
+		});
+
+	test('the Krustenkranz and Chrustenkranz pair would match on name and macros alone', () => {
+		const rows = [migrosKrustenkranz(), coopChrustenkranz()].map((f) => ({
+			...f,
+			barcode: null,
+			brand: null
+		}));
+		expect(groupBySimilarNameAndMacros(rows)).toHaveLength(1);
+	});
+
+	test('does not suggest Krustenkranz (Migros) and Chrustenkranz (Coop)', async () => {
+		expect(await groupsOf([migrosKrustenkranz(), coopChrustenkranz()])).toEqual([]);
+	});
+
+	test('does not suggest Mate Zero from El Tony and Moa', async () => {
+		expect(await groupsOf([elTonyMateZero(), moaMateZero()])).toEqual([]);
+	});
+
+	test('different barcodes alone veto identical names and macros without a brand', async () => {
+		const a = { ...elTonyMateZero(), brand: null };
+		const b = { ...moaMateZero(), brand: null };
+		expect(await groupsOf([a, b])).toEqual([]);
+	});
+
+	test('different barcodes alone veto the same name and brand', async () => {
+		const a = { ...migrosKrustenkranz(), name: 'Krustenkranz' };
+		const b = { ...coopChrustenkranz(), name: 'Krustenkranz', brand: 'Migros' };
+		expect(await groupsOf([a, b])).toEqual([]);
+	});
+
+	test('suggests a scanned food and the same product typed without a barcode', async () => {
+		const scanned = migrosKrustenkranz();
+		const typed = { ...migrosKrustenkranz(), barcode: null, brand: null, name: 'Krustenkranze' };
+		const groups = await groupsOf([scanned, typed]);
+		expect(groups.map((g) => g.reason)).toEqual(['similar']);
+		expect(ids(groups[0])).toEqual([scanned.id, typed.id].sort());
+	});
+
+	test('suggests foods without any barcode as before', async () => {
+		const a = { ...migrosKrustenkranz(), barcode: null };
+		const b = { ...migrosKrustenkranz(), barcode: null, name: 'Krustenkranze' };
+		const groups = await groupsOf([a, b]);
+		expect(groups.map((g) => g.reason)).toEqual(['similar']);
+	});
+
+	test('treats UPC-A, EAN-13 and GTIN-14 encodings as the same barcode', async () => {
+		const upcA = food({ name: 'Greek Yogurt', barcode: '036000291452' });
+		const ean13 = food({ name: 'greek yoghurt', barcode: '0036000291452' });
+		const gtin14 = food({ name: 'Greek Yogurt ', barcode: '00036000291452' });
+		const groups = await groupsOf([upcA, ean13, gtin14]);
+		const barcodeGroups = groups.filter((g) => g.reason === 'barcode');
+		expect(barcodeGroups).toHaveLength(1);
+		expect(barcodeGroups[0].key).toBe('0036000291452');
+		expect(ids(barcodeGroups[0])).toEqual([upcA.id, ean13.id, gtin14.id].sort());
+	});
+
+	test('keeps different encodings of different products apart', async () => {
+		const a = food({ name: 'Greek Yogurt', barcode: '036000291452' });
+		const b = food({ name: 'Greek Yogurt', barcode: '0036000291469' });
+		expect(await groupsOf([a, b])).toEqual([]);
+	});
+
+	test('a GTIN-14 case pack is not the same barcode as the consumer unit', async () => {
+		const unit = food({ name: 'Greek Yogurt', barcode: '0036000291452' });
+		const pack = food({ name: 'Greek Yogurt', barcode: '10036000291452' });
+		expect(await groupsOf([unit, pack])).toEqual([]);
+	});
+
+	test('in-store codes do not prove two foods equal', async () => {
+		const a = food({ name: 'Butterzopf', barcode: '2012340001234' });
+		const b = food({ name: 'Butterzopfe', barcode: '2012340001234' });
+		const groups = await groupsOf([a, b]);
+		expect(groups.filter((g) => g.reason === 'barcode')).toEqual([]);
+	});
+
+	test('in-store codes do not veto a duplicate with a different in-store code', async () => {
+		const monday = food({ name: 'Zopf', brand: 'Migros', barcode: '2012340001234' });
+		const friday = food({ name: 'Zopf', brand: 'Migros', barcode: '2012340005678' });
+		const groups = await groupsOf([monday, friday]);
+		expect(groups.map((g) => g.reason)).toContain('name_brand');
+		expect(joinsBoth(groups, monday, friday)).toBe(true);
+	});
+
+	test('in-store codes do not veto a duplicate with a product barcode', async () => {
+		const weighed = food({ name: 'Zopf', barcode: '2012340001234' });
+		const packed = food({ name: 'Zopf', barcode: '7613404176559' });
+		const groups = await groupsOf([weighed, packed]);
+		expect(groups.map((g) => g.reason)).toContain('name_brand');
+		expect(joinsBoth(groups, weighed, packed)).toBe(true);
+	});
+
+	test('splits a name and brand match with conflicting barcodes around the food without one', async () => {
+		const a = food({ name: 'Mate Zero', barcode: '7640150491254' });
+		const b = food({ name: 'Mate Zero', barcode: '7627538064729' });
+		const typed = food({ name: 'Mate Zero', barcode: null });
+		const groups = await groupsOf([a, b, typed]);
+		const nameBrand = groups.filter((g) => g.reason === 'name_brand');
+		expect(nameBrand.map(ids).sort()).toEqual([[a.id, typed.id].sort(), [b.id, typed.id].sort()]);
+		expect(new Set(nameBrand.map((g) => g.key)).size).toBe(2);
+		expect(joinsBoth(groups, a, b)).toBe(false);
+	});
+
+	test('a food without a barcode cannot bridge two foods with different barcodes', async () => {
+		const a = food({ name: 'Greek Yogurt', barcode: '7640150491254' });
+		const b = food({ name: 'Greek Yoghurt', barcode: '7627538064729' });
+		const typed = food({ name: 'Greek Yogurt', barcode: null });
+		const groups = await groupsOf([a, b, typed]);
+		expect(joinsBoth(groups, a, b)).toBe(false);
+		expect(groups.some((g) => ids(g).includes(typed.id))).toBe(true);
+	});
+
+	test('does not suggest the same name from two different brands without barcodes', async () => {
+		const a = { ...elTonyMateZero(), barcode: null };
+		const b = { ...moaMateZero(), barcode: null };
+		expect(await groupsOf([a, b])).toEqual([]);
+		const c = { ...migrosKrustenkranz(), barcode: null };
+		const d = { ...coopChrustenkranz(), barcode: null };
+		expect(await groupsOf([c, d])).toEqual([]);
+	});
+
+	test.each([
+		['Migros', 'Migros, M-Classic'],
+		['Naturaplan', 'Coop Naturaplan'],
+		['Müller', 'Müllermilch'],
+		['Danone', 'Danonne'],
+		['Migros', null]
+	])('still suggests near-identical foods with brands %s and %s', async (brandA, brandB) => {
+		const a = food({ name: 'Greek Yogurt', brand: brandA, calories: 60 });
+		const b = food({ name: 'Greek Yoghurt', brand: brandB, calories: 61 });
+		const groups = await groupsOf([a, b]);
+		expect(groups.map((g) => g.reason)).toEqual(['similar']);
+	});
+
+	test('a food without a brand cannot bridge two incompatible brands', async () => {
+		const migros = food({ name: 'Greek Yogurt', brand: 'Migros', calories: 60 });
+		const coop = food({ name: 'Greek Yoghurt', brand: 'Coop', calories: 61 });
+		const unbranded = food({ name: 'Greek Yogurt', brand: null, calories: 60 });
+		const groups = await groupsOf([migros, coop, unbranded]);
+		expect(joinsBoth(groups, migros, coop)).toBe(false);
+		expect(groups.some((g) => ids(g).includes(unbranded.id))).toBe(true);
+	});
+});

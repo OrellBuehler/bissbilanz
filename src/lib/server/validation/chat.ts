@@ -1,8 +1,8 @@
 import 'zod-openapi';
 import { z } from 'zod';
 import { paginationSchema } from './pagination';
-import { MAX_AI_TASK_PHOTOS } from './ai-tasks';
 
+export const MAX_CHAT_MESSAGE_PHOTOS = 5;
 export const CHAT_TEXT_MAX_CHARS = 4000;
 export const CHAT_TITLE_MAX_CHARS = 120;
 
@@ -58,7 +58,7 @@ export const chatMessageCreateSchema = z
 		text: z.string().trim().min(1).max(CHAT_TEXT_MAX_CHARS),
 		imageFilenames: z
 			.array(z.string().regex(/^(\/uploads\/)?[a-f0-9-]+\.webp$/))
-			.max(MAX_AI_TASK_PHOTOS)
+			.max(MAX_CHAT_MESSAGE_PHOTOS)
 			.optional()
 			.meta({
 				description:

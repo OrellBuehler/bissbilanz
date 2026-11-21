@@ -22,7 +22,12 @@ ENV VITE_APP_VERSION=${APP_VERSION}
 ENV VITE_GIT_HASH=${GIT_HASH}
 ENV VITE_BUILD_TIMESTAMP=${BUILD_TIMESTAMP}
 
-RUN bun --bun run build
+# The Sentry token only exists for the length of this step: vite uploads the
+# source maps to the release named after APP_VERSION, and the browser never
+# gets served one. The server's own maps stay: Bun uses them for stack traces.
+RUN --mount=type=secret,id=sentry_auth_token \
+    SENTRY_AUTH_TOKEN="$(cat /run/secrets/sentry_auth_token 2>/dev/null || true)" \
+    bun --bun run build && find build/client \( -name '*.map' -o -name '*.map.gz' -o -name '*.map.br' \) -delete
 
 RUN echo "GIT_HASH=${GIT_HASH}" > /app/version.txt && \
     echo "BUILD_TIMESTAMP=${BUILD_TIMESTAMP}" >> /app/version.txt
@@ -67,7 +72,7 @@ ENV PORT=3000
 ENV HOST=0.0.0.0
 # adapter-bun defaults the request body cap to 512K, and Bun answers a
 # larger Content-Length with an empty 413 before any route runs. The AI task
-# photo route accepts 5 x 10MB, so anything below that silently drops meals.
+# photo route accepts 10 x 10MB, so anything below that silently drops meals.
 # Food package imports take up to 200MB, so keep the cap above that.
 ENV BODY_SIZE_LIMIT=250M
 # Bun closes a connection idle for 10s by default; a big package upload or its

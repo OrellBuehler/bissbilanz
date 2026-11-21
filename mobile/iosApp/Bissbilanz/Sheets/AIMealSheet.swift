@@ -1,13 +1,12 @@
 import PhotosUI
 import SwiftUI
 
-/// Mirrors MAX_AI_TASK_PHOTOS on the server.
-private let maxAiTaskPhotos = 5
 /// Mirrors the description limit in the server's AI task validation.
 private let maxAiTaskDescriptionLength = 2000
 
 /// Entry point for AI-assisted meal logging: a free-text description (and
-/// optionally up to five photos) can either be estimated via `MealEstimator`
+/// optionally up to `AiTaskLimits.maxPhotos` photos) can either be estimated
+/// via `MealEstimator`
 /// — pushing `AIMealReviewView` within this sheet's stack — or queued as an
 /// `AiTask` for the assistant to pick up later. Text estimation runs on-device
 /// on Apple Intelligence devices (iOS 26+, see `MealEstimatorAvailability`),
@@ -214,7 +213,7 @@ struct AIMealSheet: View {
                 CameraPicker(
                     onImage: { image in
                         showCamera = false
-                        if attachedImages.count < maxAiTaskPhotos { attachedImages.append(image) }
+                        attachCaptured(image)
                     },
                     onCancel: { showCamera = false }
                 )
@@ -357,7 +356,7 @@ struct AIMealSheet: View {
             }
         }
 
-        if attachedImages.count < maxAiTaskPhotos {
+        if attachedImages.count < AiTaskLimits.maxPhotos {
             HStack(spacing: 12) {
                 if UIImagePickerController.isSourceTypeAvailable(.camera) {
                     Button {
@@ -370,7 +369,7 @@ struct AIMealSheet: View {
 
                 PhotosPicker(
                     selection: $selectedPhotoItems,
-                    maxSelectionCount: maxAiTaskPhotos - attachedImages.count,
+                    maxSelectionCount: AiTaskLimits.maxPhotos - attachedImages.count,
                     matching: .images
                 ) {
                     Label(L10n.choosePhoto, systemImage: "photo.on.rectangle")
@@ -379,9 +378,10 @@ struct AIMealSheet: View {
             }
         }
 
-        Text(L10n.aiTaskPhotoHint(maxAiTaskPhotos))
-            .font(.caption)
-            .foregroundStyle(.secondary)
+        AiTaskPhotoNote(
+            count: attachedImages.count,
+            estimateLimit: mealEstimator.supportsPhotoInput ? MealEstimator.maxEstimatePhotos : nil
+        )
     }
 
     private var trimmedDescription: String {
@@ -454,6 +454,14 @@ struct AIMealSheet: View {
         isEstimating = false
     }
 
+    private func attachCaptured(_ image: UIImage) {
+        guard attachedImages.count < AiTaskLimits.maxPhotos else { return }
+        Task {
+            let shrunk = await image.downscaledForAttachment()
+            if attachedImages.count < AiTaskLimits.maxPhotos { attachedImages.append(shrunk) }
+        }
+    }
+
     private func loadPhotos(_ items: [PhotosPickerItem]) {
         Task {
             var loaded: [UIImage] = []
@@ -461,9 +469,10 @@ struct AIMealSheet: View {
                 guard let data = try? await item.loadTransferable(type: Data.self),
                       let image = UIImage(data: data)
                 else { continue }
-                loaded.append(image)
+                let shrunk = await image.downscaledForAttachment()
+                loaded.append(shrunk)
             }
-            let room = maxAiTaskPhotos - attachedImages.count
+            let room = AiTaskLimits.maxPhotos - attachedImages.count
             attachedImages.append(contentsOf: loaded.prefix(room))
             // The picker keeps its selection, so clearing it is what lets the
             // same photo be picked again after a removal.

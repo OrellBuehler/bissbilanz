@@ -11,6 +11,8 @@
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Send from '@lucide/svelte/icons/send';
 	import Save from '@lucide/svelte/icons/save';
+	import Info from '@lucide/svelte/icons/info';
+	import { MAX_AI_TASK_PHOTOS } from '$lib/utils/ai-tasks';
 	import { today, timeToIsoString, formatTime24h } from '$lib/utils/dates';
 	import { DEFAULT_MEAL_TYPES } from '$lib/utils/meals';
 	import { mealTypeService } from '$lib/services/meal-type-service.svelte';
@@ -40,8 +42,6 @@
 
 	const NO_MEAL = '__none__';
 	const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
-	// Mirrors MAX_AI_TASK_PHOTOS on the server.
-	const MAX_PHOTOS = 5;
 
 	const customMealTypesQuery = useLiveQuery(
 		() => mealTypeService.mealTypes(),
@@ -65,6 +65,7 @@
 	let fileInputEl: HTMLInputElement | null = $state(null);
 
 	const canSubmit = $derived(!saving && (description.trim().length > 0 || photos.length > 0));
+	const photosFull = $derived(photos.length >= MAX_AI_TASK_PHOTOS);
 
 	const removePhoto = (index: number) => {
 		const removed = photos[index];
@@ -117,8 +118,8 @@
 				toast.error(m.ai_tasks_photo_too_large());
 				continue;
 			}
-			if (photos.length + added.length >= MAX_PHOTOS) {
-				toast.error(m.ai_tasks_photo_limit({ count: String(MAX_PHOTOS) }));
+			if (photos.length + added.length >= MAX_AI_TASK_PHOTOS) {
+				toast.error(m.ai_tasks_photo_limit({ count: String(MAX_AI_TASK_PHOTOS) }));
 				break;
 			}
 			added.push({ file, previewUrl: URL.createObjectURL(file) });
@@ -182,21 +183,34 @@
 		</div>
 
 		<div class="grid gap-1.5">
-			<Label for="ai-task-photo">{m.ai_tasks_capture_photo_label()}</Label>
+			<div class="flex items-center justify-between gap-2">
+				<Label for="ai-task-photo">{m.ai_tasks_capture_photo_label()}</Label>
+				{#if photos.length > 0}
+					<span
+						class="text-xs text-muted-foreground tabular-nums"
+						data-testid="ai-task-photo-count"
+					>
+						{photos.length}/{MAX_AI_TASK_PHOTOS}
+					</span>
+				{/if}
+			</div>
 			{#if photos.length > 0}
-				<div class="flex flex-wrap gap-2">
+				<div class="grid grid-cols-4 gap-2 sm:grid-cols-5">
 					{#each photos as photo, index (photo.previewUrl)}
-						<div class="relative">
+						<div class="relative aspect-square">
 							<img
 								src={photo.previewUrl}
-								alt={m.ai_tasks_capture_photo_label()}
-								class="h-24 w-24 rounded-lg border object-cover"
+								alt={m.ai_tasks_photo_index({
+									index: String(index + 1),
+									count: String(photos.length)
+								})}
+								class="size-full rounded-lg border object-cover"
 							/>
 							<Button
 								type="button"
 								variant="secondary"
 								size="icon"
-								class="absolute -top-2 -right-2 size-6 rounded-full shadow"
+								class="absolute top-1 right-1 size-7 rounded-full shadow"
 								onclick={() => removePhoto(index)}
 								aria-label={m.ai_tasks_capture_remove_photo()}
 							>
@@ -207,7 +221,7 @@
 				</div>
 			{/if}
 
-			{#if photos.length < MAX_PHOTOS}
+			{#if !photosFull}
 				<div class="flex items-center gap-2">
 					<Camera class="size-4 shrink-0 text-muted-foreground" />
 					<input
@@ -221,8 +235,19 @@
 					/>
 				</div>
 			{/if}
-			<p class="text-xs text-muted-foreground">
-				{m.ai_tasks_capture_photo_hint({ count: String(MAX_PHOTOS) })}
+			<p
+				class="flex items-start gap-1.5 text-xs {photosFull
+					? 'font-medium text-foreground'
+					: 'text-muted-foreground'}"
+				aria-live="polite"
+				data-testid="ai-task-photo-hint"
+			>
+				{#if photosFull}
+					<Info class="mt-0.5 size-3.5 shrink-0" />
+					{m.ai_tasks_photo_limit_reached({ count: String(MAX_AI_TASK_PHOTOS) })}
+				{:else}
+					{m.ai_tasks_capture_photo_hint({ count: String(MAX_AI_TASK_PHOTOS) })}
+				{/if}
 			</p>
 		</div>
 

@@ -71,6 +71,16 @@ extension UIImage {
         downscaledRendering(maxDimension: maxDimension, opaque: true).jpegData(compressionQuality: quality)
     }
 
+    /// A photo as it is held while a meal is being composed: no larger than
+    /// the server keeps, drawn off the main thread. Ten full-resolution camera
+    /// captures decode to roughly half a gigabyte.
+    func downscaledForAttachment() async -> UIImage {
+        let maxDimension = AiTaskLimits.photoMaxDimension
+        return await Task.detached(priority: .userInitiated) {
+            self.downscaledRendering(maxDimension: maxDimension, opaque: true)
+        }.value
+    }
+
     /// Same downscale as `downscaledJPEGData`, but lossless and with the
     /// alpha channel kept, for a cut-out whose transparent surroundings JPEG
     /// would turn black.

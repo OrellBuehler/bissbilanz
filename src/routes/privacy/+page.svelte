@@ -8,7 +8,7 @@
 <div class="mx-auto max-w-2xl px-6 py-12">
 	<h1 class="mb-2 text-3xl font-bold">{m.privacy_page_title()}</h1>
 	<p class="mb-8 text-sm text-muted-foreground">
-		{m.privacy_effective_date({ date: 'November 20, 2026' })}
+		{m.privacy_effective_date({ date: 'November 21, 2026' })}
 	</p>
 
 	<p class="mb-6">
@@ -295,8 +295,12 @@
 			using, which may show data such as your food log or weight. On the web app, crash reports are
 			not linked to your account, and a screen recording is only captured when an error actually
 			occurs, with all text, form inputs and images masked or blocked before it ever leaves your
-			device. Sentry never receives your food entries, recipes or account credentials directly, and
-			this data is never used for advertising. Their privacy policy is available at
+			device. When the server answers the web app with an error (an HTTP 5xx status) or the app
+			shows its error page, the web app also reports the status code, the request method, the page
+			or API route with ids and query strings removed, whether the answer came from the app or from
+			a proxy in front of it, and whether the browser was online. Sentry never receives your food
+			entries, recipes or account credentials directly, and this data is never used for advertising.
+			Their privacy policy is available at
 			<a href="https://sentry.io/privacy/" class="underline">sentry.io</a>.
 		</li>
 	</ul>

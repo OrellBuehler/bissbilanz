@@ -35,6 +35,23 @@ describe('loadTaskPhotos', () => {
 		expect(h.readFile).toHaveBeenCalledWith('/data/uploads/aa-11.webp');
 	});
 
+	test('keeps the order of ten photos and leaves a gap for the ones it cannot load', async () => {
+		const names = Array.from({ length: 10 }, (_, index) => `${index}a-11.webp`);
+		h.ownsUpload.mockImplementation(async (_user: string, name: string) => name !== names[4]);
+		h.readFile.mockImplementation(async (path: string) => Buffer.from(path));
+
+		const result = await loadTaskPhotos(
+			'user-1',
+			names.map((name) => `/uploads/${name}`)
+		);
+
+		expect(result).toHaveLength(10);
+		expect(result[4]).toBeNull();
+		expect(result.map((photo) => (photo ? Buffer.from(photo, 'base64').toString() : null))).toEqual(
+			names.map((name, index) => (index === 4 ? null : `/data/uploads/${name}`))
+		);
+	});
+
 	test('handles a task without photos', async () => {
 		expect(await loadTaskPhotos('user-1', null)).toEqual([]);
 		expect(await loadTaskPhotos('user-1', [])).toEqual([]);

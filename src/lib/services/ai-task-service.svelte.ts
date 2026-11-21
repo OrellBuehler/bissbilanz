@@ -10,6 +10,7 @@ import {
 	type ProposalAcceptBody
 } from '$lib/utils/claude-tasks';
 import { IDEMPOTENCY_KEY_HEADER } from '$lib/sync/contract';
+import { prepareImage } from '$lib/ocr/image';
 import type { paths } from '$lib/api/generated/schema';
 
 type AiTasksResponse =
@@ -178,10 +179,32 @@ async function refresh(options: { quiet?: boolean } = {}): Promise<void> {
 	}
 }
 
+/**
+ * Phone captures run to several MB and the server keeps 1024px, so a meal of ten
+ * photos is sent downscaled. A format the browser cannot decode goes as it is.
+ */
+async function shrinkPhoto(file: File): Promise<File> {
+	try {
+		const blob = await prepareImage(file);
+		if (blob.size >= file.size) return file;
+		const name = file.name.replace(/\.[^.]+$/, '') || 'photo';
+		return new File([blob], `${name}.jpg`, { type: blob.type });
+	} catch (err) {
+		Sentry.addBreadcrumb({
+			category: 'ai-task',
+			level: 'warning',
+			message: 'photo downscale failed, uploading the original',
+			data: { reason: err instanceof Error ? err.message : String(err), type: file.type }
+		});
+		return file;
+	}
+}
+
 /** One request per meal — the endpoint takes repeated `photo` parts. */
 async function uploadPhotos(files: File[]): Promise<string[]> {
 	const formData = new FormData();
-	for (const file of files) formData.append('photo', file);
+	// One at a time: decoding ten camera captures at once is a memory spike on a phone.
+	for (const file of files) formData.append('photo', await shrinkPhoto(file));
 	const res = await apiFetch('/api/ai-tasks/photo', { method: 'POST', body: formData });
 	if (!res.ok) {
 		throw new Error('photo_upload_failed');

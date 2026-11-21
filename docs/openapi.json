@@ -9724,7 +9724,7 @@
 					"photoUrls": {
 						"anyOf": [
 							{
-								"maxItems": 5,
+								"maxItems": 10,
 								"type": "array",
 								"items": {
 									"type": "string",
@@ -9859,7 +9859,7 @@
 						]
 					},
 					"photoUrls": {
-						"maxItems": 5,
+						"maxItems": 10,
 						"type": "array",
 						"items": {
 							"type": "string",

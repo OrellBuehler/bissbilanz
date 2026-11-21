@@ -220,7 +220,9 @@ blocks it.
 ## Post-release checklist
 
 - Watch Sentry for new issues tagged with the release version (`bissbilanz` project,
-  `de.sentry.io` org `orells-organization`) for the first hour or so.
+  `de.sentry.io` org `orells-organization`) for the first hour or so. The web app and server
+  report as `bissbilanz-web@<version>`; the Docker build uploads that release's source maps
+  when the `SENTRY_AUTH_TOKEN` repository secret is set, and skips the upload without it.
 - Check TestFlight feedback and crash reports once the iOS build clears review.
 - Check Play Console vitals (crash rate, ANR rate) once the Android rollout starts
   serving traffic.

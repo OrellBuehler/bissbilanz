@@ -52,7 +52,7 @@
 
 <h2 class="mb-3 mt-8 text-xl font-semibold">KI-Aufgaben — Erfassen per Foto</h2>
 <p class="mb-6">
-	Lieber ein Foto machen statt zu tippen? Öffne <strong>KI-Aufgaben</strong> und mache bis zu fünf Fotos
+	Lieber ein Foto machen statt zu tippen? Öffne <strong>KI-Aufgaben</strong> und mache bis zu zehn Fotos
 	und/oder eine Beschreibung, mit optionaler Mahlzeit und Uhrzeit — sie wird eingereiht statt sofort erfasst.
 	Meldet sich dein verbundener Assistent das nächste Mal, prüft er die Warteschlange und erfasst den Eintrag
 	für dich (oder du beschreibst und erfasst ihn selbst im gleichen Gespräch).

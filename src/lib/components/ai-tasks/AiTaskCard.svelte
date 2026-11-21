@@ -4,6 +4,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import DeleteButton from '$lib/components/ui/delete-button.svelte';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import Images from '@lucide/svelte/icons/images';
 	import X from '@lucide/svelte/icons/x';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
@@ -12,6 +13,7 @@
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import RotateCw from '@lucide/svelte/icons/rotate-cw';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+	import AiTaskPhotoViewer from './AiTaskPhotoViewer.svelte';
 	import AiTaskProposal from './AiTaskProposal.svelte';
 	import AiTaskThread from './AiTaskThread.svelte';
 	import {
@@ -32,6 +34,14 @@
 	};
 
 	let { task, onEdit, onDismiss, onDelete }: Props = $props();
+
+	let viewerOpen = $state(false);
+	let viewerIndex = $state(0);
+
+	const openPhoto = (index: number) => {
+		viewerIndex = index;
+		viewerOpen = true;
+	};
 
 	const isUnread = $derived(
 		(task.status === 'dismissed' && !task.acknowledgedAt) || hasUnreadReply(task)
@@ -76,17 +86,23 @@
 <Card.Root class={isUnread ? 'ring-2 ring-violet-300/80 dark:ring-violet-700/80' : undefined}>
 	<Card.Content class="space-y-3 py-3">
 		<div class="flex gap-3">
-			{#if task.photoUrls.length > 0}
-				<div class="relative size-16 shrink-0">
-					<img src={task.photoUrls[0]} alt="" class="size-16 rounded-lg border object-cover" />
-					{#if task.photoUrls.length > 1}
-						<span
-							class="absolute right-1 bottom-1 rounded bg-background/85 px-1 text-[0.65rem] font-medium tabular-nums"
-						>
-							+{task.photoUrls.length - 1}
-						</span>
-					{/if}
+			{#if task.photoUrls.length > 1}
+				<div
+					class="flex size-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border bg-muted/40 text-muted-foreground"
+					data-testid="ai-task-photo-count"
+				>
+					<Images class="size-5" />
+					<span class="text-xs font-medium tabular-nums">{task.photoUrls.length}</span>
 				</div>
+			{:else if task.photoUrls.length === 1}
+				<Button
+					variant="ghost"
+					class="size-16 shrink-0 overflow-hidden rounded-lg border p-0"
+					onclick={() => openPhoto(0)}
+					aria-label={m.ai_tasks_photo_index({ index: '1', count: '1' })}
+				>
+					<img src={task.photoUrls[0]} alt="" class="size-full object-cover" />
+				</Button>
 			{:else}
 				<div
 					class="flex size-16 shrink-0 items-center justify-center rounded-lg border bg-muted/40"
@@ -215,6 +231,24 @@
 			</div>
 		</div>
 
+		{#if task.photoUrls.length > 1}
+			<div class="flex flex-wrap gap-1.5" data-testid="ai-task-photos">
+				{#each task.photoUrls as url, index (index)}
+					<Button
+						variant="ghost"
+						class="size-14 overflow-hidden rounded-md border p-0"
+						onclick={() => openPhoto(index)}
+						aria-label={m.ai_tasks_photo_index({
+							index: String(index + 1),
+							count: String(task.photoUrls.length)
+						})}
+					>
+						<img src={url} alt="" loading="lazy" class="size-full object-cover" />
+					</Button>
+				{/each}
+			</div>
+		{/if}
+
 		{#if proposal}
 			<AiTaskProposal taskId={task.id} {proposal} onDiscard={(id) => onDismiss?.(id)} />
 		{/if}
@@ -224,3 +258,7 @@
 		{/if}
 	</Card.Content>
 </Card.Root>
+
+{#if task.photoUrls.length > 0}
+	<AiTaskPhotoViewer urls={task.photoUrls} bind:open={viewerOpen} bind:index={viewerIndex} />
+{/if}
