@@ -42,8 +42,10 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.aitasks.AiTaskUploadWorker
 import com.bissbilanz.android.aitasks.McpConnectionStore
 import com.bissbilanz.android.ui.theme.Dimens
+import com.bissbilanz.android.util.AI_TASK_PHOTO_MAX_DIMENSION
 import com.bissbilanz.android.util.createImageUri
 import com.bissbilanz.android.util.dayLabel
+import com.bissbilanz.android.util.downscaled
 import com.bissbilanz.android.util.hasPermission
 import com.bissbilanz.android.util.isPermanentlyDenied
 import com.bissbilanz.android.util.openAppSettings
@@ -56,6 +58,7 @@ import com.bissbilanz.api.generated.model.AiTaskUpdate
 import com.bissbilanz.repository.AiTaskRepository
 import com.bissbilanz.repository.PreferencesRepository
 import com.bissbilanz.util.AiTaskField
+import com.bissbilanz.util.MAX_AI_TASK_PHOTOS
 import com.bissbilanz.util.claudeProcessingEnabled
 import com.bissbilanz.util.effectiveAiTaskProcessor
 import com.bissbilanz.util.jsonKeys
@@ -72,14 +75,11 @@ import org.koin.compose.koinInject
 import kotlin.time.Clock
 import kotlin.time.Instant
 
-/** Mirrors MAX_AI_TASK_PHOTOS on the server. */
-private const val MAX_AI_TASK_PHOTOS = 5
-
 /** Mirrors the description limit in the server's AI task validation. */
 private const val MAX_AI_TASK_DESCRIPTION_LENGTH = 2000
 
 /**
- * Hands a meal to the MCP assistant: a description, up to five photos and the
+ * Hands a meal to the MCP assistant: a description, up to [MAX_AI_TASK_PHOTOS] photos and the
  * target meal are queued as an AI task the assistant logs later. Mirrors the
  * "send to assistant" half of the iOS AIMealSheet; iOS additionally estimates
  * on-device via Apple's Foundation Models, which has no Android counterpart
@@ -173,7 +173,9 @@ fun AiMealSheet(
                     try {
                         val decoded =
                             withContext(Dispatchers.IO) {
-                                uris.take(room).map { requireUprightBitmap(context, it) }
+                                uris.take(room).map {
+                                    requireUprightBitmap(context, it).downscaled(AI_TASK_PHOTO_MAX_DIMENSION)
+                                }
                             }
                         attached.addAll(decoded)
                     } catch (e: CancellationException) {
@@ -200,7 +202,10 @@ fun AiMealSheet(
                 cameraPermanentlyDenied = false
                 scope.launch {
                     try {
-                        val decoded = withContext(Dispatchers.IO) { requireUprightBitmap(context, uri) }
+                        val decoded =
+                            withContext(Dispatchers.IO) {
+                                requireUprightBitmap(context, uri).downscaled(AI_TASK_PHOTO_MAX_DIMENSION)
+                            }
                         if (totalPhotoCount < MAX_AI_TASK_PHOTOS) attached.add(decoded)
                     } catch (e: CancellationException) {
                         throw e
@@ -512,11 +517,26 @@ fun AiMealSheet(
                 }
             }
 
-            Text(
-                stringResource(R.string.ai_task_photo_hint, MAX_AI_TASK_PHOTOS),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (totalPhotoCount > 0) {
+                Text(
+                    stringResource(R.string.ai_task_photo_count, totalPhotoCount, MAX_AI_TASK_PHOTOS),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (totalPhotoCount >= MAX_AI_TASK_PHOTOS) {
+                Text(
+                    stringResource(R.string.ai_task_photo_limit_reached, MAX_AI_TASK_PHOTOS),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            } else {
+                Text(
+                    stringResource(R.string.ai_task_photo_hint, MAX_AI_TASK_PHOTOS),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
             errorMessage?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)

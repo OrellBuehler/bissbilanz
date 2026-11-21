@@ -268,6 +268,17 @@ struct AiTaskAcknowledgeResponse: Codable {
     var repliesAcknowledged: Int? = nil
 }
 
+/// What a single AI task takes. `maxPhotos` mirrors `MAX_AI_TASK_PHOTOS` in the
+/// server's `src/lib/utils/ai-tasks.ts`; builds before 10 photos stop at 5, so
+/// the server must be deployed first.
+enum AiTaskLimits {
+    static let maxPhotos = 10
+    /// What the server keeps of an AI task photo (it downsizes to 1024px), so
+    /// sending or holding more only costs upload time and memory.
+    static let photoMaxDimension: CGFloat = 1024
+    static let photoJPEGQuality: CGFloat = 0.75
+}
+
 /// Matches `aiTaskCreateSchema`: `description`/`photoUrls` are individually
 /// optional but the server rejects a payload with neither set.
 struct AiTaskCreate: Codable {

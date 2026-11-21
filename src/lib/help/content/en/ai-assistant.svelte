@@ -47,7 +47,7 @@
 
 <h2 class="mb-3 mt-8 text-xl font-semibold">AI tasks — logging by photo</h2>
 <p class="mb-6">
-	Prefer to snap a photo instead of typing? Open <strong>AI tasks</strong> and capture up to five photos
+	Prefer to snap a photo instead of typing? Open <strong>AI tasks</strong> and capture up to ten photos
 	and/or a description, with an optional meal and time — it's queued rather than logged immediately. The
 	next time your connected assistant checks in, it reviews the queue and logs the entry for you (or you
 	can describe and log it yourself in the same conversation).

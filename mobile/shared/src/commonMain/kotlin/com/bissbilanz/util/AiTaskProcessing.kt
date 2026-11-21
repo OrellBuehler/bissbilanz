@@ -6,6 +6,12 @@ import com.bissbilanz.api.generated.model.Preferences
 
 const val PROCESSOR_CLAUDE = "claude"
 
+/**
+ * Photos one AI task takes. Mirrors MAX_AI_TASK_PHOTOS in the server's `src/lib/utils/ai-tasks.ts`;
+ * builds before 10 photos stop at 5, so the server has to be deployed first.
+ */
+const val MAX_AI_TASK_PHOTOS = 10
+
 private val knownProcessorKinds = setOf("assistant", "device", PROCESSOR_CLAUDE)
 
 /**

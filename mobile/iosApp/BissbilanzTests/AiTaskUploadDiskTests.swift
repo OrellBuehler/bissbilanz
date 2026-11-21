@@ -39,6 +39,23 @@ struct AiTaskUploadDiskTests {
         #expect(AiTaskUploadDisk.loadAll(root: root).map(\.id) == [newer])
     }
 
+    @Test("Keeps all ten photos of a meal in the order they were taken")
+    func tenPhotosKeepTheirOrder() throws {
+        let root = tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let id = UUID()
+        let photos = (0 ..< AiTaskLimits.maxPhotos).map { Data([UInt8($0)]) }
+        let meta = PersistedAiTaskUpload(
+            description: nil, date: "2026-09-09", mealType: nil, eatenAt: nil,
+            photoCount: photos.count, queuedAt: Date(timeIntervalSince1970: 1_000)
+        )
+        try AiTaskUploadDisk.save(meta, photos: photos, id: id, root: root)
+
+        #expect(photos.count == 10)
+        #expect(AiTaskUploadDisk.loadMeta(id: id, root: root)?.photoCount == 10)
+        #expect(AiTaskUploadDisk.photos(id: id, root: root) == photos)
+    }
+
     @Test("Ignores directories without a readable record")
     func skipsHalfWrittenUploads() throws {
         let root = tempRoot()

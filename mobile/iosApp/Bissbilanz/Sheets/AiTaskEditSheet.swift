@@ -1,8 +1,6 @@
 import PhotosUI
 import SwiftUI
 
-/// Mirrors MAX_AI_TASK_PHOTOS on the server.
-private let maxAiTaskPhotos = 5
 /// Mirrors the description limit in the server's AI task validation.
 private let maxAiTaskDescriptionLength = 2000
 
@@ -32,11 +30,6 @@ struct AiTaskEditSheet: View {
     @State private var errorMessage: String?
 
     private let mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"]
-
-    /// The server downsizes every AI task photo to 1024px regardless — mirrors
-    /// `AiTaskStore.uploadMaxDimension`/`uploadQuality`.
-    private static let uploadMaxDimension: CGFloat = 1024
-    private static let uploadQuality: CGFloat = 0.75
 
     init(task: AiTask, onSaved: @escaping (AiTask) -> Void = { _ in }) {
         self.task = task
@@ -146,7 +139,7 @@ struct AiTaskEditSheet: View {
                 CameraPicker(
                     onImage: { image in
                         showCamera = false
-                        if totalPhotoCount < maxAiTaskPhotos { newImages.append(image) }
+                        attachCaptured(image)
                     },
                     onCancel: { showCamera = false }
                 )
@@ -207,7 +200,7 @@ struct AiTaskEditSheet: View {
             }
         }
 
-        if totalPhotoCount < maxAiTaskPhotos {
+        if totalPhotoCount < AiTaskLimits.maxPhotos {
             HStack(spacing: 12) {
                 if UIImagePickerController.isSourceTypeAvailable(.camera) {
                     Button {
@@ -220,7 +213,7 @@ struct AiTaskEditSheet: View {
 
                 PhotosPicker(
                     selection: $selectedPhotoItems,
-                    maxSelectionCount: maxAiTaskPhotos - totalPhotoCount,
+                    maxSelectionCount: AiTaskLimits.maxPhotos - totalPhotoCount,
                     matching: .images
                 ) {
                     Label(L10n.choosePhoto, systemImage: "photo.on.rectangle")
@@ -229,9 +222,15 @@ struct AiTaskEditSheet: View {
             }
         }
 
-        Text(L10n.aiTaskPhotoHint(maxAiTaskPhotos))
-            .font(.caption)
-            .foregroundStyle(.secondary)
+        AiTaskPhotoNote(count: totalPhotoCount)
+    }
+
+    private func attachCaptured(_ image: UIImage) {
+        guard totalPhotoCount < AiTaskLimits.maxPhotos else { return }
+        Task {
+            let shrunk = await image.downscaledForAttachment()
+            if totalPhotoCount < AiTaskLimits.maxPhotos { newImages.append(shrunk) }
+        }
     }
 
     private func loadPhotos(_ items: [PhotosPickerItem]) {
@@ -241,9 +240,10 @@ struct AiTaskEditSheet: View {
                 guard let data = try? await item.loadTransferable(type: Data.self),
                       let image = UIImage(data: data)
                 else { continue }
-                loaded.append(image)
+                let shrunk = await image.downscaledForAttachment()
+                loaded.append(shrunk)
             }
-            let room = maxAiTaskPhotos - totalPhotoCount
+            let room = AiTaskLimits.maxPhotos - totalPhotoCount
             newImages.append(contentsOf: loaded.prefix(room))
             // The picker keeps its selection, so clearing it is what lets the
             // same photo be picked again after a removal.
@@ -276,8 +276,8 @@ struct AiTaskEditSheet: View {
 
     private func uploadNewPhotos() async throws -> [String] {
         guard !newImages.isEmpty else { return [] }
-        let maxDimension = Self.uploadMaxDimension
-        let quality = Self.uploadQuality
+        let maxDimension = AiTaskLimits.photoMaxDimension
+        let quality = AiTaskLimits.photoJPEGQuality
         let encoded = newImages.compactMap { $0.downscaledJPEGData(maxDimension: maxDimension, quality: quality) }
         return try await api.uploadAiTaskPhotos(
             encoded.enumerated().map { (data: $0.element, filename: "task_\($0.offset).jpg") }

@@ -551,6 +551,59 @@ describe('model', () => {
 	);
 });
 
+describe('photos', () => {
+	test('sends all ten photos in order as image blocks and reserves for each of them', async () => {
+		const photos = Array.from({ length: 10 }, (_, index) => `PHOTO-${index}`);
+		h.loadTaskPhotos.mockResolvedValue(photos);
+		h.callClaude.mockResolvedValueOnce(
+			response('tool_use', [toolUse('toolu_a', 'complete_ai_task')])
+		);
+		h.runTaskTool.mockResolvedValueOnce({
+			content: '{"success":true}',
+			isError: false,
+			outcome: 'completed'
+		});
+
+		await processTask(TASK_ID, options());
+
+		const first = h.callClaude.mock.calls[0]![0];
+		expect(first.imageCount).toBe(10);
+		const content = first.params.messages[0].content;
+		expect(content.map((block: { type: string }) => block.type)).toEqual([
+			...Array.from({ length: 10 }, () => 'image'),
+			'text'
+		]);
+		expect(
+			content.slice(0, 10).map((block: { source: { data: string } }) => block.source.data)
+		).toEqual(photos);
+		expect(content[10].text).toContain('Photos: 10 attached');
+	});
+
+	test('keeps the order of the photos that could be read and names the ones that could not', async () => {
+		h.loadTaskPhotos.mockResolvedValue(['A', null, 'C', 'D', null, 'F', 'G', 'H', 'I', 'J']);
+		h.callClaude.mockResolvedValueOnce(
+			response('tool_use', [toolUse('toolu_a', 'complete_ai_task')])
+		);
+		h.runTaskTool.mockResolvedValueOnce({
+			content: '{"success":true}',
+			isError: false,
+			outcome: 'completed'
+		});
+
+		await processTask(TASK_ID, options());
+
+		const first = h.callClaude.mock.calls[0]![0];
+		expect(first.imageCount).toBe(8);
+		const content = first.params.messages[0].content;
+		expect(
+			content.slice(0, 8).map((block: { source: { data: string } }) => block.source.data)
+		).toEqual(['A', 'C', 'D', 'F', 'G', 'H', 'I', 'J']);
+		expect(content[8].text).toContain('Photos: 8 attached');
+		expect(content[8].text).toContain('Photo 2 is unavailable.');
+		expect(content[8].text).toContain('Photo 5 is unavailable.');
+	});
+});
+
 describe('the loop', () => {
 	test('sends the task, runs tools and ends on a terminal tool', async () => {
 		h.getAiTask.mockResolvedValue(task({ mealType: null }));

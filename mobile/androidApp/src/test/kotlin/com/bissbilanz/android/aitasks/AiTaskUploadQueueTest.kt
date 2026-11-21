@@ -3,10 +3,12 @@ package com.bissbilanz.android.aitasks
 import android.app.Application
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.bissbilanz.util.MAX_AI_TASK_PHOTOS
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
@@ -38,6 +40,20 @@ class AiTaskUploadQueueTest {
         assertTrue(photo.exists())
         assertTrue(photo.path.contains(context.filesDir.path), "photo must live under filesDir, not cacheDir")
         assertEquals(listOf<Byte>(1, 2, 3), photo.readBytes().toList())
+    }
+
+    @Test
+    fun `enqueue keeps ten photos in the order they were taken and the queue reloads them`() {
+        val queue = newQueue()
+        val photos = List(MAX_AI_TASK_PHOTOS) { index -> byteArrayOf(index.toByte(), 9) }
+
+        val item = queue.enqueue("2026-09-10", null, "Lunch", null, photos)
+
+        assertEquals(10, item.photoPaths.size)
+        val stored = item.photoPaths.map { path -> File(path).readBytes().toList() }
+        assertEquals(photos.map { bytes -> bytes.toList() }, stored)
+        val reloaded = newQueue().get(item.id)
+        assertEquals(item.photoPaths, reloaded?.photoPaths)
     }
 
     @Test
