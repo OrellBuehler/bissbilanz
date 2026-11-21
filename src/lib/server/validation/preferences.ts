@@ -77,6 +77,12 @@ export const preferencesUpdateSchema = z
 		// Only meaningful when aiTaskProcessor is 'device': log estimates
 		// straight away instead of leaving them for review first.
 		aiTaskAutoLog: z.boolean().optional(),
+		// What the server-side assistant (AI tasks and chat) may do. Chat reads
+		// them when a conversation starts; AI tasks on every run.
+		aiResearchNutrients: z.boolean().optional(),
+		aiWebResearch: z.boolean().optional(),
+		aiRealServings: z.boolean().optional(),
+		aiTaskCreateFoods: z.boolean().optional(),
 		// IANA timezone reported by the client (e.g. 'Europe/Zurich'). Validated
 		// against Intl so a bad value can't break server-side AT TIME ZONE queries.
 		timeZone: z

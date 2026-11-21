@@ -161,6 +161,21 @@ describe('validation schemas', () => {
 		}
 	});
 
+	test('preferencesUpdateSchema accepts each assistant option on its own and rejects a non-boolean', () => {
+		for (const key of [
+			'aiResearchNutrients',
+			'aiWebResearch',
+			'aiRealServings',
+			'aiTaskCreateFoods'
+		]) {
+			const result = preferencesUpdateSchema.safeParse({ [key]: false });
+			expect(result.success, key).toBe(true);
+			if (result.success) expect((result.data as Record<string, unknown>)[key]).toBe(false);
+			expect(preferencesUpdateSchema.safeParse({ [key]: 'no' }).success, key).toBe(false);
+		}
+		expect(preferencesUpdateSchema.safeParse({}).success).toBe(true);
+	});
+
 	test('preferencesUpdateSchema rejects unknown keys', () => {
 		const result = preferencesUpdateSchema.safeParse({ unknownField: true });
 		expect(result.success).toBe(false);

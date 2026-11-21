@@ -139,3 +139,116 @@ describe('fetchProduct (Open Food Facts barcode lookup)', () => {
 		expect((await fetchProduct('1234567890123'))?.categoriesTags).toEqual([]);
 	});
 });
+
+describe('fetchProduct zeros and pack texts', () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	const zeroBlock = Object.fromEntries(
+		[
+			'vitamin-a',
+			'vitamin-c',
+			'vitamin-d',
+			'vitamin-e',
+			'vitamin-k',
+			'calcium',
+			'iron',
+			'magnesium',
+			'zinc',
+			'starch',
+			'caffeine'
+		].map((key) => [`${key}_100g`, 0])
+	);
+
+	it('keeps the zeros a label declares and drops the placeholder zeros of everything else', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue(
+				okResponse({
+					status: 1,
+					product: {
+						product_name: 'Skyr',
+						nutriments: {
+							'energy-kcal_100g': 62,
+							sugars_100g: 0,
+							'saturated-fat_100g': 0,
+							salt_100g: 0.13,
+							sodium_100g: 0.052,
+							...zeroBlock
+						}
+					}
+				})
+			)
+		);
+		const product = (await fetchProduct('4056489012788'))!;
+		expect(product.sugar).toBe(0);
+		expect(product.saturatedFat).toBe(0);
+		expect(product.sodium).toBe(52);
+		for (const key of [
+			'vitaminA',
+			'vitaminC',
+			'vitaminD',
+			'vitaminE',
+			'vitaminK',
+			'calcium',
+			'iron',
+			'magnesium',
+			'zinc',
+			'starch',
+			'caffeine'
+		]) {
+			expect(product[key], key).toBeNull();
+		}
+	});
+
+	it('keeps a real value next to zeros', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue(
+				okResponse({
+					status: 1,
+					product: {
+						product_name: 'Alpro',
+						nutriments: { calcium_100g: 0.12, 'vitamin-c_100g': 0, 'vitamin-d_100g': 7.5e-7 }
+					}
+				})
+			)
+		);
+		const product = (await fetchProduct('5411188133759'))!;
+		expect(product.calcium).toBe(120);
+		expect(product.vitaminD).toBe(0.75);
+		expect(product.vitaminC).toBeNull();
+	});
+
+	it('requests the net content and serving and carries them as printed', async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			okResponse({
+				status: 1,
+				product: {
+					product_name: 'Coca-Cola Zero',
+					quantity: '330 ml ',
+					serving_size: '1 can (330 ml)',
+					nutriments: {}
+				}
+			})
+		);
+		vi.stubGlobal('fetch', fetchMock);
+		const product = (await fetchProduct('5449000131805'))!;
+		expect(String(fetchMock.mock.calls[0][0])).toContain('quantity,serving_size');
+		expect(product.quantity).toBe('330 ml');
+		expect(product.servingDescription).toBe('1 can (330 ml)');
+	});
+
+	it('has no quantity or serving when the record has none', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi
+				.fn()
+				.mockResolvedValue(
+					okResponse({ status: 1, product: { product_name: 'x', nutriments: {} } })
+				)
+		);
+		const product = (await fetchProduct('1234567890123'))!;
+		expect(product.quantity).toBeNull();
+		expect(product.servingDescription).toBeNull();
+	});
+});

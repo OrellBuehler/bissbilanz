@@ -301,6 +301,44 @@ describe('prompt', () => {
 		expect(prompt.isStoredImage(content[1])).toBe(false);
 		expect(prompt.chatSystem()).toEqual([{ type: 'text', text: prompt.CHAT_SYSTEM_PROMPT }]);
 	});
+
+	test('teaches food creation the same units, serving and zero rules as AI tasks', () => {
+		const text = prompt.CHAT_SYSTEM_PROMPT;
+		for (const needle of [
+			'## Creating foods',
+			'a liquid is stored in ml',
+			'330 ml can is servingSize 330 with ml',
+			'Unknown stays empty',
+			'The user wants the vitamins and minerals of a food you create researched',
+			'say so in your reply',
+			'it returns every nutrient per 100 g, so scale them to the serving you store',
+			'Untrusted data'
+		]) {
+			expect(text, needle).toContain(needle);
+		}
+		expect(text).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+	});
+
+	test('follows the options and the tools of the conversation', () => {
+		const options = {
+			researchNutrients: false,
+			webResearch: false,
+			realServings: false,
+			createFoods: true
+		};
+		const [off] = prompt.chatSystem(options, [{ name: 'create_food' }] as never);
+		expect(off!.text).toContain('turned micronutrient research off');
+		expect(off!.text).toContain('servingSize 100, with the figures as printed');
+		expect(off!.text).toContain('No web tool is listed');
+		expect(off!.text).not.toContain('Swiss Food Composition Database');
+		const [on] = prompt.chatSystem({ ...options, researchNutrients: true, realServings: true }, [
+			{ name: 'web_search', type: 'web_search_20260209' },
+			{ name: 'search_nutrient_database' }
+		] as never);
+		expect(on!.text).toContain('A single-serve container is one serving');
+		expect(on!.text).toContain('Swiss Food Composition Database');
+		expect(on!.text).toContain('The nutrient database (search_nutrient_database)');
+	});
 });
 
 describe('tool results', () => {
@@ -596,6 +634,45 @@ describe('transcript', () => {
 		);
 		expect(fresh.fromPosition).toBe(0);
 		expect(getCalls().some((call) => call.method === 'values')).toBe(true);
+	});
+
+	test("builds a new conversation with its user's options and keeps a stored prompt as it was", async () => {
+		const off = {
+			researchNutrients: false,
+			webResearch: false,
+			realServings: false,
+			createFoods: false
+		};
+		queueResults([[off]]);
+		const fresh = await transcript.ensurePromptSnapshot(
+			{ id: 'c', userId: 'user-1', promptId: null } as never,
+			'claude-opus-5-5'
+		);
+		expect(fresh.tools.some((tool) => 'name' in tool && tool.name === 'web_search')).toBe(false);
+		expect(fresh.tools.some((tool) => 'name' in tool && tool.name === 'create_food')).toBe(true);
+		const text = (fresh.system[0] as { text: string }).text;
+		expect(text).toContain('turned micronutrient research off');
+		expect(text).toContain('servingSize 100, with the figures as printed');
+		expect(text).toContain('No web tool is listed');
+		const defaults = await transcript.buildPromptSnapshot('claude-opus-5-5');
+		expect(fresh.id).not.toBe(defaults.id);
+
+		reset();
+		queueResults([
+			[
+				{
+					id: 'old',
+					model: 'claude-opus-5-5',
+					system: '[{"type":"text","text":"old"}]',
+					tools: '[]'
+				}
+			]
+		]);
+		await transcript.ensurePromptSnapshot(
+			{ id: 'c', userId: 'user-1', promptId: 'old', promptFromPosition: 2 } as never,
+			'claude-opus-5-5'
+		);
+		expect(getCalls().filter((call) => call.method === 'from')).toHaveLength(1);
 	});
 
 	test('builds the prompt without web fetch in memory and stores it only when asked', async () => {

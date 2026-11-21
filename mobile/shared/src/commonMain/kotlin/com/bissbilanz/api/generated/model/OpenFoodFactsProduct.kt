@@ -82,6 +82,8 @@ import kotlinx.serialization.encoding.*
  * @param water
  * @param salt
  * @param categoriesTags
+ * @param quantity Net content as printed on the pack, e.g. \"330 ml\".
+ * @param servingDescription Serving as printed on the pack, e.g. \"1 can (330 ml)\".
  */
 @Serializable
 data class OpenFoodFactsProduct(
@@ -145,6 +147,10 @@ data class OpenFoodFactsProduct(
     @SerialName(value = "water") val water: kotlin.Double? = null,
     @SerialName(value = "salt") val salt: kotlin.Double? = null,
     @SerialName(value = "categoriesTags") val categoriesTags: kotlin.collections.List<kotlin.String>? = null,
+    // Net content as printed on the pack, e.g. \"330 ml\".
+    @SerialName(value = "quantity") val quantity: kotlin.String? = null,
+    // Serving as printed on the pack, e.g. \"1 can (330 ml)\".
+    @SerialName(value = "servingDescription") val servingDescription: kotlin.String? = null,
 ) {
     /**
      *

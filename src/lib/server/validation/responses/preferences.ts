@@ -55,6 +55,10 @@ const preferencesSchema = z
 			})
 			.optional(),
 		aiTaskAutoLog: z.boolean(),
+		aiResearchNutrients: z.boolean().optional(),
+		aiWebResearch: z.boolean().optional(),
+		aiRealServings: z.boolean().optional(),
+		aiTaskCreateFoods: z.boolean().optional(),
 		locale: z.string().nullable(),
 		timeZone: z.string(),
 		updatedAt: z.string().optional(),

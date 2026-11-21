@@ -11,6 +11,11 @@ import {
 } from '../../schema';
 import { loadTaskPhotos } from '../tasks/photos';
 import { isWebFetchTool, taskServerTools } from '../models';
+import {
+	DEFAULT_ASSISTANT_OPTIONS,
+	loadAssistantOptions,
+	type AssistantOptions
+} from '../assistant-options';
 import { chatSystem, isStoredImage, type StoredContentBlock } from './prompt';
 import { chatToolDefinitions, listMcpTools } from './tools';
 
@@ -138,12 +143,15 @@ export type PromptSnapshot = {
 const promptId = (model: string, system: unknown, tools: unknown) =>
 	createHash('sha256').update(JSON.stringify({ model, system, tools })).digest('hex');
 
-export async function buildPromptSnapshot(model: string): Promise<PromptSnapshot> {
-	const system = chatSystem();
+export async function buildPromptSnapshot(
+	model: string,
+	options: AssistantOptions = DEFAULT_ASSISTANT_OPTIONS
+): Promise<PromptSnapshot> {
 	const tools: Anthropic.ToolUnion[] = [
-		...taskServerTools(model),
+		...taskServerTools(model, options.webResearch),
 		...chatToolDefinitions(await listMcpTools())
 	];
+	const system = chatSystem(options, tools);
 	return { id: promptId(model, system, tools), system, tools };
 }
 
@@ -190,7 +198,8 @@ export async function storePromptSnapshot(
  * thinking blocks are bound to the system prompt and tools they were produced
  * with, so a deploy that changes either must not reach a running conversation.
  * A new model starts a new prompt at the current transcript length; thinking
- * blocks before it are no longer replayed.
+ * blocks before it are no longer replayed. The user's assistant options are
+ * read when the prompt is built, so changing one reaches new conversations only.
  */
 export async function ensurePromptSnapshot(
 	conversation: ChatConversation,
@@ -212,7 +221,10 @@ export async function ensurePromptSnapshot(
 			};
 		}
 	}
-	const snapshot = await buildPromptSnapshot(model);
+	const snapshot = await buildPromptSnapshot(
+		model,
+		await loadAssistantOptions(conversation.userId)
+	);
 	const fromPosition = conversation.promptId ? (options.transcriptLength ?? 0) : 0;
 	await storePromptSnapshot(conversation.id, model, snapshot, fromPosition);
 	return { ...snapshot, fromPosition };

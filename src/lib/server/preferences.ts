@@ -82,6 +82,10 @@ export const DEFAULT_PREFERENCES = {
 	aiTaskProcessor: 'assistant' as const,
 	aiTaskProcessorKind: 'assistant' as const,
 	aiTaskAutoLog: false,
+	aiResearchNutrients: true,
+	aiWebResearch: true,
+	aiRealServings: true,
+	aiTaskCreateFoods: true,
 	favoriteMealTimeframes: [] as FavoriteMealTimeframePreference[]
 };
 

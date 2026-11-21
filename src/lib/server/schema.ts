@@ -537,6 +537,12 @@ export const userPreferences = pgTable(
 		// When the device processor is picked, whether it logs estimates straight
 		// away or leaves them for the user to review first.
 		aiTaskAutoLog: boolean('ai_task_auto_log').notNull().default(false),
+		// What the server-side assistant (AI tasks and chat) may do; each one
+		// shapes its system prompt or tool list. See claude/assistant-options.ts.
+		aiResearchNutrients: boolean('ai_research_nutrients').notNull().default(true),
+		aiWebResearch: boolean('ai_web_research').notNull().default(true),
+		aiRealServings: boolean('ai_real_servings').notNull().default(true),
+		aiTaskCreateFoods: boolean('ai_task_create_foods').notNull().default(true),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow()
 	},
 	(table) => [

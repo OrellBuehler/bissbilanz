@@ -11,9 +11,13 @@
 	"preferences": {
 		"activityCreditPercent": 100,
 		"activityGoalAdjustment": true,
+		"aiRealServings": true,
+		"aiResearchNutrients": true,
 		"aiTaskAutoLog": true,
+		"aiTaskCreateFoods": true,
 		"aiTaskProcessor": "assistant",
 		"aiTaskProcessorKind": "sample-aiTaskProcessorKind",
+		"aiWebResearch": true,
 		"biologicalSex": "female",
 		"caloricLagDaysOverride": 3,
 		"favoriteMealAssignmentMode": "sample-favoriteMealAssignmentMode",

@@ -66,6 +66,10 @@ const REAL_DEFAULT_PREFERENCES = {
 	aiTaskProcessor: 'assistant',
 	aiTaskProcessorKind: 'assistant',
 	aiTaskAutoLog: false,
+	aiResearchNutrients: true,
+	aiWebResearch: true,
+	aiRealServings: true,
+	aiTaskCreateFoods: true,
 	favoriteMealTimeframes: []
 };
 
@@ -237,6 +241,38 @@ describe('api/preferences', () => {
 
 			expect(response.status).toBe(200);
 			expect(data.preferences).toBeTruthy();
+		});
+
+		test('stores the assistant options and returns them', async () => {
+			mockUpdateResult = {
+				...TEST_PREFERENCES,
+				aiResearchNutrients: false,
+				aiWebResearch: false,
+				aiRealServings: false,
+				aiTaskCreateFoods: false
+			};
+			const event = createMockEvent({
+				user: TEST_USER,
+				body: {
+					aiResearchNutrients: false,
+					aiWebResearch: false,
+					aiRealServings: false,
+					aiTaskCreateFoods: false
+				},
+				method: 'PATCH'
+			});
+
+			const response = await PATCH(event);
+			await expectResponseContract('PATCH', '/api/preferences', response);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.preferences).toMatchObject({
+				aiResearchNutrients: false,
+				aiWebResearch: false,
+				aiRealServings: false,
+				aiTaskCreateFoods: false
+			});
 		});
 
 		test('handles partial update with widget visibility flags', async () => {

@@ -9,7 +9,7 @@ import type { TxOrDb } from '../../ownership';
 import { getRecipe } from '../../recipes';
 import { aiTasks, foodEntries, type ClaudeTaskMessageOutcome } from '../../schema';
 import { entryCreateSchema, foodCreateSchema, foodUpdateSchema } from '../../validation';
-import { ALL_NUTRIENT_KEYS } from '$lib/nutrients';
+import { ALL_NUTRIENT_KEYS, isUnreliableZero } from '$lib/nutrients';
 import { normalizeMealType } from '$lib/utils/meals';
 import { servingUnitValues } from '$lib/units';
 import { addAssistantMessage, transitionCorrection } from './corrections';
@@ -88,10 +88,13 @@ const looseTool = (
 };
 
 const createFoodDescription = (nutrientDatabase: boolean) =>
-	`Create a new food in the user's food database, with nutrition per serving, when an entry of this meal needs a food the user does not have, for example a different product or a corrected copy of a food you may not change. You need real nutrition data: a label photo, Open Food Facts${nutrientDatabase ? ', a nutrient database record' : ''} or a web page. Pass barcode whenever one is visible. Returns a foodId for update_entry and log_food; the food is saved only when reply_to_user saves your changes.${nutrientDatabase ? ' With fdcId from search_nutrient_database and a serving by weight, the server compares your calories and macros with that record, refuses a large difference, and fills every nutrient you did not list.' : ''}`;
+	`Create a new food in the user's food database, with every nutrition value per serving (servingSize plus servingUnit: scale per-100 figures to it, ml for liquids, g for solids), when an entry of this meal needs a food the user does not have, for example a different product or a corrected copy of a food you may not change. You need real nutrition data: a label photo, Open Food Facts${nutrientDatabase ? ', a nutrient database record' : ''} or a web page. Pass barcode whenever one is visible. Returns a foodId for update_entry and log_food; the food is saved only when reply_to_user saves your changes.${nutrientDatabase ? ' With fdcId from search_nutrient_database and a serving by weight, the server compares your calories and macros with that record, refuses a large difference, and fills every nutrient you did not list.' : ''}`;
 
-const correctionToolDefinitions = (nutrientDatabase: boolean): Anthropic.Tool[] => {
-	const shared = toolDefinitions(nutrientDatabase);
+const correctionToolDefinitions = (
+	nutrientDatabase: boolean,
+	createFoods: boolean
+): Anthropic.Tool[] => {
+	const shared = toolDefinitions(nutrientDatabase, createFoods);
 	const named = (name: string) => shared.find((tool) => tool.name === name);
 	const reads = SHARED_TOOLS.filter((name) => name !== 'create_food').flatMap((name) => {
 		const tool = named(name);
@@ -102,7 +105,9 @@ const correctionToolDefinitions = (nutrientDatabase: boolean): Anthropic.Tool[] 
 		.properties as Record<string, unknown>;
 	return withCacheBreakpoint([
 		...reads,
-		{ ...named('create_food')!, description: createFoodDescription(nutrientDatabase) },
+		...(createFoods
+			? [{ ...named('create_food')!, description: createFoodDescription(nutrientDatabase) }]
+			: []),
 		strictTool(
 			'get_task_entries',
 			'Get the diary entries of this meal and their foods in full, with every change you staged so far applied. Foods you created for this meal are marked createdByThisTask.',
@@ -140,7 +145,7 @@ const correctionToolDefinitions = (nutrientDatabase: boolean): Anthropic.Tool[] 
 		),
 		looseTool(
 			'update_food',
-			`Change a food marked canChange in get_task_entries: one you created for this meal that nothing outside this meal uses, or one you created in this correction. Pass only what changes and null for everything else. Values are per serving. Staged until reply_to_user.`,
+			`Change a food marked canChange in get_task_entries: one you created for this meal that nothing outside this meal uses, or one you created in this correction. Pass only what changes and null for everything else. Values are per serving: when you change servingSize or servingUnit, rescale every value in the same call. Staged until reply_to_user.`,
 			{
 				foodId: text('foodId of a food you created for this meal'),
 				name: nullable('string', 'Food name'),
@@ -183,11 +188,21 @@ const correctionToolDefinitions = (nutrientDatabase: boolean): Anthropic.Tool[] 
 	]);
 };
 
-const TOOLS_WITH_DATABASE = correctionToolDefinitions(true);
-const TOOLS_WITHOUT_DATABASE = correctionToolDefinitions(false);
+const TOOL_SETS = new Map<string, Anthropic.Tool[]>();
 
-export const correctionTools = (nutrientDatabase: boolean): Anthropic.Tool[] =>
-	nutrientDatabase ? TOOLS_WITH_DATABASE : TOOLS_WITHOUT_DATABASE;
+/** Built once per combination, so the cached prefix of a request never changes. */
+export const correctionTools = (
+	nutrientDatabase: boolean,
+	createFoods = true
+): Anthropic.Tool[] => {
+	const key = `${nutrientDatabase}:${createFoods}`;
+	let tools = TOOL_SETS.get(key);
+	if (!tools) {
+		tools = correctionToolDefinitions(nutrientDatabase, createFoods);
+		TOOL_SETS.set(key, tools);
+	}
+	return tools;
+};
 
 const quickNumber = optionalNumber;
 
@@ -629,22 +644,31 @@ async function stageFoodUpdate(
 	const patch: Record<string, unknown> = withoutNulls(
 		Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined))
 	);
-	for (const { nutrient, amount } of nutrients) patch[nutrient] = amount;
-	if (Object.keys(patch).length === 0) {
-		throw new ToolInputError('Nothing to change: pass at least one new value.');
+	const droppedZeros: string[] = [];
+	for (const { nutrient, amount } of nutrients) {
+		if (isUnreliableZero(nutrient, amount)) droppedZeros.push(nutrient);
+		else patch[nutrient] = amount;
 	}
+	if (Object.keys(patch).length === 0) {
+		throw new ToolInputError(
+			droppedZeros.length > 0
+				? `Nothing to change: a 0 for a vitamin or mineral means nobody entered a value, so ${droppedZeros.join(', ')} stay as they are. Pass null to clear a value.`
+				: 'Nothing to change: pass at least one new value.'
+		);
+	}
+	const dropped = droppedZeros.length > 0 ? { droppedZeros } : {};
 
 	const staged = ctx.shared.foods.get(foodId);
 	if (staged) {
 		ctx.shared.foods.set(foodId, foodCreateSchema.parse(withoutNulls({ ...staged, ...patch })));
-		return { foodId, staged: true, food: await describeFood(ctx, foodId) };
+		return { foodId, staged: true, food: await describeFood(ctx, foodId), ...dropped };
 	}
 
 	if (!ctx.taskFoods.has(foodId)) throw new ToolInputError(NOT_TASK_FOOD);
 	if (await usedOutsideTask(ctx, foodId)) throw new ToolInputError(SHARED_FOOD);
 	const parsed = foodUpdateSchema.parse(patch);
 	ctx.foodPatches.set(foodId, { ...(ctx.foodPatches.get(foodId) ?? {}), ...parsed });
-	return { foodId, staged: true, food: await describeFood(ctx, foodId) };
+	return { foodId, staged: true, food: await describeFood(ctx, foodId), ...dropped };
 }
 
 const entryPayload = (fields: EntryFields) =>

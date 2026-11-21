@@ -212,6 +212,10 @@ export type DexieUserPreferences = {
 	aiTaskProcessorKind?: string;
 	claude?: { available: boolean; remainingBudgetUsd?: number };
 	aiTaskAutoLog?: boolean;
+	aiResearchNutrients?: boolean;
+	aiWebResearch?: boolean;
+	aiRealServings?: boolean;
+	aiTaskCreateFoods?: boolean;
 	favoriteMealTimeframes: DexieFavoriteMealTimeframe[];
 };
 

@@ -89,18 +89,37 @@ function measure(tools: Anthropic.ToolUnion[]) {
 }
 
 const shapes = CLAUDE_MODELS.flatMap(({ id }) =>
-	[true, false].flatMap((database) => [
-		{ request: 'first run', model: id, database, tools: firstRunTools(id, database) },
-		{ request: 'correction', model: id, database, tools: correctionRunTools(id, database) }
-	])
+	[true, false].flatMap((database) =>
+		[true, false].flatMap((webResearch) =>
+			[true, false].flatMap((createFoods) => {
+				const options = { webResearch, createFoods };
+				return [
+					{
+						request: 'first run',
+						model: id,
+						database,
+						options,
+						tools: firstRunTools(id, database, options)
+					},
+					{
+						request: 'correction',
+						model: id,
+						database,
+						options,
+						tools: correctionRunTools(id, database, options)
+					}
+				];
+			})
+		)
+	)
 );
 
 describe('strict tool schemas stay inside the API complexity limits', () => {
-	test('there is a shape for every selectable model, both requests and both databases', () => {
-		expect(shapes.length).toBe(CLAUDE_MODELS.length * 4);
+	test('there is a shape for every selectable model, both requests and every option', () => {
+		expect(shapes.length).toBe(CLAUDE_MODELS.length * 16);
 	});
 
-	test.each(shapes)('$request, $model, nutrient database $database', ({ tools }) => {
+	test.each(shapes)('$request, $model, nutrient database $database, $options', ({ tools }) => {
 		const { strictTools, optional, unions, strict } = measure(tools);
 		expect(strictTools).toBeLessThanOrEqual(MAX_STRICT_TOOLS);
 		expect(optional).toBeLessThanOrEqual(MAX_OPTIONAL_PARAMETERS);
@@ -142,6 +161,24 @@ describe('strict tool schemas stay inside the API complexity limits', () => {
 			optional: 0,
 			unions: 4
 		});
+	});
+
+	test('without create_food a request is smaller and has no web tools when web research is off', () => {
+		const options = { webResearch: false, createFoods: false };
+		const names = (tools: Anthropic.ToolUnion[]) =>
+			tools.map((tool) => ('name' in tool ? tool.name : tool.type));
+		for (const tools of [
+			firstRunTools('claude-opus-5-5', true, options),
+			correctionRunTools('claude-opus-5-5', true, options)
+		]) {
+			expect(names(tools)).not.toContain('create_food');
+			expect(names(tools)).not.toContain('web_search');
+			expect(names(tools)).not.toContain('web_fetch');
+		}
+		expect(measure(firstRunTools('claude-opus-5-5', true, options)).unions).toBeLessThan(15);
+		expect(names(firstRunTools('claude-opus-5-5', true))).toEqual(
+			expect.arrayContaining(['web_search', 'web_fetch', 'create_food'])
+		);
 	});
 
 	test('counts nested and type-array unions and optional parameters', () => {

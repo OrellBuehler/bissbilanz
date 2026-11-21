@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/sveltekit';
 import { z } from 'zod';
-import { extractAllNutrients } from '$lib/server/nutrient-extract';
+import { dropPlaceholderZeros, extractAllNutrients } from '$lib/server/nutrient-extract';
 import { ALL_NUTRIENTS, type NutrientDef } from '$lib/nutrients';
 
 const OFF_API_BASE = 'https://world.openfoodfacts.org/api/v2/product';
@@ -18,6 +18,8 @@ const OFF_FIELDS = [
 	'ingredients_text',
 	'image_front_url',
 	'categories_tags',
+	'quantity',
+	'serving_size',
 	'nutriments'
 ].join(',');
 
@@ -49,6 +51,8 @@ const offProductSchema = z.object({
 	ingredients_text: cleanText(10000).nullable().catch(null),
 	image_front_url: z.string().url().max(2000).nullable().catch(null),
 	categories_tags: lenientTags(200),
+	quantity: cleanText(100).nullable().catch(null),
+	serving_size: cleanText(100).nullable().catch(null),
 	nutriments: z
 		.record(z.string(), z.unknown())
 		.catch({})
@@ -92,6 +96,10 @@ export type OFFProduct = {
 	imageUrl: string | null;
 	/** Raw OFF `categories_tags`; the server derives labels from them on create. */
 	categoriesTags: string[];
+	/** Net content as printed on the pack, e.g. "330 ml". */
+	quantity?: string | null;
+	/** Serving as printed on the pack, e.g. "1 can (330 ml)". */
+	servingDescription?: string | null;
 	barcode: string;
 	[key: string]: unknown;
 };
@@ -130,13 +138,19 @@ function mapSearchProduct(
 		ingredientsText: p.ingredients_text ?? null,
 		imageUrl: p.image_front_url ?? null,
 		categoriesTags: p.categories_tags,
+		quantity: p.quantity?.trim() || null,
+		servingDescription: p.serving_size?.trim() || null,
 		barcode
 	};
 
 	const extended = extractAllNutrients(n);
-	for (const nutrient of ALL_NUTRIENTS) {
-		result[nutrient.key] = saneAmount(extended[nutrient.key], MAX_PER_100G[nutrient.unit]);
-	}
+	const sane = Object.fromEntries(
+		ALL_NUTRIENTS.map((nutrient) => [
+			nutrient.key,
+			saneAmount(extended[nutrient.key], MAX_PER_100G[nutrient.unit])
+		])
+	);
+	Object.assign(result, dropPlaceholderZeros(sane));
 
 	return result;
 }

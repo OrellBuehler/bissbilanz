@@ -52,6 +52,10 @@ import kotlinx.serialization.encoding.*
  * @param activityCreditPercent
  * @param aiTaskProcessor
  * @param aiTaskAutoLog
+ * @param aiResearchNutrients
+ * @param aiWebResearch
+ * @param aiRealServings
+ * @param aiTaskCreateFoods
  * @param timeZone
  */
 @Serializable
@@ -85,6 +89,10 @@ data class PreferencesUpdate(
     @SerialName(value = "activityCreditPercent") val activityCreditPercent: kotlin.Int? = null,
     @SerialName(value = "aiTaskProcessor") val aiTaskProcessor: PreferencesUpdate.AiTaskProcessor? = null,
     @SerialName(value = "aiTaskAutoLog") val aiTaskAutoLog: kotlin.Boolean? = null,
+    @SerialName(value = "aiResearchNutrients") val aiResearchNutrients: kotlin.Boolean? = null,
+    @SerialName(value = "aiWebResearch") val aiWebResearch: kotlin.Boolean? = null,
+    @SerialName(value = "aiRealServings") val aiRealServings: kotlin.Boolean? = null,
+    @SerialName(value = "aiTaskCreateFoods") val aiTaskCreateFoods: kotlin.Boolean? = null,
     @SerialName(value = "timeZone") val timeZone: kotlin.String? = null,
 ) {
     /**

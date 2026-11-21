@@ -11,7 +11,7 @@ import { maxCallCostUsd } from './pricing';
 import { getClaudeEnabled } from './settings';
 import { effectiveUserBudgetUsd, getMonthSpend } from './usage';
 
-export const FIRST_CALL_INPUT_TOKENS = 21_000;
+export const FIRST_CALL_INPUT_TOKENS = 24_000;
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 

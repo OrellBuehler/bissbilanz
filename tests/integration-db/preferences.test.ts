@@ -74,3 +74,50 @@ describe('preferences aiTaskProcessor / aiTaskAutoLog (integration)', () => {
 		expect(result.success).toBe(false);
 	});
 });
+
+describe('preferences assistant options (integration)', () => {
+	it('turns every option on once the row exists, and for a user without a row', async () => {
+		const { updatePreferences, getPreferences } = await import('$lib/server/preferences');
+		const { loadAssistantOptions } = await import('$lib/server/claude/assistant-options');
+		const on = {
+			researchNutrients: true,
+			webResearch: true,
+			realServings: true,
+			createFoods: true
+		};
+		expect(await loadAssistantOptions(userId)).toEqual(on);
+
+		await updatePreferences(userId, { showChartWidget: true });
+		const prefs = await getPreferences(userId);
+		expect(prefs).toMatchObject({
+			aiResearchNutrients: true,
+			aiWebResearch: true,
+			aiRealServings: true,
+			aiTaskCreateFoods: true
+		});
+		expect(await loadAssistantOptions(userId)).toEqual(on);
+	});
+
+	it('stores each option on its own and leaves the others alone', async () => {
+		const { updatePreferences, getPreferences } = await import('$lib/server/preferences');
+		const { loadAssistantOptions } = await import('$lib/server/claude/assistant-options');
+
+		const result = await updatePreferences(userId, { aiWebResearch: false });
+		expect(result.success).toBe(true);
+		expect(await loadAssistantOptions(userId)).toEqual({
+			researchNutrients: true,
+			webResearch: false,
+			realServings: true,
+			createFoods: true
+		});
+
+		await updatePreferences(userId, { aiResearchNutrients: false, aiTaskCreateFoods: false });
+		expect(await loadAssistantOptions(userId)).toEqual({
+			researchNutrients: false,
+			webResearch: false,
+			realServings: true,
+			createFoods: false
+		});
+		expect((await getPreferences(userId))?.aiRealServings).toBe(true);
+	});
+});

@@ -53,6 +53,10 @@ async function refresh() {
 				aiTaskProcessorKind: p.aiTaskProcessorKind ?? p.aiTaskProcessor,
 				claude: data.claude ?? { available: false },
 				aiTaskAutoLog: p.aiTaskAutoLog,
+				aiResearchNutrients: p.aiResearchNutrients,
+				aiWebResearch: p.aiWebResearch,
+				aiRealServings: p.aiRealServings,
+				aiTaskCreateFoods: p.aiTaskCreateFoods,
 				favoriteMealTimeframes: (p.favoriteMealTimeframes ?? []).map((t) => ({
 					id: t.id,
 					userId: 'me',

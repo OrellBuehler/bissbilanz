@@ -9614,6 +9614,18 @@
 					"aiTaskAutoLog": {
 						"type": "boolean"
 					},
+					"aiResearchNutrients": {
+						"type": "boolean"
+					},
+					"aiWebResearch": {
+						"type": "boolean"
+					},
+					"aiRealServings": {
+						"type": "boolean"
+					},
+					"aiTaskCreateFoods": {
+						"type": "boolean"
+					},
 					"timeZone": {
 						"type": "string",
 						"maxLength": 64
@@ -14010,6 +14022,18 @@
 					"aiTaskAutoLog": {
 						"type": "boolean"
 					},
+					"aiResearchNutrients": {
+						"type": "boolean"
+					},
+					"aiWebResearch": {
+						"type": "boolean"
+					},
+					"aiRealServings": {
+						"type": "boolean"
+					},
+					"aiTaskCreateFoods": {
+						"type": "boolean"
+					},
 					"locale": {
 						"type": ["string", "null"]
 					},
@@ -16201,6 +16225,14 @@
 						"items": {
 							"type": "string"
 						}
+					},
+					"quantity": {
+						"description": "Net content as printed on the pack, e.g. \"330 ml\".",
+						"type": ["string", "null"]
+					},
+					"servingDescription": {
+						"description": "Serving as printed on the pack, e.g. \"1 can (330 ml)\".",
+						"type": ["string", "null"]
 					}
 				},
 				"required": [

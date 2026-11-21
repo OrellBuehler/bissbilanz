@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
 	heartbeat: vi.fn(),
 	loadCorrectionState: vi.fn(),
 	runTool: vi.fn(),
+	correctionTools: vi.fn(),
 	callClaude: vi.fn(),
 	assertClaudeGates: vi.fn(),
 	getAiTask: vi.fn(),
@@ -45,7 +46,7 @@ vi.mock('$lib/server/claude/tasks/correction-tools', () => ({
 	ENTRY_TOOLS: new Set(['update_entry', 'delete_entry', 'log_food']),
 	MAX_ENTRY_CHANGES_PER_CORRECTION: 30,
 	CorrectionTaskChangedError: TaskChanged,
-	correctionTools: () => [{ name: 'reply_to_user' }],
+	correctionTools: h.correctionTools,
 	exceedsFoodCap: (tools: { stagedFoods: Set<string> }, _input: unknown, max: number) =>
 		tools.stagedFoods.size >= max,
 	isCorrectionTerminal: (name: string) => name === 'reply_to_user',
@@ -124,7 +125,7 @@ const options = () => ({ signal: new AbortController().signal, instanceId: 'inst
 beforeEach(() => {
 	reset();
 	for (const fn of Object.values(h)) if (typeof fn === 'function') fn.mockReset();
-	queueResults([[{ locale: 'de' }], [{ model: null }], THREAD]);
+	queueResults([[{ locale: 'de' }], [{ model: null }], [], THREAD]);
 	h.claimCorrection.mockResolvedValue(correction());
 	h.heartbeat.mockResolvedValue(true);
 	h.getAiTask.mockResolvedValue(task());
@@ -132,6 +133,7 @@ beforeEach(() => {
 	h.getUserTimeZone.mockResolvedValue('Europe/Zurich');
 	h.loadTaskPhotos.mockResolvedValue(['PHOTO']);
 	h.assertClaudeGates.mockResolvedValue(undefined);
+	h.correctionTools.mockReturnValue([{ name: 'reply_to_user' }]);
 	h.runTool.mockResolvedValue({ content: '{"success":true}', isError: false, done: true });
 	h.callClaude.mockResolvedValue(response('tool_use', [toolUse('reply_to_user')]));
 });
@@ -172,6 +174,41 @@ describe('processCorrection', () => {
 		expect(tools.shared).toMatchObject({ mode: 'review', timeZone: 'Europe/Zurich', fence });
 		expect(h.runTool).toHaveBeenCalledWith('reply_to_user', {}, tools);
 		expect(h.failCorrection).not.toHaveBeenCalled();
+		expect(h.correctionTools).toHaveBeenCalledWith(false, true);
+		expect(tools.shared.assistant).toEqual({
+			researchNutrients: true,
+			webResearch: true,
+			realServings: true,
+			createFoods: true
+		});
+	});
+
+	test("follows the user's assistant options in the tools and the prompt", async () => {
+		h.config.maxWebSearches = 3;
+		h.config.maxWebFetches = 3;
+		queueResults([
+			[{ locale: 'de' }],
+			[{ model: null }],
+			[
+				{
+					researchNutrients: false,
+					webResearch: false,
+					realServings: false,
+					createFoods: false
+				}
+			],
+			THREAD
+		]);
+		await processCorrection(TASK_ID, options());
+		const [call] = h.callClaude.mock.calls[0]!;
+		expect(h.correctionTools).toHaveBeenCalledWith(false, false);
+		expect(call.params.tools.map((tool: { name: string }) => tool.name)).toEqual(['reply_to_user']);
+		const system = call.params.system[0].text as string;
+		expect(system).toContain('creating foods is switched off');
+		expect(system).toContain('servingSize 100');
+		expect(system).toContain('turned micronutrient research off');
+		h.config.maxWebSearches = 0;
+		h.config.maxWebFetches = 0;
 	});
 
 	test('gives up without calling the API once failures are exhausted', async () => {
@@ -193,7 +230,7 @@ describe('processCorrection', () => {
 		],
 		[
 			'the message is gone',
-			() => queueResults([[{ locale: 'de' }], [{ model: null }], THREAD.slice(0, 1)])
+			() => queueResults([[{ locale: 'de' }], [{ model: null }], [], THREAD.slice(0, 1)])
 		]
 	])('fails as task_changed when %s', async (_label, arrange) => {
 		arrange();
@@ -268,7 +305,7 @@ describe('processCorrection', () => {
 		await processCorrection(TASK_ID, options());
 		expect(h.failCorrection).toHaveBeenCalledWith(ctxOf(), 'no_access');
 
-		queueResults([[{ locale: 'de' }], [{ model: null }], THREAD]);
+		queueResults([[{ locale: 'de' }], [{ model: null }], [], THREAD]);
 		h.assertClaudeGates
 			.mockResolvedValueOnce(undefined)
 			.mockRejectedValueOnce(new Error('db down'));
@@ -282,7 +319,7 @@ describe('processCorrection', () => {
 		await processCorrection(TASK_ID, options());
 		expect(h.retryOrFailCorrection).toHaveBeenCalledWith(ctxOf(), 0, 'server 529');
 
-		queueResults([[{ locale: 'de' }], [{ model: null }], THREAD]);
+		queueResults([[{ locale: 'de' }], [{ model: null }], [], THREAD]);
 		h.callClaude.mockRejectedValue(
 			new errors.ClaudeApiError({ kind: 'invalid_request', status: 400, retryable: false })
 		);
@@ -305,12 +342,12 @@ describe('processCorrection', () => {
 		await processCorrection(TASK_ID, options());
 		expect(h.failCorrection).not.toHaveBeenCalled();
 
-		queueResults([[{ locale: 'de' }], [{ model: null }], THREAD]);
+		queueResults([[{ locale: 'de' }], [{ model: null }], [], THREAD]);
 		h.callClaude.mockResolvedValue(response('refusal'));
 		h.failCorrection.mockRejectedValue(new errors.LeaseLostError());
 		await expect(processCorrection(TASK_ID, options())).resolves.toBeUndefined();
 
-		queueResults([[{ locale: 'de' }], [{ model: null }], THREAD]);
+		queueResults([[{ locale: 'de' }], [{ model: null }], [], THREAD]);
 		h.callClaude.mockRejectedValue(new errors.ClaudeGateError('disabled'));
 		h.failCorrection.mockRejectedValue(new errors.LeaseLostError());
 		await expect(processCorrection(TASK_ID, options())).resolves.toBeUndefined();

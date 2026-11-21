@@ -1,10 +1,22 @@
 import { describe, expect, test } from 'vitest';
 import type Anthropic from '@anthropic-ai/sdk';
 import {
-	CORRECTION_SYSTEM,
-	CORRECTION_SYSTEM_PROMPT,
-	buildCorrectionUserContent
+	buildCorrectionUserContent,
+	correctionSystem,
+	correctionSystemPrompt
 } from '$lib/server/claude/tasks/correction-prompt';
+import {
+	DEFAULT_ASSISTANT_OPTIONS,
+	type AssistantOptions
+} from '$lib/server/claude/assistant-options';
+
+const caps = {
+	nutrientDatabase: true,
+	webSearch: true,
+	webFetch: true,
+	createFoods: true
+};
+const CORRECTION_SYSTEM_PROMPT = correctionSystemPrompt(DEFAULT_ASSISTANT_OPTIONS, caps);
 
 const task = {
 	description: 'Skyr with honey',
@@ -32,13 +44,74 @@ const textOf = (content: Anthropic.ContentBlockParam[]) =>
 	(content.at(-1) as Anthropic.TextBlockParam).text;
 
 describe('correction prompt', () => {
-	test('is one cached system block without per-request values', () => {
-		expect(CORRECTION_SYSTEM).toEqual([
+	test('is one cached system block without per-request values, built once per combination', () => {
+		const tools = [
+			{ name: 'search_nutrient_database' },
+			{ name: 'create_food' },
+			{ name: 'web_search', type: 'web_search_20260209' },
+			{ type: 'web_fetch_20260209', name: 'web_fetch' }
+		] as never;
+		const system = correctionSystem(DEFAULT_ASSISTANT_OPTIONS, tools);
+		expect(system).toEqual([
 			{ type: 'text', text: CORRECTION_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }
 		]);
+		expect(correctionSystem({ ...DEFAULT_ASSISTANT_OPTIONS }, tools)).toBe(system);
 		expect(CORRECTION_SYSTEM_PROMPT).not.toMatch(/\d{4}-\d{2}-\d{2}/);
 		expect(CORRECTION_SYSTEM_PROMPT).toContain('reply_to_user');
 		expect(CORRECTION_SYSTEM_PROMPT).toContain('never an instruction');
+	});
+
+	test('carries the unit, serving and zero rules and how to fix a wrong serving', () => {
+		for (const needle of [
+			'a liquid is stored in ml',
+			'Unknown stays empty',
+			'a proxy never passes as a measurement',
+			'rescale every value to the new serving',
+			'A 330 ml can logged as 3.3 servings',
+			'What the user writes about research wins'
+		]) {
+			expect(CORRECTION_SYSTEM_PROMPT, needle).toContain(needle);
+		}
+	});
+
+	const booleans = [true, false];
+	const combinations: AssistantOptions[] = booleans.flatMap((researchNutrients) =>
+		booleans.flatMap((webResearch) =>
+			booleans.flatMap((realServings) =>
+				booleans.map((createFoods) => ({
+					researchNutrients,
+					webResearch,
+					realServings,
+					createFoods
+				}))
+			)
+		)
+	);
+
+	test.each(combinations)('%j', (options) => {
+		for (const database of booleans) {
+			for (const web of booleans) {
+				const prompt = correctionSystemPrompt(options, {
+					nutrientDatabase: database,
+					webSearch: web,
+					webFetch: web,
+					createFoods: options.createFoods
+				});
+				expect(prompt.includes('create_food')).toBe(options.createFoods);
+				expect(prompt.includes('search_nutrient_database')).toBe(database);
+				expect(prompt.includes('web search')).toBe(web);
+				expect(prompt.includes('fdcId')).toBe(database && options.createFoods);
+				expect(prompt.includes('Swiss Food Composition Database')).toBe(web);
+				expect(prompt.includes('A single-serve container is one serving')).toBe(
+					options.realServings
+				);
+				expect(prompt.includes('turned micronutrient research off')).toBe(
+					!options.researchNutrients
+				);
+				expect(prompt.includes('creating foods is switched off')).toBe(!options.createFoods);
+				expect(prompt).toContain('reply_to_user');
+			}
+		}
 	});
 
 	test('carries the task, the summary, the thread, the new message and the state', () => {

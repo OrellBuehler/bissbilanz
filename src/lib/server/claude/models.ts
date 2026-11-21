@@ -81,7 +81,8 @@ export function resetWebFetchForTests() {
 	webFetchAccepted = false;
 }
 
-export function taskServerTools(model: string): Anthropic.ToolUnion[] {
+export function taskServerTools(model: string, webResearch = true): Anthropic.ToolUnion[] {
+	if (!webResearch) return [];
 	const { maxWebSearches, maxWebFetches } = claudeConfig();
 	return serverTools(model, {
 		webSearches: maxWebSearches,
