@@ -131,3 +131,66 @@ describe('updateAiTask dismissed + processedBy semantics (integration)', () => {
 		).rejects.toThrow();
 	});
 });
+
+describe('AI task photos (integration)', () => {
+	const photoUrls = Array.from(
+		{ length: 10 },
+		(_, index) => `/uploads/${index}0000000-0000-4000-8000-000000000001.webp`
+	);
+
+	it('stores ten photos in order and mirrors the first as the legacy photoUrl', async () => {
+		const { createAiTask, serializeAiTask } = await import('$lib/server/ai-tasks');
+
+		const result = await createAiTask(userId, { photoUrls, date: '2026-02-10' });
+
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+		const [row] = await getTestDB(dbUrl)
+			.select()
+			.from(aiTasks)
+			.where(eq(aiTasks.id, result.data.id));
+		expect(row.photoUrls).toEqual(photoUrls);
+		expect(serializeAiTask(row)).toMatchObject({ photoUrl: photoUrls[0], photoUrls });
+	});
+
+	it('puts a legacy photoUrl first and does not repeat it', async () => {
+		const { createAiTask } = await import('$lib/server/ai-tasks');
+
+		const result = await createAiTask(userId, {
+			photoUrl: photoUrls[2],
+			photoUrls: photoUrls.slice(0, 4),
+			date: '2026-02-10'
+		});
+
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.photoUrls).toEqual([
+				photoUrls[2],
+				photoUrls[0],
+				photoUrls[1],
+				photoUrls[3]
+			]);
+		}
+	});
+
+	it('rejects an eleventh photo', async () => {
+		const { createAiTask } = await import('$lib/server/ai-tasks');
+
+		const result = await createAiTask(userId, {
+			photoUrls: [...photoUrls, '/uploads/a0000000-0000-4000-8000-000000000001.webp'],
+			date: '2026-02-10'
+		});
+
+		expect(result.success).toBe(false);
+	});
+
+	it('replaces the photos of an open task with ten', async () => {
+		const { updateAiTask } = await import('$lib/server/ai-tasks');
+		const task = await insertTask();
+
+		const result = await updateAiTask(userId, task.id, { photoUrls });
+
+		expect(result.success).toBe(true);
+		if (result.success) expect(result.data?.photoUrls).toEqual(photoUrls);
+	});
+});

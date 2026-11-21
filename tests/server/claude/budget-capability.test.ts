@@ -213,26 +213,26 @@ describe('capability', () => {
 	});
 
 	test('measures the minimum task call cost with the model of the user', async () => {
-		expect(capability.minTaskCallUsd('claude-haiku-5-5')).toBe(0.139725);
-		access([{ enabled: true, monthlyBudgetUsd: 0.14, model: 'claude-haiku-5-5' }]);
+		expect(capability.minTaskCallUsd('claude-haiku-5-5')).toBe(0.148325);
+		access([{ enabled: true, monthlyBudgetUsd: 0.15, model: 'claude-haiku-5-5' }]);
 		expect(await capability.getClaudeCapability('user-1')).toEqual({
 			available: true,
-			remainingBudgetUsd: 0.14
+			remainingBudgetUsd: 0.15
 		});
-		access([{ enabled: true, monthlyBudgetUsd: 0.14, model: null }]);
+		access([{ enabled: true, monthlyBudgetUsd: 0.15, model: null }]);
 		expect(await capability.getClaudeCapability('user-1')).toEqual({ available: false });
-		access([{ enabled: true, monthlyBudgetUsd: 0.14, model: 'claude-retired-9' }]);
+		access([{ enabled: true, monthlyBudgetUsd: 0.15, model: 'claude-retired-9' }]);
 		expect(await capability.getClaudeCapability('user-1')).toEqual({ available: false });
 	});
 
 	test('is unavailable below the minimum task call cost and never reports negative', async () => {
-		expect(capability.minTaskCallUsd('claude-opus-5-5')).toBe(1.034);
-		access([{ enabled: true, monthlyBudgetUsd: 1.03 }]);
+		expect(capability.minTaskCallUsd('claude-opus-5-5')).toBe(1.0884);
+		access([{ enabled: true, monthlyBudgetUsd: 1.08 }]);
 		expect(await capability.getClaudeCapability('user-1')).toEqual({ available: false });
-		access([{ enabled: true, monthlyBudgetUsd: 1.04 }]);
+		access([{ enabled: true, monthlyBudgetUsd: 1.09 }]);
 		expect(await capability.getClaudeCapability('user-1')).toEqual({
 			available: true,
-			remainingBudgetUsd: 1.04
+			remainingBudgetUsd: 1.09
 		});
 	});
 

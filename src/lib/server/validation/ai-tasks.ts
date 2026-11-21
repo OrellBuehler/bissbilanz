@@ -3,11 +3,11 @@ import { z } from 'zod';
 import { normalizeMealType } from '$lib/utils/meals';
 import { paginationSchema } from './pagination';
 import { aiTaskStatusValues, aiTaskProcessedByValues } from '$lib/server/schema';
+import { MAX_AI_TASK_PHOTOS } from '$lib/utils/ai-tasks';
+
+export { MAX_AI_TASK_PHOTOS };
 
 export const aiTaskSourceValues = ['web', 'ios', 'android'] as const;
-
-/** A meal can be several photos — plated dish, packaging, nutrition label. */
-export const MAX_AI_TASK_PHOTOS = 5;
 
 const aiTaskPhotoUrlSchema = z.string().regex(/^\/uploads\/[a-f0-9-]+\.webp$/);
 

@@ -139,6 +139,27 @@ describe('aiTaskCreateSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
+	test('takes ten photoUrls, the limit shared with the clients', () => {
+		expect(MAX_AI_TASK_PHOTOS).toBe(10);
+		const urls = (count: number) =>
+			Array.from({ length: count }, (_, i) => `/uploads/${i.toString(16)}.webp`);
+		expect(aiTaskCreateSchema.safeParse({ photoUrls: urls(10), date: '2026-02-10' }).success).toBe(
+			true
+		);
+		expect(aiTaskCreateSchema.safeParse({ photoUrls: urls(11), date: '2026-02-10' }).success).toBe(
+			false
+		);
+	});
+
+	test('still takes the legacy single photoUrl next to photoUrls', () => {
+		const result = aiTaskCreateSchema.safeParse({
+			photoUrl: validPhotoUrl,
+			photoUrls: [validPhotoUrl],
+			date: '2026-02-10'
+		});
+		expect(result.success).toBe(true);
+	});
+
 	test('rejects photoUrls over the photo limit', () => {
 		const result = aiTaskCreateSchema.safeParse({
 			photoUrls: Array.from({ length: MAX_AI_TASK_PHOTOS + 1 }, () => validPhotoUrl),
@@ -268,9 +289,15 @@ describe('aiTaskUpdateSchema', () => {
 		).toBe(false);
 		expect(
 			aiTaskUpdateSchema.safeParse({
-				photoUrls: Array.from({ length: 6 }, (_, i) => `/uploads/${i}.webp`)
+				photoUrls: Array.from({ length: MAX_AI_TASK_PHOTOS + 1 }, (_, i) => `/uploads/${i}.webp`)
 			}).success
 		).toBe(false);
+	});
+
+	test('takes ten photoUrls and not an eleventh', () => {
+		const urls = (count: number) => Array.from({ length: count }, (_, i) => `/uploads/${i}.webp`);
+		expect(aiTaskUpdateSchema.safeParse({ photoUrls: urls(10) }).success).toBe(true);
+		expect(aiTaskUpdateSchema.safeParse({ photoUrls: urls(11) }).success).toBe(false);
 	});
 
 	test('allows clearing mealType', () => {

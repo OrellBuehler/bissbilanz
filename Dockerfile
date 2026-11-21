@@ -67,7 +67,7 @@ ENV PORT=3000
 ENV HOST=0.0.0.0
 # adapter-bun defaults the request body cap to 512K, and Bun answers a
 # larger Content-Length with an empty 413 before any route runs. The AI task
-# photo route accepts 5 x 10MB, so anything below that silently drops meals.
+# photo route accepts 10 x 10MB, so anything below that silently drops meals.
 # Food package imports take up to 200MB, so keep the cap above that.
 ENV BODY_SIZE_LIMIT=250M
 # Bun closes a connection idle for 10s by default; a big package upload or its
