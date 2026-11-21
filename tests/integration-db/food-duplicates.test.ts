@@ -51,11 +51,35 @@ const baseFood = {
 };
 
 describe('findDuplicateGroups (integration)', () => {
-	// Note: the `barcode` reason (two foods sharing a non-null barcode) is
-	// covered by the mocked-DB unit tests in tests/server/food-duplicates.test.ts
-	// rather than here — `idx_foods_barcode` is a unique index on
-	// (userId, barcode), so two real rows with the same barcode for one user
-	// can never coexist to exercise it against a live database.
+	// Note: `idx_foods_barcode` is a unique index on (userId, barcode), so two
+	// real rows can never share the exact same barcode string. The `barcode`
+	// reason therefore only fires for different encodings of one product
+	// (UPC-A vs EAN-13), which the index does not catch.
+
+	it('groups the UPC-A and EAN-13 encodings of one product by barcode', async () => {
+		const db = getTestDB(dbUrl);
+		await db.insert(foods).values([
+			{ userId, name: 'Greek Yogurt', barcode: '036000291452', ...baseFood },
+			{ userId, name: 'Greek Yoghurt', barcode: '0036000291452', ...baseFood }
+		]);
+
+		const { findDuplicateGroups } = await import('$lib/server/food-duplicates');
+		const groups = await findDuplicateGroups(userId);
+		const barcodeGroups = groups.filter((g) => g.reason === 'barcode');
+		expect(barcodeGroups).toHaveLength(1);
+		expect(barcodeGroups[0].foods).toHaveLength(2);
+	});
+
+	it('does not group similar foods that carry different barcodes', async () => {
+		const db = getTestDB(dbUrl);
+		await db.insert(foods).values([
+			{ userId, name: 'Mate Zero', brand: 'El Tony', barcode: '7640150491254', ...baseFood },
+			{ userId, name: 'Mate Zero', brand: 'Moa', barcode: '7627538064729', ...baseFood }
+		]);
+
+		const { findDuplicateGroups } = await import('$lib/server/food-duplicates');
+		expect(await findDuplicateGroups(userId)).toEqual([]);
+	});
 
 	it('groups foods by name+brand, case/whitespace/diacritics-insensitively', async () => {
 		const db = getTestDB(dbUrl);

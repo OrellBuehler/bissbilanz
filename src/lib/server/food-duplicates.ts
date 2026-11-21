@@ -2,6 +2,7 @@ import { getDB } from '$lib/server/db';
 import { foods } from '$lib/server/schema';
 import { and, eq } from 'drizzle-orm';
 import { unitDimension, unitConversionFactor, type ServingUnit } from '$lib/units';
+import { productBarcode } from '$lib/utils/barcode';
 
 /**
  * Narrow projection returned for duplicate detection. We only need the fields
@@ -33,7 +34,7 @@ export type DuplicateReason = 'barcode' | 'name_brand' | 'similar';
 
 export type DuplicateGroup = {
 	reason: DuplicateReason;
-	/** Stable key per group: barcode value, normalized "name|brand", or sorted food ids */
+	/** Stable key per group: canonical barcode, normalized "name|brand", or sorted food ids */
 	key: string;
 	foods: DuplicateFood[];
 };
@@ -115,6 +116,23 @@ function barcodeGroupNamesAreSimilar(groupFoods: DuplicateFood[]): boolean {
 		if (!hasSimilarPeer) return false;
 	}
 	return true;
+}
+
+/**
+ * Split a set of foods that already agree on name and brand into one set per
+ * distinct product barcode, each also holding the foods without one. A food
+ * with no barcode is a candidate for every barcode it could belong to.
+ */
+function splitByBarcode(
+	items: DuplicateFood[]
+): { barcode: string | null; foods: DuplicateFood[] }[] {
+	const barcodes = items.map((food) => productBarcode(food.barcode));
+	const distinct = [...new Set(barcodes.filter((barcode) => barcode !== null))];
+	if (distinct.length <= 1) return [{ barcode: distinct[0] ?? null, foods: items }];
+	return distinct.map((barcode) => ({
+		barcode,
+		foods: items.filter((_, i) => barcodes[i] === barcode || barcodes[i] === null)
+	}));
 }
 
 // --- Strategy 3: near-identical name + near-identical macros per serving ---
@@ -217,34 +235,77 @@ const cellKey = (dimension: number, c: number, p: number, h: number, f: number):
 /** Wall-clock limit for the pairwise scan; groups found so far are returned when it runs out. */
 export const SIMILAR_SCAN_BUDGET_MS = 5000;
 
-/** Minimal union-find so mutually-similar foods cluster into one group. */
+/**
+ * Brands are free text ("Migros", "Migros, M-Classic", "Müllermilch" for "Müller"), so two
+ * brands only conflict when neither contains the other and they are not near-identical spellings.
+ */
+function brandsCompatible(a: string, b: string): boolean {
+	if (a === b || a.includes(b) || b.includes(a)) return true;
+	return 1 - levenshtein(a, b) / Math.max(a.length, b.length) >= SIMILAR_NAME_THRESHOLD;
+}
+
+type Component = { barcode: string | null; brands: string[] };
+
+/**
+ * Minimal union-find so mutually-similar foods cluster into one group. A union is refused when the
+ * merged cluster would hold two different product barcodes or two incompatible brands, so a food
+ * without a barcode or brand can never bridge foods that are known to differ.
+ */
 class DisjointSet {
 	private parent = new Map<string, string>();
+	private components = new Map<string, Component>();
+	private compatible = new Map<string, boolean>();
+
+	add(id: string, component: Component): void {
+		this.parent.set(id, id);
+		this.components.set(id, component);
+	}
 
 	find(id: string): string {
 		const p = this.parent.get(id);
-		if (p === undefined) {
-			this.parent.set(id, id);
-			return id;
-		}
-		if (p === id) return id;
+		if (p === undefined || p === id) return id;
 		const root = this.find(p);
 		this.parent.set(id, root);
 		return root;
 	}
 
+	private brandsMatch(a: string, b: string): boolean {
+		const key = a < b ? `${a}\u0000${b}` : `${b}\u0000${a}`;
+		let result = this.compatible.get(key);
+		if (result === undefined) {
+			result = brandsCompatible(a, b);
+			this.compatible.set(key, result);
+		}
+		return result;
+	}
+
 	union(a: string, b: string): void {
 		const ra = this.find(a);
 		const rb = this.find(b);
-		if (ra !== rb) this.parent.set(ra, rb);
+		if (ra === rb) return;
+		const ca = this.components.get(ra)!;
+		const cb = this.components.get(rb)!;
+		if (ca.barcode !== null && cb.barcode !== null && ca.barcode !== cb.barcode) return;
+		for (const x of ca.brands) {
+			for (const y of cb.brands) {
+				if (!this.brandsMatch(x, y)) return;
+			}
+		}
+		this.parent.set(ra, rb);
+		this.components.delete(ra);
+		this.components.set(rb, {
+			barcode: cb.barcode ?? ca.barcode,
+			brands: [...new Set([...ca.brands, ...cb.brands])]
+		});
 	}
 }
 
 /**
  * Cluster foods whose (normalized) names and per-serving macros are both
- * near-identical. Deterministic: same input always produces the same
- * clusters, in insertion order. Exported standalone (independent of the DB)
- * so it's directly unit-testable.
+ * near-identical. A cluster never holds two different product barcodes or
+ * two incompatible brands (see `DisjointSet`). Deterministic: same input
+ * always produces the same clusters, in insertion order. Exported standalone
+ * (independent of the DB) so it's directly unit-testable.
  */
 export function groupBySimilarNameAndMacros(
 	rows: MacroRow[],
@@ -256,6 +317,10 @@ export function groupBySimilarNameAndMacros(
 		normalizedNames[index] === '' ? null : perBaseUnitMacros(r)
 	);
 	const dsu = new DisjointSet();
+	for (const row of rows) {
+		const brand = normalize(row.brand);
+		dsu.add(row.id, { barcode: productBarcode(row.barcode), brands: brand ? [brand] : [] });
+	}
 
 	const cells = new Map<number, number[]>();
 	const coordsOf: (number[] | undefined)[] = new Array(rows.length);
@@ -334,13 +399,18 @@ export function groupBySimilarNameAndMacros(
  *
  * Three detection strategies, returned as separate groups so the UI can label
  * the reason:
- *   1. `barcode`     — foods sharing the same non-null barcode AND with
- *                      mutually similar names (guards against scan typos)
+ *   1. `barcode`     — foods sharing the same product barcode (equivalent
+ *                      UPC-A/EAN-13/GTIN-14 encodings count as the same) AND
+ *                      with mutually similar names (guards against scan typos)
  *   2. `name_brand`  — foods whose normalized (name, brand) tuple matches
  *                      exactly across rows (case/whitespace/diacritics-insensitive)
  *   3. `similar`     — foods with near-identical names AND near-identical
  *                      macros per serving, catching duplicates that share
  *                      neither a barcode nor an exact name/brand match
+ *
+ * Two foods that both carry a product barcode are never grouped unless the
+ * barcodes are equal. Foods without a barcode, or with an in-store code (see
+ * `productBarcode`), are compared on name, brand and macros only.
  *
  * A single food may appear in multiple groups; the UI handles that gracefully
  * by listing each group as its own actionable card.
@@ -367,8 +437,8 @@ export async function findDuplicateGroups(userId: string): Promise<DuplicateGrou
 	const byNameBrand = new Map<string, DuplicateFood[]>();
 
 	for (const food of all) {
-		if (food.barcode) {
-			const key = food.barcode;
+		const key = productBarcode(food.barcode);
+		if (key) {
 			const list = byBarcode.get(key) ?? [];
 			list.push(toPublic(food));
 			byBarcode.set(key, list);
@@ -395,11 +465,15 @@ export async function findDuplicateGroups(userId: string): Promise<DuplicateGrou
 
 	for (const [key, items] of byNameBrand) {
 		if (items.length < 2) continue;
-		groups.push({
-			reason: 'name_brand',
-			key,
-			foods: items
-		});
+		const parts = splitByBarcode(items);
+		for (const part of parts) {
+			if (part.foods.length < 2) continue;
+			groups.push({
+				reason: 'name_brand',
+				key: parts.length > 1 ? `${key}|${part.barcode}` : key,
+				foods: part.foods
+			});
+		}
 	}
 
 	groups.push(...groupBySimilarNameAndMacros(all));

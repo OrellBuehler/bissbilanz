@@ -708,7 +708,7 @@ export function createMcpServer(userId: string): McpServer {
 		{
 			title: 'Find Duplicate Foods',
 			description:
-				"Scan the user's food database for likely duplicates: foods sharing a barcode, foods with the exact same name and brand, and foods with a very similar name and near-identical macros per serving. Returns groups of candidate foods to review and merge with merge_foods.",
+				"Scan the user's food database for likely duplicates: foods sharing a barcode (UPC-A and EAN-13 encodings of one code count as the same), foods with the exact same name and brand, and foods with a very similar name and near-identical macros per serving. Foods that both have a different product barcode are never grouped, and similar-macro matches skip foods whose brands clearly differ. Returns groups of candidate foods to review and merge with merge_foods.",
 			inputSchema: {},
 			annotations: READ_ONLY
 		},
