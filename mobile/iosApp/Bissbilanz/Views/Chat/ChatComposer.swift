@@ -198,6 +198,7 @@ struct ChatComposer: View {
                             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                             .accessibilityLabel(L10n.chatPhoto(index + 1))
                         Button {
+                            guard images.indices.contains(index) else { return }
                             images.remove(at: index)
                         } label: {
                             Image(systemName: "xmark.circle.fill")
