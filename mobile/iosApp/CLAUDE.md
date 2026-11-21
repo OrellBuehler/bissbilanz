@@ -27,6 +27,7 @@ The job's first step checks each profile against its target's entitlements, so t
 
 - Swift formatting enforced by swiftformat (macOS only)
 - iOS's hand-written Swift `Codable` models are checked against `docs/openapi.json` in CI: `bun run api:fixtures:ios` (chained into `bun run api:generate`, and diffed for staleness by `bun run api:check`) generates minimal/full example payloads per response schema under `mobile/iosApp/BissbilanzTests/Fixtures/API/`, and `mobile/iosApp/BissbilanzTests/APIContractDecodingTests.swift` decodes each one with the same `JSONDecoder` `BissbilanzAPI` uses. After changing an API route or validation schema, run `bun run api:generate` and, if you touched a decoded response shape, update the matching Swift model and the schema → Swift type table in that test file.
+- SwiftUI bodies stay small: one `View` struct per section of a long screen, not one long `body` or a pile of private `some View` properties (those fold back into the same concrete type). `SettingsView` was a single 446-line body; building its generic type on the first open of the Settings tab recursed past the 1 MB main-thread stack (TestFlight 1.61.0, `swift_getTypeByMangledName` frames above `SettingsView.body`), and it now lives in `Views/Settings/`. The next largest bodies are under 200 lines.
 
 ## Swift 6 concurrency rules
 
