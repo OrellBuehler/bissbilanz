@@ -255,6 +255,8 @@
     <string name="ai_task_photo_camera">Kamera</string>
     <string name="ai_task_photo_gallery">Galerie</string>
     <string name="ai_task_photo_hint">Bis zu %1$d Fotos – das Gericht, die Verpackung, eine Nährwerttabelle.</string>
+    <string name="ai_task_photo_count">%1$d von %2$d Fotos</string>
+    <string name="ai_task_photo_limit_reached">%1$d Fotos sind das Maximum. Entferne eines, um ein anderes hinzuzufügen.</string>
     <string name="ai_task_content_desc">Mahlzeit an den Assistenten senden</string>
     <string name="ai_task_camera_permission_required">Kameraberechtigung erforderlich, um ein Foto aufzunehmen</string>
     <string name="ai_task_edit_title">KI-Aufgabe bearbeiten</string>

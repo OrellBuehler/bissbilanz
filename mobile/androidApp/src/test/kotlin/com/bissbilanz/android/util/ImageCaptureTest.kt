@@ -16,6 +16,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -64,6 +65,34 @@ class ImageCaptureTest {
         assertNotNull(bitmap)
         assertEquals(1250, bitmap.width)
         assertEquals(750, bitmap.height)
+    }
+
+    @Test
+    fun `downscaled shrinks the longest side to the cap and keeps the aspect ratio`() {
+        val bitmap = Bitmap.createBitmap(3000, 2000, Bitmap.Config.ARGB_8888)
+
+        val shrunk = bitmap.downscaled(AI_TASK_PHOTO_MAX_DIMENSION)
+
+        assertEquals(1024, shrunk.width)
+        assertEquals(682, shrunk.height)
+    }
+
+    @Test
+    fun `downscaled leaves a photo that already fits as it is`() {
+        val bitmap = Bitmap.createBitmap(400, 300, Bitmap.Config.ARGB_8888)
+
+        assertSame(bitmap, bitmap.downscaled(AI_TASK_PHOTO_MAX_DIMENSION))
+    }
+
+    @Test
+    fun `an AI task photo is encoded at the size it was shrunk to`() {
+        val shrunk = Bitmap.createBitmap(3000, 2000, Bitmap.Config.ARGB_8888).downscaled(AI_TASK_PHOTO_MAX_DIMENSION)
+
+        val bytes = shrunk.toJpegBytes()
+
+        val decoded = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        assertEquals(1024, decoded.width)
+        assertEquals(682, decoded.height)
     }
 
     @Test

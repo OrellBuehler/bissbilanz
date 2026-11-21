@@ -23,6 +23,11 @@ class AiTaskProcessingTest {
     )
 
     @Test
+    fun aTaskTakesTenPhotosLikeTheServer() {
+        assertEquals(10, MAX_AI_TASK_PHOTOS)
+    }
+
+    @Test
     fun theKindWinsOverTheLegacyProcessor() {
         val prefs = TestFixtures.preferences(Preferences.AiTaskProcessor.assistant, processorKind = "claude")
 

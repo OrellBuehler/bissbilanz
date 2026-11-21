@@ -13,6 +13,9 @@ import java.io.IOException
 
 const val MAX_IMAGE_DIMENSION = 2048
 
+/** What the server keeps of an AI task photo (it downsizes to 1024px). */
+const val AI_TASK_PHOTO_MAX_DIMENSION = 1024
+
 /**
  * A captured or picked photo that could not be read back. Deliberately not an
  * [IOException] and carries no IOException cause: the error reporter drops both as
@@ -135,19 +138,24 @@ fun Bitmap.toUploadBytes(
         EncodedImage(toJpegBytes(maxDimension, quality), ImageFormat.Jpeg)
     }
 
+/**
+ * [this] scaled so its longest side is at most [maxDimension], or [this] itself when it already
+ * fits. Ten decoded camera photos at the decode cap would hold over 100 MB, so an AI task's
+ * photos are shrunk to what the server keeps as soon as they are attached.
+ */
+fun Bitmap.downscaled(maxDimension: Int): Bitmap {
+    val longest = maxOf(width, height)
+    if (longest <= maxDimension) return this
+    val ratio = maxDimension.toFloat() / longest
+    return Bitmap.createScaledBitmap(this, (width * ratio).toInt(), (height * ratio).toInt(), true)
+}
+
 private fun Bitmap.encode(
     format: Bitmap.CompressFormat,
     maxDimension: Int,
     quality: Int,
 ): ByteArray {
-    val longest = maxOf(width, height)
-    val scaled =
-        if (longest > maxDimension) {
-            val ratio = maxDimension.toFloat() / longest
-            Bitmap.createScaledBitmap(this, (width * ratio).toInt(), (height * ratio).toInt(), true)
-        } else {
-            this
-        }
+    val scaled = downscaled(maxDimension)
     return ByteArrayOutputStream().use { out ->
         scaled.compress(format, quality, out)
         out.toByteArray()

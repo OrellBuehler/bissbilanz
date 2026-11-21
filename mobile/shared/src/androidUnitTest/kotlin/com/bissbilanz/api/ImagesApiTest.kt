@@ -85,6 +85,24 @@ class ImagesApiTest {
         }
 
     @Test
+    fun `uploads ten AI task photos as repeated photo parts and returns the urls in order`() =
+        runBlocking {
+            var text = ""
+            val urls = List(10) { "/uploads/$it.webp" }
+            val api =
+                apiResponding(
+                    HttpStatusCode.Created,
+                    """{"photoUrl":"${urls.first()}","photoUrls":[${urls.joinToString(",") { "\"$it\"" }}]}""",
+                ) { request -> text = request.bodyText() }
+
+            val result = api.uploadAiTaskPhotos(List(10) { "meal_$it.jpg" to byteArrayOf(it.toByte()) })
+
+            assertEquals(urls, result)
+            repeat(10) { assertTrue("""filename="meal_$it.jpg"""" in text, "part $it") }
+            assertEquals(10, Regex("""name="photo"""").findAll(text).count())
+        }
+
+    @Test
     fun `a rejected upload carries the http status`() =
         runBlocking {
             val api = apiResponding(HttpStatusCode.BadRequest, """{"error":"Missing image file"}""")
