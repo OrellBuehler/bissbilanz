@@ -35,6 +35,7 @@ import {
 	ACTION_TTL_MS,
 	CHAT_MAX_TOKENS,
 	HEARTBEAT_INTERVAL_MS,
+	MAX_RETRY_AFTER_MS,
 	MAX_TOOL_CALLS_PER_RESPONSE,
 	MAX_UNCONFIRMED_WRITES_PER_RUN,
 	RETRY_DELAYS_MS,
@@ -854,7 +855,8 @@ async function callWithRetries(
 			}
 			const delay = RETRY_DELAYS_MS[retries++];
 			if (!isRetryable(error, progress) || delay === undefined) throw error;
-			await ctx.sleep(delay, ctx.signal);
+			const asked = error instanceof ClaudeApiError ? (error.retryAfterMs ?? 0) : 0;
+			await ctx.sleep(Math.max(delay, Math.min(asked, MAX_RETRY_AFTER_MS)), ctx.signal);
 			await regate(ctx);
 			continue;
 		}

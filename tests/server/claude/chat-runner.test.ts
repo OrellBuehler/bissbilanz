@@ -2756,6 +2756,20 @@ describe('model call retries', () => {
 		expect(finalized()).toEqual([completed]);
 	});
 
+	test.each([
+		[500, 1_000],
+		[9_000, 9_000],
+		[600_000, 30_000]
+	])('a retry-after of %s ms waits %s ms', async (retryAfterMs, waited) => {
+		script(
+			new ClaudeApiError({ kind: 'rate_limited', status: 429, retryable: true, retryAfterMs }),
+			message([text('Back again')])
+		);
+		await go();
+		expect(sleep.mock.calls.map(([ms]) => ms)).toEqual([waited]);
+		expect(finalized()).toEqual([completed]);
+	});
+
 	test('never retries an error that is not a Claude API error', async () => {
 		script(new Error('boom'), message([text('Never asked')]));
 		await go();

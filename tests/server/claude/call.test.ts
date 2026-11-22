@@ -11,6 +11,7 @@ const config = {
 
 const sentry = vi.hoisted(() => ({
 	captureException: vi.fn(),
+	captureMessage: vi.fn(),
 	addBreadcrumb: vi.fn(),
 	logger: { info: vi.fn(), warn: vi.fn() }
 }));
@@ -54,7 +55,12 @@ beforeEach(() => {
 	config.apiKey = KEY;
 	budget.reserveCall.mockReset().mockResolvedValue('usage-1');
 	budget.settleCall.mockReset().mockResolvedValue(undefined);
-	for (const fn of [sentry.captureException, sentry.addBreadcrumb, sentry.logger.info])
+	for (const fn of [
+		sentry.captureException,
+		sentry.captureMessage,
+		sentry.addBreadcrumb,
+		sentry.logger.info
+	])
 		fn.mockReset();
 });
 
@@ -216,6 +222,32 @@ describe('mapSdkError', () => {
 	});
 });
 
+describe('retryAfterMs', () => {
+	test.each([
+		[{ 'retry-after': '12' }, 12_000],
+		[{ 'retry-after-ms': '250', 'retry-after': '12' }, 250],
+		[{ 'retry-after': new Date(61_000).toUTCString() }, 60_000],
+		[{ 'retry-after': 'soon' }, undefined],
+		[{}, undefined]
+	])('%j is %s', async (headers, expected) => {
+		const { retryAfterMs } = await load();
+		expect(retryAfterMs(new Headers(headers as Record<string, string>), 1_000)).toBe(expected);
+	});
+
+	test('is carried by retryable errors only', async () => {
+		const { mapSdkError } = await load();
+		const headers = new Headers({ 'retry-after': '7' });
+		const apiError = (Class: unknown, status: number) =>
+			new (Class as new (...args: unknown[]) => Error)(status, {}, 'x', headers);
+		expect(mapSdkError(apiError(Anthropic.RateLimitError, 429))).toMatchObject({
+			retryAfterMs: 7_000
+		});
+		expect(mapSdkError(apiError(Anthropic.BadRequestError, 400))).toMatchObject({
+			retryAfterMs: undefined
+		});
+	});
+});
+
 describe('settlementFor', () => {
 	const rate = (status: number) =>
 		new Anthropic.RateLimitError(
@@ -324,6 +356,36 @@ describe('callClaude against the SDK boundary', () => {
 			'Claude call finished',
 			expect.objectContaining({ model: 'claude-haiku-5-5', requestedModel: 'claude-haiku-5-5' })
 		);
+	});
+
+	test('reports a refusal with its category and nothing of the request', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () =>
+				Response.json(
+					message({
+						stop_reason: 'refusal',
+						stop_details: { type: 'refusal', category: 'bio', explanation: 'secret' }
+					})
+				)
+			)
+		);
+		const mod = await load(true);
+		await call(mod);
+		expect(sentry.captureMessage).toHaveBeenCalledWith('Claude refused a request', {
+			level: 'warning',
+			tags: { model: 'claude-opus-5-5', feature: 'ai_task', category: 'bio' }
+		});
+	});
+
+	test('reports nothing for an answered request', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => Response.json(message()))
+		);
+		const mod = await load(true);
+		await call(mod);
+		expect(sentry.captureMessage).not.toHaveBeenCalled();
 	});
 
 	test('names the requested model on failures', async () => {

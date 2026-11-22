@@ -164,6 +164,18 @@ function errorTopic(
 	return undefined;
 }
 
+// retry-after-ms (milliseconds) wins over retry-after (seconds or an HTTP date).
+export function retryAfterMs(headers: Headers | undefined, now = Date.now()): number | undefined {
+	const ms = Number(headers?.get('retry-after-ms') ?? NaN);
+	if (Number.isFinite(ms) && ms >= 0) return ms;
+	const value = headers?.get('retry-after');
+	if (!value) return undefined;
+	const seconds = Number(value);
+	if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+	const date = Date.parse(value);
+	return Number.isNaN(date) ? undefined : Math.max(0, date - now);
+}
+
 export function mapSdkError(error: unknown): ClaudeApiError | ClaudeAbortedError | null {
 	if (error instanceof ClaudeAbortedError || error instanceof ClaudeApiError) return error;
 	if (error instanceof Anthropic.APIUserAbortError) return new ClaudeAbortedError();
@@ -177,7 +189,8 @@ export function mapSdkError(error: unknown): ClaudeApiError | ClaudeAbortedError
 			status: e?.status,
 			requestId: e?.requestID ?? undefined,
 			retryable,
-			topic: errorTopic(e)
+			topic: errorTopic(e),
+			retryAfterMs: retryable ? retryAfterMs(e?.headers) : undefined
 		});
 	if (error instanceof Anthropic.APIConnectionTimeoutError) return api('timeout', true, error);
 	if (error instanceof Anthropic.APIConnectionError) return api('connection', true, error);
@@ -362,8 +375,19 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 			webFetchRequests: response.usage.server_tool_use?.web_fetch_requests ?? 0,
 			costUsd: priceUsage(response.model, response.usage),
 			reservedUsd,
-			stopReason: response.stop_reason ?? ''
+			stopReason: response.stop_reason ?? '',
+			refusalCategory: response.stop_details?.category ?? ''
 		});
+		if (response.stop_reason === 'refusal') {
+			Sentry.captureMessage('Claude refused a request', {
+				level: 'warning',
+				tags: {
+					model: response.model,
+					feature: options.feature,
+					category: response.stop_details?.category ?? 'none'
+				}
+			});
+		}
 		return response;
 	} catch (error) {
 		failure = error;

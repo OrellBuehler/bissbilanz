@@ -19,6 +19,8 @@ export const MAX_IMAGES_PER_CONVERSATION = 20;
 // Base64 bytes of the photos a conversation sends with every request.
 export const MAX_CONVERSATION_IMAGE_BYTES = 12_000_000;
 export const RETRY_DELAYS_MS = [1_000, 4_000];
+// The longest a retry waits when the API names a retry-after.
+export const MAX_RETRY_AFTER_MS = 30_000;
 
 export const ACTION_TTL_MS = 60 * 60 * 1000;
 export const TOOL_RESULT_MAX_CHARS = 12_000;

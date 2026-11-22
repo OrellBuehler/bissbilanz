@@ -36,12 +36,15 @@ export class ClaudeApiError extends Error {
 	// What a 400 was about, read from the API's error message. Only the topic is
 	// kept: the message itself can echo request content.
 	readonly topic?: ClaudeApiErrorTopic;
+	// How long the API asked to wait before the next try (retry-after), if it said.
+	readonly retryAfterMs?: number;
 	constructor(init: {
 		kind: ClaudeApiErrorKind;
 		status?: number;
 		requestId?: string;
 		retryable: boolean;
 		topic?: ClaudeApiErrorTopic;
+		retryAfterMs?: number;
 	}) {
 		super(
 			`Claude API error: ${init.kind}` +
@@ -54,6 +57,7 @@ export class ClaudeApiError extends Error {
 		this.requestId = init.requestId;
 		this.retryable = init.retryable;
 		this.topic = init.topic;
+		this.retryAfterMs = init.retryAfterMs;
 	}
 }
 
