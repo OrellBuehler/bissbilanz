@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Middleware } from '@anthropic-ai/sdk';
 import * as Sentry from '@sentry/sveltekit';
+import { reportRefusal, retryAfterMs } from './api-signals';
 import { reserveCall, settleCall, type Settlement } from './budget';
 import { claudeApiKey, claudeConfig, isClaudeConfigured } from './config';
 import {
@@ -177,7 +178,8 @@ export function mapSdkError(error: unknown): ClaudeApiError | ClaudeAbortedError
 			status: e?.status,
 			requestId: e?.requestID ?? undefined,
 			retryable,
-			topic: errorTopic(e)
+			topic: errorTopic(e),
+			retryAfterMs: retryable ? retryAfterMs(e?.headers) : undefined
 		});
 	if (error instanceof Anthropic.APIConnectionTimeoutError) return api('timeout', true, error);
 	if (error instanceof Anthropic.APIConnectionError) return api('connection', true, error);
@@ -362,8 +364,10 @@ export async function callClaude(options: ClaudeCallOptions): Promise<Anthropic.
 			webFetchRequests: response.usage.server_tool_use?.web_fetch_requests ?? 0,
 			costUsd: priceUsage(response.model, response.usage),
 			reservedUsd,
-			stopReason: response.stop_reason ?? ''
+			stopReason: response.stop_reason ?? '',
+			refusalCategory: response.stop_details?.category ?? ''
 		});
+		reportRefusal(response, options.feature);
 		return response;
 	} catch (error) {
 		failure = error;

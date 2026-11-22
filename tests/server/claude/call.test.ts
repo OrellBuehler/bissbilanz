@@ -11,6 +11,7 @@ const config = {
 
 const sentry = vi.hoisted(() => ({
 	captureException: vi.fn(),
+	captureMessage: vi.fn(),
 	addBreadcrumb: vi.fn(),
 	logger: { info: vi.fn(), warn: vi.fn() }
 }));
@@ -54,7 +55,12 @@ beforeEach(() => {
 	config.apiKey = KEY;
 	budget.reserveCall.mockReset().mockResolvedValue('usage-1');
 	budget.settleCall.mockReset().mockResolvedValue(undefined);
-	for (const fn of [sentry.captureException, sentry.addBreadcrumb, sentry.logger.info])
+	for (const fn of [
+		sentry.captureException,
+		sentry.captureMessage,
+		sentry.addBreadcrumb,
+		sentry.logger.info
+	])
 		fn.mockReset();
 });
 
@@ -324,6 +330,18 @@ describe('callClaude against the SDK boundary', () => {
 			'Claude call finished',
 			expect.objectContaining({ model: 'claude-haiku-5-5', requestedModel: 'claude-haiku-5-5' })
 		);
+	});
+
+	test('reports a refusal', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () =>
+				Response.json(message({ stop_reason: 'refusal', stop_details: { category: 'bio' } }))
+			)
+		);
+		const mod = await load(true);
+		await call(mod);
+		expect(sentry.captureMessage).toHaveBeenCalledTimes(1);
 	});
 
 	test('names the requested model on failures', async () => {
