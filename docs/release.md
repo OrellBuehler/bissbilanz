@@ -97,24 +97,19 @@ short hash. Publishing the release is what fires both `docker.yml` and
 - **`docker.yml`**: first a **Test gate** job runs `svelte-check` and `bun run test` on the
   tagged commit; nothing is built or deployed unless it passes. Then it builds the image tagged with the exact version, the `major.minor`
   prefix, the commit sha, and (via `docker/metadata-action`'s default `latest=auto`
-  flavor) `:latest`; pushes all tags to GHCR; then SSHes to the server over a WireGuard
-  tunnel (routed through the home network so the Infomaniak firewall sees the
-  whitelisted home IP). Before that it records the release that is currently live (from
-  `/api/health`), then asks the server for a pre-deploy database backup (see below), then
-  runs the restricted `deploy bissbilanz` command, which does
-  `docker compose pull bissbilanz && docker compose up -d bissbilanz` on the server. A
-  "Verify production deployment" step then polls `https://bissbilanz.orellbuehler.ch/api/health`
-  directly from the runner (no tunnel needed — it's the public site) for up to 3 minutes.
+  flavor) `:latest`, records the release that is currently live (from `/api/health`) and
+  pushes all tags to GHCR. Nothing is pushed to the server: `docker-server`'s reconcile
+  timer checks `:latest` every two minutes and, when it moved, dumps the database, pulls
+  the image and restarts the app (see "App images deploy on their own" in
+  `docker-server/docs/gitops.md`). The **Verify rollout** job then polls
+  `https://bissbilanz.orellbuehler.ch/api/health` from the runner for up to 10 minutes.
   If the reported `version` never matches the release tag, the job rolls back
-  automatically (see Rollback) and still ends red. Deploys share a `production-deploy`
-  concurrency group (queued, never cancelled), so two releases published back to back land
-  in order.
+  automatically (see Rollback) and still ends red. Rollouts share a `production-deploy`
+  concurrency group (queued, never cancelled), so two releases published back to back are
+  verified in order.
 - **`mobile-release.yml`**: builds and signs the Android AAB and uploads it to Play
   (internal track by default), and archives/exports/uploads the iOS IPA to TestFlight, in
   parallel.
-- Even without any of this, `docker-server`'s `reconcile.sh` timer polls GHCR for a new
-  `:latest` every two minutes and would converge on its own — the SSH deploy step just
-  makes it immediate.
 
 ## First production launch (and every release after it)
 
@@ -177,27 +172,20 @@ currently points to — `docker-compose.yaml` on the server is not pinned to a r
 and re-running the release workflow doesn't help because `docker/metadata-action` always
 repoints `:latest` at the _newest_ build, never an older one.
 
-**Automatic:** when the post-deploy health check fails, `docker.yml` retags the previously
-running release (the version `/api/health` reported before the deploy) as `:latest`,
-redeploys over the tunnel and waits for that version to report healthy. The job is still
-marked failed. If no previous version could be read (site down before the deploy) the
-job says so and does nothing.
+**Automatic:** when the release does not report healthy, `docker.yml` retags the previously
+running release (the version `/api/health` reported before the push) as `:latest` and waits
+for the server to deploy it and report that version healthy. The job is still marked
+failed. If no previous version could be read (site down before the push) the job says so
+and does nothing.
 
-**Manual:** retag the last known-good image as `:latest` and push it, then trigger the
-same restricted deploy command (from the home network directly, or from anywhere via the
-`docker.yml` WireGuard path):
+**Manual:** retag the last known-good image as `:latest` and push it; the server deploys it
+within two minutes:
 
 ```bash
-docker pull ghcr.io/orellbuehler/bissbilanz:1.44.0         # the previous good tag (no "v")
-docker tag ghcr.io/orellbuehler/bissbilanz:1.44.0 ghcr.io/orellbuehler/bissbilanz:latest
-docker push ghcr.io/orellbuehler/bissbilanz:latest
-ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" 'deploy bissbilanz'
+docker buildx imagetools create \
+  --tag ghcr.io/orellbuehler/bissbilanz:latest \
+  ghcr.io/orellbuehler/bissbilanz:1.44.0                    # the previous good tag (no "v")
 ```
-
-The SSH step needs a source IP the Infomaniak firewall allows (home network, or the CI
-WireGuard tunnel) — the restricted `deploy` command only accepts `deploy <service>`.
-Even without the manual SSH step, `docker-server`'s `reconcile.sh` timer will pick up the
-repointed `:latest` on its own within two minutes.
 
 Rolling back the image does not roll back the database. Migrations are expand/contract
 (`docs/api-stability.md`), so the previous image keeps working against the new schema. A
@@ -206,16 +194,11 @@ from the pre-deploy dump.
 
 ### Pre-deploy database backup
 
-The new container runs migrations on its first start, so `docker.yml` asks the server for a
-restore point first: `ssh deploy-target 'backup bissbilanz'`. The deploy key can only run
-what `docker-server/scripts/deploy-docker.sh` allows, so the dump itself is implemented
-there: a `backup <service>` command that runs
-`docker exec docker-server-postgres pg_dump -U <user> <db> | gzip` into
-`~/srv/backups/<service>/<service>-<UTC timestamp>.sql.gz` and deletes all but the newest
-N (14). Until that command exists the server answers `Unknown command`, which the workflow
-downgrades to a warning; set the repository variable `REQUIRE_PREDEPLOY_BACKUP=true` once
-it does, so a missing or failing backup blocks the deploy. Any other backup failure always
-blocks it.
+The new container runs migrations on its first start, so the server takes a restore point
+first: before it starts a new image, `docker-server/scripts/reconcile.sh` runs
+`pg_dump -Fc` of the app's database into `~/srv/backups/predeploy/bissbilanz-<time>.dump`
+and keeps the newest five. If the dump fails the new image is not started and the server
+sends an alert; the Verify rollout job then times out and rolls `:latest` back.
 
 ## Post-release checklist
 
@@ -226,6 +209,5 @@ blocks it.
 - Check TestFlight feedback and crash reports once the iOS build clears review.
 - Check Play Console vitals (crash rate, ANR rate) once the Android rollout starts
   serving traffic.
-- Confirm the "Verify production deployment" step in `docker.yml` actually went green —
-  a silent SSH failure with no smoke-check would otherwise ship a build that never
-  deployed.
+- Confirm the "Verify rollout" job in `docker.yml` actually went green — if the server's
+  reconcile timer is down, the image is published but never deployed.
