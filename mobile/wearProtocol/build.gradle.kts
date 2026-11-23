@@ -9,7 +9,12 @@ plugins {
 // whole sync stack it has no use for.
 android {
     namespace = "com.bissbilanz.wear.protocol"
-    compileSdk = 37
+    compileSdk {
+        version =
+            release(37) {
+                minorApiLevel = 1
+            }
+    }
 
     defaultConfig {
         minSdk = 26
