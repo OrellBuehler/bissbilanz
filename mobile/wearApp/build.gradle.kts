@@ -21,7 +21,12 @@ val computedVersionCode =
 
 android {
     namespace = "com.bissbilanz.wear"
-    compileSdk = 37
+    compileSdk {
+        version =
+            release(37) {
+                minorApiLevel = 1
+            }
+    }
 
     defaultConfig {
         // Same applicationId as the phone app: that is how Play pairs a watch
