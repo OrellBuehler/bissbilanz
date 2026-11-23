@@ -57,6 +57,7 @@ struct LabelUnlabeledFoodsView: View {
                 }
             }
         }
+        .brandForm()
         .navigationTitle(L10n.labelUnlabeledFoods)
         .navigationBarTitleDisplayMode(.inline)
         .task { await runSweep() }

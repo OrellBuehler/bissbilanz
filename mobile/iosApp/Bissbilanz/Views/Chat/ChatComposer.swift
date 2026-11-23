@@ -132,10 +132,7 @@ struct ChatComposer: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .cardSurface(radius: 20)
     }
 
     private var attachButton: some View {

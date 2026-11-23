@@ -86,6 +86,7 @@ struct InsightsView: View {
             }
             .padding()
         }
+        .brandScreen()
         .task(id: selectedRange) {
             analytics.range = InsightsAnalyticsModel.Window(rawValue: selectedRange) ?? .month
             await analytics.load(context: modelContext, entries: entryRepository, foods: foodRepository)
@@ -126,6 +127,7 @@ struct InsightsView: View {
             }
             .padding()
         }
+        .brandScreen()
         .refreshable { await loadAll() }
     }
 

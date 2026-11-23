@@ -37,9 +37,7 @@ struct SyncConflictBanner: View {
                 .buttonBorderShape(.capsule)
                 .controlSize(.small)
             }
-            .padding(12)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .card(padding: Brand.Spacing.compact)
             .padding(.horizontal)
             .padding(.top, 8)
             .padding(.bottom, 4)

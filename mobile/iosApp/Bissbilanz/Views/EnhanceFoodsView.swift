@@ -40,6 +40,7 @@ struct EnhanceFoodsView: View {
                 }
             }
         }
+        .brandForm()
         .navigationTitle(L10n.enhanceFoods)
         .navigationBarTitleDisplayMode(.inline)
         .task(id: ScreenTrigger(online: connectivity.isOnline, active: isActiveScene)) {

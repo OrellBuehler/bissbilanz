@@ -25,6 +25,7 @@ struct DashboardLayoutView: View {
             }
             .onMove(perform: move)
         }
+        .brandForm()
         .environment(\.editMode, .constant(.active))
         .navigationTitle(L10n.dashboardLayout)
         .navigationBarTitleDisplayMode(.inline)

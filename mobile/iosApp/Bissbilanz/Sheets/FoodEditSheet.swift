@@ -231,6 +231,7 @@ struct FoodEditForm: View {
                 }
             }
         }
+        .brandForm()
         .keyboardDismissable()
         .navigationTitle(existingFood != nil ? L10n.editFood : L10n.createFood)
         .navigationBarTitleDisplayMode(.inline)

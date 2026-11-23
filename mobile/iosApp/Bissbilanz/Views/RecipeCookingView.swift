@@ -76,7 +76,7 @@ struct RecipeCookingView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
             controls
         }
-        .background(Color(.systemBackground))
+        .brandScreen()
         .onAppear(perform: holdScreenAwake)
         .onDisappear(perform: releaseScreen)
         .onChange(of: page) { _, _ in

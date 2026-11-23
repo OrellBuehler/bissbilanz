@@ -131,6 +131,7 @@ struct SettingsGoalsEditor: View {
                 weightTargetSection
                 activitySection
             }
+            .brandForm()
             .keyboardDismissable()
             .navigationTitle(L10n.editGoals)
             .navigationBarTitleDisplayMode(.inline)

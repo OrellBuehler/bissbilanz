@@ -104,6 +104,7 @@ struct AIMealReviewView: View {
                         }
                     }
                 }
+                .brandForm()
                 .keyboardDismissable()
             }
         }

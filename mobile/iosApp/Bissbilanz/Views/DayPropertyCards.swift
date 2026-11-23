@@ -66,26 +66,14 @@ struct WaterCard: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                HStack(spacing: 6) {
-                    Image(systemName: "drop.fill")
-                        .foregroundStyle(MacroColors.water)
-                        .accessibilityHidden(true)
-                    Text(L10n.dayWaterTitle)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                }
-                Spacer()
+            CardHeader(L10n.dayWaterTitle, systemImage: "drop.fill", tint: MacroColors.water) {
                 Text(L10n.dayWaterProgress(current: waterMl, goal: waterGoalMl))
                     .font(.caption)
                     .monospacedDigit()
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Brand.textSecondary)
             }
             .accessibilityElement(children: .combine)
-            ProgressView(value: waterProgress)
-                .tint(MacroColors.water)
-                .accessibilityLabel(L10n.dayWaterTitle)
-                .accessibilityValue(L10n.dayWaterProgress(current: waterMl, goal: waterGoalMl))
+            BrandProgressBar(value: waterProgress, tint: MacroColors.water, height: 8)
 
             adaptiveInputLayout {
                 Button(L10n.dayWaterAdd(250)) { addWater(250) }
@@ -197,15 +185,8 @@ struct ActivityCard: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "flame.fill")
-                    .foregroundStyle(MacroColors.activity)
-                    .accessibilityHidden(true)
-                Text(L10n.dayActivityTitle)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+            CardHeader(L10n.dayActivityTitle, systemImage: "figure.run", tint: MacroColors.activity) {
                 if properties?.activityCaloriesSource == "apple_health" {
-                    Spacer()
                     HStack(spacing: 3) {
                         Image(systemName: "heart.fill")
                             .foregroundStyle(.red)
@@ -213,7 +194,7 @@ struct ActivityCard: View {
                         Text(L10n.appleHealth)
                     }
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Brand.textSecondary)
                 }
             }
             adaptiveInputLayout {
@@ -328,14 +309,7 @@ struct NotesCard: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: "note.text")
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-                Text(L10n.dayNotesTitle)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-            }
+            CardHeader(L10n.dayNotesTitle, systemImage: "note.text", tint: Brand.accent)
             ZStack(alignment: .topLeading) {
                 if notesDraft.isEmpty {
                     Text(L10n.dayNotesPlaceholder)
@@ -389,9 +363,7 @@ struct NotesCard: View {
 
 private extension View {
     func dayPropertiesCard() -> some View {
-        padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+        frame(maxWidth: .infinity, alignment: .leading)
+            .card()
     }
 }

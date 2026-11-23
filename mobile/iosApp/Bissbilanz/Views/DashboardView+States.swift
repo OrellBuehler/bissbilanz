@@ -75,11 +75,11 @@ extension DashboardView {
                 Image(systemName: "plus")
                     .font(.title2)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Brand.onAccent)
                     .frame(width: 56, height: 56)
             }
             .buttonStyle(.plain)
-            .circularGlassBackground(tint: MacroColors.calories)
+            .circularGlassBackground(tint: Brand.accent)
             .accessibilityLabel(L10n.addFood)
             .popoverTip(scanningTip) { action in
                 guard action.id == "learn_more" else { return }

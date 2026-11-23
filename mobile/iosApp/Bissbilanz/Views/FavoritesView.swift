@@ -111,6 +111,7 @@ struct FavoritesView: View {
                     }
                     .padding()
                 }
+                .brandScreen()
             }
         }
     }
@@ -144,6 +145,7 @@ struct FavoritesView: View {
                     }
                     .padding()
                 }
+                .brandScreen()
             }
         }
     }
@@ -295,10 +297,8 @@ struct FavoriteCard: View {
                 .accessibilityLabel(L10n.quickLogFoodAccessibility(name))
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 90, alignment: .topLeading)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .frame(maxWidth: .infinity, minHeight: 66, alignment: .topLeading)
+        .card(padding: Brand.Spacing.compact)
     }
 }
 

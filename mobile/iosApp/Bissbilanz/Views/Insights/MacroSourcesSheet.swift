@@ -85,6 +85,7 @@ struct MacroSourcesSheet: View {
                         .textCase(nil)
                 }
             }
+            .brandForm()
             .navigationTitle("\(L10n.macroSourcesTitle): \(macro.label)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

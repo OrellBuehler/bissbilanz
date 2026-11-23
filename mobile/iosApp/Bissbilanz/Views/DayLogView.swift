@@ -228,7 +228,7 @@ struct DayLogView: View {
                                 } label: {
                                     Label(L10n.edit, systemImage: "pencil")
                                 }
-                                .tint(.blue)
+                                .tint(Brand.accent)
                             }
                             .swipeActions(edge: .leading) {
                                 Button {
@@ -236,7 +236,7 @@ struct DayLogView: View {
                                 } label: {
                                     Label(L10n.edit, systemImage: "pencil")
                                 }
-                                .tint(.blue)
+                                .tint(Brand.accent)
                             }
                     }
                 } header: {
@@ -244,6 +244,7 @@ struct DayLogView: View {
                 }
             }
         }
+        .brandForm()
         .listStyle(.insetGrouped)
         .searchable(text: $searchText, prompt: L10n.search)
         .overlay {

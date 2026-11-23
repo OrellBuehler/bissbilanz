@@ -62,7 +62,7 @@ struct PendingSyncView: View {
                                 } label: {
                                     Label(L10n.retry, systemImage: "arrow.clockwise")
                                 }
-                                .tint(.blue)
+                                .tint(Brand.accent)
                             }
                         }
                     } header: {
@@ -82,6 +82,7 @@ struct PendingSyncView: View {
                 }
             }
         }
+        .brandForm()
         .navigationTitle(L10n.pendingChanges)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

@@ -66,6 +66,7 @@ struct RecipeSourcePicker: View {
                         recipeRow(recipe)
                     }
                 }
+                .brandForm()
                 .listStyle(.plain)
             }
         }
@@ -197,6 +198,7 @@ struct RecipeAmountStep: View {
                 }
             }
         }
+        .brandForm()
         .keyboardDismissable()
         .navigationTitle(L10n.amount)
         .navigationBarTitleDisplayMode(.inline)

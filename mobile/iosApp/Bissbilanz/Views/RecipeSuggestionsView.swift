@@ -139,6 +139,7 @@ struct RecipeSuggestionsView: View {
                 }
             }
         }
+        .brandForm()
         .listStyle(.plain)
     }
 
@@ -158,10 +159,8 @@ struct RecipeSuggestionsView: View {
                 remainingStat(L10n.fat, value: remaining.fat, unit: "g", color: accessibleColor(.fat))
             }
         }
-        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .card()
     }
 
     private func remainingStat(_ label: String, value: Double, unit: String, color: Color) -> some View {

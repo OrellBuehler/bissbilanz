@@ -112,6 +112,7 @@ struct AiTaskEditSheet: View {
                     }
                 }
             }
+            .brandForm()
             .keyboardDismissable()
             .navigationTitle(L10n.aiTaskEditTitle)
             .navigationBarTitleDisplayMode(.inline)

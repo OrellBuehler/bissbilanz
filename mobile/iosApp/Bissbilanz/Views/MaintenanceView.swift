@@ -39,6 +39,7 @@ struct MaintenanceView: View {
             }
             .padding()
         }
+        .brandScreen()
         .navigationTitle(L10n.maintenance)
     }
 

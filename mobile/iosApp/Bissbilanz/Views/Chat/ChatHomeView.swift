@@ -143,6 +143,7 @@ struct ChatHomeView: View {
                 }
             }
         }
+        .brandForm()
         .refreshable {
             await store.loadConversations()
         }
@@ -166,7 +167,7 @@ struct ChatHomeView: View {
             } label: {
                 Label(L10n.chatRename, systemImage: "pencil")
             }
-            .tint(.blue)
+            .tint(Brand.accent)
         }
         .contextMenu {
             Button {

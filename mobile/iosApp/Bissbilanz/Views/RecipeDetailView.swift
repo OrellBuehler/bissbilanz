@@ -293,6 +293,7 @@ struct RecipeDetailView: View {
                 }
             }
         }
+        .brandForm()
         .listStyle(.insetGrouped)
     }
 

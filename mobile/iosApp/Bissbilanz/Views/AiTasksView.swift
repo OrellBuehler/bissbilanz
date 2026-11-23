@@ -166,11 +166,12 @@ struct AiTasksView: View {
                                         } label: {
                                             Label(L10n.edit, systemImage: "pencil")
                                         }
-                                        .tint(.blue)
+                                        .tint(Brand.accent)
                                     }
                                 }
                         }
                     }
+                    .brandForm()
                     .listStyle(.plain)
                     // The reply box sits in a row; on a small phone the keyboard
                     // must be easy to get rid of again.

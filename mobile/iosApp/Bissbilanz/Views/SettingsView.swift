@@ -39,6 +39,7 @@ struct SettingsView: View {
                 SettingsSiriSection()
                 SettingsAboutSection()
             }
+            .brandForm()
             .keyboardDismissable()
             .navigationTitle(L10n.settings)
             .modifier(SettingsPresentations(
@@ -144,6 +145,7 @@ struct MealTypesView: View {
                 }
             }
         }
+        .brandForm()
         .navigationTitle(L10n.customMealTypes)
         .navigationBarTitleDisplayMode(.inline)
         .keyboardDismissable()
@@ -262,6 +264,7 @@ struct VisibleNutrientsView: View {
                 }
             }
         }
+        .brandForm()
         .navigationTitle(L10n.visibleNutrients)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

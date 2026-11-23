@@ -1,5 +1,14 @@
 import SwiftUI
 
+/// The selected day's logged totals, for the hero card.
+struct DashboardTotals {
+    let calories: Double
+    let protein: Double
+    let carbs: Double
+    let fat: Double
+    let fiber: Double
+}
+
 /// One day of the dashboard calorie trend.
 struct DashboardTrendPoint: Identifiable {
     let date: Date
