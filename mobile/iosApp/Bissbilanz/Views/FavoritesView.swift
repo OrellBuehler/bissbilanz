@@ -297,8 +297,8 @@ struct FavoriteCard: View {
                 .accessibilityLabel(L10n.quickLogFoodAccessibility(name))
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
-        .card()
+        .frame(maxWidth: .infinity, minHeight: 66, alignment: .topLeading)
+        .card(padding: Brand.Spacing.compact)
     }
 }
 

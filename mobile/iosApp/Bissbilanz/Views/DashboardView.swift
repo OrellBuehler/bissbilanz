@@ -1,4 +1,3 @@
-import Charts
 import Combine
 import SwiftUI
 import TipKit
@@ -48,13 +47,6 @@ struct DashboardView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
-
-    func accessibleColor(_ macro: AccessibleMacroColor.Macro) -> Color {
-        AccessibleMacroColor.color(macro, colorScheme: colorScheme, contrast: colorSchemeContrast)
-    }
-
     /// Widget data
     @State var supplementChecklist: [SupplementChecklist] = []
     /// Weight/sleep entries nearest the selected day, not simply the latest —
@@ -171,7 +163,7 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: Brand.Spacing.stack) {
                     dateNavigator
 
                     // Widgets/watch-app discovery — TipGroup shows at most one
@@ -198,12 +190,13 @@ struct DashboardView: View {
                             .transition(reduceMotion ? .identity : .push(from: slideEdge))
                     }
                 }
-                .padding()
+                .padding(Brand.Spacing.screen)
                 // Extra bottom room so the floating action buttons never cover
                 // the last meal card's totals — the content can always scroll
                 // clear of the FAB instead of sitting permanently behind it.
                 .padding(.bottom, 104)
             }
+            .brandScreen()
             .keyboardDismissable()
             .navigationTitle(L10n.appName)
             // Inline so the title and the layout-editor button share one row
@@ -337,12 +330,8 @@ struct DashboardView: View {
     /// Everything below the date navigator; swapped out with a directional
     /// push transition when the selected date changes.
     private var dayContent: some View {
-        VStack(spacing: 16) {
-            macroRings
-
-            if preferences.showActivityWidget, let dayActivityCalories, dayActivityCalories > 0 {
-                activitySummaryLine(dayActivityCalories)
-            }
+        VStack(spacing: Brand.Spacing.stack) {
+            heroCard
 
             ForEach(renderedSections, id: \.self) { section in
                 sectionView(for: section)
@@ -389,7 +378,7 @@ struct DashboardView: View {
     private func pairedRow(_ first: DashboardSection, _ second: DashboardSection) -> some View {
         // `fixedSize` + `maxHeight` keeps the two cards equal-height when
         // their content differs.
-        HStack(spacing: 16) {
+        HStack(spacing: Brand.Spacing.stack) {
             pairedCard(first)
             pairedCard(second)
         }
@@ -406,7 +395,7 @@ struct DashboardView: View {
                 } label: {
                     weightWidget(weight, fillHeight: true)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressable)
             }
         default:
             NavigationLink {
@@ -414,7 +403,7 @@ struct DashboardView: View {
             } label: {
                 sleepWidget(fillHeight: true)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
         }
     }
 
@@ -457,7 +446,7 @@ struct DashboardView: View {
     @ViewBuilder
     private var fastingSection: some View {
         if selectedDate.isToday {
-            fastingCard
+            DashboardFastingCard()
         }
         if totalCalories == 0, !refreshFailed {
             fastingDayToggleCard
@@ -465,30 +454,9 @@ struct DashboardView: View {
     }
 
     private var fastingDayToggleCard: some View {
-        HStack {
-            Image(systemName: "fork.knife")
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(L10n.fastingDay)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text(L10n.fastingDayDescription)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Toggle("", isOn: Binding(
-                get: { isFastingDay },
-                set: { _ in Task { await toggleFastingDay() } }
-            ))
-            .labelsHidden()
-            .accessibilityLabel(L10n.fastingDay)
-            .accessibilityHint(L10n.fastingDayDescription)
+        DashboardFastingDayCard(isOn: isFastingDay) {
+            Task { await toggleFastingDay() }
         }
-        .padding(12)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     @ViewBuilder
@@ -509,7 +477,7 @@ struct DashboardView: View {
                 } label: {
                     MealCard(mealType: meal, entries: mealEntries)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressable)
             }
         }
     }
@@ -525,7 +493,7 @@ struct DashboardView: View {
                 } label: {
                     weightWidget(weight, fillHeight: false)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressable)
             }
         }
     }
@@ -540,7 +508,7 @@ struct DashboardView: View {
             } label: {
                 sleepWidget(fillHeight: false)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
         }
     }
 
@@ -572,43 +540,11 @@ struct DashboardView: View {
     // MARK: - Date Navigator
 
     private var dateNavigator: some View {
-        HStack {
-            Button {
-                changeDay(by: -1)
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.title3)
-                    .frame(width: 44, height: 44)
-            }
-            .accessibilityLabel(L10n.previousDay)
-
-            Spacer()
-
-            VStack(spacing: 2) {
-                Text(L10n.dayLabel(selectedDate))
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .accessibilityAddTraits(.isHeader)
-                if !selectedDate.isToday {
-                    Button(L10n.goToToday) {
-                        goToToday()
-                    }
-                    .font(.caption)
-                }
-            }
-
-            Spacer()
-
-            Button {
-                changeDay(by: 1)
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.title3)
-                    .frame(width: 44, height: 44)
-            }
-            .disabled(selectedDate.isToday)
-            .accessibilityLabel(L10n.nextDay)
-        }
-        .padding(.horizontal)
+        DashboardDateNavigator(
+            date: selectedDate,
+            onPrevious: { changeDay(by: -1) },
+            onNext: { changeDay(by: 1) },
+            onToday: { goToToday() }
+        )
     }
 }
