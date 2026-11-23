@@ -38,33 +38,35 @@ fun MealCard(
     val totalCarbs = entries.sumOf { it.resolvedCarbs() }
     val totalFat = entries.sumOf { it.resolvedFat() }
 
-    Card(
+    AppCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(Dimens.CardPadding)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                IconTile(icon = mealTypeIcon(mealType), tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(Dimens.CardGap))
                 Text(
                     text = mealTypeDisplayName(mealType),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                Text(
+                Pill(
                     text = stringResource(R.string.format_kcal, totalCalories.formatAsInt()),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = CaloriesBlue.macroTextTone(),
-                    fontWeight = FontWeight.Bold,
+                    tint = CaloriesBlue,
                 )
                 IconButton(onClick = onAddClick) {
                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.meal_card_add_food))
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Dimens.ListGap / 2))
             MacroChipRow(
                 protein = totalProtein,
                 carbs = totalCarbs,

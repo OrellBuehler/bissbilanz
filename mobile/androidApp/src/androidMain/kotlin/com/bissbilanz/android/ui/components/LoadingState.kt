@@ -86,11 +86,10 @@ fun EmptyState(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(40.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            IconTile(
+                icon = icon,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                size = 56.dp,
             )
             Text(
                 message,

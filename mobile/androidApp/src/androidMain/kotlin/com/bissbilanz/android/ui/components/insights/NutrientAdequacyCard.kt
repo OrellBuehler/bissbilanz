@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,6 +14,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.analytics.NutrientAdequacyItem
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.components.AppProgressBar
 import com.bissbilanz.android.ui.components.CollapsibleCard
 import com.bissbilanz.android.ui.theme.CarbsOrange
 import com.bissbilanz.android.ui.theme.FiberGreen
@@ -56,9 +56,8 @@ fun NutrientAdequacyCard(adequacy: List<NutrientAdequacyItem>) {
                     color = color,
                 )
             }
-            LinearProgressIndicator(
-                progress = { pct.coerceIn(0.0, 1.0).toFloat() },
-                modifier = Modifier.fillMaxWidth(),
+            AppProgressBar(
+                progress = pct.coerceIn(0.0, 1.0).toFloat(),
                 color = color,
             )
             Spacer(modifier = Modifier.height(4.dp))
