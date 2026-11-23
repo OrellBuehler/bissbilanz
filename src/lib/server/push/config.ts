@@ -1,4 +1,4 @@
-import webpush from 'web-push';
+import { setVapidDetails } from 'web-push';
 import { config } from '$lib/server/env';
 
 export type VapidConfig = {
@@ -22,7 +22,7 @@ export const ensureVapidConfigured = (): VapidConfig | null => {
 	const vapid = getVapidConfig();
 	if (!vapid) return null;
 	if (!applied) {
-		webpush.setVapidDetails(vapid.subject, vapid.publicKey, vapid.privateKey);
+		setVapidDetails(vapid.subject, vapid.publicKey, vapid.privateKey);
 		applied = true;
 	}
 	return vapid;

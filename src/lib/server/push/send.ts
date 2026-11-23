@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
-import webpush from 'web-push';
+import { sendNotification } from 'web-push';
 import { getDB } from '$lib/server/db';
 import { pushSubscriptions } from '$lib/server/schema';
 import { eq, sql } from 'drizzle-orm';
@@ -60,7 +60,7 @@ export const sendToSubscriptions = async (
 	await Promise.all(
 		subscriptions.map(async (sub) => {
 			try {
-				await webpush.sendNotification(
+				await sendNotification(
 					{ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
 					body,
 					{ TTL: 3600, urgency: 'normal' }
