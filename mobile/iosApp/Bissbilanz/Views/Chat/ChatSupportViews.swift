@@ -88,11 +88,7 @@ private struct ChatSuggestionButton: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(.secondarySystemBackground))
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .cardSurface(radius: Brand.Radius.tile)
         }
         .buttonStyle(.plain)
     }
@@ -120,12 +116,8 @@ struct ChatPrivacyCard: View {
                 VStack(alignment: .leading, spacing: 8) { actions }
             }
         }
-        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .card()
     }
 
     @ViewBuilder
@@ -172,6 +164,7 @@ struct ChatAboutSheet: View {
                     }
                 }
             }
+            .brandForm()
             .navigationTitle(L10n.chatPrivacyTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

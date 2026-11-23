@@ -68,6 +68,7 @@ struct FoodMergeSheet: View {
                     }
                 }
             }
+            .brandForm()
             .navigationTitle(L10n.foodsMergeTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

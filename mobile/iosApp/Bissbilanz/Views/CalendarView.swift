@@ -61,6 +61,7 @@ struct CalendarView: View {
             }
             .padding()
         }
+        .brandScreen()
         .navigationTitle(L10n.calendar)
         .task { await loadData() }
         .onChange(of: currentMonth) { _, _ in
@@ -209,9 +210,7 @@ struct CalendarView: View {
             statItem(label: L10n.daysOnTarget, value: "\(daysOnTarget)")
             statItem(label: L10n.avgCalories, value: "\(Int(avgCalories))")
         }
-        .padding()
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .card()
     }
 
     private func statItem(label: String, value: String) -> some View {

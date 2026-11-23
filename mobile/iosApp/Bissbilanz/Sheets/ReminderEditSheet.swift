@@ -118,6 +118,7 @@ struct ReminderEditSheet: View {
                     }
                 }
             }
+            .brandForm()
             .navigationTitle(existingReminder == nil ? L10n.remindersAdd : L10n.remindersEdit)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

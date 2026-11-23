@@ -142,6 +142,7 @@ struct SupplementEditSheet: View {
                     }
                 }
             }
+            .brandForm()
             .keyboardDismissable()
             .navigationTitle(existingSupplement != nil ? L10n.editSupplement : L10n.createSupplement)
             .navigationBarTitleDisplayMode(.inline)

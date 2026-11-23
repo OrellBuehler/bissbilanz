@@ -76,6 +76,7 @@ struct FastingView: View {
             }
             .padding()
         }
+        .brandScreen()
         .navigationTitle(L10n.fasting)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showTipHelp) {
@@ -202,9 +203,7 @@ struct FastingView: View {
                         .monospacedDigit()
                 }
             }
-            .padding(12)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .card()
 
             Button {
                 showEndConfirmation = true
@@ -335,9 +334,7 @@ struct FastingView: View {
             .buttonStyle(.borderedProminent)
             .tint(MacroColors.fasting)
         }
-        .padding(16)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .card()
     }
 
     // MARK: - Live Activity Hint
@@ -351,9 +348,7 @@ struct FastingView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .card()
     }
 
     // MARK: - History
@@ -380,9 +375,7 @@ struct FastingView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .card()
     }
 
     private func historyRow(_ session: FastingSession) -> some View {
@@ -482,6 +475,7 @@ struct FastingStartSheet: View {
                     Text(L10n.fastingAdjustStartHint)
                 }
             }
+            .brandForm()
             .navigationTitle(L10n.fastingAdjustStart)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -567,6 +561,7 @@ struct FastingEditSheet: View {
                     }
                 }
             }
+            .brandForm()
             .navigationTitle(L10n.fastingEditFast)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

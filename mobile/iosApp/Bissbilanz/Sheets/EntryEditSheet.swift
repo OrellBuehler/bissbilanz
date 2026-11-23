@@ -195,6 +195,7 @@ struct EntryEditSheet: View {
                         .lineLimit(2 ... 4)
                 }
             }
+            .brandForm()
             .keyboardDismissable()
             .navigationTitle(L10n.editEntry)
             .navigationBarTitleDisplayMode(.inline)

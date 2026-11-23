@@ -89,7 +89,7 @@ struct RecipeListView: View {
                             } label: {
                                 Label(L10n.duplicateRecipe, systemImage: "doc.on.doc")
                             }
-                            .tint(.blue)
+                            .tint(Brand.accent)
                         }
                         .swipeActions(edge: .leading) {
                             Button {
@@ -100,6 +100,7 @@ struct RecipeListView: View {
                             .tint(.green)
                         }
                     }
+                    .brandForm()
                     .listStyle(.plain)
                 }
             }
@@ -458,6 +459,7 @@ struct LogRecipeSheet: View {
                         .lineLimit(2 ... 4)
                 }
             }
+            .brandForm()
             .keyboardDismissable()
             .task { loadMealTypes() }
             .navigationTitle(L10n.log)

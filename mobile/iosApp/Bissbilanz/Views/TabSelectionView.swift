@@ -69,6 +69,7 @@ struct TabSelectionView: View {
                 Text(L10n.openAppOnFooter)
             }
         }
+        .brandForm()
         .environment(\.editMode, .constant(.active))
         .navigationTitle(L10n.navigationTabs)
         .navigationBarTitleDisplayMode(.inline)

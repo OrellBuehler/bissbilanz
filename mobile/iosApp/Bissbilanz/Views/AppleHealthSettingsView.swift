@@ -48,6 +48,7 @@ struct AppleHealthSettingsView: View {
                 }
             }
         }
+        .brandForm()
         .navigationTitle(L10n.appleHealth)
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(

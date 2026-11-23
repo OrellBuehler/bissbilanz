@@ -285,6 +285,7 @@ struct FoodDetailView: View {
 
             FoodQualitySection(food: food)
         }
+        .brandForm()
         .listStyle(.insetGrouped)
     }
 

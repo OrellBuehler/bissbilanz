@@ -131,6 +131,7 @@ struct PendingChangeSheet: View {
                 }
             }
         }
+        .brandForm()
         .confirmationDialog(
             L10n.pendingDiscardTitle,
             isPresented: $confirmingDiscard,

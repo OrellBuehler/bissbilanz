@@ -296,6 +296,7 @@ struct WeightView: View {
                         if chart.entries.count >= 2 { chartSection }
                         historySection
                     }
+                    .brandForm()
                     .listStyle(.insetGrouped)
                 }
             }
@@ -456,9 +457,7 @@ struct WeightView: View {
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .card(padding: Brand.Spacing.compact)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L10n.latestWeight)
         .accessibilityValue("\(MacroFormat.kg(entries.first?.weightKg ?? 0)), \(latestDateText)")
@@ -501,9 +500,7 @@ struct WeightView: View {
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .card(padding: Brand.Spacing.compact)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L10n.trendWeight)
         .accessibilityValue(
@@ -523,9 +520,7 @@ struct WeightView: View {
                 .foregroundStyle(color.accessibleForeground(colorScheme: colorScheme, contrast: colorSchemeContrast))
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .card(padding: Brand.Spacing.tight)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .accessibilityValue(value)
@@ -814,13 +809,13 @@ struct WeightEntryRow: View {
             Button(action: onEdit) {
                 Label(L10n.edit, systemImage: "pencil")
             }
-            .tint(.blue)
+            .tint(Brand.accent)
         }
         .swipeActions(edge: .leading) {
             Button(action: onEdit) {
                 Label(L10n.edit, systemImage: "pencil")
             }
-            .tint(.blue)
+            .tint(Brand.accent)
         }
     }
 }
@@ -855,6 +850,7 @@ struct WeightHistoryView: View {
                 }
             }
         }
+        .brandForm()
         .navigationTitle(L10n.history)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -941,6 +937,7 @@ struct AddWeightSheet: View {
                     TextField(L10n.notes, text: $notes)
                 }
             }
+            .brandForm()
             .keyboardDismissable()
             .navigationTitle(existingEntry != nil ? L10n.edit : L10n.logWeight)
             .navigationBarTitleDisplayMode(.inline)

@@ -434,6 +434,7 @@ struct FoodSearchView: View {
                             }
                         }
                     }
+                    .brandForm()
                     .listStyle(.plain)
                 }
             } else if isSearching, searchResults.isEmpty, offResults.isEmpty, matchingRecipes.isEmpty {
@@ -470,6 +471,7 @@ struct FoodSearchView: View {
                         }
                     }
                 }
+                .brandForm()
                 .listStyle(.plain)
             }
         }
@@ -569,6 +571,7 @@ struct FoodSearchView: View {
                         foodRow(food)
                     }
                 }
+                .brandForm()
                 .listStyle(.plain)
             }
         }
@@ -597,6 +600,7 @@ struct FoodSearchView: View {
                         foodRow(food)
                     }
                 }
+                .brandForm()
                 .listStyle(.plain)
             }
         }
@@ -1035,6 +1039,7 @@ struct LogFoodForm: View {
 
             FoodQualitySection(food: food)
         }
+        .brandForm()
         .task { loadMealTypes() }
         .navigationTitle(L10n.logFood)
         .navigationBarTitleDisplayMode(.inline)

@@ -80,6 +80,7 @@ struct FoodPackageImportView: View {
                 }
             }
         }
+        .brandForm()
         .navigationTitle(L10n.foodPackageImportTitle)
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) {

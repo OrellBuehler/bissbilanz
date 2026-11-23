@@ -82,6 +82,7 @@ struct QuickEntrySheet: View {
                         .lineLimit(2 ... 4)
                 }
             }
+            .brandForm()
             .keyboardDismissable()
             .navigationTitle(L10n.quickEntry)
             .navigationBarTitleDisplayMode(.inline)

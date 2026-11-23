@@ -174,6 +174,7 @@ struct AIMealSheet: View {
                     }
                 }
             }
+            .brandForm()
             .keyboardDismissable()
             .navigationTitle(L10n.aiMealEstimate)
             .navigationBarTitleDisplayMode(.inline)

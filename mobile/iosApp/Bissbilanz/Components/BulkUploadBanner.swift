@@ -52,9 +52,7 @@ struct BulkUploadBanner: View {
                     ProgressView(value: Double(manager.uploadedCount), total: Double(max(manager.total, 1)))
                 }
             }
-            .padding(12)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .card(padding: Brand.Spacing.compact)
             .padding(.horizontal)
             .padding(.top, 8)
             .padding(.bottom, 4)

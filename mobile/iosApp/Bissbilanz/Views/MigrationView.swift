@@ -21,7 +21,7 @@ struct MigrationView: View {
 
     var body: some View {
         ZStack {
-            Color(.systemGroupedBackground)
+            Brand.background
                 .ignoresSafeArea()
 
             content
@@ -166,9 +166,7 @@ struct MigrationView: View {
             content()
         }
         .frame(maxWidth: .infinity, alignment: alignment == .center ? .center : .leading)
-        .padding(24)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .card(padding: 24)
     }
 
     // MARK: - Flow

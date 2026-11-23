@@ -88,6 +88,7 @@ struct ConnectAssistantView: View {
             }
             .padding()
         }
+        .brandScreen()
         .navigationTitle(L10n.connectAssistantTitle)
         .task { await mcpConnectionStatus.refresh() }
         .onAppear {

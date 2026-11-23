@@ -62,12 +62,12 @@ struct ChatActionCard: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
+            Brand.surface,
+            in: RoundedRectangle(cornerRadius: Brand.Radius.control, style: .continuous)
         )
         .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(isOpen ? Color.orange.opacity(0.45) : Color.secondary.opacity(0.15), lineWidth: 1)
+            RoundedRectangle(cornerRadius: Brand.Radius.control, style: .continuous)
+                .strokeBorder(isOpen ? Color.orange.opacity(0.45) : Brand.hairline, lineWidth: 1)
         }
         .accessibilityElement(children: .contain)
         .task(id: part.expiresAt) {

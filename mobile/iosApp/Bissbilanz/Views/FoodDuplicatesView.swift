@@ -42,6 +42,7 @@ struct FoodDuplicatesView: View {
                         groupSection(group)
                     }
                 }
+                .brandForm()
                 .listStyle(.insetGrouped)
             }
         }

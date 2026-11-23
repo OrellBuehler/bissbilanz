@@ -67,6 +67,7 @@ struct SupplementHistoryView: View {
                         }
                     }
                 }
+                .brandForm()
                 .listStyle(.insetGrouped)
             }
         }
@@ -90,6 +91,7 @@ struct SupplementHistoryView: View {
                     DatePicker(L10n.from, selection: $startDate, in: ...endDate, displayedComponents: .date)
                     DatePicker(L10n.to, selection: $endDate, in: startDate..., displayedComponents: .date)
                 }
+                .brandForm()
                 .navigationTitle(L10n.dateRange)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {

@@ -166,6 +166,7 @@ struct RecipeEditSheet: View {
                     }
                 }
             }
+            .brandForm()
             .environment(\.editMode, $editMode)
             .keyboardDismissable()
             .navigationDestination(isPresented: $showRecipePicker) {
@@ -641,6 +642,7 @@ struct FoodPicker: View {
                         }
                     }
                 }
+                .brandForm()
                 .listStyle(.plain)
             }
         }

@@ -137,6 +137,7 @@ struct ChatConversationView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 12)
             }
+            .brandScreen()
             .defaultScrollAnchor(.bottom)
             .scrollDismissesKeyboard(.interactively)
             .onScrollGeometryChange(for: Bool.self) { geometry in

@@ -120,6 +120,7 @@ struct FoodPackageExportView: View {
                     summaryView
                 }
             }
+            .brandForm()
             .facetSearchable(isEnabled: mode == .filter, text: $facetQuery, prompt: L10n.search)
             .navigationTitle(recipesOnly ? L10n.foodPackageShareRecipe : L10n.foodPackageExportTitle)
             .navigationBarTitleDisplayMode(.inline)

@@ -98,6 +98,7 @@ struct WhereUsedSheet: View {
                 }
             }
         }
+        .brandForm()
     }
 
     private func entryRow(_ entry: WhereUsedEntry) -> some View {

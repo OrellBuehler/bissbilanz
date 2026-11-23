@@ -41,6 +41,7 @@ struct SupplementsView: View {
 
                         supplementsSection
                     }
+                    .brandForm()
                     .listStyle(.insetGrouped)
                 }
             }

@@ -75,6 +75,7 @@ struct SleepView: View {
                         if chartEntries.count >= 2 { chartSection }
                         historySection
                     }
+                    .brandForm()
                     .listStyle(.insetGrouped)
                 }
             }
@@ -158,9 +159,7 @@ struct SleepView: View {
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(.indigo.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .card(padding: Brand.Spacing.compact)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L10n.lastNight)
         .accessibilityValue("\(formatSleepDuration(entries.first?.durationMinutes ?? 0)), \(latestDateText)")
@@ -197,9 +196,7 @@ struct SleepView: View {
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(.purple.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .card(padding: Brand.Spacing.compact)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L10n.sevenDayAverage)
         .accessibilityValue(
@@ -412,6 +409,7 @@ struct SleepHistoryView: View {
                 }
             }
         }
+        .brandForm()
         .navigationTitle(L10n.history)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -571,6 +569,7 @@ struct AddSleepSheet: View {
                     TextField(L10n.notes, text: $notes)
                 }
             }
+            .brandForm()
             .keyboardDismissable()
             .navigationTitle(existingEntry != nil ? L10n.edit : L10n.logSleep)
             .navigationBarTitleDisplayMode(.inline)

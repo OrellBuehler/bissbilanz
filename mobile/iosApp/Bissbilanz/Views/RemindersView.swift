@@ -62,6 +62,7 @@ struct RemindersView: View {
 
             supplementRemindersSection
         }
+        .brandForm()
         .navigationTitle(L10n.remindersTitle)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
