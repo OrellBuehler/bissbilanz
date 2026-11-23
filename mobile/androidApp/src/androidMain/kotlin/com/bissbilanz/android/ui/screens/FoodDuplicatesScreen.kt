@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.ErrorState
@@ -161,7 +162,7 @@ private fun DuplicateGroupCard(
     enabled: Boolean,
     onResolve: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 reasonLabel(group.reason),

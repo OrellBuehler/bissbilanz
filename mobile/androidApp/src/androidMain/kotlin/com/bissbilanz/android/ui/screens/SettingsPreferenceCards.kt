@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.AppLanguage
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.CheckboxRow
 import com.bissbilanz.android.ui.components.ChoiceDropdown
 import com.bissbilanz.android.ui.components.ToggleRow
@@ -39,7 +40,7 @@ internal fun AiTaskProcessorCard(
     onAutoLogChange: (Boolean) -> Unit,
     claude: ClaudeCapability? = null,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 stringResource(R.string.settings_ai_task_processor_title),
@@ -154,7 +155,7 @@ internal fun CustomMealTypesCard(
     customMealTypes: List<MealType>,
     onAddClick: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -194,7 +195,7 @@ internal fun FavoriteLoggingCard(
     mode: String,
     onModeChange: (GenPreferencesUpdate.FavoriteMealAssignmentMode) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 stringResource(R.string.settings_favorite_logging),
@@ -239,7 +240,7 @@ internal fun VisibleNutrientsCard(
     onSelectionChange: (Set<String>) -> Unit,
     onSave: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 stringResource(R.string.settings_visible_nutrients),
@@ -316,7 +317,7 @@ internal fun LanguageCard() {
     val context = LocalContext.current
     var selected by remember { mutableStateOf(AppLanguage.current(context)) }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 stringResource(R.string.settings_language),
@@ -356,7 +357,7 @@ internal fun AppearanceCard() {
     val prefs = remember(context) { ThemeMode.prefs(context) }
     val mode by rememberPreference(prefs) { ThemeMode.read(prefs) }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 stringResource(R.string.settings_appearance),

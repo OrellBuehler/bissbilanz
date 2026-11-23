@@ -324,7 +324,7 @@ private fun EntryEditForm(
 
         if (isEditing && entry != null && !isQuickEntry) {
             val name = entry?.resolvedName() ?: unknownName
-            Card(modifier = Modifier.fillMaxWidth()) {
+            AppCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         name,

@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -171,7 +170,7 @@ fun RecipeSourceSheet(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             items(visibleRecipes, key = { it.id }) { recipe ->
-                                Card(
+                                AppCard(
                                     onClick = {
                                         selected = recipe
                                         amountText = recipe.totalServings.toDisplayString()

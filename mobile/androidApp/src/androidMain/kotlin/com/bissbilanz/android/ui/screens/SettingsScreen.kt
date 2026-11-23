@@ -23,6 +23,7 @@ import com.bissbilanz.android.navigation.LocalBarRoutes
 import com.bissbilanz.android.navigation.NavTabPrefs
 import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.tips.TipStore
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.theme.rememberHaptic
@@ -251,7 +252,7 @@ fun SettingsScreen(navController: NavController) {
                 }
 
                 prefs?.let { p ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    AppCard(modifier = Modifier.fillMaxWidth()) {
                         SettingsNavItem(stringResource(R.string.dashboard_layout_title), Icons.Outlined.Tune) {
                             navController.navigate("dashboard-layout") { launchSingleTop = true }
                         }
@@ -259,7 +260,7 @@ fun SettingsScreen(navController: NavController) {
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    AppCard(modifier = Modifier.fillMaxWidth()) {
                         SettingsNavItem(stringResource(R.string.reminders_title), Icons.Default.NotificationsActive) {
                             navController.navigate("reminders") { launchSingleTop = true }
                         }

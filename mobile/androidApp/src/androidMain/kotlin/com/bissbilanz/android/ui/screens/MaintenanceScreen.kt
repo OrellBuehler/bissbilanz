@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.components.AppCard
+import com.bissbilanz.android.ui.components.AppCardDefaults
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.theme.*
 import com.bissbilanz.android.ui.theme.Dimens
@@ -93,7 +95,7 @@ fun MaintenanceScreen(navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // Period selection
-            Card(modifier = Modifier.fillMaxWidth()) {
+            AppCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         stringResource(R.string.maintenance_analysis_period),
@@ -116,7 +118,7 @@ fun MaintenanceScreen(navController: NavController) {
             }
 
             // Muscle ratio slider
-            Card(modifier = Modifier.fillMaxWidth()) {
+            AppCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         stringResource(R.string.maintenance_body_composition),
@@ -167,10 +169,10 @@ fun MaintenanceScreen(navController: NavController) {
 
             // Error
             error?.let {
-                Card(
+                AppCard(
                     modifier = Modifier.fillMaxWidth(),
                     colors =
-                        CardDefaults.cardColors(
+                        AppCardDefaults.colors(
                             containerColor = MaterialTheme.colorScheme.errorContainer,
                         ),
                 ) {
@@ -187,7 +189,7 @@ fun MaintenanceScreen(navController: NavController) {
                 val r = response.result
                 val m = response.meta
 
-                Card(modifier = Modifier.fillMaxWidth()) {
+                AppCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             stringResource(R.string.maintenance_results),
@@ -242,7 +244,7 @@ fun MaintenanceScreen(navController: NavController) {
                 }
 
                 // Meta
-                Card(modifier = Modifier.fillMaxWidth()) {
+                AppCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             stringResource(R.string.maintenance_data_coverage),
@@ -272,9 +274,9 @@ fun MaintenanceScreen(navController: NavController) {
 
                         if (m.coverage < 0.7) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            Card(
+                            AppCard(
                                 colors =
-                                    CardDefaults.cardColors(
+                                    AppCardDefaults.colors(
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                     ),
                             ) {

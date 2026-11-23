@@ -31,13 +31,11 @@ import androidx.compose.material.icons.outlined.FileOpen
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -78,6 +76,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.bulk.BulkImportStatus
 import com.bissbilanz.android.navigation.IncomingPackageFiles
 import com.bissbilanz.android.navigation.PendingPackageImport
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.ChoiceDropdown
 import com.bissbilanz.android.ui.components.FoodImage
@@ -311,7 +310,7 @@ private fun ReviewList(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            AppCard(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(Dimens.CardPadding), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     state.fileName?.let {
                         Text(
@@ -417,7 +416,7 @@ private fun NewFoodsSection(
     val count = FoodPackageMappingState.foodsToCreate(items, state.mappings, state.recipes).size
     var limit by rememberSaveable { mutableIntStateOf(NEW_FOODS_PAGE) }
     var searching by rememberSaveable { mutableStateOf<String?>(null) }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(Dimens.CardPadding), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
@@ -479,7 +478,7 @@ private fun NewFoodCard(
             onFoodSelected = { onSelect(it.toMappedFood()) },
         )
     }
-    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(Dimens.CardPadding), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -614,7 +613,7 @@ private fun FoodConflictCard(
     value: FoodPackageAction,
     onChange: (FoodPackageAction) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(Dimens.CardPadding), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AssistChip(
@@ -711,7 +710,7 @@ private fun RecipeConflictCard(
     value: FoodPackageAction,
     onChange: (FoodPackageAction) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(Dimens.CardPadding), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RecipeSide(

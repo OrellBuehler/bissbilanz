@@ -32,6 +32,9 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.NAV_KEY_EDIT_SUPPLEMENT_ID
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.AppCard
+import com.bissbilanz.android.ui.components.AppCardDefaults
+import com.bissbilanz.android.ui.components.AppProgressBar
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
@@ -227,9 +230,8 @@ fun SupplementsScreen(
                                     animationSpec = GentleSpring,
                                     label = "supp-progress",
                                 )
-                                LinearProgressIndicator(
-                                    progress = { animatedProgress },
-                                    modifier = Modifier.fillMaxWidth(),
+                                AppProgressBar(
+                                    progress = animatedProgress,
                                     color = MaterialTheme.colorScheme.tertiary,
                                 )
                             }
@@ -281,10 +283,10 @@ fun SupplementsScreen(
                                 )
                             }
                             items(inactiveSupplements, key = { it.id }) { supplement ->
-                                Card(
+                                AppCard(
                                     modifier = Modifier.fillMaxWidth().animateItem(),
                                     colors =
-                                        CardDefaults.cardColors(
+                                        AppCardDefaults.colors(
                                             containerColor =
                                                 MaterialTheme.colorScheme.surfaceVariant
                                                     .copy(alpha = 0.5f),
@@ -320,16 +322,16 @@ fun SupplementChecklistItem(
     onEdit: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    val defaultCardColor = CardDefaults.cardColors().containerColor
+    val defaultCardColor = AppCardDefaults.colors().containerColor
     val cardColor by animateColorAsState(
         targetValue = if (isTaken) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f) else defaultCardColor,
         animationSpec = spring(dampingRatio = Motion.SNAP_DAMPING, stiffness = Motion.SNAP_STIFFNESS),
         label = "supp-card",
     )
-    Card(
+    AppCard(
         modifier = modifier.fillMaxWidth(),
         onClick = onToggle,
-        colors = CardDefaults.cardColors(containerColor = cardColor),
+        colors = AppCardDefaults.colors(containerColor = cardColor),
     ) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),

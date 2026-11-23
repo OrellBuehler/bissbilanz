@@ -4,7 +4,6 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -28,6 +27,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.LocalBarRoutes
 import com.bissbilanz.android.navigation.openDestination
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.FoodImage
@@ -164,7 +164,7 @@ fun RecipeSuggestionsScreen(
 
 @Composable
 private fun RemainingCard(remaining: MacroBudget) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 stringResource(R.string.recipe_suggestions_remaining_header),
@@ -187,7 +187,7 @@ private fun SuggestionCard(
 ) {
     val recipe = suggested.recipe
     val macros = suggested.suggestion.macros
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    AppCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -217,7 +217,7 @@ private fun SuggestionCard(
                         fontWeight = FontWeight.Medium,
                         modifier =
                             Modifier
-                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.extraSmall)
                                 .padding(horizontal = 8.dp, vertical = 2.dp),
                     )
                 }

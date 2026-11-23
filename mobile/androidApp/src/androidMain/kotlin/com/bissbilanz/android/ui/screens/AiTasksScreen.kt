@@ -49,6 +49,8 @@ import com.bissbilanz.android.aitasks.QueuedAiTaskUpload
 import com.bissbilanz.android.ui.components.AiMealSheet
 import com.bissbilanz.android.ui.components.AiTaskImageViewer
 import com.bissbilanz.android.ui.components.AiTaskThread
+import com.bissbilanz.android.ui.components.AppCard
+import com.bissbilanz.android.ui.components.AppCardDefaults
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.ClaudeProposalCard
 import com.bissbilanz.android.ui.components.EmptyState
@@ -305,7 +307,7 @@ private fun QueuedUploadCard(
     modifier: Modifier = Modifier,
 ) {
     val failed = upload.status == AiTaskUploadStatus.FAILED
-    Card(modifier = modifier.fillMaxWidth()) {
+    AppCard(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 upload.photoPaths.firstOrNull()?.let { path ->
@@ -398,13 +400,13 @@ private fun AiTaskListItem(
         task.isUnreadDismissal() ||
             task.hasUnreadReply() ||
             thread?.messages.orEmpty().any { it.id in newReplyIds }
-    Card(
+    AppCard(
         modifier = modifier.fillMaxWidth(),
         colors =
             if (isUnread) {
-                CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                AppCardDefaults.colors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
             } else {
-                CardDefaults.cardColors()
+                AppCardDefaults.colors()
             },
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {

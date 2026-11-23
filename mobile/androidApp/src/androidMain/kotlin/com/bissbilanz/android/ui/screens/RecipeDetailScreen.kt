@@ -32,6 +32,7 @@ import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.ErrorState
 import com.bissbilanz.android.ui.components.FoodImage
@@ -418,7 +419,7 @@ fun RecipeDetailScreen(
                         val ingredients = r.ingredients
                         if (ingredients.isNotEmpty()) {
                             // Ingredients list
-                            Card(modifier = Modifier.fillMaxWidth()) {
+                            AppCard(modifier = Modifier.fillMaxWidth()) {
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     Text(
                                         stringResource(R.string.food_detail_ingredients),
@@ -467,7 +468,7 @@ fun RecipeDetailScreen(
 
                         if (steps.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(16.dp))
-                            Card(modifier = Modifier.fillMaxWidth()) {
+                            AppCard(modifier = Modifier.fillMaxWidth()) {
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     Text(
                                         stringResource(R.string.recipe_detail_steps_title),

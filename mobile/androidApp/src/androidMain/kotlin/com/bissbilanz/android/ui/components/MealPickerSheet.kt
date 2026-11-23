@@ -230,7 +230,7 @@ fun MealPickerSheet(
             }
 
             macros?.let {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                AppCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             stringResource(R.string.food_form_macros),

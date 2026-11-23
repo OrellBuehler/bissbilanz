@@ -55,6 +55,8 @@ import com.bissbilanz.android.tips.rememberActiveTipId
 import com.bissbilanz.android.ui.components.ActivityCard
 import com.bissbilanz.android.ui.components.AddFoodSheet
 import com.bissbilanz.android.ui.components.AiMealSheet
+import com.bissbilanz.android.ui.components.AppCard
+import com.bissbilanz.android.ui.components.AppCardDefaults
 import com.bissbilanz.android.ui.components.CalorieTrendWidget
 import com.bissbilanz.android.ui.components.DashboardSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
@@ -549,10 +551,10 @@ fun DashboardScreen(navController: NavController) {
 
                                             if (totalCalories == 0.0 && !refreshFailed) {
                                                 Spacer(modifier = Modifier.height(Dimens.CardGap))
-                                                Card(
+                                                AppCard(
                                                     modifier = Modifier.fillMaxWidth(),
                                                     colors =
-                                                        CardDefaults.cardColors(
+                                                        AppCardDefaults.colors(
                                                             containerColor =
                                                                 MaterialTheme.colorScheme.surfaceVariant
                                                                     .copy(alpha = 0.5f),

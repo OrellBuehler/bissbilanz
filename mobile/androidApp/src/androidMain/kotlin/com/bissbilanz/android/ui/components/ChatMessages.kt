@@ -35,7 +35,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -404,7 +403,7 @@ private fun ActionCard(
     val pending = part.status == ChatStatus.ACTION_PENDING
     val expired = part.status == ChatStatus.ACTION_EXPIRED || (pending && isExpired(part.expiresAt, now))
     val actionable = pending && !expired && awaitingThisRun && actionId != null
-    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 part.label ?: stringResource(R.string.chat_action_needs_confirmation),
@@ -669,7 +668,7 @@ fun ChatPrivacyNotice(
     onPrivacyPolicy: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    OutlinedCard(modifier = modifier.fillMaxWidth()) {
+    AppCard(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 stringResource(R.string.chat_privacy_title),
