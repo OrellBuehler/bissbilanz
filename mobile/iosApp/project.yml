@@ -48,6 +48,7 @@ targets:
     settings:
       base:
         TARGETED_DEVICE_FAMILY: '1'
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         PRODUCT_BUNDLE_IDENTIFIER: com.bissbilanz.ios
         # Link the KMP shared framework. Gradle builds it and stages it under
         # shared/build/xcode-frameworks/<configuration>/<sdk>/ (see the shared

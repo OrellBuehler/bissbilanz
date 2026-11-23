@@ -504,6 +504,7 @@ struct BissbilanzApp: App {
             }
             // Light/dark override from Settings, on the whole window.
             .appTheme()
+            .tint(Brand.accent)
             .environment(updateGate)
             .environment(authManager)
             .environment(api)
