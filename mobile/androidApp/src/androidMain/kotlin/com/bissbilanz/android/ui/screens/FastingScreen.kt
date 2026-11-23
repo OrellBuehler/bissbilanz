@@ -37,6 +37,7 @@ import androidx.navigation.NavController
 import com.bissbilanz.android.R
 import com.bissbilanz.android.fasting.FastingManager
 import com.bissbilanz.android.fasting.FastingSession
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.FastingIndigo
@@ -343,7 +344,7 @@ private fun ActiveFastSection(
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
+        AppCard(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(Dimens.CardPadding),
                 verticalAlignment = Alignment.CenterVertically,
@@ -432,7 +433,7 @@ private fun StartSection(
     onStart: () -> Unit,
 ) {
     val customLabel = stringResource(R.string.fasting_protocol_custom)
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -529,7 +530,7 @@ private fun HistorySection(
     history: List<FastingSession>,
     onEdit: (FastingSession) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth().padding(Dimens.CardPadding)) {
             Text(
                 stringResource(R.string.fasting_history),

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.viewmodels.MigrationUiState
 import com.bissbilanz.android.ui.viewmodels.MigrationViewModel
 import com.bissbilanz.migration.LocalDataMigrator
@@ -122,7 +122,7 @@ private fun ChoiceCard(
     onUpload: () -> Unit,
     onStartFresh: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
             Text(
                 stringResource(R.string.migration_account_has_data),
@@ -153,7 +153,7 @@ private fun ProgressCard(
     total: Int,
     step: String,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -185,7 +185,7 @@ private fun FailureCard(
     onRetry: () -> Unit,
     onContinueWithoutAccount: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
             Text(
                 stringResource(R.string.migration_upload_failed_title),

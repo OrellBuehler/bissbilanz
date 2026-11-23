@@ -39,6 +39,7 @@ import com.bissbilanz.android.navigation.PendingLogConfirmation
 import com.bissbilanz.android.sync.RefreshManager
 import com.bissbilanz.android.ui.components.AddFoodSheet
 import com.bissbilanz.android.ui.components.AiMealSheet
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.DayLogSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
@@ -521,7 +522,7 @@ fun EntryListItem(
     val calories = entry.resolvedCalories()
     val protein = entry.resolvedProtein()
 
-    Card(
+    AppCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
     ) {

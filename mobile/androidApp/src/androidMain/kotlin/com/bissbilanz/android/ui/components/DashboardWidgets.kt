@@ -21,9 +21,6 @@ import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,6 +49,7 @@ import com.bissbilanz.analytics.adjustGoalsForActivity
 import com.bissbilanz.analytics.suggestRecipes
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.CaloriesBlue
+import com.bissbilanz.android.ui.theme.Dimens
 import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import com.bissbilanz.android.ui.viewmodels.DashboardWidgetsViewModel
@@ -97,21 +95,16 @@ private fun WidgetCard(
     action: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    AppCard(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(Dimens.CardPadding)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    IconTile(icon = icon, tint = MaterialTheme.colorScheme.primary, size = 32.dp)
+                    Spacer(modifier = Modifier.width(Dimens.ListGap + 2.dp))
                     Text(
                         title,
                         style = MaterialTheme.typography.titleMedium,
@@ -120,7 +113,7 @@ private fun WidgetCard(
                 }
                 action?.invoke()
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Dimens.CardGap))
             content()
         }
     }
@@ -366,10 +359,9 @@ fun MealBreakdownWidget(
                             )
                         }
                         Spacer(modifier = Modifier.height(4.dp))
-                        LinearProgressIndicator(
-                            progress = { (calories / max).toFloat().coerceIn(0f, 1f) },
+                        AppProgressBar(
+                            progress = (calories / max).toFloat(),
                             color = CaloriesBlue,
-                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }

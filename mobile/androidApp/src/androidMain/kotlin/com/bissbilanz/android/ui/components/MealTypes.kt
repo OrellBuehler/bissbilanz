@@ -1,12 +1,28 @@
 package com.bissbilanz.android.ui.components
 
 import android.content.Context
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BakeryDining
+import androidx.compose.material.icons.filled.Cookie
+import androidx.compose.material.icons.filled.DinnerDining
+import androidx.compose.material.icons.filled.LunchDining
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import com.bissbilanz.android.R
 import com.bissbilanz.util.mealTypes as sharedMealTypes
 
 val mealTypes = sharedMealTypes
+
+fun mealTypeIcon(mealType: String): ImageVector =
+    when (mealType.lowercase()) {
+        "breakfast" -> Icons.Filled.BakeryDining
+        "lunch" -> Icons.Filled.LunchDining
+        "dinner" -> Icons.Filled.DinnerDining
+        "snack", "snacks" -> Icons.Filled.Cookie
+        else -> Icons.Filled.Restaurant
+    }
 
 /**
  * Localized label for a meal type. The four default meal types (from [mealTypes]) get a

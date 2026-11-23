@@ -294,10 +294,10 @@ fun SupplementEditSheet(
                 }
 
                 ingredients.forEachIndexed { index, ingredient ->
-                    Card(
+                    AppCard(
                         modifier = Modifier.fillMaxWidth(),
                         colors =
-                            CardDefaults.cardColors(
+                            AppCardDefaults.colors(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
                             ),
                     ) {

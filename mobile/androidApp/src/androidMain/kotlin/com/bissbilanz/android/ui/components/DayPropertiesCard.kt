@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.R
 import com.bissbilanz.android.ui.theme.ActivityViolet
 import com.bissbilanz.android.ui.theme.WaterCyan
-import com.bissbilanz.android.ui.theme.macroTextTone
 import com.bissbilanz.api.generated.model.DayProperties
 import kotlinx.coroutines.delay
 
@@ -45,7 +44,7 @@ fun WaterCard(
     onClearWater: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
+    AppCard(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             WaterSection(waterMl, waterGoalMl, onAddWater, onSetWater, onClearWater)
         }
@@ -61,7 +60,7 @@ fun ActivityCard(
     onClearActivity: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
+    AppCard(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             ActivitySection(activityCalories, activityCaloriesSource, activityNote, onSetActivity, onClearActivity)
         }
@@ -74,7 +73,7 @@ fun NotesCard(
     onNotesChanged: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
+    AppCard(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             NotesSection(notes, onNotesChanged)
         }
@@ -103,8 +102,8 @@ private fun WaterSection(
     }
 
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Default.WaterDrop, contentDescription = null, tint = WaterCyan.macroTextTone())
-        Spacer(modifier = Modifier.width(8.dp))
+        IconTile(icon = Icons.Default.WaterDrop, tint = WaterCyan, size = 32.dp)
+        Spacer(modifier = Modifier.width(10.dp))
         Text(
             stringResource(R.string.day_water_title),
             style = MaterialTheme.typography.titleMedium,
@@ -123,9 +122,9 @@ private fun WaterSection(
         }
     }
     Spacer(modifier = Modifier.height(8.dp))
-    LinearProgressIndicator(
-        progress = { (current.toFloat() / waterGoalMl.coerceAtLeast(1)).coerceIn(0f, 1f) },
-        modifier = Modifier.fillMaxWidth(),
+    AppProgressBar(
+        progress = current.toFloat() / waterGoalMl.coerceAtLeast(1),
+        color = WaterCyan,
     )
     Spacer(modifier = Modifier.height(12.dp))
     Row(
@@ -176,8 +175,8 @@ private fun ActivitySection(
     }
 
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.AutoMirrored.Filled.DirectionsRun, contentDescription = null, tint = ActivityViolet.macroTextTone())
-        Spacer(modifier = Modifier.width(8.dp))
+        IconTile(icon = Icons.AutoMirrored.Filled.DirectionsRun, tint = ActivityViolet, size = 32.dp)
+        Spacer(modifier = Modifier.width(10.dp))
         Text(
             stringResource(R.string.day_activity_title),
             style = MaterialTheme.typography.titleMedium,

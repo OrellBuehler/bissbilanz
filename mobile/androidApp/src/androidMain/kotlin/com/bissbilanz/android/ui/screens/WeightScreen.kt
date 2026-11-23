@@ -36,6 +36,7 @@ import com.bissbilanz.android.tips.HintCard
 import com.bissbilanz.android.tips.TipIds
 import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.tips.openHelp
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
@@ -315,7 +316,7 @@ fun WeightScreen(
                         // Trend chart
                         if (trendData.isNotEmpty()) {
                             item(key = "chart") {
-                                Card(modifier = Modifier.fillMaxWidth()) {
+                                AppCard(modifier = Modifier.fillMaxWidth()) {
                                     WeightTrendChart(
                                         trendData = trendData,
                                         projectionDays = projectionDays,
@@ -327,7 +328,7 @@ fun WeightScreen(
 
                         // Entry list
                         items(entries, key = { it.id }) { entry ->
-                            Card(modifier = Modifier.fillMaxWidth().animateItem()) {
+                            AppCard(modifier = Modifier.fillMaxWidth().animateItem()) {
                                 ListItem(
                                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                                     headlineContent = {
@@ -385,7 +386,7 @@ private fun WeightTargetCard(
     latestWeightKg: Double?,
     onEdit: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(Dimens.CardPadding),
             horizontalArrangement = Arrangement.SpaceBetween,

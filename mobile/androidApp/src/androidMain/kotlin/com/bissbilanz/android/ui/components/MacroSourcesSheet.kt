@@ -16,7 +16,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -194,10 +193,10 @@ private fun SourceRow(
             }
         }
         Spacer(Modifier.height(4.dp))
-        LinearProgressIndicator(
-            progress = { share.toFloat() },
-            modifier = Modifier.fillMaxWidth().padding(start = 28.dp),
+        AppProgressBar(
+            progress = share.toFloat(),
             color = macro.color,
+            modifier = Modifier.padding(start = 28.dp),
         )
     }
 }

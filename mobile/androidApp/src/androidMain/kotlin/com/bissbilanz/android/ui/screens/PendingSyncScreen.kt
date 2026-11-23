@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.components.AppCard
+import com.bissbilanz.android.ui.components.AppCardDefaults
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
@@ -101,8 +103,8 @@ fun PendingSyncScreen(navController: NavController) {
             ) {
                 syncState.errors.lastOrNull()?.let { error ->
                     item {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        AppCard(
+                            colors = AppCardDefaults.colors(containerColor = MaterialTheme.colorScheme.errorContainer),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Row(
@@ -141,8 +143,8 @@ fun PendingSyncScreen(navController: NavController) {
                         }
                     }
                     items(parked, key = { "parked-${it.id}" }) { request ->
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        AppCard(
+                            colors = AppCardDefaults.colors(containerColor = MaterialTheme.colorScheme.errorContainer),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Column(modifier = Modifier.padding(Dimens.CardPadding), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -205,7 +207,7 @@ fun PendingSyncScreen(navController: NavController) {
                 }
 
                 items(waiting, key = { it.id }) { request ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    AppCard(modifier = Modifier.fillMaxWidth()) {
                         ListItem(
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                             leadingContent = {

@@ -427,7 +427,7 @@ private fun StepPage(
                     Modifier
                         .fillMaxWidth()
                         .heightIn(max = 320.dp)
-                        .clip(RoundedCornerShape(16.dp)),
+                        .clip(MaterialTheme.shapes.medium),
             )
             Spacer(modifier = Modifier.size(20.dp))
         }

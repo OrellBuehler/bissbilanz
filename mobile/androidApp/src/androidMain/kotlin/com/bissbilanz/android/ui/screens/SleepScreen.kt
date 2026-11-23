@@ -41,6 +41,7 @@ import com.bissbilanz.android.tips.HintCard
 import com.bissbilanz.android.tips.TipIds
 import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.tips.openHelp
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.LoadingScreen
@@ -248,7 +249,7 @@ fun SleepScreen(
 
                         if (chartEntries.size >= 3) {
                             item(key = "chart") {
-                                Card(modifier = Modifier.fillMaxWidth()) {
+                                AppCard(modifier = Modifier.fillMaxWidth()) {
                                     Column(modifier = Modifier.padding(Dimens.CardPadding)) {
                                         Text(
                                             stringResource(R.string.sleep_duration_trend),
@@ -282,7 +283,7 @@ fun SleepScreen(
                         }
 
                         items(entries, key = { it.id }) { entry ->
-                            Card(modifier = Modifier.fillMaxWidth().animateItem()) {
+                            AppCard(modifier = Modifier.fillMaxWidth().animateItem()) {
                                 ListItem(
                                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                                     leadingContent = {
@@ -361,7 +362,7 @@ private fun SleepSummaryRow(entries: List<SleepEntry>) {
     val latest = entries.firstOrNull()
     val recent = entries.take(7)
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Card(modifier = Modifier.weight(1f)) {
+        AppCard(modifier = Modifier.weight(1f)) {
             Column(modifier = Modifier.padding(Dimens.CardPadding)) {
                 Text(
                     stringResource(R.string.sleep_last_night),
@@ -383,7 +384,7 @@ private fun SleepSummaryRow(entries: List<SleepEntry>) {
                 }
             }
         }
-        Card(modifier = Modifier.weight(1f)) {
+        AppCard(modifier = Modifier.weight(1f)) {
             Column(modifier = Modifier.padding(Dimens.CardPadding)) {
                 Text(
                     stringResource(R.string.sleep_seven_day_average),

@@ -24,6 +24,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -41,6 +42,8 @@ import com.bissbilanz.android.tips.TipIds
 import com.bissbilanz.android.tips.TipStore
 import com.bissbilanz.android.ui.components.SyncConflictBanner
 import com.bissbilanz.android.ui.theme.Motion
+import com.bissbilanz.android.ui.theme.cardSurface
+import com.bissbilanz.android.ui.theme.hairline
 import com.bissbilanz.android.ui.util.rememberPreference
 import com.bissbilanz.api.generated.model.AiTask
 import com.bissbilanz.mode.AppMode
@@ -241,50 +244,59 @@ private fun AppScaffold(
                 val aiTaskRepo: AiTaskRepository = koinInject()
                 val aiTasks by aiTaskRepo.tasks.collectAsStateWithLifecycle()
                 val aiTaskAttention = remember(aiTasks) { aiTaskAttentionCount(aiTasks) }
-                NavigationBar {
-                    bottomNavItems.forEach { screen ->
-                        NavigationBarItem(
-                            icon = {
-                                if (screen == Screen.Favorites) {
-                                    // One-tap logging is only worth advertising once someone
-                                    // has logged enough to feel the friction of typing every time.
-                                    AnchoredTip(
-                                        tipId = TipIds.FAVORITES,
-                                        title = stringResource(R.string.tip_favorites_title),
-                                        text = stringResource(R.string.tip_favorites_text),
-                                        helpSlug = HelpSlugs.LOGGING,
-                                        eligible = foodLoggedCount >= 5,
-                                    ) {
+                Column {
+                    HorizontalDivider(color = MaterialTheme.hairline)
+                    NavigationBar(containerColor = MaterialTheme.cardSurface, tonalElevation = 0.dp) {
+                        bottomNavItems.forEach { screen ->
+                            NavigationBarItem(
+                                icon = {
+                                    if (screen == Screen.Favorites) {
+                                        // One-tap logging is only worth advertising once someone
+                                        // has logged enough to feel the friction of typing every time.
+                                        AnchoredTip(
+                                            tipId = TipIds.FAVORITES,
+                                            title = stringResource(R.string.tip_favorites_title),
+                                            text = stringResource(R.string.tip_favorites_text),
+                                            helpSlug = HelpSlugs.LOGGING,
+                                            eligible = foodLoggedCount >= 5,
+                                        ) {
+                                            Icon(screen.icon, contentDescription = null)
+                                        }
+                                    } else if (screen == Screen.AiTasks && aiTaskAttention > 0) {
+                                        val badgeDescription =
+                                            pluralStringResource(R.plurals.nav_ai_tasks_badge, aiTaskAttention, aiTaskAttention)
+                                        BadgedBox(
+                                            badge = {
+                                                Badge(modifier = Modifier.semantics { contentDescription = badgeDescription }) {
+                                                    Text(aiTaskAttention.toString())
+                                                }
+                                            },
+                                        ) {
+                                            Icon(screen.icon, contentDescription = null)
+                                        }
+                                    } else {
                                         Icon(screen.icon, contentDescription = null)
                                     }
-                                } else if (screen == Screen.AiTasks && aiTaskAttention > 0) {
-                                    val badgeDescription =
-                                        pluralStringResource(R.plurals.nav_ai_tasks_badge, aiTaskAttention, aiTaskAttention)
-                                    BadgedBox(
-                                        badge = {
-                                            Badge(modifier = Modifier.semantics { contentDescription = badgeDescription }) {
-                                                Text(aiTaskAttention.toString())
-                                            }
-                                        },
-                                    ) {
-                                        Icon(screen.icon, contentDescription = null)
-                                    }
-                                } else {
-                                    Icon(screen.icon, contentDescription = null)
-                                }
-                            },
-                            label = {
-                                // Five equal slots leave ~80dp each, which "Einstellungen" and
-                                // "Auswertungen" overflow in German; shrink instead of wrapping.
-                                Text(
-                                    stringResource(screen.titleRes),
-                                    maxLines = 1,
-                                    autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = 12.sp),
-                                )
-                            },
-                            selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
-                            onClick = { navController.selectTab(screen.route) },
-                        )
+                                },
+                                label = {
+                                    // Five equal slots leave ~80dp each, which "Einstellungen" and
+                                    // "Auswertungen" overflow in German; shrink instead of wrapping.
+                                    Text(
+                                        stringResource(screen.titleRes),
+                                        maxLines = 1,
+                                        autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = 12.sp),
+                                    )
+                                },
+                                selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                                onClick = { navController.selectTab(screen.route) },
+                                colors =
+                                    NavigationBarItemDefaults.colors(
+                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    ),
+                            )
+                        }
                     }
                 }
             }
