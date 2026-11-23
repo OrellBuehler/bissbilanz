@@ -42,7 +42,7 @@ fun FastingCard(onClick: () -> Unit) {
         }
     }
 
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    AppCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(Dimens.CardPadding),
             verticalAlignment = Alignment.CenterVertically,

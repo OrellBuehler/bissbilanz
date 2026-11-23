@@ -24,6 +24,7 @@ import androidx.navigation.NavController
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.ChoiceDropdown
 import com.bissbilanz.android.ui.components.EmptyState
@@ -249,7 +250,7 @@ fun RecipeListItem(
     modifier: Modifier = Modifier,
     duplicateEnabled: Boolean = true,
 ) {
-    Card(onClick = onClick, modifier = modifier.fillMaxWidth()) {
+    AppCard(onClick = onClick, modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,

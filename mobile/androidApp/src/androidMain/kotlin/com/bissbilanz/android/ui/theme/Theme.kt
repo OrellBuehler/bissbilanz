@@ -1,6 +1,7 @@
 package com.bissbilanz.android.ui.theme
 
 import android.os.Build
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
@@ -199,26 +200,29 @@ private val LightColorScheme =
         surfaceContainerHighest = Color(0xFFE4E9EE),
     )
 
-// Corner language shared with the web app (--radius: 1rem), which reads more
-// considered than the M3 default 12dp on the card-heavy screens.
 private val BissbilanzShapes =
     Shapes(
-        extraSmall =
-            androidx.compose.foundation.shape
-                .RoundedCornerShape(6.dp),
-        small =
-            androidx.compose.foundation.shape
-                .RoundedCornerShape(10.dp),
-        medium =
-            androidx.compose.foundation.shape
-                .RoundedCornerShape(16.dp),
-        large =
-            androidx.compose.foundation.shape
-                .RoundedCornerShape(20.dp),
-        extraLarge =
-            androidx.compose.foundation.shape
-                .RoundedCornerShape(28.dp),
+        extraSmall = RoundedCornerShape(8.dp),
+        small = RoundedCornerShape(12.dp),
+        medium = RoundedCornerShape(16.dp),
+        large = RoundedCornerShape(24.dp),
+        extraLarge = RoundedCornerShape(28.dp),
     )
+
+private val LightCardSurface = Color(0xFFFFFFFF)
+private val DarkCardSurface = Color(0xFF242A30)
+private val LightHairline = Color(0xFFDDE3EA)
+private val DarkHairline = Color(0xFF353D45)
+
+val MaterialTheme.cardSurface: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = if (LocalIsDarkTheme.current) DarkCardSurface else LightCardSurface
+
+val MaterialTheme.hairline: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = if (LocalIsDarkTheme.current) DarkHairline else LightHairline
 
 @Composable
 fun BissbilanzTheme(
@@ -249,6 +253,7 @@ fun BissbilanzTheme(
         MaterialTheme(
             colorScheme = colorScheme,
             shapes = BissbilanzShapes,
+            typography = BissbilanzTypography,
             content = content,
         )
     }

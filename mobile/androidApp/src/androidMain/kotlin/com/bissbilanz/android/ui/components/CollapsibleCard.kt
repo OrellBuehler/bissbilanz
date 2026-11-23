@@ -37,7 +37,7 @@ fun CollapsibleCard(
         label = "chevron-$sectionId",
     )
 
-    Card(modifier = modifier.fillMaxWidth()) {
+    AppCard(modifier = modifier.fillMaxWidth()) {
         Column {
             Row(
                 modifier =

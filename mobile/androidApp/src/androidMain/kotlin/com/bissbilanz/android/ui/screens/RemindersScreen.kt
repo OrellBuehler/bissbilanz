@@ -32,6 +32,7 @@ import com.bissbilanz.android.navigation.LocalBarRoutes
 import com.bissbilanz.android.navigation.NAV_KEY_EDIT_SUPPLEMENT_ID
 import com.bissbilanz.android.navigation.openDestination
 import com.bissbilanz.android.reminders.SupplementReminderPreferences
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.ChoiceDropdown
 import com.bissbilanz.android.ui.components.ExactAlarmPrompt
@@ -142,7 +143,7 @@ fun RemindersScreen(navController: NavController) {
             ) {
                 // Snooze duration + notification-permission nudge, moved here from Settings
                 // since they now apply to every reminder kind, not just supplements.
-                Card(modifier = Modifier.fillMaxWidth()) {
+                AppCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             stringResource(R.string.settings_reminders_title),
@@ -213,7 +214,7 @@ fun RemindersScreen(navController: NavController) {
                     }
                 }
 
-                Card(modifier = Modifier.fillMaxWidth()) {
+                AppCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             stringResource(R.string.reminders_supplements_title),
@@ -260,7 +261,7 @@ private fun ReminderRow(
 ) {
     val icon = reminderKindIcon(reminder.kind)
     val dayLabels = weekdayLabels()
-    Card(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
+    AppCard(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,

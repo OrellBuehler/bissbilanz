@@ -28,6 +28,7 @@ import com.bissbilanz.android.health.EXTENDED_HEALTH_NUTRIENTS
 import com.bissbilanz.android.health.HealthConnectService
 import com.bissbilanz.android.health.HealthImporter
 import com.bissbilanz.android.health.HealthSyncPreferences
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.ToggleRow
 import kotlinx.coroutines.launch
@@ -196,7 +197,7 @@ fun HealthConnectScreen(navController: NavController) {
                     .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            AppCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -274,7 +275,7 @@ fun HealthConnectScreen(navController: NavController) {
             }
 
             if (available && isConnected) {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                AppCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             stringResource(R.string.health_reading_section),
@@ -337,7 +338,7 @@ fun HealthConnectScreen(navController: NavController) {
                     }
                 }
 
-                Card(modifier = Modifier.fillMaxWidth()) {
+                AppCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             stringResource(R.string.health_writing_section),
@@ -366,7 +367,7 @@ fun HealthConnectScreen(navController: NavController) {
                 }
 
                 if (writeNutrition) {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    AppCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
                                 stringResource(R.string.health_extended_nutrients_section),

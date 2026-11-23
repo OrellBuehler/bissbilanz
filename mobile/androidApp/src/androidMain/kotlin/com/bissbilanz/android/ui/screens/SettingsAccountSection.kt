@@ -18,6 +18,7 @@ import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.R
 import com.bissbilanz.android.sync.AccountDowngradeController
 import com.bissbilanz.android.tips.openHelp
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.auth.AuthState
 
 @Composable
@@ -33,7 +34,7 @@ internal fun AccountCard(
     onSignOut: () -> Unit,
     onDeleteAccount: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 stringResource(R.string.settings_account),

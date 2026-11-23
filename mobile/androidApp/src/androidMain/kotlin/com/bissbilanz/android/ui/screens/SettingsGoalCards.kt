@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.R
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.ChoiceDropdown
 import com.bissbilanz.android.ui.components.ToggleRow
 import com.bissbilanz.model.Goals
@@ -27,7 +28,7 @@ internal fun DailyGoalsCard(
     goals: Goals?,
     onSave: (Goals) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 stringResource(R.string.settings_daily_goals),
@@ -204,7 +205,7 @@ internal fun BiologicalSexCard(
     prefs: Preferences?,
     onSelect: (GenPreferencesUpdate.BiologicalSex?) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 stringResource(R.string.settings_biological_sex),
@@ -245,7 +246,7 @@ internal fun ActivityGoalAdjustmentCard(
     onAdjustmentChange: (Boolean) -> Unit,
     onCreditPercentChange: (Int) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 stringResource(R.string.settings_activity_goal_adjustment_title),
@@ -288,7 +289,7 @@ internal fun WaterGoalCard(
     waterGoalMl: Int?,
     onUpdate: (Int) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 stringResource(R.string.settings_water_goal),

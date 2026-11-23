@@ -55,18 +55,21 @@ import com.bissbilanz.android.tips.rememberActiveTipId
 import com.bissbilanz.android.ui.components.ActivityCard
 import com.bissbilanz.android.ui.components.AddFoodSheet
 import com.bissbilanz.android.ui.components.AiMealSheet
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.CalorieTrendWidget
+import com.bissbilanz.android.ui.components.DashboardHeroCard
 import com.bissbilanz.android.ui.components.DashboardSkeleton
 import com.bissbilanz.android.ui.components.EntryEditSheet
 import com.bissbilanz.android.ui.components.FastingCard
 import com.bissbilanz.android.ui.components.FavoritesQuickLogWidget
 import com.bissbilanz.android.ui.components.FoodEditSheet
-import com.bissbilanz.android.ui.components.MacroRing
+import com.bissbilanz.android.ui.components.MacroTarget
 import com.bissbilanz.android.ui.components.MealBreakdownWidget
 import com.bissbilanz.android.ui.components.MealCard
 import com.bissbilanz.android.ui.components.NotesCard
 import com.bissbilanz.android.ui.components.PullToRefreshWrapper
 import com.bissbilanz.android.ui.components.RecipeSuggestionsWidget
+import com.bissbilanz.android.ui.components.SectionTitle
 import com.bissbilanz.android.ui.components.SleepWidget
 import com.bissbilanz.android.ui.components.SupplementsWidget
 import com.bissbilanz.android.ui.components.TopFoodsWidget
@@ -421,83 +424,47 @@ fun DashboardScreen(navController: NavController) {
                                 onHorizontalDrag = { _, delta -> dragAmount += delta },
                             )
                         }.verticalScroll(rememberScrollState())
-                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = Dimens.FabClearance),
+                        .padding(
+                            start = Dimens.ScreenPadding,
+                            end = Dimens.ScreenPadding,
+                            top = Dimens.CardGap,
+                            bottom = Dimens.FabClearance,
+                        ),
             ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    MacroRing(
-                        stringResource(R.string.macro_calories),
-                        totalCalories,
-                        effectiveGoals?.calorieGoal ?: DefaultGoals.CALORIES,
-                        CaloriesBlue,
-                        size = 88.dp,
-                        strokeWidth = 8.dp,
-                        showGoal = true,
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                ) {
-                    MacroRing(
-                        stringResource(R.string.macro_protein),
-                        totalProtein,
-                        effectiveGoals?.proteinGoal ?: DefaultGoals.PROTEIN,
-                        ProteinRed,
-                        size = 56.dp,
-                        strokeWidth = 5.dp,
-                        showGoal = true,
-                    )
-                    MacroRing(
-                        stringResource(R.string.macro_carbs),
-                        totalCarbs,
-                        effectiveGoals?.carbGoal ?: DefaultGoals.CARBS,
-                        CarbsOrange,
-                        size = 56.dp,
-                        strokeWidth = 5.dp,
-                        showGoal = true,
-                    )
-                    MacroRing(
-                        stringResource(R.string.macro_fat),
-                        totalFat,
-                        effectiveGoals?.fatGoal ?: DefaultGoals.FAT,
-                        FatYellow,
-                        size = 56.dp,
-                        strokeWidth = 5.dp,
-                        showGoal = true,
-                    )
-                    MacroRing(
-                        stringResource(R.string.macro_fiber),
-                        totalFiber,
-                        effectiveGoals?.fiberGoal ?: DefaultGoals.FIBER,
-                        FiberGreen,
-                        size = 56.dp,
-                        strokeWidth = 5.dp,
-                        showGoal = true,
-                    )
-                }
-
-                val activityCaloriesValue = activityCalories
-                if (activityCaloriesValue != null && activityCaloriesValue > 0) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        stringResource(R.string.day_activity_summary, activityCaloriesValue),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (activityBonus > 0) {
-                        Text(
-                            stringResource(R.string.day_activity_goal_bonus, activityBonus),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = CaloriesBlue.macroTextTone(),
-                        )
-                    }
-                }
+                DashboardHeroCard(
+                    calorieLabel = stringResource(R.string.macro_calories),
+                    calories = totalCalories,
+                    calorieGoal = effectiveGoals?.calorieGoal ?: DefaultGoals.CALORIES,
+                    macros =
+                        listOf(
+                            MacroTarget(
+                                stringResource(R.string.macro_protein),
+                                totalProtein,
+                                effectiveGoals?.proteinGoal ?: DefaultGoals.PROTEIN,
+                                ProteinRed,
+                            ),
+                            MacroTarget(
+                                stringResource(R.string.macro_carbs),
+                                totalCarbs,
+                                effectiveGoals?.carbGoal ?: DefaultGoals.CARBS,
+                                CarbsOrange,
+                            ),
+                            MacroTarget(
+                                stringResource(R.string.macro_fat),
+                                totalFat,
+                                effectiveGoals?.fatGoal ?: DefaultGoals.FAT,
+                                FatYellow,
+                            ),
+                            MacroTarget(
+                                stringResource(R.string.macro_fiber),
+                                totalFiber,
+                                effectiveGoals?.fiberGoal ?: DefaultGoals.FIBER,
+                                FiberGreen,
+                            ),
+                        ),
+                    activityCalories = activityCalories,
+                    activityBonus = activityBonus,
+                )
 
                 if (activeTipId == TipIds.WIDGETS) {
                     Spacer(modifier = Modifier.height(Dimens.CardGap))
@@ -549,20 +516,12 @@ fun DashboardScreen(navController: NavController) {
 
                                             if (totalCalories == 0.0 && !refreshFailed) {
                                                 Spacer(modifier = Modifier.height(Dimens.CardGap))
-                                                Card(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    colors =
-                                                        CardDefaults.cardColors(
-                                                            containerColor =
-                                                                MaterialTheme.colorScheme.surfaceVariant
-                                                                    .copy(alpha = 0.5f),
-                                                        ),
-                                                ) {
+                                                AppCard(modifier = Modifier.fillMaxWidth()) {
                                                     Row(
                                                         modifier =
                                                             Modifier
                                                                 .fillMaxWidth()
-                                                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                                                .padding(horizontal = Dimens.CardPadding, vertical = Dimens.CardGap),
                                                         horizontalArrangement = Arrangement.SpaceBetween,
                                                         verticalAlignment = Alignment.CenterVertically,
                                                     ) {
@@ -634,6 +593,8 @@ fun DashboardScreen(navController: NavController) {
 
                                         DashboardSection.DAYLOG -> {
                                             Spacer(modifier = Modifier.height(Dimens.CardGap))
+                                            SectionTitle(stringResource(R.string.dashboard_layout_row_daylog))
+                                            Spacer(modifier = Modifier.height(Dimens.ListGap))
                                             Column {
                                                 mealTypes.forEach { meal ->
                                                     val mealEntries = mealGroups[meal] ?: emptyList()
@@ -643,7 +604,7 @@ fun DashboardScreen(navController: NavController) {
                                                         onClick = { navController.navigate("daylog/$selectedDate") },
                                                         onAddClick = { addFoodForMeal = meal },
                                                     )
-                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    Spacer(modifier = Modifier.height(Dimens.ListGap))
                                                 }
                                                 mealGroups.keys.filter { it !in mealTypes }.forEach { meal ->
                                                     val mealEntries = mealGroups[meal] ?: emptyList()
@@ -653,7 +614,7 @@ fun DashboardScreen(navController: NavController) {
                                                         onClick = { navController.navigate("daylog/$selectedDate") },
                                                         onAddClick = { addFoodForMeal = meal },
                                                     )
-                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    Spacer(modifier = Modifier.height(Dimens.ListGap))
                                                 }
 
                                                 if (entries.isEmpty()) {
@@ -759,7 +720,7 @@ fun DashboardScreen(navController: NavController) {
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(Dimens.ScreenPadding))
                         }
                     }
                 }

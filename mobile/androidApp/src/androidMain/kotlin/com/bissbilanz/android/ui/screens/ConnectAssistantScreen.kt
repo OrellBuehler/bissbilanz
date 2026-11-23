@@ -40,6 +40,7 @@ import com.bissbilanz.ErrorReporter
 import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.R
 import com.bissbilanz.android.aitasks.McpConnectionStore
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.util.AssistantLinks
 import com.bissbilanz.android.util.QrCodeImage
@@ -244,7 +245,7 @@ private fun ConnectionStatusCard(
             connected -> stringResource(R.string.connect_assistant_status_connected)
             else -> stringResource(R.string.connect_assistant_status_not_connected)
         }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -275,7 +276,7 @@ private fun SectionCard(
     title: String,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 title,
@@ -294,7 +295,7 @@ private fun CollapsibleSection(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column {
             Row(
                 modifier =

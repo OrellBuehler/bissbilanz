@@ -28,6 +28,8 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.NavTabs
 import com.bissbilanz.android.navigation.openDestination
 import com.bissbilanz.android.navigation.tabScreen
+import com.bissbilanz.android.ui.components.AppCard
+import com.bissbilanz.android.ui.components.AppCardDefaults
 import com.bissbilanz.android.ui.components.ChoiceDropdown
 import com.bissbilanz.android.ui.theme.rememberHaptic
 import sh.calvin.reorderable.ReorderableColumn
@@ -42,7 +44,7 @@ internal fun SettingsNavigationCard(
     // Every destination that can leave the bar has a row here, whatever the tab choice.
     fun open(route: String) = navController.openDestination(route, barRoutes)
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column {
             SettingsNavItem(stringResource(R.string.food_search_title), Icons.Default.Restaurant) { open("foods") }
             HorizontalDivider()
@@ -108,7 +110,7 @@ internal fun NavigationTabsCard(
     onLandingChange: (String) -> Unit,
 ) {
     val haptic = rememberHaptic()
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 stringResource(R.string.settings_nav_tabs),
@@ -140,7 +142,7 @@ internal fun NavigationTabsCard(
                                 onDragStarted = { haptic(HapticFeedbackType.GestureThresholdActivate) },
                                 onDragStopped = { haptic(HapticFeedbackType.GestureEnd) },
                             )
-                        Surface(color = CardDefaults.cardColors().containerColor, shadowElevation = elevation) {
+                        Surface(color = AppCardDefaults.colors().containerColor, shadowElevation = elevation) {
                             NavTabRow(
                                 screenIcon = screen.icon,
                                 label = label,

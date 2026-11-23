@@ -22,6 +22,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
 import com.bissbilanz.android.R
 import com.bissbilanz.android.bulk.formatCount
+import com.bissbilanz.android.ui.components.AppCard
+import com.bissbilanz.android.ui.components.AppCardDefaults
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.EmptyState
 import com.bissbilanz.android.ui.components.ErrorState
@@ -164,7 +166,7 @@ internal fun EnhanceFoodsContent(
 @Composable
 private fun ActiveRunCard(job: FoodEnrichmentJob) {
     val progress = if (job.total > 0) (job.processed.toFloat() / job.total).coerceIn(0f, 1f) else 0f
-    Card(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
@@ -205,7 +207,7 @@ private fun LastRunCard(job: FoodEnrichmentJob) {
     val date = (job.finishedAt ?: job.startedAt)?.let { formatIsoDateTime(it) }
     val processed = formatCount(job.processed)
     val total = formatCount(job.total)
-    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (date != null) {
                 Text(
@@ -236,9 +238,9 @@ private fun Notice(
     text: String,
     action: (@Composable () -> Unit)? = null,
 ) {
-    Card(
+    AppCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        colors = AppCardDefaults.colors(containerColor = MaterialTheme.colorScheme.errorContainer),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),

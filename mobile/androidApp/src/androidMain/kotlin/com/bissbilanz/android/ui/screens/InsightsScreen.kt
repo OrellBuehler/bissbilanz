@@ -35,6 +35,7 @@ import com.bissbilanz.android.R
 import com.bissbilanz.android.navigation.LocalBarRoutes
 import com.bissbilanz.android.navigation.openDestination
 import com.bissbilanz.android.sync.RefreshManager
+import com.bissbilanz.android.ui.components.AppCard
 import com.bissbilanz.android.ui.components.AppTopBar
 import com.bissbilanz.android.ui.components.CalendarHeatmap
 import com.bissbilanz.android.ui.components.CollapsibleCard
@@ -221,7 +222,7 @@ fun InsightsScreen(
                     0 -> {
                         // Streaks
                         streaks?.let { s ->
-                            Card(modifier = Modifier.fillMaxWidth()) {
+                            AppCard(modifier = Modifier.fillMaxWidth()) {
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     Text(
                                         stringResource(R.string.insights_streaks),

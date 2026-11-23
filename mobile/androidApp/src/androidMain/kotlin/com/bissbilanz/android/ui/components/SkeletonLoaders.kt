@@ -2,6 +2,7 @@ package com.bissbilanz.android.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,7 +22,7 @@ fun DashboardSkeleton() {
                     Modifier
                         .fillMaxWidth()
                         .height(72.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(MaterialTheme.shapes.large)
                         .shimmer(),
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -51,7 +52,7 @@ fun DayLogSkeleton(modifier: Modifier = Modifier) {
                     Modifier
                         .fillMaxWidth()
                         .height(64.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(MaterialTheme.shapes.small)
                         .shimmer(),
             )
             Spacer(modifier = Modifier.height(6.dp))
@@ -73,7 +74,7 @@ fun DayLogSkeleton(modifier: Modifier = Modifier) {
                     Modifier
                         .fillMaxWidth()
                         .height(64.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(MaterialTheme.shapes.small)
                         .shimmer(),
             )
             Spacer(modifier = Modifier.height(6.dp))
@@ -96,7 +97,7 @@ fun FavoritesSkeleton() {
                             Modifier
                                 .weight(1f)
                                 .height(96.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(MaterialTheme.shapes.large)
                                 .shimmer(),
                     )
                 }
@@ -118,7 +119,7 @@ fun FoodSearchSkeleton() {
                     modifier =
                         Modifier
                             .size(40.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(MaterialTheme.shapes.extraSmall)
                             .shimmer(),
                 )
                 Spacer(modifier = Modifier.width(16.dp))

@@ -356,7 +356,7 @@ fun RecipeEditSheet(
 
                 ingredients.forEachIndexed { index, ingredient ->
                     key(ingredient.key) {
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        AppCard(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),

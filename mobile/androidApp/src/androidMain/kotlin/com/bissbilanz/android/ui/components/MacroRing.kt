@@ -19,12 +19,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.bissbilanz.android.ui.theme.GentleSpring
 import com.bissbilanz.android.ui.theme.Motion
 import com.bissbilanz.android.ui.theme.macroTextTone
+import com.bissbilanz.android.ui.theme.rememberReduceMotion
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -35,15 +37,18 @@ fun MacroRing(
     goal: Double,
     color: Color,
     size: Dp = 64.dp,
-    strokeWidth: Dp = 6.dp,
+    strokeWidth: Dp = 8.dp,
     showGoal: Boolean = false,
+    showLabel: Boolean = true,
+    counterStyle: TextStyle = MaterialTheme.typography.labelMedium,
 ) {
     val progress = if (goal > 0) (current / goal).toFloat() else 0f
 
     var revealed by rememberSaveable { mutableStateOf(false) }
     val animatedProgress = remember { Animatable(if (revealed) progress else 0f) }
+    val reduceMotion = rememberReduceMotion()
     LaunchedEffect(progress) {
-        animatedProgress.animateTo(progress, animationSpec = GentleSpring)
+        if (reduceMotion) animatedProgress.snapTo(progress) else animatedProgress.animateTo(progress, animationSpec = GentleSpring)
         revealed = true
     }
 
@@ -62,7 +67,7 @@ fun MacroRing(
             Canvas(modifier = Modifier.fillMaxSize().padding(4.dp)) {
                 val sw = strokeWidth.toPx()
                 drawArc(
-                    color = color.copy(alpha = 0.2f),
+                    color = color.copy(alpha = 0.16f),
                     startAngle = -90f,
                     sweepAngle = 360f,
                     useCenter = false,
@@ -79,7 +84,7 @@ fun MacroRing(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = animatedCounter.toString(),
-                    style = MaterialTheme.typography.labelMedium,
+                    style = counterStyle,
                     fontWeight = FontWeight.Bold,
                     color = textTone,
                 )
@@ -92,11 +97,13 @@ fun MacroRing(
                 }
             }
         }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        if (showLabel) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
