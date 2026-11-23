@@ -68,7 +68,7 @@
 		"@stryker-mutator/vitest-runner": "^10.0.0",
 		"@sveltejs/adapter-bun": "^1.0.1",
 		"@sveltejs/kit": "^3.2.0",
-		"@sveltejs/vite-plugin-svelte": "^7.3.0",
+		"@sveltejs/vite-plugin-svelte": "^7.3.1",
 		"@tailwindcss/vite": "^4.3.5",
 		"@tesseract.js-data/deu": "^1.0.0",
 		"@tesseract.js-data/eng": "^1.0.0",
