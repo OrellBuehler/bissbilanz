@@ -2,13 +2,14 @@ import SwiftUI
 
 struct MacroRingView: View {
     /// Short abbreviation shown under the ring ("Cal", "P", "C"...).
-    let label: String
+    let label: String?
     /// Full macro name spoken by VoiceOver instead of the abbreviation.
     let accessibilityName: String
     let current: Double
     let goal: Double
     let macro: AccessibleMacroColor.Macro
     var showGoal: Bool = false
+    var size: CGFloat = 56
     /// Staggers the fill animation so a row of rings cascades into place.
     var animationDelay: Double = 0
 
@@ -36,15 +37,12 @@ struct MacroRingView: View {
         isOver ? .red : color
     }
 
-    /// Subtle sweep from a muted shade to the full macro color, so the ring
-    /// gains depth as it fills without straying from the macro color coding.
-    private var ringGradient: AngularGradient {
-        AngularGradient(
-            gradient: Gradient(colors: [ringColor.opacity(0.65), ringColor]),
-            center: .center,
-            startAngle: .degrees(0),
-            endAngle: .degrees(360)
-        )
+    private var isLarge: Bool {
+        size >= 100
+    }
+
+    private var lineWidth: CGFloat {
+        size * 0.14
     }
 
     private var fillAnimation: Animation {
@@ -55,52 +53,65 @@ struct MacroRingView: View {
         VStack(spacing: 4) {
             ZStack {
                 Circle()
-                    .stroke(color.opacity(trackOpacity), lineWidth: 6)
+                    .stroke(color.opacity(trackOpacity), lineWidth: lineWidth)
 
                 Circle()
                     .trim(from: 0, to: animatedProgress)
-                    .stroke(ringGradient, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                    .stroke(ringColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                    .shadow(color: ringColor.opacity(colorScheme == .dark ? 0.4 : 0.25), radius: 3)
 
-                VStack(spacing: 0) {
-                    Text(MacroFormat.kcal(current))
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .monospacedDigit()
-                        .contentTransition(.numericText(value: current))
-                        .foregroundStyle(isOver ? .red : color)
-                    if showGoal {
-                        Text("/\(MacroFormat.kcal(goal))")
-                            .font(.system(size: 8))
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .animation(reduceMotion ? nil : fillAnimation, value: current)
+                centerText
 
                 // Color alone marks "over goal" (ring/text turn red) — add a
                 // shape-based cue too when Differentiate Without Color is on.
                 if isOver, differentiateWithoutColor {
                     Image(systemName: "exclamationmark.circle.fill")
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundStyle(.red)
                         .background(Circle().fill(.background))
-                        .offset(x: 20, y: -20)
+                        .offset(x: size * 0.36, y: -size * 0.36)
                         .accessibilityHidden(true)
                 }
             }
-            .frame(width: 56, height: 56)
+            .frame(width: size, height: size)
 
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            if let label {
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
         }
         .onAppear { syncProgress() }
         .onChange(of: progress) { _, _ in syncProgress() }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityName)
         .accessibilityValue(accessibilityValueText)
+    }
+
+    private var centerText: some View {
+        VStack(spacing: 0) {
+            Text(MacroFormat.kcal(current))
+                .font(isLarge ? Font.brand(.title2, weight: .bold) : Font.brand(.caption, weight: .semibold))
+                .monospacedDigit()
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+                .contentTransition(.numericText(value: current))
+                .foregroundStyle(isOver ? .red : color)
+            if showGoal {
+                Text(goalCaption)
+                    .font(isLarge ? Font.brand(.caption) : Font.caption2)
+                    .monospacedDigit()
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, lineWidth + 2)
+        .animation(reduceMotion ? nil : fillAnimation, value: current)
+    }
+
+    private var goalCaption: String {
+        isLarge ? "/ \(MacroFormat.kcal(goal)) \(L10n.insightsKcalUnit)" : "/\(MacroFormat.kcal(goal))"
     }
 
     private var trackOpacity: Double {

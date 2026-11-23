@@ -22,48 +22,15 @@ struct MealCard: View {
     /// NavigationLink — a nested Button would swallow the tap and the link
     /// would never fire.
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: mealIcon)
-                    .foregroundStyle(mealColor)
-                Text(L10n.mealName(mealType))
-                    .font(.headline)
-                Spacer()
-                Text("\(Int(mealCalories)) cal")
-                    .font(.subheadline)
-                    .monospacedDigit()
-                    .contentTransition(.numericText(value: mealCalories))
-                    .foregroundStyle(.secondary)
-            }
+        VStack(alignment: .leading, spacing: 10) {
+            MealCardHeader(mealType: mealType, icon: mealIcon, tint: mealColor, calories: mealCalories)
 
             ForEach(entries) { entry in
-                HStack {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(entry.displayName)
-                            .font(.subheadline)
-                            .lineLimit(1)
-                        if let time = entry.loggedTimeString {
-                            Text(time)
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-                    Spacer()
-                    Text("\(entry.servings, specifier: "%.1g")x")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("\(Int(entry.totalCalories))")
-                        .font(.caption)
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                }
+                MealCardRow(entry: entry)
             }
         }
-        .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .card()
     }
 
     private var mealIcon: String {
@@ -73,6 +40,55 @@ struct MealCard: View {
         case "dinner": "moon.stars"
         case "snacks", "snack": "carrot"
         default: "fork.knife"
+        }
+    }
+}
+
+private struct MealCardHeader: View {
+    let mealType: String
+    let icon: String
+    let tint: Color
+    let calories: Double
+
+    var body: some View {
+        HStack(spacing: 10) {
+            IconTile(systemImage: icon, tint: tint, size: 32)
+            Text(L10n.mealName(mealType))
+                .font(.brand(.headline, weight: .semibold))
+                .foregroundStyle(Brand.text)
+                .lineLimit(1)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 8)
+            Chip("\(Int(calories)) cal")
+                .contentTransition(.numericText(value: calories))
+        }
+    }
+}
+
+private struct MealCardRow: View {
+    let entry: Entry
+
+    var body: some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(entry.displayName)
+                    .font(.subheadline)
+                    .foregroundStyle(Brand.text)
+                    .lineLimit(1)
+                if let time = entry.loggedTimeString {
+                    Text(time)
+                        .font(.caption2)
+                        .foregroundStyle(Brand.textSecondary)
+                }
+            }
+            Spacer(minLength: 8)
+            Text("\(entry.servings, specifier: "%.1g")x")
+                .font(.caption)
+                .foregroundStyle(Brand.textSecondary)
+            Text("\(Int(entry.totalCalories))")
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(Brand.textSecondary)
         }
     }
 }
