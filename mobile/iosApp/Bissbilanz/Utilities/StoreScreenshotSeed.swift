@@ -268,6 +268,12 @@ enum StoreScreenshotSeed {
         json["magnesium"] = magnesium
         json["iron"] = iron
         json["vitaminC"] = vitaminC
+        // Lets the Insights nutrition cards (NOVA, omega ratio) show a result.
+        let omega3: Double = (demo.fat * 0.4).rounded() / 10
+        let omega6: Double = (demo.fat * 1.2).rounded() / 10
+        json["omega3"] = omega3
+        json["omega6"] = omega6
+        json["novaGroup"] = demo.brand == nil ? 1 : 3
         if let brand = demo.brand {
             json["brand"] = brand
         }

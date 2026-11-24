@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -58,6 +58,8 @@ for (const key of targetKeys) {
 			continue;
 		}
 		const dir = join(outDir, key, locale);
+		// A full render replaces the set, so a renamed or dropped slide leaves no stale image.
+		if (selected.length === target.slides.length) await rm(dir, { recursive: true, force: true });
 		await mkdir(join(dir, 'html'), { recursive: true });
 
 		for (const slide of selected) {
