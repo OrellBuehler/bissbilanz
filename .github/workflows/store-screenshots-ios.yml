@@ -1,0 +1,99 @@
+name: Store Screenshots (iOS)
+
+# Builds the Debug app for the simulator and captures the App Store
+# screenshots in English and German from invented demo data. Run it by hand,
+# then download the `ios-store-screenshots` artifact into
+# store/promo/screens/ and render the promo images (store/promo/README.md).
+on:
+  workflow_dispatch:
+  # Also when the capture itself changes, so a broken script or seed shows up
+  # on the pull request instead of on the next manual run.
+  pull_request:
+    paths:
+      - .github/workflows/store-screenshots-ios.yml
+      - scripts/ios/store-screenshots.sh
+      - mobile/iosApp/Bissbilanz/Utilities/StoreScreenshotSeed.swift
+
+concurrency:
+  group: store-screenshots-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up the Xcode runner
+        uses: ./.github/actions/ios-setup
+
+      - name: Build shared iOS framework
+        run: ./gradlew shared:linkDebugFrameworkIosSimulatorArm64
+
+      - name: Stage shared framework for Xcode
+        run: |
+          SDK_NAME=$(xcrun --sdk iphonesimulator --show-sdk-version)
+          DEST="shared/build/xcode-frameworks/Debug/iphonesimulator${SDK_NAME}"
+          mkdir -p "$DEST"
+          cp -R shared/build/bin/iosSimulatorArm64/debugFramework/shared.framework "$DEST/"
+
+      - name: Generate Xcode project
+        working-directory: mobile/iosApp
+        run: xcodegen generate
+
+      # The 6.9 inch App Store slot is the Pro Max screen (1320 x 2868).
+      - name: Pick a Pro Max simulator
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available --json | jq -r '
+            [.devices | to_entries[]
+             | select(.key | test("iOS"))
+             | .value[]
+             | select(.name | test("^iPhone.*Pro Max$"))
+             | .udid] | last')
+          if [ -z "$DEVICE_ID" ] || [ "$DEVICE_ID" = "null" ]; then
+            echo "No iPhone Pro Max simulator available" >&2
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "DEVICE_ID=$DEVICE_ID" >> "$GITHUB_ENV"
+
+      - name: Build iOS app
+        working-directory: mobile/iosApp
+        run: |
+          xcodebuild build \
+            -project Bissbilanz.xcodeproj \
+            -scheme Bissbilanz \
+            -destination "id=$DEVICE_ID" \
+            -configuration Debug \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64
+
+      - name: Boot simulator and install app
+        working-directory: mobile/iosApp
+        run: |
+          xcrun simctl boot "$DEVICE_ID"
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+          xcrun simctl install "$DEVICE_ID" build/DerivedData/Build/Products/Debug-iphonesimulator/Bissbilanz.app
+
+      - name: Capture screenshots
+        working-directory: ${{ github.workspace }}
+        run: scripts/ios/store-screenshots.sh "$DEVICE_ID" "$RUNNER_TEMP/store-screenshots"
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: ios-store-screenshots
+          path: ${{ runner.temp }}/store-screenshots
+          retention-days: 14
+          if-no-files-found: error
