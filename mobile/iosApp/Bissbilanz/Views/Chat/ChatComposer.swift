@@ -76,7 +76,8 @@ struct ChatComposer: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.top, 8)
+        .padding(.bottom, 14)
         .onAppear {
             text = store.draft(for: conversationId)
             images = store.attachments(for: conversationId)
