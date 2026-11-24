@@ -13,11 +13,22 @@ import SwiftData
 enum StoreScreenshotSeed {
     /// `UserDefaults` key, set from the launch arguments.
     nonisolated static let launchKey = "store_screenshots"
+    /// `UserDefaults` key for a `bissbilanz://` link to present on launch.
+    /// `simctl openurl` would do the same, but it leaves a system "Open in
+    /// Bissbilanz?" alert on top of the screen.
+    nonisolated static let launchLinkKey = "store_screenshot_link"
     static let bowlRecipeId = "demo-recipe-bowl"
     static let oatsRecipeId = "demo-recipe-oats"
 
     nonisolated static var isRequested: Bool {
         UserDefaults.standard.bool(forKey: launchKey)
+    }
+
+    nonisolated static var launchLink: DeepLink? {
+        guard let raw = UserDefaults.standard.string(forKey: launchLinkKey), let url = URL(string: raw) else {
+            return nil
+        }
+        return DeepLink.parse(url)
     }
 
     private struct DemoFood {
@@ -150,6 +161,17 @@ enum StoreScreenshotSeed {
             calorieGoal: 2200, proteinGoal: 150, carbGoal: 240, fatGoal: 70, fiberGoal: 30,
             sodiumGoal: nil, sugarGoal: nil, targetWeightKg: 75
         )))
+
+        // The meals are what the dashboard should show; the optional cards
+        // would push them below the fold.
+        var hidden: [String: Any] = [:]
+        hidden["showFastingWidget"] = false
+        hidden["showWaterWidget"] = false
+        hidden["showActivityWidget"] = false
+        hidden["showNotesWidget"] = false
+        try context.insert(LocalPreferences(
+            preferences: JSONPatch.merged(Preferences.self, base: Preferences.defaults, patch: hidden)
+        ))
 
         for offset in 0 ..< 35 {
             let day = Calendar.current.date(byAdding: .day, value: -offset, to: Date()) ?? Date()

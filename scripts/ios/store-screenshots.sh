@@ -3,7 +3,7 @@
 # launched once per screen with -store_screenshots YES, which makes a Debug
 # build run on an in-memory store filled with invented demo data (see
 # StoreScreenshotSeed.swift). The screen is chosen through launch arguments
-# and deep links, so nothing has to be tapped.
+# and a link handed over at launch, so nothing has to be tapped.
 #
 # Usage: store-screenshots.sh <simulator udid> <output dir>
 set -euo pipefail
@@ -22,20 +22,20 @@ capture() {
   local locale="$1" name="$2" appearance="$3" tabs="$4" landing="$5" link="${6:-}"
   xcrun simctl ui "$DEVICE_ID" appearance "$appearance"
   xcrun simctl terminate "$DEVICE_ID" "$BUNDLE_ID" 2>/dev/null || true
-  xcrun simctl launch "$DEVICE_ID" "$BUNDLE_ID" \
-    -store_screenshots YES \
-    -app_mode local \
-    -app_locale "$locale" \
-    -AppleLanguages "($locale)" \
-    -AppleLocale "${locale}_CH" \
-    -tips_enabled NO \
-    -selected_tabs "$tabs" \
-    -landing_tab "$landing" >/dev/null
-  sleep "$SETTLE_SECONDS"
+  local args=(
+    -store_screenshots YES
+    -app_mode local
+    -app_locale "$locale"
+    -AppleLanguages "($locale)"
+    -AppleLocale "${locale}_CH"
+    -selected_tabs "$tabs"
+    -landing_tab "$landing"
+  )
   if [ -n "$link" ]; then
-    xcrun simctl openurl "$DEVICE_ID" "$link"
-    sleep "$SETTLE_SECONDS"
+    args+=(-store_screenshot_link "$link")
   fi
+  xcrun simctl launch "$DEVICE_ID" "$BUNDLE_ID" "${args[@]}" >/dev/null
+  sleep "$SETTLE_SECONDS"
   mkdir -p "$OUT_DIR/$locale"
   xcrun simctl io "$DEVICE_ID" screenshot "$OUT_DIR/$locale/$name.png"
 }

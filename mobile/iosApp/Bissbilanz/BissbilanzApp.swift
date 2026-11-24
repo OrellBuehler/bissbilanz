@@ -113,7 +113,10 @@ struct BissbilanzApp: App {
             try? Tips.resetDatastore()
             UserDefaults.standard.removeObject(forKey: Self.resetTipsOnLaunchKey)
         }
-        try? Tips.configure([.displayFrequency(.daily)])
+        // Never configured in a store screenshot run, so no tip covers a screen.
+        if !Self.isStoreScreenshotRun {
+            try? Tips.configure([.displayFrequency(.daily)])
+        }
         TipSettings.isEnabled = UserDefaults.standard.object(forKey: TipSettings.enabledKey) as? Bool ?? true
 
         // One instance shared by `AuthManager` and `BissbilanzAPI` — both build
@@ -309,6 +312,11 @@ struct BissbilanzApp: App {
         _chatStore = State(wrappedValue: chat)
 
         let router = DeepLinkRouter()
+        #if DEBUG
+        if Self.isStoreScreenshotRun {
+            router.pending = StoreScreenshotSeed.launchLink
+        }
+        #endif
         _deepLinkRouter = State(wrappedValue: router)
         _foodPackageInbox = State(wrappedValue: FoodPackageInbox())
         _fastingManager = State(wrappedValue: fastingTimer)
