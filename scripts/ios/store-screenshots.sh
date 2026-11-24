@@ -40,8 +40,20 @@ capture() {
   xcrun simctl launch "$DEVICE_ID" "$BUNDLE_ID" "${args[@]}" >/dev/null
   sleep "$SETTLE_SECONDS"
   mkdir -p "$OUT_DIR/$locale"
-  xcrun simctl io "$DEVICE_ID" screenshot "$OUT_DIR/$locale/$name.png"
+  local file="$OUT_DIR/$locale/$name.png"
+  xcrun simctl io "$DEVICE_ID" screenshot "$file"
+  # A blank screen compresses to well under this; a real one never does.
+  if [ "$(stat -f%z "$file")" -lt 150000 ]; then
+    echo "$locale/$name looks blank, waiting and capturing again" >&2
+    sleep "$SETTLE_SECONDS"
+    xcrun simctl io "$DEVICE_ID" screenshot "$file"
+  fi
 }
+
+# The first launch after an install is slow enough to be captured blank, so
+# start the app once and throw that launch away.
+xcrun simctl launch "$DEVICE_ID" "$BUNDLE_ID" -store_screenshots YES -app_mode local >/dev/null
+sleep 20
 
 for locale in en de; do
   capture "$locale" dashboard light "foods,insights,weight" home
