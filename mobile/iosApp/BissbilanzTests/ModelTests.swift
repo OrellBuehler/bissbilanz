@@ -492,10 +492,10 @@ struct FoodNutrientGroupsTests {
         )
 
         #expect(food.fatBreakdownNutrients.count == 6) // sat, mono, poly, chol, omega3, omega6
-        let names = food.fatBreakdownNutrients.map(\.0)
-        #expect(names.contains("Saturated Fat"))
-        #expect(names.contains("Omega-3"))
-        #expect(!names.contains("Trans Fat")) // nil
+        let keys = food.fatBreakdownNutrients.map(\.0)
+        #expect(keys.contains("saturatedFat"))
+        #expect(keys.contains("omega3"))
+        #expect(!keys.contains("transFat")) // nil
     }
 
     @Test("Mineral nutrients use correct units")
@@ -522,10 +522,10 @@ struct FoodNutrientGroupsTests {
 
         #expect(food.mineralNutrients.count == 4) // sodium, calcium, magnesium, selenium
 
-        let sodiumEntry = food.mineralNutrients.first(where: { $0.0 == "Sodium" })
+        let sodiumEntry = food.mineralNutrients.first(where: { $0.0 == "sodium" })
         #expect(sodiumEntry?.2 == "mg")
 
-        let seleniumEntry = food.mineralNutrients.first(where: { $0.0 == "Selenium" })
+        let seleniumEntry = food.mineralNutrients.first(where: { $0.0 == "selenium" })
         #expect(seleniumEntry?.2 == "\u{00B5}g")
     }
 }

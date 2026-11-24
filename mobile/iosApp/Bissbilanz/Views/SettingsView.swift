@@ -191,45 +191,12 @@ struct VisibleNutrientsView: View {
     @State private var isDirty = false
     @State private var isSaving = false
 
-    private static let nutrientCategories: [(String, [(String, String)])] = [
-        ("Fat Breakdown", [
-            ("saturatedFat", "Saturated Fat"), ("monounsaturatedFat", "Monounsaturated Fat"),
-            ("polyunsaturatedFat", "Polyunsaturated Fat"), ("transFat", "Trans Fat"),
-            ("cholesterol", "Cholesterol"), ("omega3", "Omega-3"), ("omega6", "Omega-6"),
-        ]),
-        ("Sugar & Carbs", [
-            ("sugar", "Sugar"), ("addedSugars", "Added Sugars"),
-            ("sugarAlcohols", "Sugar Alcohols"), ("starch", "Starch"),
-        ]),
-        ("Minerals", [
-            ("sodium", "Sodium"), ("potassium", "Potassium"), ("calcium", "Calcium"),
-            ("iron", "Iron"), ("magnesium", "Magnesium"), ("phosphorus", "Phosphorus"),
-            ("zinc", "Zinc"), ("copper", "Copper"), ("manganese", "Manganese"),
-            ("selenium", "Selenium"), ("iodine", "Iodine"), ("fluoride", "Fluoride"),
-            ("chromium", "Chromium"), ("molybdenum", "Molybdenum"), ("chloride", "Chloride"),
-        ]),
-        ("Vitamins", [
-            ("vitaminA", "Vitamin A"), ("vitaminC", "Vitamin C"), ("vitaminD", "Vitamin D"),
-            ("vitaminE", "Vitamin E"), ("vitaminK", "Vitamin K"), ("vitaminB1", "Vitamin B1"),
-            ("vitaminB2", "Vitamin B2"), ("vitaminB3", "Vitamin B3"), ("vitaminB5", "Vitamin B5"),
-            ("vitaminB6", "Vitamin B6"), ("vitaminB7", "Vitamin B7"), ("vitaminB9", "Vitamin B9"),
-            ("vitaminB12", "Vitamin B12"),
-        ]),
-        ("Other", [
-            ("caffeine", "Caffeine"), ("alcohol", "Alcohol"), ("water", "Water"), ("salt", "Salt"),
-        ]),
-    ]
-
-    private static var allNutrientKeys: [String] {
-        nutrientCategories.flatMap { $0.1.map(\.0) }
-    }
-
     var body: some View {
         List {
             Section {
                 HStack(spacing: 12) {
                     Button(L10n.selectAll) {
-                        selectedNutrients = Set(Self.allNutrientKeys)
+                        selectedNutrients = Set(NutrientCatalog.all.map(\.key))
                         isDirty = true
                     }
                     .buttonStyle(.bordered)
@@ -246,16 +213,16 @@ struct VisibleNutrientsView: View {
                 .listRowInsets(EdgeInsets())
             }
 
-            ForEach(Self.nutrientCategories, id: \.0) { category, nutrients in
-                Section(category) {
-                    ForEach(nutrients, id: \.0) { key, label in
-                        Toggle(label, isOn: Binding(
-                            get: { selectedNutrients.contains(key) },
+            ForEach(NutrientCatalog.categories) { category in
+                Section(category.title) {
+                    ForEach(category.nutrients) { spec in
+                        Toggle(spec.label, isOn: Binding(
+                            get: { selectedNutrients.contains(spec.key) },
                             set: { checked in
                                 if checked {
-                                    selectedNutrients.insert(key)
+                                    selectedNutrients.insert(spec.key)
                                 } else {
-                                    selectedNutrients.remove(key)
+                                    selectedNutrients.remove(spec.key)
                                 }
                                 isDirty = true
                             }
