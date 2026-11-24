@@ -17,6 +17,8 @@ enum StoreScreenshotSeed {
     /// `simctl openurl` would do the same, but it leaves a system "Open in
     /// Bissbilanz?" alert on top of the screen.
     nonisolated static let launchLinkKey = "store_screenshot_link"
+    /// `UserDefaults` key for the Insights tab to open on.
+    nonisolated static let insightsTabKey = "store_screenshot_insights_tab"
     static let bowlRecipeId = "demo-recipe-bowl"
     static let oatsRecipeId = "demo-recipe-oats"
 
