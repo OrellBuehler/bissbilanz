@@ -36,13 +36,7 @@ struct InsightsView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
-                dateRangePicker
-                    .padding(.horizontal)
-
-                tabPicker
-                    .padding(.horizontal)
-
+            Group {
                 switch selectedTab {
                 case .overview: overviewContent
                 case .nutrition: analyticsTab { NutritionInsightsTab(bundle: $0) }
@@ -50,7 +44,18 @@ struct InsightsView: View {
                 case .sleep: analyticsTab { SleepInsightsTab(bundle: $0) }
                 }
             }
-            .padding(.top, 8)
+            // Pinned as a safe-area inset rather than stacked above the scroll
+            // view, so the scroll view stays the navigation stack's content
+            // and the large title collapses on scroll.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                VStack(spacing: 12) {
+                    dateRangePicker
+                    tabPicker
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Brand.background)
+            }
             .navigationTitle(L10n.insights)
             .task { await loadAll() }
             .sheet(item: $macroSources) { macro in
