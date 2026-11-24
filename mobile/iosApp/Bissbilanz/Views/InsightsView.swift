@@ -36,31 +36,52 @@ struct InsightsView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                switch selectedTab {
-                case .overview: overviewContent
-                case .nutrition: analyticsTab { NutritionInsightsTab(bundle: $0) }
-                case .weight: analyticsTab { WeightInsightsTab(bundle: $0) }
-                case .sleep: analyticsTab { SleepInsightsTab(bundle: $0) }
+            // One scroll view directly under the navigation stack, with the
+            // pickers as its pinned section header: the large title sits above
+            // them and collapses on scroll, and they then stick below the bar.
+            // A top safe-area inset instead pushed the title underneath them.
+            ScrollView {
+                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    Section {
+                        tabContent
+                            .padding([.horizontal, .bottom])
+                            .padding(.top, 8)
+                    } header: {
+                        VStack(spacing: 12) {
+                            dateRangePicker
+                            tabPicker
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                        .background(Brand.background)
+                    }
                 }
             }
-            // Pinned as a safe-area inset rather than stacked above the scroll
-            // view, so the scroll view stays the navigation stack's content
-            // and the large title collapses on scroll.
-            .safeAreaInset(edge: .top, spacing: 0) {
-                VStack(spacing: 12) {
-                    dateRangePicker
-                    tabPicker
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(Brand.background)
-            }
+            .brandScreen()
+            .refreshable { await refresh() }
             .navigationTitle(L10n.insights)
             .task { await loadAll() }
             .sheet(item: $macroSources) { macro in
                 MacroSourcesSheet(days: selectedRange, dailyStats: dailyStats, macro: macro)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var tabContent: some View {
+        switch selectedTab {
+        case .overview: overviewContent
+        case .nutrition: analyticsTab { NutritionInsightsTab(bundle: $0) }
+        case .weight: analyticsTab { WeightInsightsTab(bundle: $0) }
+        case .sleep: analyticsTab { SleepInsightsTab(bundle: $0) }
+        }
+    }
+
+    private func refresh() async {
+        if selectedTab == .overview {
+            await loadAll()
+        } else {
+            await analytics.refresh(context: modelContext, entries: entryRepository, foods: foodRepository)
         }
     }
 
@@ -79,61 +100,49 @@ struct InsightsView: View {
     private func analyticsTab<Content: View>(
         @ViewBuilder content: @escaping (InsightsBundle) -> Content
     ) -> some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                if let bundle = analytics.bundle {
-                    content(bundle)
-                } else if analytics.isLoading {
-                    LoadingView()
-                } else {
-                    CardView { InsightEmptyState() }
-                }
+        VStack(spacing: 16) {
+            if let bundle = analytics.bundle {
+                content(bundle)
+            } else if analytics.isLoading {
+                LoadingView()
+            } else {
+                CardView { InsightEmptyState() }
             }
-            .padding()
         }
-        .brandScreen()
         .task(id: selectedRange) {
             analytics.range = InsightsAnalyticsModel.Window(rawValue: selectedRange) ?? .month
             await analytics.load(context: modelContext, entries: entryRepository, foods: foodRepository)
         }
-        .refreshable {
-            await analytics.refresh(context: modelContext, entries: entryRepository, foods: foodRepository)
-        }
     }
 
-    /// A single scrolling page of range-dependent cards. This used to be a
-    /// 3-page paging TabView rendering the same heavy charts three times, which
-    /// dropped frames on every swipe; the segmented picker already switches the
+    /// One page of range-dependent cards. This used to be a 3-page paging
+    /// TabView rendering the same heavy charts three times, which dropped
+    /// frames on every swipe; the segmented picker already switches the
     /// range, so one page is enough and scrolls smoothly.
     private var overviewContent: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                if isLoading {
-                    LoadingView()
-                } else {
-                    if appModeManager.isLocal {
-                        // Weekly/monthly stats, streaks, top foods and the meal
-                        // breakdown are all server-computed; the analytics tabs
-                        // are not, and work offline.
-                        CardView { InsightEmptyState(message: L10n.insightsMoreWithAccount) }
-                    }
-                    // Streaks are overall rather than range-dependent, but they
-                    // belong to the overview rather than above the tab picker.
-                    streaksCard
-                    calorieTrendChart
-                    macroTrendsCard
-                    macroRadarCard
-                    mealBreakdownChart
-                    goalAchievementCard
-                    calendarHeatmapCard
-                    comparisonCard
-                    topFoodsCard
+        VStack(spacing: 16) {
+            if isLoading {
+                LoadingView()
+            } else {
+                if appModeManager.isLocal {
+                    // Weekly/monthly stats, streaks, top foods and the meal
+                    // breakdown are all server-computed; the analytics tabs
+                    // are not, and work offline.
+                    CardView { InsightEmptyState(message: L10n.insightsMoreWithAccount) }
                 }
+                // Streaks are overall rather than range-dependent, but they
+                // belong to the overview rather than above the tab picker.
+                streaksCard
+                calorieTrendChart
+                macroTrendsCard
+                macroRadarCard
+                mealBreakdownChart
+                goalAchievementCard
+                calendarHeatmapCard
+                comparisonCard
+                topFoodsCard
             }
-            .padding()
         }
-        .brandScreen()
-        .refreshable { await loadAll() }
     }
 
     // MARK: - Date Range Picker

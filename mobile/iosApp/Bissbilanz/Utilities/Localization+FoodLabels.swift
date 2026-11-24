@@ -226,6 +226,23 @@ extension L10n {
         localized("food_label_sweep_progress", en: "\(done) of \(total)", de: "\(done) von \(total)")
     }
 
+    /// The outcome line of the last sweep, or nil when none has run or one
+    /// is running.
+    static func foodLabelSweepResult(_ progress: FoodLabelSweepProgress) -> String? {
+        switch progress.state {
+        case .idle, .running:
+            return nil
+        case .completed:
+            return foodLabelSweepSummary(labelled: progress.labelled, failed: progress.failed)
+        case .stopped:
+            return localized(
+                "food_label_sweep_stopped",
+                en: "Stopped after \(progress.done) of \(progress.total).",
+                de: "Nach \(progress.done) von \(progress.total) gestoppt."
+            )
+        }
+    }
+
     static func foodLabelSweepSummary(labelled: Int, failed: Int) -> String {
         localized(
             "food_label_sweep_summary",
