@@ -408,9 +408,13 @@ struct SettingsFoodLabelsSection: View {
 private struct SettingsAutoLabelSection: View {
     @Environment(FoodRepository.self) private var foodRepository
     @Environment(RecipeRepository.self) private var recipeRepository
+    @Environment(FoodLabelSweepController.self) private var sweep
 
     private var unlabeledSummary: String {
-        L10n.unlabeledCount(
+        if sweep.isRunning {
+            return L10n.foodLabelSweepProgress(sweep.progress.done, sweep.progress.total)
+        }
+        return L10n.unlabeledCount(
             foods: foodRepository.unlabeledLocalFoods().count,
             recipes: recipeRepository.unlabeledLocalRecipes().count
         )

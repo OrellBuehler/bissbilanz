@@ -57,6 +57,7 @@ struct BissbilanzApp: App {
     @State private var foodPackageInbox: FoodPackageInbox
     @State private var mealEstimator: MealEstimator
     @State private var foodLabeler: FoodLabeler
+    @State private var foodLabelSweep: FoodLabelSweepController
     @State private var fastingManager: FastingTimerManager
     @State private var foodImageLoader: FoodImageLoader
     @State private var aiTaskStore: AiTaskStore
@@ -222,9 +223,16 @@ struct BissbilanzApp: App {
         _preferencesRepository = State(wrappedValue: preferencesRepo)
         let mealEstimatorInstance = MealEstimator(foodRepository: foodRepo)
         _mealEstimator = State(wrappedValue: mealEstimatorInstance)
-        _foodLabeler = State(wrappedValue: FoodLabeler(foodRepository: foodRepo))
+        let labeler = FoodLabeler(foodRepository: foodRepo)
+        _foodLabeler = State(wrappedValue: labeler)
         let imageLoader = FoodImageLoader(api: api)
         _foodImageLoader = State(wrappedValue: imageLoader)
+        _foodLabelSweep = State(wrappedValue: FoodLabelSweepController(
+            foodRepository: foodRepo,
+            recipeRepository: recipeRepo,
+            foodLabeler: labeler,
+            foodImageLoader: imageLoader
+        ))
         // The widget extension renders favorites off `LocalImageStore` and
         // never fetches, so the app puts the bytes there for it after every
         // snapshot publish (see WidgetSnapshotWriter+App).
@@ -527,6 +535,7 @@ struct BissbilanzApp: App {
             .environment(foodPackageInbox)
             .environment(mealEstimator)
             .environment(foodLabeler)
+            .environment(foodLabelSweep)
             .environment(fastingManager)
             .environment(foodImageLoader)
             .environment(aiTaskStore)
@@ -561,6 +570,7 @@ struct BissbilanzApp: App {
             }
             .onChange(of: appModeManager.mode) { _, _ in
                 foodEnrichment.reset()
+                foodLabelSweep.reset()
                 aiTaskStore.resetAccountState()
                 chatStore.resetAccountState()
                 defaultModeToSyncedIfNeeded()

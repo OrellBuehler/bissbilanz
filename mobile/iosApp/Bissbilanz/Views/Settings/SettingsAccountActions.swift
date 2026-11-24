@@ -13,6 +13,7 @@ struct SettingsAccountActionsSection: View {
     @Environment(LocalDataMigrator.self) private var migrator
     @Environment(FoodImageLoader.self) private var foodImageLoader
     @Environment(FoodEnrichmentController.self) private var foodEnrichment
+    @Environment(FoodLabelSweepController.self) private var foodLabelSweep
     @Environment(AiTaskStore.self) private var aiTaskStore
     @Environment(PreferencesRepository.self) private var preferencesRepository
     @Binding var errorMessage: String?
@@ -127,6 +128,7 @@ struct SettingsAccountActionsSection: View {
     private func tearDownAccount() {
         bulkUploadManager.reset()
         foodEnrichment.reset()
+        foodLabelSweep.reset()
         aiTaskStore.resetAccountState()
         migrator.wipeLocalData()
         preferencesRepository.clearClaudeCapability()

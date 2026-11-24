@@ -1,23 +1,16 @@
 import SwiftUI
 
-/// Sequential, cancellable sweep over every local food and recipe with no labels
-/// yet, suggesting and saving labels for each in turn through the one
-/// `FoodLabeler`. Pushed from `SettingsView`'s "Food labels" section. `.task` starts the sweep as soon as the view
-/// appears and SwiftUI cancels it automatically when the view goes away
-/// (navigating back), so `runSweep` only needs to check `Task.isCancelled`
-/// between items to stop promptly.
+/// Start, watch and stop the bulk labelling sweep. Pushed from `SettingsView`'s
+/// "Food labels" section. The sweep itself belongs to
+/// `FoodLabelSweepController`, so it keeps running when this screen is left.
 struct LabelUnlabeledFoodsView: View {
+    @Environment(FoodLabelSweepController.self) private var controller
     @Environment(FoodRepository.self) private var foodRepository
     @Environment(RecipeRepository.self) private var recipeRepository
-    @Environment(FoodLabeler.self) private var foodLabeler
-    @Environment(FoodImageLoader.self) private var foodImageLoader
 
-    @State private var done = 0
-    @State private var total = 0
-    @State private var currentItemName: String?
-    @State private var labelledCount = 0
-    @State private var failedCount = 0
-    @State private var isFinished = false
+    private var unlabeledTotal: Int {
+        foodRepository.unlabeledLocalFoods().count + recipeRepository.unlabeledLocalRecipes().count
+    }
 
     var body: some View {
         List {
@@ -31,108 +24,79 @@ struct LabelUnlabeledFoodsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section {
-                if isFinished {
-                    Label {
-                        Text(L10n.foodLabelSweepSummary(labelled: labelledCount, failed: failedCount))
-                    } icon: {
-                        Image(systemName: "checkmark.circle")
-                            .foregroundStyle(.green)
+            if controller.isRunning {
+                LabelSweepRunningSection(progress: controller.progress)
+                Section {
+                    Button(role: .destructive) {
+                        controller.stop()
+                    } label: {
+                        Label(L10n.enhanceFoodsStop, systemImage: "stop.circle")
                     }
-                } else {
-                    HStack(spacing: 12) {
-                        ProgressView()
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(L10n.foodLabelSweepProgress(done, total))
-                                .font(.subheadline)
-                            if let currentItemName {
-                                Text(currentItemName)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
+                }
+            } else {
+                LabelSweepIdleSection(progress: controller.progress)
+                Section {
+                    Button {
+                        controller.start()
+                    } label: {
+                        Label(L10n.enhanceFoodsStart, systemImage: "sparkles")
                     }
-                    ProgressView(value: total > 0 ? Double(done) / Double(total) : 0)
+                    .disabled(unlabeledTotal == 0)
                 }
             }
         }
         .brandForm()
         .navigationTitle(L10n.labelUnlabeledFoods)
         .navigationBarTitleDisplayMode(.inline)
-        .task { await runSweep() }
     }
+}
 
-    private func runSweep() async {
-        let foods = foodRepository.unlabeledLocalFoods()
-        let recipes = recipeRepository.unlabeledLocalRecipes()
-        total = foods.count + recipes.count
-        for food in foods {
-            if Task.isCancelled { return }
-            currentItemName = food.name
-            do {
-                let image = await foodImageLoader.image(for: food.imageUrl)
-                let suggestions = try await foodLabeler.labels(for: FoodLabelInput(
-                    name: food.name,
-                    brand: food.brand,
-                    servingUnit: food.servingUnit,
-                    ingredientsText: food.ingredientsText,
-                    image: image
-                ))
-                if !suggestions.isEmpty {
-                    try await foodRepository.addGeneratedLabels(id: food.id, labels: suggestions)
+private struct LabelSweepRunningSection: View {
+    let progress: FoodLabelSweepProgress
+
+    var body: some View {
+        Section {
+            HStack(spacing: 12) {
+                ProgressView()
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.foodLabelSweepProgress(progress.done, progress.total))
+                        .font(.subheadline)
+                    if let name = progress.currentItemName {
+                        Text(name)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
-                labelledCount += 1
-            } catch {
-                failedCount += 1
-                ErrorReporter.captureWarning(
-                    "Label sweep item failed",
-                    context: ["reason": ErrorReporter.reason(for: error), "sync.food_id": food.id]
-                )
             }
-            done += 1
+            ProgressView(value: EnhanceFoodsView.fraction(progress.done, of: progress.total))
+        } footer: {
+            Text(L10n.enhanceFoodsDeviceNote)
         }
-        for listed in recipes {
-            if Task.isCancelled { return }
-            currentItemName = listed.name
-            do {
-                let recipe = await withIngredients(listed)
-                let image = await foodImageLoader.image(for: recipe.imageUrl)
-                let suggestions = try await foodLabeler.labels(for: FoodLabelInput(
-                    recipeName: recipe.name,
-                    ingredientNames: recipeRepository.ingredientFoodNames(of: recipe),
-                    image: image
-                ))
-                if !suggestions.isEmpty {
-                    try await recipeRepository.addGeneratedLabels(id: recipe.id, labels: suggestions)
-                }
-                labelledCount += 1
-            } catch {
-                failedCount += 1
-                ErrorReporter.captureWarning(
-                    "Label sweep item failed",
-                    context: ["reason": ErrorReporter.reason(for: error), "sync.recipe_id": listed.id]
-                )
-            }
-            done += 1
-        }
-        currentItemName = nil
-        isFinished = true
     }
+}
 
-    /// The list endpoint carries no ingredients, so a recipe cached from it alone
-    /// is fetched in full first; without them the labeller would only see the
-    /// name. A failed fetch is reported and the sweep goes on with what it has.
-    private func withIngredients(_ recipe: Recipe) async -> Recipe {
-        guard recipe.ingredients == nil else { return recipe }
-        do {
-            try await recipeRepository.refreshRecipe(id: recipe.id)
-        } catch {
-            ErrorReporter.captureWarning(
-                "Label sweep recipe refresh failed",
-                context: ["reason": ErrorReporter.reason(for: error), "sync.recipe_id": recipe.id]
-            )
+private struct LabelSweepIdleSection: View {
+    @Environment(FoodRepository.self) private var foodRepository
+    @Environment(RecipeRepository.self) private var recipeRepository
+
+    let progress: FoodLabelSweepProgress
+
+    var body: some View {
+        Section {
+            Text(L10n.unlabeledCount(
+                foods: foodRepository.unlabeledLocalFoods().count,
+                recipes: recipeRepository.unlabeledLocalRecipes().count
+            ))
+            if let summary = L10n.foodLabelSweepResult(progress) {
+                Label {
+                    Text(summary)
+                } icon: {
+                    Image(systemName: progress.state == .completed ? "checkmark.circle" : "stop.circle")
+                        .foregroundStyle(progress.state == .completed ? Color.green : Color.secondary)
+                }
+                .font(.subheadline)
+            }
         }
-        return recipeRepository.recipe(id: recipe.id) ?? recipe
     }
 }
