@@ -34,6 +34,8 @@ export type Target = {
 	device: 'iphone' | 'android';
 	screens: string;
 	slides: Slide[];
+	// Screens of the two phones that sit behind the seams of the first three slides.
+	panoramaBack: [string, string];
 };
 
 export const macro = {
@@ -213,29 +215,54 @@ export const targets: Record<string, Target> = {
 		height: 2868,
 		device: 'iphone',
 		screens: 'screens-ios/{locale}',
-		slides: iosSlides
+		slides: iosSlides,
+		panoramaBack: ['weight.png', 'recipe.png']
 	},
 	'ios-6.5': {
 		width: 1284,
 		height: 2778,
 		device: 'iphone',
 		screens: 'screens-ios/{locale}',
-		slides: iosSlides
+		slides: iosSlides,
+		panoramaBack: ['weight.png', 'recipe.png']
 	},
 	'play-phone': {
 		width: 1080,
 		height: 1920,
 		device: 'android',
 		screens: 'screens-android/{locale}',
-		slides: androidSlides
+		slides: androidSlides,
+		panoramaBack: ['weight.png', 'recipe.png']
 	}
 };
 
 export const feature = {
 	width: 1024,
 	height: 500,
+	screens: 'screens-android/{locale}',
 	tagline: {
-		en: 'Calories, macros and 43+ nutrients',
-		de: 'Kalorien, Makros und 43+ Nährstoffe'
+		en: 'Calories, macros and *43+ nutrients*',
+		de: 'Kalorien, Makros und *43+ Nährstoffe*'
+	} as Localized,
+	note: {
+		en: 'No ads. No tracking. Works offline.',
+		de: 'Keine Werbung. Kein Tracking. Auch offline.'
 	} as Localized
 };
+
+// Shared by the feature graphic, the link preview and the website hero:
+// centre phone first, then left and right.
+export const heroScreens = ['dashboard.png', 'insights-dark.png', 'weight.png'];
+
+// Link preview for the website (static/og-image.png). One image for every
+// locale, so it is English.
+export const og = {
+	width: 1200,
+	height: 630,
+	screens: 'screens-ios/en',
+	tagline: 'Know every bite. *Own every goal.*',
+	note: 'Web · iPhone · Android · Apple Watch'
+};
+
+// Framed phones for the landing page hero (static/landing/).
+export const webHero = { width: 640, screens: 'screens-ios/{locale}' };
