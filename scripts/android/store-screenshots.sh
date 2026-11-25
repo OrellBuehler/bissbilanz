@@ -160,6 +160,15 @@ system_dialog_showing() {
     grep -qE 'resource-id="android:id/(alertTitle|aerr_close|button1)"' <<<"$ui"
 }
 
+# Keeps what the screen looked like when an attempt failed, next to the screenshots.
+save_debug() {
+  local locale="$1" name="$2" attempt="$3"
+  local dir="$OUT_DIR/failed"
+  mkdir -p "$dir"
+  adb exec-out screencap -p >"$dir/$locale-$name-$attempt.png" || true
+  dump_ui >"$dir/$locale-$name-$attempt.xml" || true
+}
+
 png_size() {
   local file="$1"
   local w h
@@ -183,6 +192,7 @@ shoot() {
     IFS='|' read -r -a texts <<<"$ready"
     if ! wait_for_text 30 "${texts[@]}"; then
       log "$locale/$name: screen never showed '$ready'"
+      save_debug "$locale" "$name" "$attempt"
       continue
     fi
     if [ -n "$after" ]; then

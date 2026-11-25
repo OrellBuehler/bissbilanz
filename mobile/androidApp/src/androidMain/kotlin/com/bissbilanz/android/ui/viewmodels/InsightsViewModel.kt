@@ -204,8 +204,13 @@ class InsightsViewModel(
     }
 
     init {
-        // Debug-only: the store screenshot run opens Insights on a chosen tab.
-        if (BuildConfig.DEBUG) StoreScreenshots.takeInsightsTab()?.let { savedStateHandle[KEY_SELECTED_TAB] = it }
+        // Debug-only: the store screenshot run opens Insights on a chosen tab, over 30 days.
+        if (BuildConfig.DEBUG) {
+            StoreScreenshots.takeInsightsTab()?.let {
+                savedStateHandle[KEY_SELECTED_TAB] = it
+                savedStateHandle[KEY_SELECTED_RANGE] = 1
+            }
+        }
         loadData()
         loadCalendarStats()
         loadSleepData()
