@@ -158,9 +158,9 @@ struct PendingChangeDescriberTests {
         #expect(fields.first { $0.label == L10n.barcode }?.value == "7612345")
         #expect(fields.first { $0.label == L10n.servingSize }?.value == "330 ml")
         #expect(fields.first { $0.label == L10n.calories }?.value == "1 kcal")
-        #expect(fields.filter { $0.label == "Sodium" || $0.label == "Iron" }.isEmpty)
+        #expect(fields.filter { $0.label == L10n.nutrientSodium || $0.label == L10n.nutrientIron }.isEmpty)
         let nutrients = try #require(fields.first { $0.label == L10n.pendingDetailOtherNutrients })
-        #expect(nutrients.value == "Sodium 40 mg \u{00B7} Iron 0.5 mg")
+        #expect(nutrients.value == "\(L10n.nutrientSodium) 40 mg \u{00B7} \(L10n.nutrientIron) 0.5 mg")
     }
 
     @Test("A created recipe lists its ingredients by food name")

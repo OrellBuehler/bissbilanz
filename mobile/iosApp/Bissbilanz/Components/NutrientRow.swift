@@ -28,8 +28,8 @@ struct NutrientSection: View {
     var body: some View {
         if !nutrients.isEmpty {
             Section(title) {
-                ForEach(nutrients, id: \.0) { name, value, unit in
-                    NutrientRow(label: name, value: value, unit: unit)
+                ForEach(nutrients, id: \.0) { key, value, unit in
+                    NutrientRow(label: nutrientDisplayName(key), value: value, unit: unit)
                 }
             }
         }

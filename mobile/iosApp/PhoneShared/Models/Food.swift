@@ -83,86 +83,88 @@ struct Food: Codable, Identifiable, Hashable {
         lhs.id == rhs.id
     }
 
+    /// First element is the nutrient key; the app target localizes it with
+    /// `nutrientDisplayName` (PhoneShared has no access to `L10n`).
     var fatBreakdownNutrients: [(String, Double, String)] {
         [
-            ("Saturated Fat", saturatedFat, "g"),
-            ("Monounsaturated Fat", monounsaturatedFat, "g"),
-            ("Polyunsaturated Fat", polyunsaturatedFat, "g"),
-            ("Trans Fat", transFat, "g"),
-            ("Cholesterol", cholesterol, "mg"),
-            ("Omega-3", omega3, "g"),
-            ("Omega-6", omega6, "g"),
-        ].compactMap { name, val_, unit in
+            ("saturatedFat", saturatedFat, "g"),
+            ("monounsaturatedFat", monounsaturatedFat, "g"),
+            ("polyunsaturatedFat", polyunsaturatedFat, "g"),
+            ("transFat", transFat, "g"),
+            ("cholesterol", cholesterol, "mg"),
+            ("omega3", omega3, "g"),
+            ("omega6", omega6, "g"),
+        ].compactMap { key, val_, unit in
             guard let v = val_ else { return nil }
-            return (name, v, unit)
+            return (key, v, unit)
         }
     }
 
     var sugarCarbNutrients: [(String, Double, String)] {
         [
-            ("Sugar", sugar, "g"),
-            ("Added Sugars", addedSugars, "g"),
-            ("Sugar Alcohols", sugarAlcohols, "g"),
-            ("Starch", starch, "g"),
-        ].compactMap { name, val_, unit in
+            ("sugar", sugar, "g"),
+            ("addedSugars", addedSugars, "g"),
+            ("sugarAlcohols", sugarAlcohols, "g"),
+            ("starch", starch, "g"),
+        ].compactMap { key, val_, unit in
             guard let v = val_ else { return nil }
-            return (name, v, unit)
+            return (key, v, unit)
         }
     }
 
     var mineralNutrients: [(String, Double, String)] {
         [
-            ("Sodium", sodium, "mg"),
-            ("Potassium", potassium, "mg"),
-            ("Calcium", calcium, "mg"),
-            ("Iron", iron, "mg"),
-            ("Magnesium", magnesium, "mg"),
-            ("Phosphorus", phosphorus, "mg"),
-            ("Zinc", zinc, "mg"),
-            ("Copper", copper, "mg"),
-            ("Manganese", manganese, "mg"),
-            ("Selenium", selenium, "\u{00B5}g"),
-            ("Iodine", iodine, "\u{00B5}g"),
-            ("Fluoride", fluoride, "mg"),
-            ("Chromium", chromium, "\u{00B5}g"),
-            ("Molybdenum", molybdenum, "\u{00B5}g"),
-            ("Chloride", chloride, "mg"),
-        ].compactMap { name, val_, unit in
+            ("sodium", sodium, "mg"),
+            ("potassium", potassium, "mg"),
+            ("calcium", calcium, "mg"),
+            ("iron", iron, "mg"),
+            ("magnesium", magnesium, "mg"),
+            ("phosphorus", phosphorus, "mg"),
+            ("zinc", zinc, "mg"),
+            ("copper", copper, "mg"),
+            ("manganese", manganese, "mg"),
+            ("selenium", selenium, "\u{00B5}g"),
+            ("iodine", iodine, "\u{00B5}g"),
+            ("fluoride", fluoride, "mg"),
+            ("chromium", chromium, "\u{00B5}g"),
+            ("molybdenum", molybdenum, "\u{00B5}g"),
+            ("chloride", chloride, "mg"),
+        ].compactMap { key, val_, unit in
             guard let v = val_ else { return nil }
-            return (name, v, unit)
+            return (key, v, unit)
         }
     }
 
     var vitaminNutrients: [(String, Double, String)] {
         [
-            ("Vitamin A", vitaminA, "\u{00B5}g"),
-            ("Vitamin C", vitaminC, "mg"),
-            ("Vitamin D", vitaminD, "\u{00B5}g"),
-            ("Vitamin E", vitaminE, "mg"),
-            ("Vitamin K", vitaminK, "\u{00B5}g"),
-            ("Vitamin B1", vitaminB1, "mg"),
-            ("Vitamin B2", vitaminB2, "mg"),
-            ("Vitamin B3", vitaminB3, "mg"),
-            ("Vitamin B5", vitaminB5, "mg"),
-            ("Vitamin B6", vitaminB6, "mg"),
-            ("Vitamin B7", vitaminB7, "\u{00B5}g"),
-            ("Vitamin B9", vitaminB9, "\u{00B5}g"),
-            ("Vitamin B12", vitaminB12, "\u{00B5}g"),
-        ].compactMap { name, val_, unit in
+            ("vitaminA", vitaminA, "\u{00B5}g"),
+            ("vitaminC", vitaminC, "mg"),
+            ("vitaminD", vitaminD, "\u{00B5}g"),
+            ("vitaminE", vitaminE, "mg"),
+            ("vitaminK", vitaminK, "\u{00B5}g"),
+            ("vitaminB1", vitaminB1, "mg"),
+            ("vitaminB2", vitaminB2, "mg"),
+            ("vitaminB3", vitaminB3, "mg"),
+            ("vitaminB5", vitaminB5, "mg"),
+            ("vitaminB6", vitaminB6, "mg"),
+            ("vitaminB7", vitaminB7, "\u{00B5}g"),
+            ("vitaminB9", vitaminB9, "\u{00B5}g"),
+            ("vitaminB12", vitaminB12, "\u{00B5}g"),
+        ].compactMap { key, val_, unit in
             guard let v = val_ else { return nil }
-            return (name, v, unit)
+            return (key, v, unit)
         }
     }
 
     var otherNutrients: [(String, Double, String)] {
         [
-            ("Caffeine", caffeine, "mg"),
-            ("Alcohol", alcohol, "g"),
-            ("Water", water, "g"),
-            ("Salt", salt, "g"),
-        ].compactMap { name, val_, unit in
+            ("caffeine", caffeine, "mg"),
+            ("alcohol", alcohol, "g"),
+            ("water", water, "g"),
+            ("salt", salt, "g"),
+        ].compactMap { key, val_, unit in
             guard let v = val_ else { return nil }
-            return (name, v, unit)
+            return (key, v, unit)
         }
     }
 }
