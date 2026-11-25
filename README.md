@@ -24,11 +24,11 @@ nutrition-label OCR, offline-first sync, and a food log you can hand to an AI ag
 
 ## Try it
 
-|                             |                                                                                                                                                                                                                                    |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🌐 **Web**                  | **[bissbilanz.orellbuehler.ch](https://bissbilanz.orellbuehler.ch/)** — installable PWA, works offline                                                                                                                             |
-| 🍎 **iPhone / Apple Watch** | **[TestFlight beta](https://testflight.apple.com/join/e5Y3scbW)** — widgets, watch app, Apple Health, fasting Live Activity                                                                                                        |
-| 🤖 **Android / Wear OS**    | **[Google Play beta](https://play.google.com/apps/testing/com.bissbilanz.android)** — opt in, then [install from Play](https://play.google.com/store/apps/details?id=com.bissbilanz.android); Wear OS app, Health Connect, widgets |
+|                             |                                                                                                                                                                                                                                                                                                          |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🌐 **Web**                  | **[bissbilanz.orellbuehler.ch](https://bissbilanz.orellbuehler.ch/)** — installable PWA, works offline                                                                                                                                                                                                   |
+| 🍎 **iPhone / Apple Watch** | **[TestFlight beta](https://testflight.apple.com/join/e5Y3scbW)** — widgets, watch app, Apple Health, fasting Live Activity                                                                                                                                                                              |
+| 🤖 **Android / Wear OS**    | **[Google Play beta](https://play.google.com/apps/testing/com.bissbilanz.android)** — join the [tester group](https://groups.google.com/g/bissbilanz-test), opt in, then [install from Play](https://play.google.com/store/apps/details?id=com.bissbilanz.android); Wear OS app, Health Connect, widgets |
 
 Free, no ads, no tracking SDKs, no data selling. Try the mobile apps without an account at
 all — local-only mode keeps everything on device and migrates into your account if you

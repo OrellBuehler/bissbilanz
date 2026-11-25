@@ -5,8 +5,21 @@ import SwiftUI
 struct InsightsView: View {
     /// The four tabs, mirroring Android's grouping so a card lives in the same
     /// place on both platforms.
-    private enum Tab: Hashable {
+    private enum Tab: String, Hashable {
         case overview, nutrition, weight, sleep
+    }
+
+    /// Overview, except in a store screenshot run that asks for another tab.
+    private static var initialTab: Tab {
+        #if DEBUG
+        if StoreScreenshotSeed.isRequested,
+           let raw = UserDefaults.standard.string(forKey: StoreScreenshotSeed.insightsTabKey),
+           let tab = Tab(rawValue: raw)
+        {
+            return tab
+        }
+        #endif
+        return .overview
     }
 
     @Environment(BissbilanzAPI.self) private var api
@@ -26,7 +39,7 @@ struct InsightsView: View {
     @State private var selectedRange = 7
     @State private var isLoading = true
     @State private var calendarMonth = Date()
-    @State private var selectedTab: Tab = .overview
+    @State private var selectedTab: Tab = InsightsView.initialTab
     @State private var analytics = InsightsAnalyticsModel()
     @State private var macroSources: MacroKind?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
