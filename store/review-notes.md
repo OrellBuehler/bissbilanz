@@ -19,6 +19,15 @@ reached from the dashboard's "+" button → Scan. Frames are processed on
 device; only the barcode number is sent to the server (and on to Open Food
 Facts) to look up the product.
 
+AI FEATURES: Local mode uses no cloud AI. Signed-in users can queue a meal
+(text or photos) for an AI assistant, and accounts the operator has enabled
+also get an in-app assistant chat. For those accounts the queued meals, the
+chat messages and photos, and the diary data the assistant looks up are
+processed on the Bissbilanz server and sent to Anthropic (Claude API) as a
+service provider, only to produce the answer; they are not used for training
+or shared further. The assistant logs and summarises the user's own entries
+and gives no medical advice.
+
 ACCOUNT DELETION: Settings → Delete account (also documented at
 https://bissbilanz.orellbuehler.ch/account-deletion).
 
