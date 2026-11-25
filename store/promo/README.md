@@ -11,6 +11,7 @@ bun run store:screenshots --target ios-6.9 --only insights --locale de
 | -------------- | ----------- | ------------------------------------- |
 | `ios-6.9`      | 1320 × 2868 | App Store 6.9" slot (`APP_IPHONE_67`) |
 | `ios-6.5`      | 1284 × 2778 | App Store 6.5" slot (`APP_IPHONE_65`) |
+| `ios-6.3`      | 1206 × 2622 | App Store 6.3" slot (`APP_IPHONE_61`) |
 | `play-phone`   | 1080 × 1920 | Play phone screenshots                |
 | `play-feature` | 1024 × 500  | Play feature graphic                  |
 | `ios-header`   | 3840 × 1646 | App Store product page header         |

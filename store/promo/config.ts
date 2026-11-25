@@ -226,6 +226,14 @@ export const targets: Record<string, Target> = {
 		slides: iosSlides,
 		panoramaBack: ['weight.png', 'recipe.png']
 	},
+	'ios-6.3': {
+		width: 1206,
+		height: 2622,
+		device: 'iphone',
+		screens: 'screens-ios/{locale}',
+		slides: iosSlides,
+		panoramaBack: ['weight.png', 'recipe.png']
+	},
 	'play-phone': {
 		width: 1080,
 		height: 1920,
