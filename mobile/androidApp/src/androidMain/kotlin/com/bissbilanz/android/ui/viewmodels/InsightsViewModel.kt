@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bissbilanz.ErrorReporter
 import com.bissbilanz.analytics.*
+import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.R
+import com.bissbilanz.android.StoreScreenshots
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.model.*
 import com.bissbilanz.repository.AnalyticsRepository
@@ -202,6 +204,8 @@ class InsightsViewModel(
     }
 
     init {
+        // Debug-only: the store screenshot run opens Insights on a chosen tab.
+        if (BuildConfig.DEBUG) StoreScreenshots.takeInsightsTab()?.let { savedStateHandle[KEY_SELECTED_TAB] = it }
         loadData()
         loadCalendarStats()
         loadSleepData()
