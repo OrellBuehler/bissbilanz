@@ -44,7 +44,14 @@ prepare_device() {
   adb shell settings put global window_animation_scale 0
   adb shell settings put global transition_animation_scale 0
   adb shell settings put global animator_duration_scale 0
-  adb shell settings put secure show_ime_with_hard_keyboard 0
+  # No on-screen keyboard: typing goes through key events, and the keyboard would
+  # leave a black bar over the bottom of the screen.
+  for ime in $(adb_sh ime list -s); do
+    adb shell ime disable "$ime" >/dev/null || true
+  done
+  # Offline, so the food search only lists the demo foods and never real Open Food Facts products.
+  adb shell svc wifi disable || true
+  adb shell svc data disable || true
   adb shell cmd uimode night no
   # Fixed clock, full battery, wifi only, no notification icons.
   adb shell settings put global sysui_demo_allowed 1
@@ -66,6 +73,8 @@ demo_cmd() {
 
 restore_device() {
   demo_cmd exit || true
+  adb shell ime reset || true
+  adb shell svc wifi enable || true
   adb shell cmd uimode night no || true
   adb shell wm size reset || true
   adb shell wm density reset || true
@@ -248,7 +257,7 @@ type_search() {
 }
 
 # Scrolls the food detail down to its nutrient cards.
-scroll_to_minerals() {
+scroll_to_nutrients() {
   adb shell input swipe 540 1750 540 300 1800
 }
 
@@ -264,7 +273,7 @@ for locale in en de; do
     insights_ready="Overview"
     weight_ready="Weight Log"
     nutrients_ready="Salmon fillet"
-    minerals="Minerals"
+    vitamins="Vitamins"
     recipe_ready="Start cooking"
     SEARCH_QUERY="rice"
   else
@@ -275,7 +284,7 @@ for locale in en de; do
     insights_ready="Übersicht"
     weight_ready="Gewichtsverlauf"
     nutrients_ready="Lachsfilet"
-    minerals="Mineralstoffe"
+    vitamins="Vitamine"
     recipe_ready="Kochen starten"
     SEARCH_QUERY="reis"
   fi
@@ -291,7 +300,7 @@ for locale in en de; do
   shoot "$locale" foods foods "" "$foods_ready" || failed=1
   shoot "$locale" weight weight "" "$weight_ready" || failed=1
   shoot "$locale" recipe recipe "" "$recipe_ready" || failed=1
-  shoot "$locale" nutrients nutrients "" "$nutrients_ready" scroll_to_minerals "$minerals" || failed=1
+  shoot "$locale" nutrients nutrients "" "$nutrients_ready" scroll_to_nutrients "$vitamins" || failed=1
 
   adb shell cmd uimode night yes
   shoot "$locale" dashboard-dark home "" "$breakfast" || failed=1
