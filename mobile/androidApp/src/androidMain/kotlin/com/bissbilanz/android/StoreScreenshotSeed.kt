@@ -182,6 +182,53 @@ internal object StoreScreenshotSeed {
 
     private const val DAYS = 35
 
+    private val NUTRIENT_KEYS =
+        listOf(
+            "saturatedFat",
+            "monounsaturatedFat",
+            "polyunsaturatedFat",
+            "transFat",
+            "cholesterol",
+            "omega3",
+            "omega6",
+            "sugar",
+            "addedSugars",
+            "sugarAlcohols",
+            "starch",
+            "sodium",
+            "potassium",
+            "calcium",
+            "iron",
+            "magnesium",
+            "phosphorus",
+            "zinc",
+            "copper",
+            "manganese",
+            "selenium",
+            "iodine",
+            "fluoride",
+            "chromium",
+            "molybdenum",
+            "chloride",
+            "vitaminA",
+            "vitaminC",
+            "vitaminD",
+            "vitaminE",
+            "vitaminK",
+            "vitaminB1",
+            "vitaminB2",
+            "vitaminB3",
+            "vitaminB5",
+            "vitaminB6",
+            "vitaminB7",
+            "vitaminB9",
+            "vitaminB12",
+            "caffeine",
+            "alcohol",
+            "water",
+            "salt",
+        )
+
     suspend fun seed(
         koin: Koin,
         german: Boolean,
@@ -320,6 +367,8 @@ internal object StoreScreenshotSeed {
                             PreferencesUpdate.WidgetOrder.dayMinusProperties,
                             PreferencesUpdate.WidgetOrder.summary,
                         ),
+                    // Local mode starts with an empty list, which hides every extended nutrient.
+                    visibleNutrients = NUTRIENT_KEYS,
                     timeZone = zone.id,
                 ),
             )

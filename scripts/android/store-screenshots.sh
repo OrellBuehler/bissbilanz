@@ -126,7 +126,7 @@ launch() {
 
 # The accessibility tree of the screen, or nothing when the UI never goes idle.
 dump_ui() {
-  adb shell uiautomator dump /sdcard/store-screenshot-ui.xml >/dev/null 2>&1 || return 1
+  adb shell uiautomator dump /sdcard/store-screenshot-ui.xml >"$WORK_DIR/dump.log" 2>&1 || return 1
   adb exec-out cat /sdcard/store-screenshot-ui.xml
 }
 
@@ -167,6 +167,7 @@ save_debug() {
   mkdir -p "$dir"
   adb exec-out screencap -p >"$dir/$locale-$name-$attempt.png" || true
   dump_ui >"$dir/$locale-$name-$attempt.xml" || true
+  cp "$WORK_DIR/dump.log" "$dir/$locale-$name-$attempt.dump.log" || true
 }
 
 png_size() {
@@ -181,6 +182,9 @@ png_size() {
 # and waits for its result, then takes the capture and checks it.
 shoot() {
   local locale="$1" name="$2" screen="$3" insights_tab="$4" ready="$5" after="${6:-}" after_ready="${7:-}"
+  if [ -n "${ONLY:-}" ] && [[ " $ONLY " != *" $name "* ]]; then
+    return 0
+  fi
   local file="$OUT_DIR/$locale/$name.png"
   local attempt texts
   mkdir -p "$OUT_DIR/$locale"
@@ -201,6 +205,7 @@ shoot() {
       IFS='|' read -r -a texts <<<"$after_ready"
       if ! wait_for_text 20 "${texts[@]}"; then
         log "$locale/$name: step never showed '$after_ready'"
+        save_debug "$locale" "$name" "$attempt"
         continue
       fi
     fi

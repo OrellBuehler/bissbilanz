@@ -72,6 +72,8 @@ jobs:
       # Pixel 2: 1080 x 1920 at 420 dpi, the size the promo renderer expects,
       # and no display cutout pushing the status bar clock off to one side.
       - name: Capture screenshots on emulator
+        env:
+          ONLY: log-food nutrients
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
           api-level: 31
