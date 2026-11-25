@@ -233,12 +233,23 @@ shoot() {
   return 1
 }
 
+# Focuses the sheet's search field (the sheet does not do it by itself) and types the query.
 type_search() {
+  local ui center x=540 y=1005
+  if ui="$(dump_ui)"; then
+    center="$(grep -o 'class="android.widget.EditText"[^>]*bounds="[^"]*"' <<<"$ui" | head -1 | grep -o '\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]' | sed 's/\]\[/,/; s/[][]//g' | tr ',' ' ' || true)"
+    if [ -n "$center" ]; then
+      read -r x y < <(awk '{print int(($1+$3)/2), int(($2+$4)/2)}' <<<"$center")
+    fi
+  fi
+  adb shell input tap "$x" "$y"
+  sleep 1
   adb shell input text "$SEARCH_QUERY"
 }
 
+# Scrolls the food detail down to its nutrient cards.
 scroll_to_minerals() {
-  adb shell input swipe 540 1500 540 600 500
+  adb shell input swipe 540 1750 540 300 1800
 }
 
 prepare_device
