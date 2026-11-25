@@ -237,7 +237,7 @@ shoot() {
 type_search() {
   local ui center x=540 y=1005
   if ui="$(dump_ui)"; then
-    center="$(grep -o 'class="android.widget.EditText"[^>]*bounds="[^"]*"' <<<"$ui" | head -1 | grep -o '\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]' | sed 's/\]\[/,/; s/[][]//g' | tr ',' ' ' || true)"
+    center="$(grep -o 'class="android.widget.EditText"[^>]*bounds="[^"]*"' <<<"$ui" | tail -1 | grep -o '\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]' | sed 's/\]\[/,/; s/[][]//g' | tr ',' ' ' || true)"
     if [ -n "$center" ]; then
       read -r x y < <(awk '{print int(($1+$3)/2), int(($2+$4)/2)}' <<<"$center")
     fi

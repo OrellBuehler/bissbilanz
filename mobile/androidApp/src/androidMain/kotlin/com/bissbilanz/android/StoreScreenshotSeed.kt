@@ -464,7 +464,7 @@ internal object StoreScreenshotSeed {
             calcium = (15 + demo.protein * 5).roundToInt().toDouble(),
             magnesium = if (salmon) 40.0 else (10 + demo.fiber * 9).roundToInt().toDouble(),
             iron = (3 + demo.fiber * 3.5).roundToInt() / 10.0,
-            vitaminC = (demo.fiber * 6).roundToInt().toDouble(),
+            vitaminC = if (salmon) null else (demo.fiber * 6).roundToInt().toDouble(),
             // Lets the Insights nutrition cards (NOVA, omega ratio) show a result.
             omega3 = if (salmon) 2.4 else (demo.fat * 0.4).roundToInt() / 10.0,
             omega6 = if (salmon) 0.6 else (demo.fat * 1.2).roundToInt() / 10.0,
