@@ -89,6 +89,15 @@ struct BissbilanzApp: App {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
             || NSClassFromString("XCTestCase") != nil
 
+    /// True for a Debug build launched by the store screenshot workflow: the
+    /// app then runs on an in-memory store filled with invented demo data.
+    /// See `StoreScreenshotSeed`.
+    #if DEBUG
+    private static let isStoreScreenshotRun = StoreScreenshotSeed.isRequested
+    #else
+    private static let isStoreScreenshotRun = false
+    #endif
+
     /// Set when the Settings "Show tips" switch is turned back on; read and
     /// cleared here on the next launch, before `Tips.configure`, so every
     /// tip's dismissed/shown state resets. Tips only re-appear after a
@@ -104,7 +113,10 @@ struct BissbilanzApp: App {
             try? Tips.resetDatastore()
             UserDefaults.standard.removeObject(forKey: Self.resetTipsOnLaunchKey)
         }
-        try? Tips.configure([.displayFrequency(.daily)])
+        // Never configured in a store screenshot run, so no tip covers a screen.
+        if !Self.isStoreScreenshotRun {
+            try? Tips.configure([.displayFrequency(.daily)])
+        }
         TipSettings.isEnabled = UserDefaults.standard.object(forKey: TipSettings.enabledKey) as? Bool ?? true
 
         // One instance shared by `AuthManager` and `BissbilanzAPI` — both build
@@ -130,7 +142,7 @@ struct BissbilanzApp: App {
         // store keeps those runs hermetic instead of reading/writing the
         // simulator's real on-disk App Group store.
         let container: ModelContainer
-        if Self.isRunningTests {
+        if Self.isRunningTests || Self.isStoreScreenshotRun {
             storeUnavailable = nil
             do {
                 container = try LocalStore.makeContainer(inMemory: true)
@@ -149,6 +161,15 @@ struct BissbilanzApp: App {
             storeUnavailable = opened.unavailable
         }
         modelContainer = container
+        #if DEBUG
+        if Self.isStoreScreenshotRun {
+            do {
+                try StoreScreenshotSeed.seed(container: container)
+            } catch {
+                fatalError("Failed to seed the store screenshot data: \(error)")
+            }
+        }
+        #endif
         let context = container.mainContext
 
         let sync = SyncManager(context: context, api: api, appMode: appMode, connectivity: connectivity)
@@ -291,6 +312,11 @@ struct BissbilanzApp: App {
         _chatStore = State(wrappedValue: chat)
 
         let router = DeepLinkRouter()
+        #if DEBUG
+        if Self.isStoreScreenshotRun {
+            router.pending = StoreScreenshotSeed.launchLink
+        }
+        #endif
         _deepLinkRouter = State(wrappedValue: router)
         _foodPackageInbox = State(wrappedValue: FoodPackageInbox())
         _fastingManager = State(wrappedValue: fastingTimer)

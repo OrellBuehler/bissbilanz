@@ -1,4 +1,4 @@
-import type { Locale, Slide } from './config';
+import { feature, macro, type Locale, type Slide } from './config';
 
 type Ctx = {
 	slide: Slide;
@@ -7,6 +7,7 @@ type Ctx = {
 	height: number;
 	screenUrl: string;
 	screenSize: { width: number; height: number };
+	device: 'iphone' | 'android';
 	fontsDir: string;
 };
 
@@ -54,17 +55,44 @@ function statusBar(fill: string) {
 </svg>`;
 }
 
+function fontFaces(fontsDir: string) {
+	return `@font-face { font-family: 'Manrope Variable'; font-weight: 200 800; src: url('${fontsDir}/manrope/files/manrope-latin-wght-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Manrope Variable'; font-weight: 200 800; src: url('${fontsDir}/manrope/files/manrope-latin-ext-wght-normal.woff2') format('woff2'); unicode-range: U+0100-024F; }
+@font-face { font-family: 'Inter Variable'; font-weight: 100 900; src: url('${fontsDir}/inter/files/inter-latin-wght-normal.woff2') format('woff2'); }`;
+}
+
+export function renderFeature(locale: Locale, iconUrl: string, fontsDir: string) {
+	const { width: W, height: H } = feature;
+	const dots = [macro.calories, macro.protein, macro.carbs, macro.fat, macro.fiber]
+		.map((c) => `<span style="background:${c}"></span>`)
+		.join('');
+	return `<!doctype html>
+<html><head><meta charset="utf-8"><style>
+${fontFaces(fontsDir)}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: ${W}px; height: ${H}px; overflow: hidden; }
+body { background: ${themes.light.bg}; display: flex; align-items: center; gap: 56px; padding-left: 84px; -webkit-font-smoothing: antialiased; }
+img { width: 264px; height: 264px; filter: drop-shadow(0 18px 36px rgba(60, 45, 20, 0.14)); }
+h1 { font-family: 'Manrope Variable'; font-weight: 800; font-size: 104px; line-height: 1; letter-spacing: -0.03em; color: ${themes.light.ink}; }
+p { margin-top: 14px; font-family: 'Inter Variable'; font-weight: 500; font-size: 30px; color: ${themes.light.muted}; }
+.dots { display: flex; gap: 12px; margin-top: 30px; }
+.dots span { width: 16px; height: 16px; border-radius: 50%; }
+</style></head>
+<body><img src="${iconUrl}"><div><h1>Bissbilanz</h1><p>${escape(feature.tagline[locale])}</p><div class="dots">${dots}</div></div></body></html>`;
+}
+
 export function renderSlide(ctx: Ctx) {
-	const { slide, locale, width: W, height: H, screenUrl, screenSize, fontsDir } = ctx;
+	const { slide, locale, width: W, height: H, screenUrl, screenSize, device, fontsDir } = ctx;
+	const android = device === 'android';
 	const t = themes[slide.theme ?? 'light'];
 	const textBottom = slide.textPosition === 'bottom';
 
 	const phoneW = (slide.phone?.width ?? 0.8) * W;
-	const bezel = phoneW * 0.03;
+	const bezel = phoneW * (android ? 0.024 : 0.03);
 	const screenW = phoneW - bezel * 2;
 	const screenH = (screenW * screenSize.height) / screenSize.width;
 	const phoneH = screenH + bezel * 2;
-	const outerR = phoneW * 0.155;
+	const outerR = phoneW * (android ? 0.095 : 0.155);
 	const screenR = outerR - bezel;
 	const phoneTop = (slide.phone?.top ?? (textBottom ? 0.05 : 0.255)) * H;
 	const phoneLeft = slide.phone?.left !== undefined ? slide.phone.left * W : (W - phoneW) / 2;
@@ -89,9 +117,7 @@ export function renderSlide(ctx: Ctx) {
 
 	return `<!doctype html>
 <html><head><meta charset="utf-8"><style>
-@font-face { font-family: 'Manrope Variable'; font-weight: 200 800; src: url('${fontsDir}/manrope/files/manrope-latin-wght-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Manrope Variable'; font-weight: 200 800; src: url('${fontsDir}/manrope/files/manrope-latin-ext-wght-normal.woff2') format('woff2'); unicode-range: U+0100-024F; }
-@font-face { font-family: 'Inter Variable'; font-weight: 100 900; src: url('${fontsDir}/inter/files/inter-latin-wght-normal.woff2') format('woff2'); }
+${fontFaces(fontsDir)}
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { width: ${W}px; height: ${H}px; overflow: hidden; }
 body { background: ${t.bg}; position: relative; -webkit-font-smoothing: antialiased; }
@@ -116,7 +142,7 @@ p { margin-top: ${36 * u}px; font-family: 'Inter Variable'; font-weight: 500; fo
 </style></head>
 <body>
 <div class="text"><h1>${accentMarkup(slide.headline[locale])}</h1>${slide.subline ? `<p>${escape(slide.subline[locale])}</p>` : ''}</div>
-<div class="phone"><div class="screen">${slide.statusBar ? statusBar(slide.statusBar) : ''}<div class="island"></div></div></div>
+<div class="phone"><div class="screen">${slide.statusBar ? statusBar(slide.statusBar) : ''}${android ? '' : '<div class="island"></div>'}</div></div>
 ${zoom}
 ${badges}
 </body></html>`;

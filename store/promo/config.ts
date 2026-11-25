@@ -28,9 +28,13 @@ export type Slide = {
 	zoom?: Zoom;
 };
 
-export const sizes = {
-	'6.5': { width: 1284, height: 2778 }
-} as const;
+export type Target = {
+	width: number;
+	height: number;
+	device: 'iphone' | 'android';
+	screens: string;
+	slides: Slide[];
+};
 
 export const macro = {
 	calories: '#3B82F6',
@@ -41,106 +45,197 @@ export const macro = {
 	brand: 'oklch(0.469 0.121 153)'
 };
 
-export const slides: Slide[] = [
+const iosSlides: Slide[] = [
 	{
-		id: 'insights',
-		screen: 'insights.png',
-		headline: { en: 'See where your *macros* come from', de: 'Sieh, woher deine *Makros* kommen' },
+		id: 'dashboard',
+		screen: 'dashboard.png',
+		headline: { en: 'Know where your *day* stands', de: 'Sieh, wo dein *Tag* steht' },
 		subline: {
-			en: 'Weekly trends, meal breakdowns and top sources',
-			de: 'Wochentrends, Mahlzeiten und Top-Quellen'
-		},
-		statusBar: '#000',
-		zoom: { crop: { x: 48, y: 805, w: 1110, h: 830 }, x: 0.035, y: 0.48, width: 0.8 }
+			en: 'Calories and macros against your own goals',
+			de: 'Kalorien und Makros gegen deine eigenen Ziele'
+		}
 	},
 	{
-		id: 'ai-estimate',
-		screen: 'ai-estimate.png',
-		headline: { en: 'Describe it. Snap it. *Logged.*', de: 'Beschreiben. Knipsen. *Geloggt.*' },
+		id: 'log-food',
+		screen: 'log-food.png',
+		headline: { en: 'Log a meal in *seconds*', de: 'Mahlzeit in *Sekunden* eintragen' },
 		subline: {
-			en: 'AI meal estimates, right on your iPhone',
-			de: 'KI-Schätzung direkt auf dem iPhone'
+			en: 'Barcodes, nutrition labels, favorites and recents',
+			de: 'Barcodes, Nährwerttabellen, Favoriten und Zuletzt'
+		}
+	},
+	{
+		id: 'insights',
+		screen: 'insights-dark.png',
+		theme: 'dark',
+		headline: { en: 'Insights beyond *calories*', de: 'Einblicke jenseits der *Kalorien*' },
+		subline: {
+			en: 'Processing level, omega ratio and inflammation index',
+			de: 'Verarbeitungsgrad, Omega-Verhältnis und Entzündungsindex'
+		}
+	},
+	{
+		id: 'weight',
+		screen: 'weight.png',
+		headline: {
+			en: 'A weight *trend*, not daily noise',
+			de: 'Ein Gewichts*trend* statt Tagesrauschen'
 		},
-		statusBar: '#000',
-		badges: [
-			{
-				text: { en: 'On-device AI', de: 'KI auf dem Gerät' },
-				color: macro.brand,
-				x: 0.52,
-				y: 0.582
-			},
-			{
-				text: { en: 'Up to 5 photos', de: 'Bis zu 5 Fotos' },
-				color: macro.calories,
-				x: 0.5,
-				y: 0.733
-			}
-		]
+		subline: {
+			en: 'Smoothed trend, target and projection',
+			de: 'Geglätteter Trend, Ziel und Prognose'
+		}
+	},
+	{
+		id: 'recipe',
+		screen: 'recipe.png',
+		headline: { en: 'Build a recipe *once*', de: 'Rezept *einmal* anlegen' },
+		subline: {
+			en: 'Log it by serving, nutrition calculated for you',
+			de: 'Pro Portion eintragen, Nährwerte automatisch'
+		}
+	},
+	{
+		id: 'calendar',
+		screen: 'calendar.png',
+		headline: { en: 'Your month at a *glance*', de: 'Dein Monat auf einen *Blick*' },
+		subline: {
+			en: 'See which days hit your goals',
+			de: 'Sieh, an welchen Tagen du im Ziel warst'
+		}
+	},
+	{
+		id: 'sleep',
+		screen: 'sleep.png',
+		headline: { en: 'Sleep and food, *side by side*', de: 'Schlaf und Essen, *Seite an Seite*' },
+		subline: {
+			en: 'Duration, quality and trends over time',
+			de: 'Dauer, Qualität und Trends im Verlauf'
+		}
+	},
+	{
+		id: 'private',
+		screen: 'dashboard-dark.png',
+		theme: 'dark',
+		headline: { en: 'Private *by design*', de: 'Privat *von Grund auf*' },
+		subline: {
+			en: 'No ads, no tracking, usable without an account',
+			de: 'Keine Werbung, kein Tracking, ohne Konto nutzbar'
+		}
+	}
+];
+
+const androidSlides: Slide[] = [
+	{
+		id: 'dashboard',
+		screen: 'dashboard.png',
+		headline: { en: 'Know where your *day* stands', de: 'Sieh, wo dein *Tag* steht' },
+		subline: {
+			en: 'Calories and macros against your own goals',
+			de: 'Kalorien und Makros gegen deine eigenen Ziele'
+		}
+	},
+	{
+		id: 'log-food',
+		screen: 'log-food.png',
+		headline: { en: 'Log a meal in *seconds*', de: 'Mahlzeit in *Sekunden* eintragen' },
+		subline: {
+			en: 'Barcodes, nutrition labels, favorites and recents',
+			de: 'Barcodes, Nährwerttabellen, Favoriten und Zuletzt'
+		}
+	},
+	{
+		id: 'insights',
+		screen: 'insights-dark.png',
+		theme: 'dark',
+		headline: { en: 'See where your *macros* come from', de: 'Sieh, woher deine *Makros* kommen' },
+		subline: {
+			en: 'Trends, meal breakdowns and top sources',
+			de: 'Trends, Mahlzeiten und Top-Quellen'
+		}
 	},
 	{
 		id: 'foods',
 		screen: 'foods.png',
-		theme: 'dark',
 		headline: { en: 'Your foods, *one tap* away', de: 'Deine Lebensmittel, *ein Tipp* entfernt' },
 		subline: {
-			en: 'Barcodes, favorites and recents — even offline',
-			de: 'Barcodes, Favoriten und Zuletzt — auch offline'
-		},
-		statusBar: '#000'
+			en: 'Your own database — even offline',
+			de: 'Deine eigene Datenbank — auch offline'
+		}
 	},
 	{
-		id: 'widget-calories',
-		screen: 'widget-calories.png',
-		headline: { en: 'Your day on the *home screen*', de: 'Dein Tag auf dem *Homescreen*' },
-		subline: {
-			en: 'Widgets for calories, macros and quick logging',
-			de: 'Widgets für Kalorien, Makros und schnelles Loggen'
-		},
-		statusBar: false
-	},
-	{
-		id: 'control-scan',
-		screen: 'control-scan.png',
-		theme: 'dark',
+		id: 'weight',
+		screen: 'weight.png',
 		headline: {
-			en: 'Scan straight from *Control Center*',
-			de: 'Scannen aus dem *Kontrollzentrum*'
+			en: 'A weight *trend*, not daily noise',
+			de: 'Ein Gewichts*trend* statt Tagesrauschen'
 		},
 		subline: {
-			en: 'Barcodes and nutrition labels in seconds',
-			de: 'Barcodes und Nährwerttabellen in Sekunden'
-		},
-		statusBar: false
+			en: 'Smoothed trend and maintenance calories',
+			de: 'Geglätteter Trend und Erhaltungsbedarf'
+		}
 	},
 	{
-		id: 'apple-health',
-		screen: 'apple-health.png',
-		headline: { en: 'Works with *Apple Health*', de: 'Verbunden mit *Apple Health*' },
+		id: 'recipe',
+		screen: 'recipe.png',
+		theme: 'dark',
+		headline: { en: 'Build a recipe *once*', de: 'Rezept *einmal* anlegen' },
 		subline: {
-			en: 'Weight, sleep and workout calories in sync',
-			de: 'Gewicht, Schlaf und Trainingskalorien im Einklang'
-		},
-		statusBar: '#000'
+			en: 'Log it by serving, nutrition calculated for you',
+			de: 'Pro Portion eintragen, Nährwerte automatisch'
+		}
 	},
 	{
 		id: 'nutrients',
 		screen: 'nutrients.png',
-		theme: 'dark',
 		headline: { en: '*43 nutrients.* Show only yours.', de: '*43 Nährstoffe.* Zeig nur deine.' },
 		subline: {
 			en: 'Vitamins, minerals, omega-3 and more',
 			de: 'Vitamine, Mineralstoffe, Omega-3 und mehr'
-		},
-		statusBar: '#000'
+		}
 	},
 	{
-		id: 'ai-settings',
-		screen: 'ai-settings.png',
+		id: 'private',
+		screen: 'dashboard-dark.png',
+		theme: 'dark',
 		headline: { en: 'Private *by design*', de: 'Privat *von Grund auf*' },
 		subline: {
-			en: 'No ads, no tracking — AI runs on your iPhone first',
-			de: 'Keine Werbung, kein Tracking — KI zuerst auf dem iPhone'
-		},
-		statusBar: '#000'
+			en: 'No ads, no tracking, usable without an account',
+			de: 'Keine Werbung, kein Tracking, ohne Konto nutzbar'
+		}
 	}
 ];
+
+// `screens` is relative to this directory; `{locale}` is replaced per locale.
+export const targets: Record<string, Target> = {
+	'ios-6.9': {
+		width: 1320,
+		height: 2868,
+		device: 'iphone',
+		screens: 'screens-ios/{locale}',
+		slides: iosSlides
+	},
+	'ios-6.5': {
+		width: 1284,
+		height: 2778,
+		device: 'iphone',
+		screens: 'screens-ios/{locale}',
+		slides: iosSlides
+	},
+	'play-phone': {
+		width: 1080,
+		height: 1920,
+		device: 'android',
+		screens: 'screens-android/{locale}',
+		slides: androidSlides
+	}
+};
+
+export const feature = {
+	width: 1024,
+	height: 500,
+	tagline: {
+		en: 'Calories, macros and 43+ nutrients',
+		de: 'Kalorien, Makros und 43+ Nährstoffe'
+	} as Localized
+};
