@@ -6,7 +6,15 @@ import { parseArgs } from 'node:util';
 import { chromium } from '@playwright/test';
 import sharp from 'sharp';
 import { feature, heroScreens, og, targets, webHero, type Locale } from './config';
-import { renderBanner, renderPanorama, renderPhone, renderSlide, type Screen } from './template';
+import {
+	renderBanner,
+	renderHeaderAsset,
+	renderPanorama,
+	renderPhone,
+	renderSearchAsset,
+	renderSlide,
+	type Screen
+} from './template';
 
 const { values } = parseArgs({
 	options: {
@@ -22,7 +30,7 @@ const outDir = join(root, 'out');
 const fontsDir = pathToFileURL(join(repo, 'node_modules/@fontsource-variable')).href;
 const iconUrl = pathToFileURL(join(repo, 'static/icon.svg')).href;
 const locales = (values.locale ?? ['en', 'de']) as Locale[];
-const extraTargets = ['play-feature', 'og', 'web-hero'];
+const extraTargets = ['play-feature', 'og', 'web-hero', 'ios-header', 'ios-search'];
 const targetKeys = values.target ?? [...Object.keys(targets), ...extraTargets];
 
 const browser = await chromium.launch();
@@ -73,6 +81,29 @@ for (const key of targetKeys) {
 			await shoot(join(dir, `${locale}.html`), html, feature.width, feature.height);
 			await sharp(await page.screenshot({ type: 'png' }))
 				.flatten()
+				.toFile(join(dir, `${locale}.png`));
+			console.log(`${key}/${locale}.png`);
+		}
+		continue;
+	}
+
+	if (key === 'ios-header' || key === 'ios-search') {
+		const size =
+			key === 'ios-header' ? { width: 3840, height: 1646 } : { width: 3840, height: 2560 };
+		const dir = join(outDir, key);
+		await mkdir(dir, { recursive: true });
+		for (const locale of locales) {
+			const asset = {
+				locale,
+				fontsDir,
+				iconUrl,
+				screens: await loadHeroScreens(join(root, webHero.screens.replace('{locale}', locale)))
+			};
+			const html = key === 'ios-header' ? renderHeaderAsset(asset) : renderSearchAsset(asset);
+			await shoot(join(dir, `${locale}.html`), html, size.width, size.height);
+			await sharp(await page.screenshot({ type: 'png' }))
+				.flatten()
+				.removeAlpha()
 				.toFile(join(dir, `${locale}.png`));
 			console.log(`${key}/${locale}.png`);
 		}

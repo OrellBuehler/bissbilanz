@@ -1,4 +1,4 @@
-import { macro, type Locale, type Slide } from './config';
+import { feature, macro, type Locale, type Slide } from './config';
 
 type Ctx = {
 	slide: Slide;
@@ -352,4 +352,148 @@ p { margin-top: ${36 * u}px; font-family: 'Inter Variable'; font-weight: 500; fo
 ${zoom}
 ${badges}
 </body></html>`;
+}
+
+type StoreAsset = {
+	locale: Locale;
+	fontsDir: string;
+	iconUrl: string;
+	screens: [Screen, Screen, Screen];
+};
+
+// Where the macro card's centre sits in a framed dashboard phone, as a
+// fraction of the frame width from its top edge.
+const cardCentre = 0.6;
+
+const assetPage = (
+	W: number,
+	H: number,
+	fontsDir: string,
+	css: string,
+	body: string
+) => `<!doctype html>
+<html><head><meta charset="utf-8"><style>
+${fontFaces(fontsDir)}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: ${W}px; height: ${H}px; overflow: hidden; }
+body { background: ${themes.light.bg}; position: relative; -webkit-font-smoothing: antialiased; }
+svg { position: absolute; inset: 0; }
+${css}
+</style></head><body>${body}</body></html>`;
+
+// App Store product page header, 3840 x 1646 with a 1646 x 661 safe area in
+// the centre. No text: the store sets the app name over it, and the daily
+// summary card is the one idea. The centre phone is sized so that card fills
+// the safe area; everything else may be cropped.
+export function renderHeaderAsset(a: StoreAsset) {
+	const W = 3840;
+	const H = 1646;
+	const centre = 1640;
+	const side = 1180;
+	const phones = [
+		phoneBox({
+			left: W / 2 - 1560 - side / 2,
+			top: 150,
+			width: side,
+			screenUrl: a.screens[1].url,
+			screenSize: a.screens[1].size,
+			android: false,
+			rotate: -5,
+			shadow: 0.26,
+			z: 1
+		}),
+		phoneBox({
+			left: W / 2 + 1560 - side / 2,
+			top: 150,
+			width: side,
+			screenUrl: a.screens[2].url,
+			screenSize: a.screens[2].size,
+			android: false,
+			rotate: 5,
+			shadow: 0.26,
+			z: 1
+		}),
+		phoneBox({
+			left: (W - centre) / 2,
+			top: H / 2 - cardCentre * centre,
+			width: centre,
+			screenUrl: a.screens[0].url,
+			screenSize: a.screens[0].size,
+			android: false,
+			shadow: 0.34,
+			z: 2
+		})
+	]
+		.map((p) => p.html)
+		.join('');
+	return assetPage(
+		W,
+		H,
+		a.fontsDir,
+		'',
+		`<svg viewBox="0 0 ${W} ${H}">${rings(W / 2, H * 1.9, 2500, 70, 16, 0.42)}</svg>${phones}`
+	);
+}
+
+// App Store search results asset, 3840 x 2560 with a 2168 x 1030 safe area
+// at (836, 765): wordmark and one line on the left of it, the dashboard
+// phone on the right, two more phones bleeding off the edges.
+export function renderSearchAsset(a: StoreAsset) {
+	const W = 3840;
+	const H = 2560;
+	const main = 1060;
+	const side = 940;
+	const phones = [
+		phoneBox({
+			left: 140 - side / 2,
+			top: 960,
+			width: side,
+			screenUrl: a.screens[1].url,
+			screenSize: a.screens[1].size,
+			android: false,
+			rotate: -6,
+			shadow: 0.26,
+			z: 1
+		}),
+		phoneBox({
+			left: 3560 - side / 2,
+			top: 960,
+			width: side,
+			screenUrl: a.screens[2].url,
+			screenSize: a.screens[2].size,
+			android: false,
+			rotate: 6,
+			shadow: 0.26,
+			z: 1
+		}),
+		phoneBox({
+			left: 2460 - main / 2,
+			top: H / 2 - cardCentre * main,
+			width: main,
+			screenUrl: a.screens[0].url,
+			screenSize: a.screens[0].size,
+			android: false,
+			shadow: 0.34,
+			z: 2
+		})
+	]
+		.map((p) => p.html)
+		.join('');
+	const dots = macroColors.map((c) => `<span style="background:${c}"></span>`).join('');
+	const css = `.copy { position: absolute; left: 836px; top: 765px; width: 1040px; height: 1030px; display: flex; flex-direction: column; justify-content: center; z-index: 3; }
+.brand { display: flex; align-items: center; gap: 52px; }
+.brand img { width: 190px; height: 190px; filter: drop-shadow(0 24px 50px rgba(60, 45, 20, 0.16)); }
+h1 { font-family: 'Manrope Variable'; font-weight: 800; font-size: 128px; line-height: 1; letter-spacing: -0.03em; color: ${themes.light.ink}; }
+h2 { margin-top: 76px; font-family: 'Manrope Variable'; font-weight: 700; font-size: 112px; line-height: 1.12; letter-spacing: -0.025em; color: ${themes.light.ink}; text-wrap: balance; }
+h2 em { font-style: normal; color: ${themes.light.accent}; }
+.dots { display: flex; gap: 26px; margin-top: 70px; }
+.dots span { width: 34px; height: 34px; border-radius: 50%; }`;
+	return assetPage(
+		W,
+		H,
+		a.fontsDir,
+		css,
+		`<div class="copy"><div class="brand"><img src="${a.iconUrl}"><h1>Bissbilanz</h1></div><h2>${accentMarkup(feature.tagline[a.locale])}</h2><div class="dots">${dots}</div></div>
+${phones}`
+	);
 }

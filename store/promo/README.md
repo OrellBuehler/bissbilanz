@@ -13,6 +13,8 @@ bun run store:screenshots --target ios-6.9 --only insights --locale de
 | `ios-6.5`      | 1284 × 2778 | App Store 6.5" slot (`APP_IPHONE_65`) |
 | `play-phone`   | 1080 × 1920 | Play phone screenshots                |
 | `play-feature` | 1024 × 500  | Play feature graphic                  |
+| `ios-header`   | 3840 × 1646 | App Store product page header         |
+| `ios-search`   | 3840 × 2560 | App Store search results asset        |
 | `og`           | 1200 × 630  | Link preview, `static/og-image.png`   |
 | `web-hero`     | 652 × 1358  | Landing page phones, `static/landing` |
 
@@ -25,3 +27,5 @@ The first three slides of each phone target are rendered as one panorama and cut
 - `out/<target>/<locale>/` — PNGs to upload (gitignored); `html/` holds the rendered pages for tweaking in a browser
 
 Needs Playwright's Chromium: `bunx playwright install chromium`.
+
+The App Store header and search results assets are cropped differently per device, so their key content sits in Apple's safe area (header: 1646 × 661 at 1097, 493; search: 2168 × 1030 at 836, 765). Upload them by hand under the version's **Header and Search Results** tab, once per language.
