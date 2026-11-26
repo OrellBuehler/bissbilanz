@@ -49,6 +49,9 @@ prepare_device() {
   adb shell svc wifi disable || true
   adb shell svc data disable || true
   adb shell cmd uimode night no
+  # A new display size or a night mode switch can rebuild System UI, which drops demo
+  # mode, so it is switched on last, after things have settled.
+  sleep 5
   # Fixed clock, full battery, wifi only, no notification icons.
   adb shell settings put global sysui_demo_allowed 1
   demo_cmd enter
