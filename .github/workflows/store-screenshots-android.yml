@@ -1,0 +1,96 @@
+name: Store Screenshots (Android)
+
+# Builds the Debug app, boots an emulator and captures the Google Play phone
+# screenshots in English and German from invented demo data. Run it by hand,
+# then download the `android-store-screenshots` artifact into
+# store/promo/screens-android/ and render the promo images (store/promo/README.md).
+on:
+  workflow_dispatch:
+  # Also when the capture itself changes, so a broken script or seed shows up
+  # on the pull request instead of on the next manual run.
+  pull_request:
+    paths:
+      - .github/workflows/store-screenshots-android.yml
+      - scripts/android/store-screenshots.sh
+      - mobile/androidApp/src/androidMain/kotlin/com/bissbilanz/android/StoreScreenshots.kt
+      - mobile/androidApp/src/androidMain/kotlin/com/bissbilanz/android/StoreScreenshotSeed.kt
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: store-screenshots-android-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        # The legacy 'tools' package the action installs by default was removed
+        # from the SDK repository (android-actions/setup-android#537), so the
+        # default 'tools platform-tools' list makes sdkmanager exit 1.
+        with:
+          packages: platform-tools
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.gradle/build-cache
+          key: gradle-android-${{ runner.os }}-${{ hashFiles('mobile/**/*.gradle*', 'mobile/**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-android-${{ runner.os }}-
+
+      - name: Build debug APK
+        working-directory: mobile
+        run: ./gradlew androidApp:assembleDebug
+
+      # Pixel 2: 1080 x 1920 at 420 dpi, the size the promo renderer expects,
+      # and no display cutout pushing the status bar clock off to one side.
+      - name: Capture screenshots on emulator
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: 31
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-boot-timeout: 600
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot-save -noaudio -no-boot-anim
+          working-directory: ${{ github.workspace }}
+          script: |
+            adb install -r -t mobile/androidApp/build/outputs/apk/debug/androidApp-debug.apk
+            ./scripts/android/store-screenshots.sh ${{ runner.temp }}/store-screenshots
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: android-store-screenshots
+          path: ${{ runner.temp }}/store-screenshots
+          retention-days: 14
+          if-no-files-found: error

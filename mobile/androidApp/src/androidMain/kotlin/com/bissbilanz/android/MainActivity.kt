@@ -55,10 +55,14 @@ class MainActivity : ComponentActivity() {
         // Recents after back finished the task (API 26-30) replays the same intent without saved
         // state, so it is flagged as launched from history instead.
         val fromHistory = (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
-        handleIntent(intent, isFreshLaunch = savedInstanceState == null && !fromHistory)
+        val freshLaunch = savedInstanceState == null && !fromHistory
+        val storeScreenshot = StoreScreenshots.isRequested(intent)
+        if (storeScreenshot) StoreScreenshots.prepare(this)
+        handleIntent(intent, isFreshLaunch = freshLaunch)
         setContent {
             BissbilanzApp()
         }
+        if (storeScreenshot && freshLaunch) StoreScreenshots.start(this, intent)
     }
 
     /**
@@ -80,6 +84,10 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleIntent(intent, isFreshLaunch = true)
+        if (StoreScreenshots.isRequested(intent)) {
+            StoreScreenshots.prepare(this)
+            StoreScreenshots.start(this, intent)
+        }
     }
 
     private fun handleIntent(

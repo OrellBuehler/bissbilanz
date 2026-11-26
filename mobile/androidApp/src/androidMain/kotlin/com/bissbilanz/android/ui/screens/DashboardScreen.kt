@@ -38,7 +38,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.R
+import com.bissbilanz.android.StoreScreenshots
 import com.bissbilanz.android.chat.ChatDataRefresher
 import com.bissbilanz.android.chat.ViewedDiaryDay
 import com.bissbilanz.android.navigation.LocalBarRoutes
@@ -176,6 +178,17 @@ fun DashboardScreen(navController: NavController) {
         .rememberSaveable { mutableStateOf<String?>(null) }
     var addFoodForMeal by androidx.compose.runtime.saveable
         .rememberSaveable { mutableStateOf<String?>(null) }
+
+    // Debug-only: lets the store screenshot run open the add-food sheet (StoreScreenshots).
+    if (BuildConfig.DEBUG) {
+        val screenshotMeal by StoreScreenshots.addFoodMeal.collectAsStateWithLifecycle()
+        LaunchedEffect(screenshotMeal) {
+            screenshotMeal?.let {
+                addFoodForMeal = it
+                StoreScreenshots.consumeAddFoodMeal()
+            }
+        }
+    }
 
     val tipStore: TipStore = koinInject()
     val tipFoodLoggedCount by tipStore.foodLoggedCount.collectAsStateWithLifecycle()

@@ -61,7 +61,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bissbilanz.android.BuildConfig
 import com.bissbilanz.android.R
+import com.bissbilanz.android.StoreScreenshots
 import com.bissbilanz.android.ui.screens.ExtendedNutrientSections
 import com.bissbilanz.android.ui.screens.FoodListItem
 import com.bissbilanz.android.ui.screens.MacroRow
@@ -104,6 +106,17 @@ fun AddFoodSheet(
     DisposableEffect(viewModel) {
         onDispose {
             if (activity?.isChangingConfigurations != true) viewModel.reset()
+        }
+    }
+
+    // Debug-only: the store screenshot run types a search without needing a keyboard.
+    if (BuildConfig.DEBUG) {
+        val screenshotQuery by StoreScreenshots.searchQuery.collectAsStateWithLifecycle()
+        LaunchedEffect(screenshotQuery) {
+            screenshotQuery?.let {
+                viewModel.updateQuery(it)
+                StoreScreenshots.consumeSearchQuery()
+            }
         }
     }
 
