@@ -7,6 +7,7 @@ import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.api.generated.model.PreferencesResponse
 import com.bissbilanz.api.generated.model.PreferencesUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.foodpackage.EXTENDED_NUTRIENT_KEYS
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
 import com.bissbilanz.test.TestFixtures
@@ -295,5 +296,14 @@ class PreferencesRepositoryTest {
             repository.refresh()
 
             assertEquals("UTC", cached()?.timeZone)
+        }
+
+    @Test
+    fun firstUpdateWithoutCachedPreferencesShowsEveryNutrient() =
+        runTest {
+            val updated = repository.updatePreferences(PreferencesUpdate(waterGoalMl = 2500))
+
+            assertEquals(EXTENDED_NUTRIENT_KEYS, updated.visibleNutrients)
+            assertEquals(EXTENDED_NUTRIENT_KEYS, cached()?.visibleNutrients)
         }
 }
