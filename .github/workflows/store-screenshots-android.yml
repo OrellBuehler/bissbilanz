@@ -69,17 +69,15 @@ jobs:
         working-directory: mobile
         run: ./gradlew androidApp:assembleDebug
 
-      # The capture script sets the display to 1080 x 1920 at 420 dpi, the size
-      # the promo renderer expects. A Pixel 6 has a centred camera hole and
-      # rounded corners, so the status bar clock gets the same inset as on a
-      # phone instead of sitting against the screen edge.
+      # Pixel 2: 1080 x 1920 at 420 dpi, the size the promo renderer expects,
+      # and no display cutout pushing the status bar clock off to one side.
       - name: Capture screenshots on emulator
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
           api-level: 31
           target: google_apis
           arch: x86_64
-          profile: pixel_6
+          profile: pixel_2
           emulator-boot-timeout: 600
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot-save -noaudio -no-boot-anim
