@@ -9,8 +9,10 @@ import './push.js';
 const PRECACHED_EXTENSIONS = /\.(js|css|ico|png|svg|webp|woff2?|wasm|webmanifest)$/;
 
 // The OCR worker, wasm core and language data are megabytes each and only
-// needed when the label scanner is opened, so they are not precached.
-const isPrecached = (path: string) => PRECACHED_EXTENSIONS.test(path) && !path.includes('ocr/');
+// needed when the label scanner is opened, so they are not precached. The
+// landing page images are never shown inside the app.
+const isPrecached = (path: string) =>
+	PRECACHED_EXTENSIONS.test(path) && !path.includes('ocr/') && !path.includes('landing/');
 
 void self.skipWaiting();
 clientsClaim();

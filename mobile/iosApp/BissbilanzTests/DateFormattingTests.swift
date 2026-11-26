@@ -312,6 +312,39 @@ struct LocalizationTests {
         let summary = MacroSpokenSummary.macros(calories: 34, protein: 2, carbs: 6, fat: 0)
         #expect(summary == "34 Kalorien, Eiweiß 2 Gramm, Kohlenhydrate 6 Gramm, Fett 0 Gramm")
     }
+
+    @Test("Extended nutrient labels follow the app language")
+    func extendedNutrientLabels() throws {
+        let savedLocale = L10n.currentLocale
+        defer { L10n.currentLocale = savedLocale }
+
+        let food: Food = try JSONPatch.decode(Food.self, from: [
+            "id": "f1", "userId": "u1", "name": "Test", "servingSize": 100, "servingUnit": "g",
+            "calories": 1, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0, "isFavorite": false,
+            "saturatedFat": 2, "sugar": 5, "sodium": 100, "potassium": 20, "calcium": 50,
+            "magnesium": 10, "iron": 1, "vitaminC": 10,
+        ])
+
+        L10n.currentLocale = .de
+        #expect(food.fatBreakdownNutrients.map { nutrientDisplayName($0.0) } == ["Gesättigte Fettsäuren"])
+        #expect(food.sugarCarbNutrients.map { nutrientDisplayName($0.0) } == ["Zucker"])
+        #expect(
+            food.mineralNutrients.map { nutrientDisplayName($0.0) }
+                == ["Natrium", "Kalium", "Calcium", "Eisen", "Magnesium"]
+        )
+        #expect(food.vitaminNutrients.map { nutrientDisplayName($0.0) } == ["Vitamin C"])
+        #expect(NutrientCatalog.all.first { $0.key == "sodium" }?.label == "Natrium")
+        #expect(NutrientCatalog.categories.map(\.title) == [
+            "Fettaufschlüsselung", "Zucker & Kohlenhydrate", "Mineralstoffe", "Vitamine", "Sonstige",
+        ])
+        #expect(HealthNutrient.all.first { $0.key == "saturatedFat" }?.name == "Gesättigte Fettsäuren")
+        #expect(HealthNutrient.categories.map(\.name).first == "Hauptnährstoffe")
+
+        L10n.currentLocale = .en
+        #expect(food.fatBreakdownNutrients.map { nutrientDisplayName($0.0) } == ["Saturated Fat"])
+        #expect(NutrientCatalog.all.first { $0.key == "sodium" }?.label == "Sodium")
+        #expect(NutrientCatalog.categories.map(\.title).first == "Fat Breakdown")
+    }
 }
 
 @Suite("JSON Encoding Tests")

@@ -45,23 +45,18 @@ formula. Re-running a failed release job gets a fresh, strictly higher
    submitted from TestFlight → the external group; its public link is
    currently disabled.)
 
-## Store assets still needed (manual)
+## Store assets
 
-- [ ] Play: 1024×500 feature graphic, 512×512 icon export, ≥2 phone
-      screenshots per locale (en-US, de-DE) — source from real device or
-      emulator, dark + light.
-- [ ] App Store (production release): 6.7" and 6.1" screenshots per locale.
-- [ ] Demo account for review (see `store/review-notes.md`).
+Rendered by `store/promo/` into `store/promo/out/` and uploaded on 2026-11-25:
+
+- [x] Play: feature graphic and 8 phone screenshots for en-US and de-DE.
+- [x] App Store: 8 screenshots per locale in the 6.9" and 6.5" slots.
+- [x] Demo account for review (see `store/review-notes.md`).
 
 ## Console state to verify manually (not visible from the repo)
 
-- [ ] Play: **en-US store listing does not exist yet** — as of 2026-09-22 the
-      Play Console only has a de-DE listing (`defaultLanguage: de-DE`); add an
-      en-US listing (title/short/full description ready in
-      `store/metadata/android/en-US/`) before launch, or English-speaking
-      users on non-German devices will see the German listing.
-- [ ] Play: store listing images, Data Safety and Content rating filled for
-      every listed locale? (Answers prepared in `store/play-data-safety.md`.)
+- [x] Play: en-US and de-DE store listings exist.
+- [ ] Play: Data Safety and Content rating filled? (Answers prepared in `store/play-data-safety.md`.)
 - [ ] Play: developer account type — personal accounts created after Nov 2023
       need a 14-day / 12-tester **closed** test before production. The
       existing closed "beta-track" (not the standard "Open testing" track,
@@ -72,12 +67,9 @@ formula. Re-running a failed release job gets a fresh, strictly higher
 - [ ] App Store: has Beta App Review ever passed for the external group?
 - [ ] App Store: App Privacy labels filled? (Prepared in
       `store/metadata/ios/app-store.md`.)
-- [ ] App Store: `PrivacyInfo.xcprivacy` in `mobile/iosApp/Bissbilanz/` and
-      `mobile/iosApp/BissbilanzWidgets/` currently declare an **empty**
-      `NSPrivacyCollectedDataTypes` array, which does not match the data the
-      app actually collects (Health & Fitness, User Content, Photos,
-      identifiers) — this should be reconciled before submission or App
-      Review may flag it.
+- [x] App Store: `mobile/iosApp/Bissbilanz/PrivacyInfo.xcprivacy` declares the
+      collected data types from the App Privacy labels. The widget and watch
+      targets make no network calls and declare none.
 
 (Export compliance is already handled: `ITSAppUsesNonExemptEncryption: false`
 is set in `mobile/iosApp/project.yml`.)

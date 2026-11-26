@@ -38,6 +38,7 @@
 	import * as m from '$lib/paraglide/messages';
 
 	const testflightUrl = TESTFLIGHT_URL;
+	const heroImage = (screen: string) => `/landing/${screen}-${getLocale()}.webp`;
 	const playTestingUrl = PLAY_TESTING_URL;
 
 	const features = [
@@ -184,7 +185,9 @@
 				url: absoluteUrl('/', getLocale()),
 				description: m.landing_subheading(),
 				image: OG_IMAGE,
-				screenshot: OG_IMAGE,
+				screenshot: ['dashboard', 'insights-dark', 'weight'].map(
+					(screen) => `${SITE_URL}${heroImage(screen)}`
+				),
 				inLanguage: ['en', 'de'],
 				isAccessibleForFree: true,
 				offers: { '@type': 'Offer', price: '0', priceCurrency: 'CHF' },
@@ -225,7 +228,7 @@
 	</header>
 
 	<!-- Hero -->
-	<section class="px-6 pb-32 pt-24 text-center">
+	<section class="overflow-hidden px-6 pt-24 text-center">
 		<div class="mx-auto max-w-3xl">
 			<div
 				class="mb-8 inline-flex items-center rounded-full bg-muted px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
@@ -255,6 +258,34 @@
 				</Button>
 			</div>
 			<p class="mt-6 text-sm text-muted-foreground">{m.landing_hero_platforms()}</p>
+		</div>
+		<div
+			class="relative mx-auto mt-16 aspect-[10/9] max-w-2xl [mask-image:linear-gradient(to_bottom,black_72%,transparent)] sm:aspect-[10/7]"
+		>
+			<img
+				src={heroImage('insights-dark')}
+				alt={m.landing_hero_image_insights()}
+				width="652"
+				height="1358"
+				decoding="async"
+				class="absolute left-0 top-[9%] h-auto w-[40%] -rotate-6 drop-shadow-xl sm:left-[6%] sm:w-[34%]"
+			/>
+			<img
+				src={heroImage('weight')}
+				alt={m.landing_hero_image_weight()}
+				width="652"
+				height="1358"
+				decoding="async"
+				class="absolute right-0 top-[9%] h-auto w-[40%] rotate-6 drop-shadow-xl sm:right-[6%] sm:w-[34%]"
+			/>
+			<img
+				src={heroImage('dashboard')}
+				alt={m.landing_hero_image_dashboard()}
+				width="652"
+				height="1358"
+				fetchpriority="high"
+				class="absolute left-1/2 top-0 h-auto w-[48%] -translate-x-1/2 drop-shadow-2xl sm:w-[40%]"
+			/>
 		</div>
 	</section>
 

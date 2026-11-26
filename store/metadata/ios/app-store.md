@@ -88,6 +88,14 @@ Sign-in providers: Infomaniak, Google and Sign in with Apple. Only the one the u
 involved; where the provider supplies a profile picture (Infomaniak, Google), its URL is stored with
 the account.
 
+Assistant (accounts the admin enabled): queued meals routed to Claude and the in-app assistant chat
+(messages, photos and the diary data the assistant looks up) are sent from the Bissbilanz server to
+Anthropic, which processes them as a service provider. That is already covered by the Health &
+Fitness, Photos and User content rows; no new data type and no tracking. Details in
+`store/play-data-safety.md`.
+
+The app's `PrivacyInfo.xcprivacy` declares the same ten collected data types; change both together.
+
 Data not linked to you: none.
 
 Local-only mode sends nothing to the Bissbilanz server: data stays on device, mirrored to the user's private iCloud database. Crash reports still go to Sentry (unlinked — no user ID is set without an account) and barcode/food searches go directly to Open Food Facts.
