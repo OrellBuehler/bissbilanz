@@ -44,11 +44,8 @@ prepare_device() {
   adb shell settings put global window_animation_scale 0
   adb shell settings put global transition_animation_scale 0
   adb shell settings put global animator_duration_scale 0
-  # No on-screen keyboard: typing goes through key events, and the keyboard would
-  # leave a black bar over the bottom of the screen.
-  for ime in $(adb_sh ime list -s); do
-    adb shell ime disable "$ime" >/dev/null || true
-  done
+  # A hardware keyboard is attached to the emulator, so the on-screen keyboard stays hidden.
+  adb shell settings put secure show_ime_with_hard_keyboard 0
   # Offline, so the food search only lists the demo foods and never real Open Food Facts products.
   adb shell svc wifi disable || true
   adb shell svc data disable || true
@@ -73,7 +70,6 @@ demo_cmd() {
 
 restore_device() {
   demo_cmd exit || true
-  adb shell ime reset || true
   adb shell svc wifi enable || true
   adb shell cmd uimode night no || true
   adb shell wm size reset || true
@@ -254,11 +250,18 @@ type_search() {
   adb shell input tap "$x" "$y"
   sleep 1
   adb shell input text "$SEARCH_QUERY"
+  # The keyboard (even a hidden one) leaves a black bar over the bottom of the sheet; the
+  # first Back closes only it, and only when it is up, so the sheet itself stays open.
+  local ime_state
+  ime_state="$(adb_sh dumpsys input_method)"
+  if grep -q 'mInputShown=true' <<<"$ime_state"; then
+    adb shell input keyevent KEYCODE_BACK
+  fi
 }
 
 # Scrolls the food detail down to its nutrient cards.
 scroll_to_nutrients() {
-  adb shell input swipe 540 1750 540 300 1800
+  adb shell input swipe 100 1750 100 300 1800
 }
 
 prepare_device
