@@ -44,7 +44,6 @@ prepare_device() {
   adb shell settings put global window_animation_scale 0
   adb shell settings put global transition_animation_scale 0
   adb shell settings put global animator_duration_scale 0
-  # A hardware keyboard is attached to the emulator, so the on-screen keyboard stays hidden.
   adb shell settings put secure show_ime_with_hard_keyboard 0
   # Offline, so the food search only lists the demo foods and never real Open Food Facts products.
   adb shell svc wifi disable || true
@@ -106,6 +105,9 @@ launch() {
   local args=(--es store_screenshot "$screen")
   if [ -n "$insights_tab" ]; then
     args+=(--es store_screenshot_insights_tab "$insights_tab")
+  fi
+  if [ -n "${LAUNCH_QUERY:-}" ]; then
+    args+=(--es store_screenshot_query "$LAUNCH_QUERY")
   fi
   adb logcat -c
   adb shell am force-stop "$PKG"
@@ -238,27 +240,6 @@ shoot() {
   return 1
 }
 
-# Focuses the sheet's search field (the sheet does not do it by itself) and types the query.
-type_search() {
-  local ui center x=540 y=1005
-  if ui="$(dump_ui)"; then
-    center="$(grep -o 'class="android.widget.EditText"[^>]*bounds="[^"]*"' <<<"$ui" | tail -1 | grep -o '\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]' | sed 's/\]\[/,/; s/[][]//g' | tr ',' ' ' || true)"
-    if [ -n "$center" ]; then
-      read -r x y < <(awk '{print int(($1+$3)/2), int(($2+$4)/2)}' <<<"$center")
-    fi
-  fi
-  adb shell input tap "$x" "$y"
-  sleep 1
-  adb shell input text "$SEARCH_QUERY"
-  # The keyboard (even a hidden one) leaves a black bar over the bottom of the sheet; the
-  # first Back closes only it, and only when it is up, so the sheet itself stays open.
-  local ime_state
-  ime_state="$(adb_sh dumpsys input_method)"
-  if grep -q 'mInputShown=true' <<<"$ime_state"; then
-    adb shell input keyevent KEYCODE_BACK
-  fi
-}
-
 # Scrolls the food detail down to its nutrient cards.
 scroll_to_nutrients() {
   adb shell input swipe 100 1750 100 300 1800
@@ -270,7 +251,6 @@ failed=0
 for locale in en de; do
   if [ "$locale" = "en" ]; then
     breakfast="Breakfast"
-    log_food_ready="Add to Dinner"
     log_food_result="Basmati rice"
     foods_ready="Almonds"
     insights_ready="Overview"
@@ -281,7 +261,6 @@ for locale in en de; do
     SEARCH_QUERY="rice"
   else
     breakfast="Frühstück"
-    log_food_ready="Zu Abendessen hinzufügen"
     log_food_result="Basmatireis"
     foods_ready="Apfel"
     insights_ready="Übersicht"
@@ -299,7 +278,9 @@ for locale in en de; do
   wait_for_text 60 "$breakfast" || failed=1
 
   shoot "$locale" dashboard home "" "$breakfast" || failed=1
-  shoot "$locale" log-food log-food "" "$log_food_ready" type_search "$log_food_result" || failed=1
+  LAUNCH_QUERY="$SEARCH_QUERY"
+  shoot "$locale" log-food log-food "" "$log_food_result" || failed=1
+  LAUNCH_QUERY=""
   shoot "$locale" foods foods "" "$foods_ready" || failed=1
   shoot "$locale" weight weight "" "$weight_ready" || failed=1
   shoot "$locale" recipe recipe "" "$recipe_ready" || failed=1

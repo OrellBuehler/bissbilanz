@@ -33,11 +33,13 @@ import org.koin.java.KoinJavaComponent
  *
  * Screens: `home`, `log-food`, `foods`, `favorites`, `insights` (with
  * `--es store_screenshot_insights_tab overview|nutrition|weight|sleep`), `weight`,
+ * `log-food` (with `--es store_screenshot_query <text>` typed into the search field),
  * `sleep`, `calendar`, `recipes`, `recipe`, `recipe-bowl`, `nutrients`, `settings`.
  */
 object StoreScreenshots {
     const val EXTRA_SCREEN = "store_screenshot"
     const val EXTRA_INSIGHTS_TAB = "store_screenshot_insights_tab"
+    const val EXTRA_QUERY = "store_screenshot_query"
     const val TAG = "StoreScreenshots"
 
     private const val PREFS = "store_screenshots"
@@ -55,6 +57,15 @@ object StoreScreenshots {
 
     fun consumeAddFoodMeal() {
         _addFoodMeal.value = null
+    }
+
+    private val _searchQuery = MutableStateFlow<String?>(null)
+
+    /** What the add-food sheet should have typed into its search field, once. */
+    val searchQuery: StateFlow<String?> = _searchQuery.asStateFlow()
+
+    fun consumeSearchQuery() {
+        _searchQuery.value = null
     }
 
     @Volatile
@@ -93,6 +104,7 @@ object StoreScreenshots {
         if (!BuildConfig.DEBUG) return
         val screen = intent.getStringExtra(EXTRA_SCREEN).orEmpty()
         val insightsTabName = intent.getStringExtra(EXTRA_INSIGHTS_TAB)
+        val query = intent.getStringExtra(EXTRA_QUERY)
         val german =
             context.resources.configuration.locales[0]
                 .language == "de"
@@ -113,7 +125,10 @@ object StoreScreenshots {
                 }
                 insightsTab = insightsTabName?.let { insightsTabs.indexOf(it) }?.takeIf { it >= 0 }
                 when (screen) {
-                    "log-food" -> _addFoodMeal.value = "Dinner"
+                    "log-food" -> {
+                        _searchQuery.value = query
+                        _addFoodMeal.value = "Dinner"
+                    }
                     "nutrients" -> PendingNavigation.request("food/${prefs.getString(KEY_SALMON, null)}")
                     "recipe" -> PendingNavigation.request("recipe/${prefs.getString(KEY_OATS, null)}")
                     "recipe-bowl" -> PendingNavigation.request("recipe/${prefs.getString(KEY_BOWL, null)}")
