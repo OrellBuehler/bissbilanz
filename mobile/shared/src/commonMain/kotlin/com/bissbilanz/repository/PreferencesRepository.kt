@@ -8,6 +8,7 @@ import com.bissbilanz.api.generated.model.ClaudeCapability
 import com.bissbilanz.api.generated.model.Preferences
 import com.bissbilanz.api.generated.model.PreferencesUpdate
 import com.bissbilanz.cache.BissbilanzDatabase
+import com.bissbilanz.foodpackage.EXTENDED_NUTRIENT_KEYS
 import com.bissbilanz.mode.AppModeManager
 import com.bissbilanz.sync.SyncOperation
 import com.bissbilanz.sync.SyncQueue
@@ -162,7 +163,7 @@ class PreferencesRepository(
                 favoriteTapAction = "instant",
                 favoriteMealAssignmentMode = "time_based",
                 favoriteMealTimeframes = emptyList(),
-                visibleNutrients = emptyList(),
+                visibleNutrients = EXTENDED_NUTRIENT_KEYS,
                 waterGoalMl = 2000,
                 locale = null,
                 timeZone = "UTC",
