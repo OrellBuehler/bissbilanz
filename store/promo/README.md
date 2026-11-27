@@ -23,6 +23,7 @@ The first three slides of each phone target are rendered as one panorama and cut
 
 - `screens-ios/<locale>/` — raw iPhone simulator screenshots with invented demo data, one set per locale. Refresh them by running the **Store Screenshots (iOS)** workflow and downloading its `ios-store-screenshots` artifact into this folder
 - `screens-android/<locale>/` — raw Android emulator screenshots with invented demo data, one set per locale (`dashboard`, `dashboard-dark`, `foods`, `insights-dark`, `log-food`, `nutrients`, `recipe`, `weight`). Refresh them by running the **Store Screenshots (Android)** workflow and downloading its `android-store-screenshots` artifact into this folder
+- `screens-watch/<locale>/` — raw Apple Watch simulator screenshots with invented demo data (`today`, `meals`, `log`, `weight`, `sleep`), at the simulator's native pixel size. They are the `watch/` folder of the same `ios-store-screenshots` artifact, so unpack it with `gh run download <run id> -n ios-store-screenshots -D <tmp>` and copy `<tmp>/watch/*` into this folder. They go to App Store Connect as they are (the Apple Watch slot accepts any one supported size), not through `bun run store:screenshots`
 - `config.ts` — targets and slides: screenshot, headline (`*word*` = accent colour), subline, theme, badges, zoomed crop, clean status bar
 - `template.ts` — HTML/CSS layout, the CSS device frames, the panorama and the wide banner used for the feature graphic and link preview
 - `out/<target>/<locale>/` — PNGs to upload (gitignored); `html/` holds the rendered pages for tweaking in a browser
@@ -42,6 +43,8 @@ bun run store:screenshots
 ```
 
 The artifacts hold `<locale>/<name>.png`, so they unpack straight into `screens-ios/` and `screens-android/`. Both workflows also run on pull requests that touch their script, seed or workflow.
+
+The watch capture (`scripts/ios/store-screenshots-watch.sh`) builds the watch app for the largest Apple Watch simulator on the runner, installs it, and launches it once per screen with `-store_screenshots YES -app_locale <locale> -store_screenshot_screen <insights|meals|log|weight|sleep>`. A lone watch simulator has no phone to sync from, so `WatchScreenshotSeed.swift` (Debug builds only) hands the app invented state matching the phone seed. Each capture logs its pixel size, and a blank one is retried.
 
 The Android capture (`scripts/android/store-screenshots.sh`) needs an emulator, so it only runs in CI. It sets the emulator display to 1080 × 1920 at 420 dpi, turns on system UI demo mode (9:41, full battery, no notifications), and launches the Debug app once per screen with `--es store_screenshot <screen>` (`home`, `log-food`, `foods`, `insights`, `weight`, `recipe`, `nutrients`, ...). The app then runs in Local mode on the demo data and opens that screen. A capture is only taken once the accessibility tree shows the screen's own text and no progress indicator; blank or half-loaded captures are retried. The seed lives in a Debug build only (`BuildConfig.DEBUG`), so nothing of it ships.
 

@@ -72,6 +72,14 @@ final class WatchConnectivityManager: NSObject {
     }
 
     override init() {
+        #if DEBUG
+        if WatchScreenshotSeed.isRequested {
+            state = WatchScreenshotSeed.state
+            hasReceivedState = true
+            super.init()
+            return
+        }
+        #endif
         let stored = WatchStore.load()
         state = stored ?? .empty(on: Date())
         hasReceivedState = stored != nil
@@ -79,6 +87,9 @@ final class WatchConnectivityManager: NSObject {
     }
 
     func activate() {
+        #if DEBUG
+        if WatchScreenshotSeed.isRequested { return }
+        #endif
         guard let session else { return }
         session.delegate = self
         session.activate()
