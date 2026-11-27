@@ -12,7 +12,21 @@ struct WatchRootView: View {
         case sleep
     }
 
-    @State private var selection: Tab = .insights
+    @State private var selection: Tab = Self.initialTab
+
+    private static var initialTab: Tab {
+        #if DEBUG
+        guard WatchScreenshotSeed.isRequested else { return .insights }
+        switch WatchScreenshotSeed.screen {
+        case .insights, .meals: return .insights
+        case .log: return .log
+        case .weight: return .weight
+        case .sleep: return .sleep
+        }
+        #else
+        return .insights
+        #endif
+    }
 
     var body: some View {
         TabView(selection: $selection) {

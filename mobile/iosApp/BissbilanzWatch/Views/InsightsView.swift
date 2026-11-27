@@ -18,12 +18,29 @@ struct InsightsView: View {
         state.strings
     }
 
+    private enum Page: Hashable {
+        case rings
+        case meals
+    }
+
+    @State private var page: Page = Self.initialPage
+
+    private static var initialPage: Page {
+        #if DEBUG
+        WatchScreenshotSeed.isRequested && WatchScreenshotSeed.screen == .meals ? .meals : .rings
+        #else
+        .rings
+        #endif
+    }
+
     var body: some View {
-        TabView {
+        TabView(selection: $page) {
             ringsPage
                 .watchTabBackground(MacroColors.calories)
+                .tag(Page.rings)
             mealBreakdownPage
                 .watchTabBackground(MacroColors.calories)
+                .tag(Page.meals)
         }
         .tabViewStyle(.verticalPage)
         .navigationTitle(strings.today)
@@ -92,6 +109,7 @@ struct InsightsView: View {
                     .font(.system(.title2, design: .rounded))
                     .fontWeight(.semibold)
                     .monospacedDigit()
+                    .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .foregroundStyle(snapshot.calories > snapshot.calorieGoal && snapshot.calorieGoal > 0
                         ? .red : .primary)
