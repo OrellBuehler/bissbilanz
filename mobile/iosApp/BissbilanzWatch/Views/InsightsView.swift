@@ -109,6 +109,7 @@ struct InsightsView: View {
                     .font(.system(.title2, design: .rounded))
                     .fontWeight(.semibold)
                     .monospacedDigit()
+                    .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .foregroundStyle(snapshot.calories > snapshot.calorieGoal && snapshot.calorieGoal > 0
                         ? .red : .primary)

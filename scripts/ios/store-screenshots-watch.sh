@@ -45,6 +45,10 @@ capture() {
   return 1
 }
 
+if ! xcrun simctl status_bar "$DEVICE_ID" override --time "9:41"; then
+  echo "warning: this watch simulator does not take a status bar override, the real clock stays in the captures" >&2
+fi
+
 # The first launch after an install is slow enough to be captured blank, so
 # start the app once and throw that launch away.
 xcrun simctl launch "$DEVICE_ID" "$BUNDLE_ID" -store_screenshots YES >/dev/null
@@ -52,7 +56,6 @@ sleep 20
 
 for locale in en de; do
   capture "$locale" today insights
-  capture "$locale" meals meals
   capture "$locale" log log
   capture "$locale" weight weight
   capture "$locale" sleep sleep

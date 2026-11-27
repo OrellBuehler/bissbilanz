@@ -28,7 +28,7 @@ permissions:
 jobs:
   screenshots:
     runs-on: xcode-27
-    timeout-minutes: 45
+    timeout-minutes: 70
     defaults:
       run:
         working-directory: mobile
