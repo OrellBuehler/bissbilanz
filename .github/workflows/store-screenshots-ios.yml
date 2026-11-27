@@ -89,10 +89,6 @@ jobs:
           xcrun simctl bootstatus "$DEVICE_ID" -b
           xcrun simctl install "$DEVICE_ID" build/DerivedData/Build/Products/Debug-iphonesimulator/Bissbilanz.app
 
-      - name: Capture screenshots
-        working-directory: ${{ github.workspace }}
-        run: scripts/ios/store-screenshots.sh "$DEVICE_ID" "$RUNNER_TEMP/store-screenshots"
-
       # App Store Connect takes any one supported watch size; the largest
       # current one is used, at the simulator's native pixel size.
       - name: Pick a watch simulator
@@ -133,6 +129,10 @@ jobs:
       - name: Capture watch screenshots
         working-directory: ${{ github.workspace }}
         run: scripts/ios/store-screenshots-watch.sh "$WATCH_ID" "$RUNNER_TEMP/store-screenshots/watch"
+
+      - name: Capture screenshots
+        working-directory: ${{ github.workspace }}
+        run: scripts/ios/store-screenshots.sh "$DEVICE_ID" "$RUNNER_TEMP/store-screenshots"
 
       - name: Upload screenshots
         if: always()
